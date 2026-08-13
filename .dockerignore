@@ -1,0 +1,16 @@
+**/node_modules
+**/dist
+**/.next
+**/out
+**/coverage
+**/.turbo
+apps/api/src/generated
+.git
+.github
+.vercel
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+.DS_Store
+README.md

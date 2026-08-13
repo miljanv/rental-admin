@@ -1,0 +1,37 @@
+// Prisma 7 generates a TypeScript client into the application source tree.
+// The generated folder is git-ignored, so `prisma generate` runs as part of
+// `pnpm dev`, `pnpm build` and `pnpm typecheck`.
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum FileStatus {
+  PENDING
+  UPLOADED
+  FAILED
+}
+
+/// One row per object in the S3 bucket. A row is created as PENDING when the
+/// presigned upload URL is issued and only becomes UPLOADED once the API has
+/// confirmed the object actually exists in the bucket.
+model FileObject {
+  id           String     @id @default(cuid())
+  originalName String
+  storageKey   String     @unique
+  mimeType     String
+  size         Int
+  status       FileStatus @default(PENDING)
+  uploadedAt   DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([status, createdAt])
+}

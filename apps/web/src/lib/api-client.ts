@@ -1,0 +1,33 @@
+import type { ApiResponse } from '@rental-admin/shared';
+import axios from 'axios';
+
+import { clientEnv } from './env';
+
+/**
+ * Single Axios instance for the API. The base URL always comes from the
+ * environment, so no endpoint is ever hardcoded in a component.
+ */
+export const apiClient = axios.create({
+  baseURL: clientEnv.apiUrl,
+  timeout: 20_000,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+/**
+ * Separate client for direct-to-S3 transfers. It must not carry the API base URL
+ * or any application headers: the presigned URL is signed for an exact set of
+ * headers, and an extra one invalidates the signature.
+ */
+export const storageClient = axios.create({
+  timeout: 0,
+  transformRequest: [(data: unknown) => data],
+});
+
+/** Unwraps the `{ success, data }` envelope. */
+export const unwrap = <TData>(payload: ApiResponse<TData>): TData => {
+  if (!payload.success) {
+    throw new Error(payload.error.message);
+  }
+
+  return payload.data;
+};

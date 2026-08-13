@@ -1,0 +1,29 @@
+{
+  "name": "rental-admin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "File admin panel monorepo: Next.js frontend, Express API, PostgreSQL and private AWS S3 storage.",
+  "packageManager": "pnpm@10.23.0",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @rental-admin/shared build && concurrently -k -n api,web -c cyan,magenta \"pnpm --filter @rental-admin/api dev\" \"pnpm --filter @rental-admin/web dev\"",
+    "build": "pnpm --filter @rental-admin/shared build && pnpm --filter @rental-admin/api build && pnpm --filter @rental-admin/web build",
+    "lint": "pnpm -r lint",
+    "lint:fix": "pnpm -r lint:fix",
+    "typecheck": "pnpm --filter @rental-admin/shared build && pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:generate": "pnpm --filter @rental-admin/api db:generate",
+    "db:migrate": "pnpm --filter @rental-admin/api db:migrate",
+    "db:migrate:deploy": "pnpm --filter @rental-admin/api db:migrate:deploy",
+    "db:studio": "pnpm --filter @rental-admin/api db:studio",
+    "clean": "pnpm -r exec rm -rf dist .next node_modules/.cache"
+  },
+  "devDependencies": {
+    "concurrently": "10.0.4",
+    "prettier": "3.9.6"
+  }
+}
