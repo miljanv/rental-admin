@@ -59,5 +59,7 @@ export const queryKeys = {
     all: ['vehicles'] as const,
     list: (params: VehicleListQueryParams) => ['vehicles', 'list', params] as const,
     detail: (id: string) => ['vehicles', 'detail', id] as const,
+    inspections: (vehicleId: string) => ['vehicles', vehicleId, 'inspections'] as const,
+    expiringInspections: (days: number) => ['vehicles', 'expiring-inspections', days] as const,
   },
 } as const;

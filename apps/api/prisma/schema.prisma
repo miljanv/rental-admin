@@ -163,8 +163,35 @@ model Vehicle {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
+  inspections VehicleInspection[]
+
   @@index([status])
   @@index([type])
   @@index([make, model])
   @@map("vehicles")
+}
+
+enum VehicleInspectionType {
+  REGULAR
+  SEMI_ANNUAL
+  MONTHLY
+}
+
+/// A technical inspection record for a vehicle. `expiresAt` is always computed
+/// server-side from `type` + `inspectedAt`; it is never trusted from the client.
+model VehicleInspection {
+  id          String                @id @default(cuid())
+  vehicleId   String
+  type        VehicleInspectionType
+  inspectedAt DateTime              @db.Date
+  expiresAt   DateTime              @db.Date
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+  @@index([expiresAt])
+  @@index([type])
+  @@map("vehicle_inspections")
 }

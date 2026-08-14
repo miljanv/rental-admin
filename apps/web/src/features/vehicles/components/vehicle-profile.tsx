@@ -16,6 +16,7 @@ import { PageHeader } from '@/components/common/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { VehicleInspectionsTab } from '@/features/vehicle-inspections/components/vehicle-inspections-tab';
 import { DeleteVehicleDialog } from '@/features/vehicles/components/delete-vehicle-dialog';
 import { VehicleStatusBadge } from '@/features/vehicles/components/vehicle-status-badge';
 import { useVehicle } from '@/features/vehicles/hooks/use-vehicle';
@@ -191,7 +192,7 @@ export function VehicleProfile({ vehicleId }: VehicleProfileProps) {
       </div>
 
       {activeTab === 'overview' ? <VehicleOverview vehicle={vehicle} /> : null}
-      {activeTab === 'inspections' ? <ComingSoon title="Tehnički pregledi" /> : null}
+      {activeTab === 'inspections' ? <VehicleInspectionsTab vehicleId={vehicle.id} /> : null}
       {activeTab === 'tachograph' ? <ComingSoon title="Tahograf" /> : null}
       {activeTab === 'safety-equipment' ? <ComingSoon title="Sigurnosna oprema" /> : null}
       {activeTab === 'fuel' ? <ComingSoon title="Gorivo i potrošnja" /> : null}
