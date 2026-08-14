@@ -27,7 +27,7 @@ const buildCorsOptions = (): CorsOptions => ({
     callback(forbidden(`Origin ${origin} is not allowed by CORS.`));
   },
   methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Accept'],
+  allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
   maxAge: 86_400,
 });
 

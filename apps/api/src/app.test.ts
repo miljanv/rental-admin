@@ -3,12 +3,14 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 
 import { app } from './app';
+import { testAuthHeader } from './test/auth-header';
 
 const PRESIGN_URL = '/api/v1/files/presign-upload';
+const auth = testAuthHeader();
 
 describe('API request pipeline', () => {
   it('answers an unknown route with the standard error envelope', async () => {
-    const response = await request(app).get('/api/v1/does-not-exist');
+    const response = await request(app).get('/api/v1/does-not-exist').set(auth);
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({
@@ -23,6 +25,7 @@ describe('API request pipeline', () => {
   it('rejects a file above the size limit before any S3 call', async () => {
     const response = await request(app)
       .post(PRESIGN_URL)
+      .set(auth)
       .send({ originalName: 'huge.zip', mimeType: 'application/zip', size: megabytesToBytes(26) });
 
     expect(response.status).toBe(400);
@@ -34,6 +37,7 @@ describe('API request pipeline', () => {
   it('rejects a MIME type that is not allow-listed', async () => {
     const response = await request(app)
       .post(PRESIGN_URL)
+      .set(auth)
       .send({ originalName: 'malware.exe', mimeType: 'application/x-msdownload', size: 1024 });
 
     expect(response.status).toBe(400);
@@ -43,7 +47,7 @@ describe('API request pipeline', () => {
   });
 
   it('rejects a malformed list query', async () => {
-    const response = await request(app).get('/api/v1/files?page=0&limit=9000');
+    const response = await request(app).get('/api/v1/files?page=0&limit=9000').set(auth);
 
     expect(response.status).toBe(400);
     expect(response.body.error.code).toBe('VALIDATION_ERROR');
@@ -51,9 +55,34 @@ describe('API request pipeline', () => {
   });
 
   it('does not advertise the server implementation', async () => {
-    const response = await request(app).get('/api/v1/does-not-exist');
+    const response = await request(app).get('/api/v1/does-not-exist').set(auth);
 
     expect(response.headers['x-powered-by']).toBeUndefined();
     expect(response.headers['x-content-type-options']).toBe('nosniff');
+  });
+
+  it('rejects file routes without a bearer token', async () => {
+    const response = await request(app).get('/api/v1/files');
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('rejects a malformed access token', async () => {
+    const response = await request(app)
+      .get('/api/v1/files')
+      .set({ Authorization: 'Bearer not-a-jwt' });
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('rejects a login body with a blank password', async () => {
+    const response = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ username: 'admin', password: '' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
   });
 });

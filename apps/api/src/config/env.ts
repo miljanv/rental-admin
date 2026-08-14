@@ -53,6 +53,13 @@ const envSchema = z.object({
   RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().min(1).max(60).default(15),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().min(10).max(10_000).default(300),
   RATE_LIMIT_MAX_UPLOAD_REQUESTS: z.coerce.number().int().min(1).max(1_000).default(60),
+
+  /**
+   * HMAC secret for access tokens. Must be at least 32 characters. Rotate it
+   * to invalidate every outstanding session.
+   */
+  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters.'),
+  JWT_EXPIRES_IN: z.string().min(2).default('7d'),
 });
 
 export type RawEnv = z.infer<typeof envSchema>;

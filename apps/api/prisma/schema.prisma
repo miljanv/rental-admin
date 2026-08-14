@@ -35,3 +35,13 @@ model FileObject {
   @@index([createdAt])
   @@index([status, createdAt])
 }
+
+/// Bootstrap admin accounts. Passwords are stored as bcrypt hashes and never
+/// returned by the API.
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

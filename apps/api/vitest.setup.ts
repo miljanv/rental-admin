@@ -14,3 +14,5 @@ process.env.AWS_SECRET_ACCESS_KEY = 'test-secret-key';
 process.env.PRESIGNED_UPLOAD_EXPIRES_IN = '300';
 process.env.PRESIGNED_DOWNLOAD_EXPIRES_IN = '300';
 process.env.MAX_FILE_SIZE_MB = '25';
+process.env.JWT_SECRET = 'test-jwt-secret-key-must-be-32-chars';
+process.env.JWT_EXPIRES_IN = '1h';

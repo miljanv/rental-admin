@@ -20,8 +20,10 @@ directly to S3 with a short-lived presigned URL. The API never sees file bytes.
 | Backend | `@rental-admin/api` | Express 5, Prisma 7, Node 22 | Railway (Docker) |
 | Shared | `@rental-admin/shared` | Zod schemas, types, constants | built first |
 
-There is **no authentication yet**. Structure is ready for it; do not bolt on
-Clerk, NextAuth, or a custom JWT stack unless asked.
+There is **session auth**. `POST /api/v1/auth/login` checks a bcrypt hash in
+PostgreSQL and returns a JWT. `requireAuth` protects `/files` and `/dashboard`.
+Health and login stay public. The web app hides `AppShell` until `/auth/me`
+succeeds.
 
 There is **no React Router**. Routing is Next.js App Router only
 (`apps/web/src/app`).
@@ -176,11 +178,13 @@ Do not add extra headers on `storageClient` (CORS / signature).
 - Never `db push` in production. Never destructive migrations without a warning.
 - Avoid N+1. Index filters you actually query (`status`, `createdAt`).
 
-### Auth (when added)
+### Auth
 
-Shallow hooks only: `auth` middleware on `fileRouter` / `dashboardRouter`,
-`userId` on `FileObject`, filter in `file.service.ts`. Do not rewrite
-controllers or feature components for auth.
+- `POST /api/v1/auth/login` → `{ token, user }`. Password compared with bcrypt.
+- `GET /api/v1/auth/me` and every file/dashboard route require
+  `Authorization: Bearer`.
+- Do not add Clerk or NextAuth. Keep JWT + `requireAuth` on the routers.
+- Seeded bootstrap user is `admin` / `admin123` (change in production).
 
 ---
 

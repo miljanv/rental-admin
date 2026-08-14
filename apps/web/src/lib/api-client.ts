@@ -1,6 +1,7 @@
 import type { ApiResponse } from '@rental-admin/shared';
 import axios from 'axios';
 
+import { clearAccessToken, emitUnauthorized, getAccessToken } from './auth-token';
 import { clientEnv } from './env';
 
 /**
@@ -12,6 +13,32 @@ export const apiClient = axios.create({
   timeout: 20_000,
   headers: { 'Content-Type': 'application/json' },
 });
+
+apiClient.interceptors.request.use((config) => {
+  const token = getAccessToken();
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error: unknown) => {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      const requestUrl = error.config?.url ?? '';
+
+      if (!requestUrl.includes('/auth/login')) {
+        clearAccessToken();
+        emitUnauthorized();
+      }
+    }
+
+    return Promise.reject(error);
+  },
+);
 
 /**
  * Separate client for direct-to-S3 transfers. It must not carry the API base URL

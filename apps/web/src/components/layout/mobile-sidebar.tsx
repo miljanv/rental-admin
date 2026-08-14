@@ -18,7 +18,7 @@ export function MobileSidebar() {
           <Menu className="size-5" aria-hidden />
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 p-0">
+      <SheetContent side="left" className="bg-sidebar text-sidebar-foreground w-72 p-0">
         <SheetTitle className="sr-only">Navigation</SheetTitle>
         <SidebarContent onNavigate={() => setIsOpen(false)} />
       </SheetContent>

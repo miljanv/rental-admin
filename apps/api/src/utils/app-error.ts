@@ -41,6 +41,9 @@ export const badRequest = (message: string, options?: AppErrorOptions): AppError
 export const forbidden = (message: string, options?: AppErrorOptions): AppError =>
   new AppError(403, API_ERROR_CODES.FORBIDDEN, message, options);
 
+export const unauthorized = (message: string, options?: AppErrorOptions): AppError =>
+  new AppError(401, API_ERROR_CODES.UNAUTHORIZED, message, options);
+
 export const notFound = (message: string, options?: AppErrorOptions): AppError =>
   new AppError(404, API_ERROR_CODES.NOT_FOUND, message, options);
 

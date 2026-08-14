@@ -28,6 +28,13 @@ export const apiRateLimiter = rateLimit({
   limit: env.RATE_LIMIT_MAX_REQUESTS,
 });
 
+/** Login is cheaper to brute-force than file uploads, so it gets a tighter cap. */
+export const loginRateLimiter = rateLimit({
+  ...baseOptions,
+  windowMs: env.rateLimitWindowMs,
+  limit: 20,
+});
+
 /**
  * Tighter budget for endpoints that issue presigned URLs or mutate storage,
  * since each one costs an S3 operation.
