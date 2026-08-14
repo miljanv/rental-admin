@@ -1,3 +1,4 @@
+import type { AttachedFileDto } from './file';
 import type { TachographType } from './vehicle';
 import { addUtcDays } from './vehicle-inspection';
 
@@ -6,6 +7,7 @@ export interface TachographCalibrationDto {
   vehicleId: string;
   calibratedAt: string;
   expiresAt: string;
+  file: AttachedFileDto | null;
   createdAt: string;
   updatedAt: string;
 }

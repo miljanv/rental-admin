@@ -1,13 +1,14 @@
 import {
   vehicleInspectionWriteSchema,
-  type VehicleInspectionWriteRequest,
+  type VehicleInspectionWriteInput,
 } from '@rental-admin/shared';
 
 export const vehicleInspectionFormSchema = vehicleInspectionWriteSchema;
 
-export type VehicleInspectionFormValues = VehicleInspectionWriteRequest;
+export type VehicleInspectionFormValues = VehicleInspectionWriteInput;
 
 export const EMPTY_INSPECTION_FORM: VehicleInspectionFormValues = {
   type: 'REGULAR',
   inspectedAt: '',
+  fileId: '',
 };

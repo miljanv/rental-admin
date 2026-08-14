@@ -1,3 +1,5 @@
+import type { AttachedFileDto } from './file';
+
 export const DRIVER_DOCUMENT_TYPES = [
   'EMPLOYMENT_CONTRACT',
   'MEDICAL_CERTIFICATE',
@@ -27,12 +29,7 @@ export const EMPLOYMENT_CONTRACT_TYPE_LABELS: Record<EmploymentContractType, str
 
 export type DocumentExpiryUrgency = 'expired' | 'critical' | 'warning' | 'ok' | 'none';
 
-export interface DriverDocumentFileDto {
-  id: string;
-  originalName: string;
-  mimeType: string;
-  size: number;
-}
+export type DriverDocumentFileDto = AttachedFileDto;
 
 export interface DriverDocumentDto {
   id: string;

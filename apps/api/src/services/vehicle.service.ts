@@ -13,6 +13,10 @@ import { conflict, notFound } from '../utils/app-error';
 import { buildPaginationMeta } from '../utils/api-response';
 import { logger } from '../utils/logger';
 import { toVehicleDto, type VehicleRecord } from '../utils/vehicle-mapper';
+import { deleteFilesForVehicle as deleteCalibrationFiles } from './tachograph-calibration.service';
+import { deleteFilesForVehicle as deleteDocumentFiles } from './vehicle-document.service';
+import { deleteFilesForVehicle as deleteInspectionFiles } from './vehicle-inspection.service';
+import { deleteFilesForVehicle as deleteSafetyEquipmentFiles } from './vehicle-safety-equipment.service';
 
 type VehicleOrderBy = Partial<Record<VehicleSortField, SortOrder>>;
 
@@ -144,6 +148,15 @@ export const updateVehicle = async (
 
 export const deleteVehicle = async (id: string): Promise<DeleteVehicleResult> => {
   await getVehicle(id);
+
+  // Attached scans live in S3, not in Postgres — the cascade deletes the rows
+  // but can't reach into the bucket, so each sub-resource's files are cleaned
+  // up explicitly first.
+  await deleteInspectionFiles(id);
+  await deleteCalibrationFiles(id);
+  await deleteSafetyEquipmentFiles(id);
+  await deleteDocumentFiles(id);
+
   await prisma.vehicle.delete({ where: { id } });
   logger.info('Vehicle deleted', { vehicleId: id });
 

@@ -1,3 +1,4 @@
+import type { AttachedFileDto } from './file';
 import { addUtcDays } from './vehicle-inspection';
 
 export const SAFETY_EQUIPMENT_TYPES = ['FIRST_AID_KIT', 'FIRE_EXTINGUISHER'] as const;
@@ -15,6 +16,7 @@ export interface VehicleSafetyEquipmentDto {
   type: SafetyEquipmentType;
   checkedAt: string;
   expiresAt: string;
+  file: AttachedFileDto | null;
   createdAt: string;
   updatedAt: string;
 }

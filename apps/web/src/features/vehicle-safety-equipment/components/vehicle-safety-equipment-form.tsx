@@ -28,6 +28,9 @@ import {
   vehicleSafetyEquipmentFormSchema,
   type VehicleSafetyEquipmentFormValues,
 } from '@/features/vehicle-safety-equipment/schemas/vehicle-safety-equipment-form-schema';
+import { ScanUploadField } from '@/features/vehicles/components/scan-upload-field';
+import { useScanSelection } from '@/features/vehicles/hooks/use-scan-selection';
+import { useUploadVehicleScan } from '@/features/vehicles/hooks/use-upload-vehicle-scan';
 import { formatDate } from '@/lib/format';
 
 interface VehicleSafetyEquipmentFormProps {
@@ -63,7 +66,9 @@ export function VehicleSafetyEquipmentForm({
   const isEdit = Boolean(equipment);
   const createMutation = useCreateVehicleSafetyEquipment(vehicleId);
   const updateMutation = useUpdateVehicleSafetyEquipment(vehicleId);
-  const isPending = createMutation.isPending || updateMutation.isPending;
+  const scanUpload = useUploadVehicleScan();
+  const { selectedFile, fileError, selectFile, clearFile } = useScanSelection();
+  const isPending = createMutation.isPending || updateMutation.isPending || scanUpload.isUploading;
 
   const form = useForm<VehicleSafetyEquipmentFormValues, unknown, VehicleSafetyEquipmentWriteRequest>({
     resolver: zodResolver(vehicleSafetyEquipmentFormSchema),
@@ -72,6 +77,7 @@ export function VehicleSafetyEquipmentForm({
           type: equipment.type,
           checkedAt: equipment.checkedAt,
           expiresAt: equipment.type === 'FIRST_AID_KIT' ? equipment.expiresAt : '',
+          fileId: equipment.file?.id ?? '',
         }
       : EMPTY_SAFETY_EQUIPMENT_FORM,
   });
@@ -88,15 +94,24 @@ export function VehicleSafetyEquipmentForm({
 
   const onSubmit = form.handleSubmit(async (values) => {
     try {
+      let fileId = equipment?.file?.id ?? values.fileId ?? null;
+
+      if (selectedFile) {
+        const uploaded = await scanUpload.upload(selectedFile);
+        fileId = uploaded.id;
+      }
+
+      const payload: VehicleSafetyEquipmentWriteRequest = { ...values, fileId };
+
       if (equipment) {
-        await updateMutation.mutateAsync({ equipmentId: equipment.id, body: values });
+        await updateMutation.mutateAsync({ equipmentId: equipment.id, body: payload });
       } else {
-        await createMutation.mutateAsync(values);
+        await createMutation.mutateAsync(payload);
       }
 
       onDone();
     } catch {
-      // The mutation reports the failure as a toast.
+      // Upload and save errors are already toasted.
     }
   });
 
@@ -178,12 +193,30 @@ export function VehicleSafetyEquipmentForm({
             </div>
           ) : null}
 
+          <ScanUploadField
+            id="equipment-scan"
+            currentFileName={equipment?.file && !selectedFile ? equipment.file.originalName : null}
+            selectedFile={selectedFile}
+            onSelectFile={selectFile}
+            onRemoveFile={clearFile}
+            error={fileError}
+            disabled={isPending}
+            isUploading={scanUpload.isUploading}
+            uploadProgress={scanUpload.progress}
+          />
+
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="outline" onClick={onDone} disabled={isPending}>
               Otkaži
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? 'Čuvanje…' : isEdit ? 'Sačuvaj izmene' : 'Dodaj zapis'}
+              {scanUpload.isUploading
+                ? `Otpremanje skena… ${scanUpload.progress}%`
+                : isPending
+                  ? 'Čuvanje…'
+                  : isEdit
+                    ? 'Sačuvaj izmene'
+                    : 'Dodaj zapis'}
             </Button>
           </div>
         </form>

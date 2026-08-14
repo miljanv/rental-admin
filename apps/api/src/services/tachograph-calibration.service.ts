@@ -16,6 +16,9 @@ import {
   toTachographCalibrationDto,
   type TachographCalibrationRecord,
 } from '../utils/tachograph-calibration-mapper';
+import { assertUploadedFile, deleteAttachedFile } from './file-attachment.service';
+
+const calibrationInclude = { file: true } as const;
 
 const parseDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`);
 
@@ -47,6 +50,7 @@ const getVehicleTachographType = async (vehicleId: string): Promise<TachographTy
 const toWriteData = (tachographType: TachographType, input: TachographCalibrationWriteRequest) => ({
   calibratedAt: parseDate(input.calibratedAt),
   expiresAt: parseDate(computeCalibrationExpiry(tachographType, input.calibratedAt)),
+  fileId: input.fileId,
 });
 
 export const listTachographCalibrations = async (
@@ -56,6 +60,7 @@ export const listTachographCalibrations = async (
 
   const records = await prisma.tachographCalibration.findMany({
     where: { vehicleId },
+    include: calibrationInclude,
     orderBy: { calibratedAt: 'desc' },
   });
 
@@ -68,6 +73,7 @@ export const getTachographCalibration = async (
 ): Promise<TachographCalibrationDto> => {
   const record = await prisma.tachographCalibration.findFirst({
     where: { id: calibrationId, vehicleId },
+    include: calibrationInclude,
   });
 
   if (!record) {
@@ -82,9 +88,11 @@ export const createTachographCalibration = async (
   input: TachographCalibrationWriteRequest,
 ): Promise<TachographCalibrationDto> => {
   const tachographType = await getVehicleTachographType(vehicleId);
+  await assertUploadedFile(input.fileId);
 
   const record = await prisma.tachographCalibration.create({
     data: { vehicleId, ...toWriteData(tachographType, input) },
+    include: calibrationInclude,
   });
 
   logger.info('Tachograph calibration created', { vehicleId, calibrationId: record.id });
@@ -105,12 +113,19 @@ export const updateTachographCalibration = async (
     throw notFound('Kalibracija nije pronađena.');
   }
 
+  await assertUploadedFile(input.fileId);
+
   const tachographType = await getVehicleTachographType(vehicleId);
 
   const record = await prisma.tachographCalibration.update({
     where: { id: calibrationId },
     data: toWriteData(tachographType, input),
+    include: calibrationInclude,
   });
+
+  if (existing.fileId && existing.fileId !== input.fileId) {
+    await deleteAttachedFile(existing.fileId);
+  }
 
   logger.info('Tachograph calibration updated', { vehicleId, calibrationId });
 
@@ -130,6 +145,7 @@ export const deleteTachographCalibration = async (
   }
 
   await prisma.tachographCalibration.delete({ where: { id: calibrationId } });
+  await deleteAttachedFile(existing.fileId);
   logger.info('Tachograph calibration deleted', { vehicleId, calibrationId });
 
   return { id: calibrationId, deleted: true };
@@ -143,6 +159,7 @@ export const listExpiringCalibrations = async (
   const records = await prisma.tachographCalibration.findMany({
     where: { expiresAt: { lte: until } },
     include: {
+      ...calibrationInclude,
       vehicle: {
         select: { id: true, make: true, model: true, licensePlate: true, tachographType: true },
       },
@@ -151,4 +168,16 @@ export const listExpiringCalibrations = async (
   });
 
   return records.map((record) => toExpiringTachographCalibrationDto(record));
+};
+
+/** Removes scans before the vehicle row (and cascaded calibrations) go away. */
+export const deleteFilesForVehicle = async (vehicleId: string): Promise<void> => {
+  const records = await prisma.tachographCalibration.findMany({
+    where: { vehicleId },
+    select: { fileId: true },
+  });
+
+  for (const record of records) {
+    await deleteAttachedFile(record.fileId);
+  }
 };

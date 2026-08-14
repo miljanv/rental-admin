@@ -11,8 +11,10 @@ const record: VehicleSafetyEquipmentRecord = {
   type: 'FIRE_EXTINGUISHER',
   checkedAt: new Date('2026-08-14T00:00:00.000Z'),
   expiresAt: new Date('2027-02-10T00:00:00.000Z'),
+  fileId: null,
   createdAt: new Date('2026-08-14T10:00:00.000Z'),
   updatedAt: new Date('2026-08-14T10:00:00.000Z'),
+  file: null,
 };
 
 describe('toVehicleSafetyEquipmentDto', () => {

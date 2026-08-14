@@ -1,3 +1,5 @@
+import type { AttachedFileDto } from './file';
+
 export const VEHICLE_INSPECTION_TYPES = ['REGULAR', 'SEMI_ANNUAL', 'MONTHLY'] as const;
 
 export type VehicleInspectionType = (typeof VEHICLE_INSPECTION_TYPES)[number];
@@ -14,6 +16,7 @@ export interface VehicleInspectionDto {
   type: VehicleInspectionType;
   inspectedAt: string;
   expiresAt: string;
+  file: AttachedFileDto | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -86,5 +86,6 @@ export const queryKeys = {
     maintenance: (vehicleId: string) => ['vehicles', vehicleId, 'maintenance'] as const,
     maintenanceCostSummary: (params?: MaintenanceCostSummaryParams) =>
       ['vehicles', 'maintenance-cost-summary', params] as const,
+    documents: (vehicleId: string) => ['vehicles', vehicleId, 'documents'] as const,
   },
 } as const;

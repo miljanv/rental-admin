@@ -5,6 +5,7 @@ export * from './file';
 export * from './fuel-log';
 export * from './tachograph-calibration';
 export * from './vehicle';
+export * from './vehicle-document';
 export * from './vehicle-inspection';
 export * from './vehicle-maintenance';
 export * from './vehicle-safety-equipment';

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { VEHICLE_INSPECTION_TYPES } from '../types/vehicle-inspection';
 import { isoDateSchema } from './driver';
 import { vehicleIdSchema } from './vehicle';
+import { optionalFileId } from './vehicle-document';
 
 export const vehicleInspectionTypeSchema = z.enum(VEHICLE_INSPECTION_TYPES);
 
@@ -23,6 +24,7 @@ export type VehicleInspectionParams = z.infer<typeof vehicleInspectionParamsSche
 export const vehicleInspectionWriteSchema = z.object({
   type: vehicleInspectionTypeSchema,
   inspectedAt: isoDateSchema,
+  fileId: optionalFileId,
 });
 
 export type VehicleInspectionWriteInput = z.input<typeof vehicleInspectionWriteSchema>;

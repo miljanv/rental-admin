@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { SAFETY_EQUIPMENT_TYPES } from '../types/vehicle-safety-equipment';
 import { isoDateSchema } from './driver';
 import { vehicleIdSchema } from './vehicle';
+import { optionalFileId } from './vehicle-document';
 
 export const safetyEquipmentTypeSchema = z.enum(SAFETY_EQUIPMENT_TYPES);
 
@@ -32,6 +33,7 @@ export const vehicleSafetyEquipmentWriteSchema = z
     type: safetyEquipmentTypeSchema,
     checkedAt: isoDateSchema,
     expiresAt: optionalIsoDate,
+    fileId: optionalFileId,
   })
   .superRefine((value, ctx) => {
     if (value.type === 'FIRST_AID_KIT' && !value.expiresAt) {

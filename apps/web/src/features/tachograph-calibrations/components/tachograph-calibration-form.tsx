@@ -5,6 +5,7 @@ import {
   computeCalibrationExpiry,
   TACHOGRAPH_TYPE_LABELS,
   type TachographCalibrationDto,
+  type TachographCalibrationWriteRequest,
   type TachographType,
 } from '@rental-admin/shared';
 import { useForm, useWatch } from 'react-hook-form';
@@ -20,6 +21,9 @@ import {
   tachographCalibrationFormSchema,
   type TachographCalibrationFormValues,
 } from '@/features/tachograph-calibrations/schemas/tachograph-calibration-form-schema';
+import { ScanUploadField } from '@/features/vehicles/components/scan-upload-field';
+import { useScanSelection } from '@/features/vehicles/hooks/use-scan-selection';
+import { useUploadVehicleScan } from '@/features/vehicles/hooks/use-upload-vehicle-scan';
 import { formatDate } from '@/lib/format';
 
 interface TachographCalibrationFormProps {
@@ -57,12 +61,14 @@ export function TachographCalibrationForm({
   const isEdit = Boolean(calibration);
   const createMutation = useCreateTachographCalibration(vehicleId);
   const updateMutation = useUpdateTachographCalibration(vehicleId);
-  const isPending = createMutation.isPending || updateMutation.isPending;
+  const scanUpload = useUploadVehicleScan();
+  const { selectedFile, fileError, selectFile, clearFile } = useScanSelection();
+  const isPending = createMutation.isPending || updateMutation.isPending || scanUpload.isUploading;
 
-  const form = useForm<TachographCalibrationFormValues>({
+  const form = useForm<TachographCalibrationFormValues, unknown, TachographCalibrationWriteRequest>({
     resolver: zodResolver(tachographCalibrationFormSchema),
     defaultValues: calibration
-      ? { calibratedAt: calibration.calibratedAt }
+      ? { calibratedAt: calibration.calibratedAt, fileId: calibration.file?.id ?? '' }
       : EMPTY_CALIBRATION_FORM,
   });
 
@@ -76,15 +82,24 @@ export function TachographCalibrationForm({
 
   const onSubmit = form.handleSubmit(async (values) => {
     try {
+      let fileId = calibration?.file?.id ?? values.fileId ?? null;
+
+      if (selectedFile) {
+        const uploaded = await scanUpload.upload(selectedFile);
+        fileId = uploaded.id;
+      }
+
+      const payload: TachographCalibrationWriteRequest = { ...values, fileId };
+
       if (calibration) {
-        await updateMutation.mutateAsync({ calibrationId: calibration.id, body: values });
+        await updateMutation.mutateAsync({ calibrationId: calibration.id, body: payload });
       } else {
-        await createMutation.mutateAsync(values);
+        await createMutation.mutateAsync(payload);
       }
 
       onDone();
     } catch {
-      // The mutation reports the failure as a toast.
+      // Upload and save errors are already toasted.
     }
   });
 
@@ -116,12 +131,30 @@ export function TachographCalibrationForm({
             </div>
           ) : null}
 
+          <ScanUploadField
+            id="calibration-scan"
+            currentFileName={calibration?.file && !selectedFile ? calibration.file.originalName : null}
+            selectedFile={selectedFile}
+            onSelectFile={selectFile}
+            onRemoveFile={clearFile}
+            error={fileError}
+            disabled={isPending}
+            isUploading={scanUpload.isUploading}
+            uploadProgress={scanUpload.progress}
+          />
+
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="outline" onClick={onDone} disabled={isPending}>
               Otkaži
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? 'Čuvanje…' : isEdit ? 'Sačuvaj izmene' : 'Dodaj kalibraciju'}
+              {scanUpload.isUploading
+                ? `Otpremanje skena… ${scanUpload.progress}%`
+                : isPending
+                  ? 'Čuvanje…'
+                  : isEdit
+                    ? 'Sačuvaj izmene'
+                    : 'Dodaj kalibraciju'}
             </Button>
           </div>
         </form>

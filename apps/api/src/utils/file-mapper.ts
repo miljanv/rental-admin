@@ -1,4 +1,4 @@
-import type { FileObjectDto, FileStatus } from '@rental-admin/shared';
+import type { AttachedFileDto, FileObjectDto, FileStatus } from '@rental-admin/shared';
 
 /**
  * Structural shape of a `FileObject` row. Declared here instead of importing the
@@ -31,3 +31,17 @@ export const toFileObjectDto = (record: FileObjectRecord): FileObjectDto => ({
   createdAt: record.createdAt.toISOString(),
   updatedAt: record.updatedAt.toISOString(),
 });
+
+/**
+ * Minimal file summary attached to another record (driver document, vehicle
+ * inspection, calibration, safety equipment, vehicle document). Only ever
+ * surfaced once the upload is confirmed — a PENDING/FAILED file is not a
+ * usable attachment yet.
+ */
+export const toAttachedFileDto = (file: FileObjectRecord | null): AttachedFileDto | null => {
+  if (!file || file.status !== 'UPLOADED') {
+    return null;
+  }
+
+  return { id: file.id, originalName: file.originalName, mimeType: file.mimeType, size: file.size };
+};

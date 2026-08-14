@@ -3,6 +3,7 @@ import { Router } from 'express';
 import * as fuelLogController from '../controllers/fuel-log.controller';
 import * as tachographCalibrationController from '../controllers/tachograph-calibration.controller';
 import * as vehicleInspectionController from '../controllers/vehicle-inspection.controller';
+import * as vehicleDocumentController from '../controllers/vehicle-document.controller';
 import * as vehicleMaintenanceController from '../controllers/vehicle-maintenance.controller';
 import * as vehicleSafetyEquipmentController from '../controllers/vehicle-safety-equipment.controller';
 import * as vehicleController from '../controllers/vehicle.controller';
@@ -17,6 +18,10 @@ import {
   tachographCalibrationParamsSchema,
   tachographCalibrationWriteSchema,
 } from '../schemas/tachograph-calibration.schema';
+import {
+  vehicleDocumentParamsSchema,
+  vehicleDocumentWriteSchema,
+} from '../schemas/vehicle-document.schema';
 import {
   listVehicleMaintenanceQuerySchema,
   maintenanceCostSummaryQuerySchema,
@@ -234,6 +239,36 @@ vehicleRouter.delete(
   '/:id/maintenance/:maintenanceId',
   validateRequest({ params: vehicleMaintenanceParamsSchema }),
   asyncHandler(vehicleMaintenanceController.deleteVehicleMaintenance),
+);
+
+vehicleRouter.get(
+  '/:id/documents',
+  validateRequest({ params: vehicleIdParamsSchema }),
+  asyncHandler(vehicleDocumentController.listVehicleDocuments),
+);
+
+vehicleRouter.post(
+  '/:id/documents',
+  validateRequest({ params: vehicleIdParamsSchema, body: vehicleDocumentWriteSchema }),
+  asyncHandler(vehicleDocumentController.createVehicleDocument),
+);
+
+vehicleRouter.get(
+  '/:id/documents/:documentId',
+  validateRequest({ params: vehicleDocumentParamsSchema }),
+  asyncHandler(vehicleDocumentController.getVehicleDocument),
+);
+
+vehicleRouter.patch(
+  '/:id/documents/:documentId',
+  validateRequest({ params: vehicleDocumentParamsSchema, body: vehicleDocumentWriteSchema }),
+  asyncHandler(vehicleDocumentController.updateVehicleDocument),
+);
+
+vehicleRouter.delete(
+  '/:id/documents/:documentId',
+  validateRequest({ params: vehicleDocumentParamsSchema }),
+  asyncHandler(vehicleDocumentController.deleteVehicleDocument),
 );
 
 vehicleRouter.get(

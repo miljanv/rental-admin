@@ -21,16 +21,20 @@ enum FileStatus {
 /// presigned upload URL is issued and only becomes UPLOADED once the API has
 /// confirmed the object actually exists in the bucket.
 model FileObject {
-  id             String     @id @default(cuid())
-  originalName   String
-  storageKey     String     @unique
-  mimeType       String
-  size           Int
-  status         FileStatus @default(PENDING)
-  uploadedAt     DateTime?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  driverDocument DriverDocument?
+  id                     String                  @id @default(cuid())
+  originalName           String
+  storageKey             String                  @unique
+  mimeType               String
+  size                   Int
+  status                 FileStatus              @default(PENDING)
+  uploadedAt             DateTime?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  driverDocument         DriverDocument?
+  vehicleInspection      VehicleInspection?
+  tachographCalibration  TachographCalibration?
+  vehicleSafetyEquipment VehicleSafetyEquipment?
+  vehicleDocument        VehicleDocument?
 
   @@index([status])
   @@index([createdAt])
@@ -47,11 +51,11 @@ enum DriverStatus {
 /// A driver employed by the company. Field names are English; the admin UI
 /// presents Serbian labels.
 model Driver {
-  id                     String       @id @default(cuid())
+  id                     String           @id @default(cuid())
   firstName              String
   lastName               String
-  jmbg                   String       @unique
-  dateOfBirth            DateTime     @db.Date
+  jmbg                   String           @unique
+  dateOfBirth            DateTime         @db.Date
   residencePlace         String
   educationLevel         String
   idCardNumber           String
@@ -61,9 +65,9 @@ model Driver {
   phone                  String
   email                  String
   jobTitle               String
-  status                 DriverStatus @default(ACTIVE)
-  createdAt              DateTime     @default(now())
-  updatedAt              DateTime     @updatedAt
+  status                 DriverStatus     @default(ACTIVE)
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
   documents              DriverDocument[]
   fuelLogs               FuelLog[]
 
@@ -88,16 +92,16 @@ enum EmploymentContractType {
 /// A scanned driver document with optional validity dates. Field names are
 /// English; the admin UI presents Serbian labels.
 model DriverDocument {
-  id                     String                   @id @default(cuid())
+  id                     String                  @id @default(cuid())
   driverId               String
   type                   DriverDocumentType
   documentNumber         String
-  issuedAt               DateTime                 @db.Date
-  expiresAt              DateTime?                @db.Date
+  issuedAt               DateTime                @db.Date
+  expiresAt              DateTime?               @db.Date
   employmentContractType EmploymentContractType?
-  fileId                 String?                  @unique
-  createdAt              DateTime                 @default(now())
-  updatedAt              DateTime                 @updatedAt
+  fileId                 String?                 @unique
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
 
   driver Driver      @relation(fields: [driverId], references: [id], onDelete: Cascade)
   file   FileObject? @relation(fields: [fileId], references: [id], onDelete: SetNull)
@@ -169,6 +173,7 @@ model Vehicle {
   safetyEquipment VehicleSafetyEquipment[]
   fuelLogs        FuelLog[]
   maintenance     VehicleMaintenance[]
+  documents       VehicleDocument[]
 
   @@index([status])
   @@index([type])
@@ -190,10 +195,12 @@ model VehicleInspection {
   type        VehicleInspectionType
   inspectedAt DateTime              @db.Date
   expiresAt   DateTime              @db.Date
+  fileId      String?               @unique
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @updatedAt
 
-  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  vehicle Vehicle     @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  file    FileObject? @relation(fields: [fileId], references: [id], onDelete: SetNull)
 
   @@index([vehicleId])
   @@index([expiresAt])
@@ -208,10 +215,12 @@ model TachographCalibration {
   vehicleId    String
   calibratedAt DateTime @db.Date
   expiresAt    DateTime @db.Date
+  fileId       String?  @unique
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  vehicle Vehicle     @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  file    FileObject? @relation(fields: [fileId], references: [id], onDelete: SetNull)
 
   @@index([vehicleId])
   @@index([expiresAt])
@@ -232,10 +241,12 @@ model VehicleSafetyEquipment {
   type      SafetyEquipmentType
   checkedAt DateTime            @db.Date
   expiresAt DateTime            @db.Date
+  fileId    String?             @unique
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
 
-  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  vehicle Vehicle     @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  file    FileObject? @relation(fields: [fileId], references: [id], onDelete: SetNull)
 
   @@index([vehicleId])
   @@index([expiresAt])
@@ -253,18 +264,18 @@ enum FuelLogFuelType {
 /// earlier reading (any fuel type) — never trusted from the client, and never
 /// recomputed retroactively when an earlier log changes.
 model FuelLog {
-  id                   String          @id @default(cuid())
-  vehicleId            String
-  fueledAt             DateTime        @db.Date
-  location             String
-  driverId             String?
-  fuelType             FuelLogFuelType
-  litersFilled         Float
-  odometerKm           Int
-  kmDriven             Int?
-  consumptionPer100Km  Float?
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
+  id                  String          @id @default(cuid())
+  vehicleId           String
+  fueledAt            DateTime        @db.Date
+  location            String
+  driverId            String?
+  fuelType            FuelLogFuelType
+  litersFilled        Float
+  odometerKm          Int
+  kmDriven            Int?
+  consumptionPer100Km Float?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 
   vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   driver  Driver? @relation(fields: [driverId], references: [id], onDelete: SetNull)
@@ -295,4 +306,28 @@ model VehicleMaintenance {
   @@index([date])
   @@index([supplier])
   @@map("vehicle_maintenance")
+}
+
+enum VehicleDocumentType {
+  REGISTRATION
+}
+
+/// A scanned/photographed vehicle document not tied to a specific expiring
+/// record (currently just the registration certificate — "saobraćajna
+/// dozvola"). Other document types can be added to the enum later.
+model VehicleDocument {
+  id        String              @id @default(cuid())
+  vehicleId String
+  type      VehicleDocumentType
+  issuedAt  DateTime?           @db.Date
+  fileId    String?             @unique
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  vehicle Vehicle     @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  file    FileObject? @relation(fields: [fileId], references: [id], onDelete: SetNull)
+
+  @@index([vehicleId])
+  @@index([type])
+  @@map("vehicle_documents")
 }

@@ -6,6 +6,7 @@ import {
   VEHICLE_INSPECTION_TYPE_LABELS,
   VEHICLE_INSPECTION_TYPES,
   type VehicleInspectionDto,
+  type VehicleInspectionWriteRequest,
 } from '@rental-admin/shared';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 
@@ -28,6 +29,9 @@ import {
   vehicleInspectionFormSchema,
   type VehicleInspectionFormValues,
 } from '@/features/vehicle-inspections/schemas/vehicle-inspection-form-schema';
+import { ScanUploadField } from '@/features/vehicles/components/scan-upload-field';
+import { useScanSelection } from '@/features/vehicles/hooks/use-scan-selection';
+import { useUploadVehicleScan } from '@/features/vehicles/hooks/use-upload-vehicle-scan';
 import { formatDate } from '@/lib/format';
 
 interface VehicleInspectionFormProps {
@@ -63,12 +67,14 @@ export function VehicleInspectionForm({
   const isEdit = Boolean(inspection);
   const createMutation = useCreateVehicleInspection(vehicleId);
   const updateMutation = useUpdateVehicleInspection(vehicleId);
-  const isPending = createMutation.isPending || updateMutation.isPending;
+  const scanUpload = useUploadVehicleScan();
+  const { selectedFile, fileError, selectFile, clearFile } = useScanSelection();
+  const isPending = createMutation.isPending || updateMutation.isPending || scanUpload.isUploading;
 
-  const form = useForm<VehicleInspectionFormValues>({
+  const form = useForm<VehicleInspectionFormValues, unknown, VehicleInspectionWriteRequest>({
     resolver: zodResolver(vehicleInspectionFormSchema),
     defaultValues: inspection
-      ? { type: inspection.type, inspectedAt: inspection.inspectedAt }
+      ? { type: inspection.type, inspectedAt: inspection.inspectedAt, fileId: inspection.file?.id ?? '' }
       : EMPTY_INSPECTION_FORM,
   });
 
@@ -82,15 +88,24 @@ export function VehicleInspectionForm({
 
   const onSubmit = form.handleSubmit(async (values) => {
     try {
+      let fileId = inspection?.file?.id ?? values.fileId ?? null;
+
+      if (selectedFile) {
+        const uploaded = await scanUpload.upload(selectedFile);
+        fileId = uploaded.id;
+      }
+
+      const payload: VehicleInspectionWriteRequest = { ...values, fileId };
+
       if (inspection) {
-        await updateMutation.mutateAsync({ inspectionId: inspection.id, body: values });
+        await updateMutation.mutateAsync({ inspectionId: inspection.id, body: payload });
       } else {
-        await createMutation.mutateAsync(values);
+        await createMutation.mutateAsync(payload);
       }
 
       onDone();
     } catch {
-      // The mutation reports the failure as a toast.
+      // Upload and save errors are already toasted.
     }
   });
 
@@ -147,12 +162,30 @@ export function VehicleInspectionForm({
             </div>
           ) : null}
 
+          <ScanUploadField
+            id="inspection-scan"
+            currentFileName={inspection?.file && !selectedFile ? inspection.file.originalName : null}
+            selectedFile={selectedFile}
+            onSelectFile={selectFile}
+            onRemoveFile={clearFile}
+            error={fileError}
+            disabled={isPending}
+            isUploading={scanUpload.isUploading}
+            uploadProgress={scanUpload.progress}
+          />
+
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="outline" onClick={onDone} disabled={isPending}>
               Otkaži
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? 'Čuvanje…' : isEdit ? 'Sačuvaj izmene' : 'Dodaj pregled'}
+              {scanUpload.isUploading
+                ? `Otpremanje skena… ${scanUpload.progress}%`
+                : isPending
+                  ? 'Čuvanje…'
+                  : isEdit
+                    ? 'Sačuvaj izmene'
+                    : 'Dodaj pregled'}
             </Button>
           </div>
         </form>

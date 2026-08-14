@@ -4,13 +4,17 @@ import type {
   TachographType,
 } from '@rental-admin/shared';
 
+import { toAttachedFileDto, type FileObjectRecord } from './file-mapper';
+
 export interface TachographCalibrationRecord {
   id: string;
   vehicleId: string;
   calibratedAt: Date;
   expiresAt: Date;
+  fileId: string | null;
   createdAt: Date;
   updatedAt: Date;
+  file: FileObjectRecord | null;
 }
 
 export interface VehicleSummaryRecord {
@@ -30,6 +34,7 @@ export const toTachographCalibrationDto = (
   vehicleId: record.vehicleId,
   calibratedAt: toIsoDate(record.calibratedAt),
   expiresAt: toIsoDate(record.expiresAt),
+  file: toAttachedFileDto(record.file),
   createdAt: record.createdAt.toISOString(),
   updatedAt: record.updatedAt.toISOString(),
 });

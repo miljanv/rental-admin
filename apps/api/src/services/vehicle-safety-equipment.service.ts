@@ -15,6 +15,9 @@ import {
   toVehicleSafetyEquipmentDto,
   type VehicleSafetyEquipmentRecord,
 } from '../utils/vehicle-safety-equipment-mapper';
+import { assertUploadedFile, deleteAttachedFile } from './file-attachment.service';
+
+const equipmentInclude = { file: true } as const;
 
 const parseDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`);
 
@@ -47,6 +50,7 @@ const toWriteData = (input: VehicleSafetyEquipmentWriteRequest) => ({
   expiresAt: parseDate(
     computeSafetyEquipmentExpiry(input.type, input.checkedAt, input.expiresAt),
   ),
+  fileId: input.fileId,
 });
 
 export const listVehicleSafetyEquipment = async (
@@ -56,6 +60,7 @@ export const listVehicleSafetyEquipment = async (
 
   const records = await prisma.vehicleSafetyEquipment.findMany({
     where: { vehicleId },
+    include: equipmentInclude,
     orderBy: { checkedAt: 'desc' },
   });
 
@@ -68,6 +73,7 @@ export const getVehicleSafetyEquipment = async (
 ): Promise<VehicleSafetyEquipmentDto> => {
   const record = await prisma.vehicleSafetyEquipment.findFirst({
     where: { id: equipmentId, vehicleId },
+    include: equipmentInclude,
   });
 
   if (!record) {
@@ -82,9 +88,11 @@ export const createVehicleSafetyEquipment = async (
   input: VehicleSafetyEquipmentWriteRequest,
 ): Promise<VehicleSafetyEquipmentDto> => {
   await assertVehicleExists(vehicleId);
+  await assertUploadedFile(input.fileId);
 
   const record = await prisma.vehicleSafetyEquipment.create({
     data: { vehicleId, ...toWriteData(input) },
+    include: equipmentInclude,
   });
 
   logger.info('Vehicle safety equipment created', {
@@ -109,10 +117,17 @@ export const updateVehicleSafetyEquipment = async (
     throw notFound('Oprema nije pronađena.');
   }
 
+  await assertUploadedFile(input.fileId);
+
   const record = await prisma.vehicleSafetyEquipment.update({
     where: { id: equipmentId },
     data: toWriteData(input),
+    include: equipmentInclude,
   });
+
+  if (existing.fileId && existing.fileId !== input.fileId) {
+    await deleteAttachedFile(existing.fileId);
+  }
 
   logger.info('Vehicle safety equipment updated', { vehicleId, equipmentId });
 
@@ -132,6 +147,7 @@ export const deleteVehicleSafetyEquipment = async (
   }
 
   await prisma.vehicleSafetyEquipment.delete({ where: { id: equipmentId } });
+  await deleteAttachedFile(existing.fileId);
   logger.info('Vehicle safety equipment deleted', { vehicleId, equipmentId });
 
   return { id: equipmentId, deleted: true };
@@ -145,10 +161,23 @@ export const listExpiringSafetyEquipment = async (
   const records = await prisma.vehicleSafetyEquipment.findMany({
     where: { expiresAt: { lte: until } },
     include: {
+      ...equipmentInclude,
       vehicle: { select: { id: true, make: true, model: true, licensePlate: true } },
     },
     orderBy: { expiresAt: 'asc' },
   });
 
   return records.map((record) => toExpiringVehicleSafetyEquipmentDto(record));
+};
+
+/** Removes scans before the vehicle row (and cascaded safety equipment) go away. */
+export const deleteFilesForVehicle = async (vehicleId: string): Promise<void> => {
+  const records = await prisma.vehicleSafetyEquipment.findMany({
+    where: { vehicleId },
+    select: { fileId: true },
+  });
+
+  for (const record of records) {
+    await deleteAttachedFile(record.fileId);
+  }
 };

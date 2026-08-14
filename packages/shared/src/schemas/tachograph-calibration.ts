@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { isoDateSchema } from './driver';
 import { vehicleIdSchema } from './vehicle';
+import { optionalFileId } from './vehicle-document';
 
 export const tachographCalibrationIdSchema = z.string().trim().min(1).max(64);
 
@@ -18,6 +19,7 @@ export type TachographCalibrationParams = z.infer<typeof tachographCalibrationPa
  */
 export const tachographCalibrationWriteSchema = z.object({
   calibratedAt: isoDateSchema,
+  fileId: optionalFileId,
 });
 
 export type TachographCalibrationWriteInput = z.input<typeof tachographCalibrationWriteSchema>;

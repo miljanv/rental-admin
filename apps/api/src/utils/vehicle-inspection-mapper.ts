@@ -4,14 +4,18 @@ import type {
   VehicleInspectionType,
 } from '@rental-admin/shared';
 
+import { toAttachedFileDto, type FileObjectRecord } from './file-mapper';
+
 export interface VehicleInspectionRecord {
   id: string;
   vehicleId: string;
   type: VehicleInspectionType;
   inspectedAt: Date;
   expiresAt: Date;
+  fileId: string | null;
   createdAt: Date;
   updatedAt: Date;
+  file: FileObjectRecord | null;
 }
 
 export interface VehicleSummaryRecord {
@@ -29,6 +33,7 @@ export const toVehicleInspectionDto = (record: VehicleInspectionRecord): Vehicle
   type: record.type,
   inspectedAt: toIsoDate(record.inspectedAt),
   expiresAt: toIsoDate(record.expiresAt),
+  file: toAttachedFileDto(record.file),
   createdAt: record.createdAt.toISOString(),
   updatedAt: record.updatedAt.toISOString(),
 });

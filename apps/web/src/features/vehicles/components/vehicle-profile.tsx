@@ -18,6 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { FuelLogsTab } from '@/features/fuel-logs/components/fuel-logs-tab';
 import { TachographCalibrationsTab } from '@/features/tachograph-calibrations/components/tachograph-calibrations-tab';
+import { VehicleDocumentsTab } from '@/features/vehicle-documents/components/vehicle-documents-tab';
 import { VehicleInspectionsTab } from '@/features/vehicle-inspections/components/vehicle-inspections-tab';
 import { VehicleMaintenanceTab } from '@/features/vehicle-maintenance/components/vehicle-maintenance-tab';
 import { VehicleSafetyEquipmentTab } from '@/features/vehicle-safety-equipment/components/vehicle-safety-equipment-tab';
@@ -205,7 +206,7 @@ export function VehicleProfile({ vehicleId }: VehicleProfileProps) {
       ) : null}
       {activeTab === 'fuel' ? <FuelLogsTab vehicleId={vehicle.id} /> : null}
       {activeTab === 'maintenance' ? <VehicleMaintenanceTab vehicleId={vehicle.id} /> : null}
-      {activeTab === 'documents' ? <ComingSoon title="Dokumenti" /> : null}
+      {activeTab === 'documents' ? <VehicleDocumentsTab vehicleId={vehicle.id} /> : null}
       {activeTab === 'deadlines' ? <ComingSoon title="Pregled rokova" /> : null}
 
       <DeleteVehicleDialog

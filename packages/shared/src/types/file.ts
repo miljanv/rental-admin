@@ -44,3 +44,16 @@ export interface DeleteFileResult {
   id: string;
   deleted: true;
 }
+
+/**
+ * Minimal summary of an uploaded scan/photo attached to another record
+ * (driver document, vehicle inspection, calibration, safety equipment,
+ * vehicle document). Shared so every "attach a file" DTO stays in sync
+ * instead of redeclaring the same four fields.
+ */
+export interface AttachedFileDto {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+}

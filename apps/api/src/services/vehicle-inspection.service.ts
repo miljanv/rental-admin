@@ -15,6 +15,9 @@ import {
   toVehicleInspectionDto,
   type VehicleInspectionRecord,
 } from '../utils/vehicle-inspection-mapper';
+import { assertUploadedFile, deleteAttachedFile } from './file-attachment.service';
+
+const inspectionInclude = { file: true } as const;
 
 const parseDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`);
 
@@ -45,6 +48,7 @@ const toWriteData = (input: VehicleInspectionWriteRequest) => ({
   type: input.type,
   inspectedAt: parseDate(input.inspectedAt),
   expiresAt: parseDate(computeInspectionExpiry(input.type, input.inspectedAt)),
+  fileId: input.fileId,
 });
 
 export const listVehicleInspections = async (
@@ -54,6 +58,7 @@ export const listVehicleInspections = async (
 
   const records = await prisma.vehicleInspection.findMany({
     where: { vehicleId },
+    include: inspectionInclude,
     orderBy: { inspectedAt: 'desc' },
   });
 
@@ -66,6 +71,7 @@ export const getVehicleInspection = async (
 ): Promise<VehicleInspectionDto> => {
   const record = await prisma.vehicleInspection.findFirst({
     where: { id: inspectionId, vehicleId },
+    include: inspectionInclude,
   });
 
   if (!record) {
@@ -80,9 +86,11 @@ export const createVehicleInspection = async (
   input: VehicleInspectionWriteRequest,
 ): Promise<VehicleInspectionDto> => {
   await assertVehicleExists(vehicleId);
+  await assertUploadedFile(input.fileId);
 
   const record = await prisma.vehicleInspection.create({
     data: { vehicleId, ...toWriteData(input) },
+    include: inspectionInclude,
   });
 
   logger.info('Vehicle inspection created', {
@@ -107,10 +115,17 @@ export const updateVehicleInspection = async (
     throw notFound('Pregled nije pronađen.');
   }
 
+  await assertUploadedFile(input.fileId);
+
   const record = await prisma.vehicleInspection.update({
     where: { id: inspectionId },
     data: toWriteData(input),
+    include: inspectionInclude,
   });
+
+  if (existing.fileId && existing.fileId !== input.fileId) {
+    await deleteAttachedFile(existing.fileId);
+  }
 
   logger.info('Vehicle inspection updated', { vehicleId, inspectionId });
 
@@ -130,6 +145,7 @@ export const deleteVehicleInspection = async (
   }
 
   await prisma.vehicleInspection.delete({ where: { id: inspectionId } });
+  await deleteAttachedFile(existing.fileId);
   logger.info('Vehicle inspection deleted', { vehicleId, inspectionId });
 
   return { id: inspectionId, deleted: true };
@@ -143,10 +159,23 @@ export const listExpiringInspections = async (
   const records = await prisma.vehicleInspection.findMany({
     where: { expiresAt: { lte: until } },
     include: {
+      ...inspectionInclude,
       vehicle: { select: { id: true, make: true, model: true, licensePlate: true } },
     },
     orderBy: { expiresAt: 'asc' },
   });
 
   return records.map((record) => toExpiringVehicleInspectionDto(record));
+};
+
+/** Removes scans before the vehicle row (and cascaded inspections) go away. */
+export const deleteFilesForVehicle = async (vehicleId: string): Promise<void> => {
+  const records = await prisma.vehicleInspection.findMany({
+    where: { vehicleId },
+    select: { fileId: true },
+  });
+
+  for (const record of records) {
+    await deleteAttachedFile(record.fileId);
+  }
 };

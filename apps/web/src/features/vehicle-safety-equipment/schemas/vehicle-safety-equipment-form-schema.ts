@@ -11,4 +11,5 @@ export const EMPTY_SAFETY_EQUIPMENT_FORM: VehicleSafetyEquipmentFormValues = {
   type: 'FIRE_EXTINGUISHER',
   checkedAt: '',
   expiresAt: '',
+  fileId: '',
 };
