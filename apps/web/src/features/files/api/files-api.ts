@@ -7,6 +7,7 @@ import type {
   PaginationMeta,
   PresignUploadRequest,
   PresignUploadResult,
+  PreviewUrlResult,
 } from '@rental-admin/shared';
 
 import { apiClient, storageClient, unwrap } from '@/lib/api-client';
@@ -81,6 +82,12 @@ export const confirmUpload = async (fileId: string): Promise<FileObjectDto> => {
 
 export const fetchDownloadUrl = async (fileId: string): Promise<DownloadUrlResult> => {
   const response = await apiClient.get<ApiResponse<DownloadUrlResult>>(`/files/${fileId}/download`);
+
+  return unwrap(response.data);
+};
+
+export const fetchPreviewUrl = async (fileId: string): Promise<PreviewUrlResult> => {
+  const response = await apiClient.get<ApiResponse<PreviewUrlResult>>(`/files/${fileId}/preview`);
 
   return unwrap(response.data);
 };

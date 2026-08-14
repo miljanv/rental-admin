@@ -66,6 +66,10 @@ describe('buildContentDisposition', () => {
     );
   });
 
+  it('can ask the browser to display the file instead of downloading it', () => {
+    expect(buildContentDisposition('scan.pdf', 'inline')).toMatch(/^inline;/);
+  });
+
   it('neutralizes quotes that could break the header', () => {
     expect(buildContentDisposition('we"ird.txt')).toContain('filename="we_ird.txt"');
   });

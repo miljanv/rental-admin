@@ -33,6 +33,13 @@ export interface DownloadUrlResult {
   expiresIn: number;
 }
 
+export interface PreviewUrlResult {
+  previewUrl: string;
+  fileName: string;
+  /** Lifetime of `previewUrl` in seconds. */
+  expiresIn: number;
+}
+
 export interface DeleteFileResult {
   id: string;
   deleted: true;

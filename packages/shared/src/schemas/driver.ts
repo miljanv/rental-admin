@@ -19,7 +19,7 @@ const requiredText = (label: string, max: number) =>
     .min(1, `${label} je obavezno.`)
     .max(max, `${label} sme imati najviše ${max} karaktera.`);
 
-const isoDateSchema = z
+export const isoDateSchema = z
   .string()
   .trim()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Datum mora biti u formatu GGGG-MM-DD.')

@@ -79,18 +79,23 @@ export const createUploadUrl = async (params: {
 };
 
 /**
- * Presigned GET URL that forces a download with the original file name.
+ * Presigned GET URL. Defaults to a download (`attachment`); pass `inline` when
+ * the browser should display the file (PDF / image preview).
  */
 export const createDownloadUrl = async (params: {
   storageKey: string;
   fileName: string;
   mimeType: string;
+  disposition?: 'attachment' | 'inline';
 }): Promise<{ downloadUrl: string; expiresIn: number }> => {
   const command = new GetObjectCommand({
     Bucket: S3_BUCKET_NAME,
     Key: params.storageKey,
     ResponseContentType: params.mimeType,
-    ResponseContentDisposition: buildContentDisposition(params.fileName),
+    ResponseContentDisposition: buildContentDisposition(
+      params.fileName,
+      params.disposition ?? 'attachment',
+    ),
   });
 
   try {

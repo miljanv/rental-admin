@@ -34,5 +34,7 @@ export const queryKeys = {
     all: ['drivers'] as const,
     list: (params: DriverListQueryParams) => ['drivers', 'list', params] as const,
     detail: (id: string) => ['drivers', 'detail', id] as const,
+    documents: (driverId: string) => ['drivers', driverId, 'documents'] as const,
+    expiring: (days: number) => ['drivers', 'expiring-documents', days] as const,
   },
 } as const;
