@@ -2,6 +2,7 @@ import type {
   DriverSortField,
   DriverStatus,
   FileSortField,
+  FuelLogFuelType,
   SortOrder,
   VehicleSortField,
   VehicleStatus,
@@ -35,6 +36,20 @@ export interface VehicleListQueryParams {
   type?: VehicleType;
 }
 
+export interface FuelLogListQueryParams {
+  from?: string;
+  to?: string;
+  fuelType?: FuelLogFuelType;
+  sortOrder?: SortOrder;
+}
+
+export interface MaintenanceCostSummaryParams {
+  vehicleId?: string;
+  from?: string;
+  to?: string;
+  supplier?: string;
+}
+
 /**
  * Central query key factory. Mutations invalidate the `all` key for a domain,
  * which covers every list page and related details.
@@ -66,5 +81,10 @@ export const queryKeys = {
     safetyEquipment: (vehicleId: string) => ['vehicles', vehicleId, 'safety-equipment'] as const,
     expiringSafetyEquipment: (days: number) =>
       ['vehicles', 'expiring-safety-equipment', days] as const,
+    fuelLogs: (vehicleId: string, params?: FuelLogListQueryParams) =>
+      ['vehicles', vehicleId, 'fuel-logs', params] as const,
+    maintenance: (vehicleId: string) => ['vehicles', vehicleId, 'maintenance'] as const,
+    maintenanceCostSummary: (params?: MaintenanceCostSummaryParams) =>
+      ['vehicles', 'maintenance-cost-summary', params] as const,
   },
 } as const;

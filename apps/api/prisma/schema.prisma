@@ -65,6 +65,7 @@ model Driver {
   createdAt              DateTime     @default(now())
   updatedAt              DateTime     @updatedAt
   documents              DriverDocument[]
+  fuelLogs               FuelLog[]
 
   @@index([status])
   @@index([lastName, firstName])
@@ -166,6 +167,8 @@ model Vehicle {
   inspections     VehicleInspection[]
   calibrations    TachographCalibration[]
   safetyEquipment VehicleSafetyEquipment[]
+  fuelLogs        FuelLog[]
+  maintenance     VehicleMaintenance[]
 
   @@index([status])
   @@index([type])
@@ -238,4 +241,58 @@ model VehicleSafetyEquipment {
   @@index([expiresAt])
   @@index([type])
   @@map("vehicle_safety_equipment")
+}
+
+enum FuelLogFuelType {
+  DIESEL
+  ADBLUE
+}
+
+/// A fuel/AdBlue fill-up. `kmDriven` and `consumptionPer100Km` are computed
+/// server-side at write time from `odometerKm` and the vehicle's closest
+/// earlier reading (any fuel type) — never trusted from the client, and never
+/// recomputed retroactively when an earlier log changes.
+model FuelLog {
+  id                   String          @id @default(cuid())
+  vehicleId            String
+  fueledAt             DateTime        @db.Date
+  location             String
+  driverId             String?
+  fuelType             FuelLogFuelType
+  litersFilled         Float
+  odometerKm           Int
+  kmDriven             Int?
+  consumptionPer100Km  Float?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  driver  Driver? @relation(fields: [driverId], references: [id], onDelete: SetNull)
+
+  @@index([vehicleId])
+  @@index([vehicleId, odometerKm])
+  @@index([fueledAt])
+  @@index([fuelType])
+  @@map("fuel_logs")
+}
+
+/// A part replacement / maintenance record for a vehicle.
+model VehicleMaintenance {
+  id         String   @id @default(cuid())
+  vehicleId  String
+  date       DateTime @db.Date
+  odometerKm Int
+  partName   String
+  supplier   String
+  cost       Float
+  mechanic   String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+  @@index([date])
+  @@index([supplier])
+  @@map("vehicle_maintenance")
 }

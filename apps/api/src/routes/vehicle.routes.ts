@@ -1,15 +1,28 @@
 import { Router } from 'express';
 
+import * as fuelLogController from '../controllers/fuel-log.controller';
 import * as tachographCalibrationController from '../controllers/tachograph-calibration.controller';
 import * as vehicleInspectionController from '../controllers/vehicle-inspection.controller';
+import * as vehicleMaintenanceController from '../controllers/vehicle-maintenance.controller';
 import * as vehicleSafetyEquipmentController from '../controllers/vehicle-safety-equipment.controller';
 import * as vehicleController from '../controllers/vehicle.controller';
 import { validateRequest } from '../middleware/validate-request';
+import {
+  fuelLogParamsSchema,
+  fuelLogWriteSchema,
+  listFuelLogsQuerySchema,
+} from '../schemas/fuel-log.schema';
 import {
   expiringCalibrationsQuerySchema,
   tachographCalibrationParamsSchema,
   tachographCalibrationWriteSchema,
 } from '../schemas/tachograph-calibration.schema';
+import {
+  listVehicleMaintenanceQuerySchema,
+  maintenanceCostSummaryQuerySchema,
+  vehicleMaintenanceParamsSchema,
+  vehicleMaintenanceWriteSchema,
+} from '../schemas/vehicle-maintenance.schema';
 import {
   expiringInspectionsQuerySchema,
   vehicleInspectionParamsSchema,
@@ -59,6 +72,12 @@ vehicleRouter.get(
   '/expiring-safety-equipment',
   validateRequest({ query: expiringSafetyEquipmentQuerySchema }),
   asyncHandler(vehicleSafetyEquipmentController.listExpiringSafetyEquipment),
+);
+
+vehicleRouter.get(
+  '/maintenance-cost-summary',
+  validateRequest({ query: maintenanceCostSummaryQuerySchema }),
+  asyncHandler(vehicleMaintenanceController.getMaintenanceCostSummary),
 );
 
 vehicleRouter.get(
@@ -155,6 +174,66 @@ vehicleRouter.delete(
   '/:id/safety-equipment/:equipmentId',
   validateRequest({ params: vehicleSafetyEquipmentParamsSchema }),
   asyncHandler(vehicleSafetyEquipmentController.deleteVehicleSafetyEquipment),
+);
+
+vehicleRouter.get(
+  '/:id/fuel-logs',
+  validateRequest({ params: vehicleIdParamsSchema, query: listFuelLogsQuerySchema }),
+  asyncHandler(fuelLogController.listFuelLogs),
+);
+
+vehicleRouter.post(
+  '/:id/fuel-logs',
+  validateRequest({ params: vehicleIdParamsSchema, body: fuelLogWriteSchema }),
+  asyncHandler(fuelLogController.createFuelLog),
+);
+
+vehicleRouter.get(
+  '/:id/fuel-logs/:fuelLogId',
+  validateRequest({ params: fuelLogParamsSchema }),
+  asyncHandler(fuelLogController.getFuelLog),
+);
+
+vehicleRouter.patch(
+  '/:id/fuel-logs/:fuelLogId',
+  validateRequest({ params: fuelLogParamsSchema, body: fuelLogWriteSchema }),
+  asyncHandler(fuelLogController.updateFuelLog),
+);
+
+vehicleRouter.delete(
+  '/:id/fuel-logs/:fuelLogId',
+  validateRequest({ params: fuelLogParamsSchema }),
+  asyncHandler(fuelLogController.deleteFuelLog),
+);
+
+vehicleRouter.get(
+  '/:id/maintenance',
+  validateRequest({ params: vehicleIdParamsSchema, query: listVehicleMaintenanceQuerySchema }),
+  asyncHandler(vehicleMaintenanceController.listVehicleMaintenance),
+);
+
+vehicleRouter.post(
+  '/:id/maintenance',
+  validateRequest({ params: vehicleIdParamsSchema, body: vehicleMaintenanceWriteSchema }),
+  asyncHandler(vehicleMaintenanceController.createVehicleMaintenance),
+);
+
+vehicleRouter.get(
+  '/:id/maintenance/:maintenanceId',
+  validateRequest({ params: vehicleMaintenanceParamsSchema }),
+  asyncHandler(vehicleMaintenanceController.getVehicleMaintenance),
+);
+
+vehicleRouter.patch(
+  '/:id/maintenance/:maintenanceId',
+  validateRequest({ params: vehicleMaintenanceParamsSchema, body: vehicleMaintenanceWriteSchema }),
+  asyncHandler(vehicleMaintenanceController.updateVehicleMaintenance),
+);
+
+vehicleRouter.delete(
+  '/:id/maintenance/:maintenanceId',
+  validateRequest({ params: vehicleMaintenanceParamsSchema }),
+  asyncHandler(vehicleMaintenanceController.deleteVehicleMaintenance),
 );
 
 vehicleRouter.get(

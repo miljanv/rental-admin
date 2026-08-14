@@ -16,8 +16,10 @@ import { PageHeader } from '@/components/common/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { FuelLogsTab } from '@/features/fuel-logs/components/fuel-logs-tab';
 import { TachographCalibrationsTab } from '@/features/tachograph-calibrations/components/tachograph-calibrations-tab';
 import { VehicleInspectionsTab } from '@/features/vehicle-inspections/components/vehicle-inspections-tab';
+import { VehicleMaintenanceTab } from '@/features/vehicle-maintenance/components/vehicle-maintenance-tab';
 import { VehicleSafetyEquipmentTab } from '@/features/vehicle-safety-equipment/components/vehicle-safety-equipment-tab';
 import { DeleteVehicleDialog } from '@/features/vehicles/components/delete-vehicle-dialog';
 import { VehicleStatusBadge } from '@/features/vehicles/components/vehicle-status-badge';
@@ -201,8 +203,8 @@ export function VehicleProfile({ vehicleId }: VehicleProfileProps) {
       {activeTab === 'safety-equipment' ? (
         <VehicleSafetyEquipmentTab vehicleId={vehicle.id} />
       ) : null}
-      {activeTab === 'fuel' ? <ComingSoon title="Gorivo i potrošnja" /> : null}
-      {activeTab === 'maintenance' ? <ComingSoon title="Održavanje" /> : null}
+      {activeTab === 'fuel' ? <FuelLogsTab vehicleId={vehicle.id} /> : null}
+      {activeTab === 'maintenance' ? <VehicleMaintenanceTab vehicleId={vehicle.id} /> : null}
       {activeTab === 'documents' ? <ComingSoon title="Dokumenti" /> : null}
       {activeTab === 'deadlines' ? <ComingSoon title="Pregled rokova" /> : null}
 
