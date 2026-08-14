@@ -7,8 +7,23 @@ import { z } from 'zod';
  * from it. Each variable is referenced statically so Next.js can replace it at
  * build time.
  */
+const hasApiPrefix = (value: string): boolean => {
+  try {
+    const pathname = new URL(value).pathname.replace(/\/$/, '');
+    return pathname === '/api/v1';
+  } catch {
+    return false;
+  }
+};
+
 const clientEnvSchema = z.object({
-  NEXT_PUBLIC_API_URL: z.string().url('NEXT_PUBLIC_API_URL must be an absolute URL.'),
+  NEXT_PUBLIC_API_URL: z
+    .string()
+    .url('NEXT_PUBLIC_API_URL must be an absolute URL.')
+    .refine(
+      hasApiPrefix,
+      'NEXT_PUBLIC_API_URL must end with /api/v1 (example: https://xxx.up.railway.app/api/v1).',
+    ),
   NEXT_PUBLIC_APP_ENV: z.string().min(1).default('development'),
   NEXT_PUBLIC_APP_VERSION: z.string().min(1).default('0.1.0'),
   NEXT_PUBLIC_MAX_FILE_SIZE_MB: z.coerce

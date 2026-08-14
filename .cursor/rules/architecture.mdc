@@ -1,0 +1,21 @@
+---
+description: Rental Admin architecture and coding conventions. Apply in every session.
+alwaysApply: true
+---
+
+# Rental Admin
+
+Follow the root `CLAUDE.md` as the source of truth. Do not invent a parallel stack.
+
+Hard rules:
+
+- pnpm monorepo: `apps/web` (Next.js App Router), `apps/api` (Express), `packages/shared`.
+- No React Router. No second QueryClient. No extra UI kit or HTTP client.
+- Feature UI: `features/<name>/{api,hooks,schemas,components}`. Pages stay thin.
+- Components call hooks; hooks call `*-api.ts`; only `apiClient` / `storageClient` talk to the network.
+- Query keys only from `lib/query-keys.ts`. Invalidate `files.all` / `dashboard.all` after mutations.
+- API pipeline: `route → validateRequest(Zod) → controller → service → Prisma|S3`. Thin controllers.
+- Direct-to-S3 uploads. Never send `storageKey` or AWS secrets to the browser.
+- Shared contracts in `@rental-admin/shared`. Build `shared` before web/api.
+- TypeScript strict, kebab-case files, named component exports, English UI copy.
+- Conventional commits (`feat(files): …`). Do not commit `.env` or credentials.
