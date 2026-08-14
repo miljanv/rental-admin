@@ -30,7 +30,7 @@ apiClient.interceptors.response.use(
     if (axios.isAxiosError(error) && error.response?.status === 401) {
       const requestUrl = error.config?.url ?? '';
 
-      if (!requestUrl.includes('/auth/login')) {
+      if (!requestUrl.includes('/auth/login') && !requestUrl.includes('/auth/me')) {
         clearAccessToken();
         emitUnauthorized();
       }

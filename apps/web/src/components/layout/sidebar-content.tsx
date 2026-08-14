@@ -24,7 +24,7 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
     <div className="text-sidebar-foreground flex h-full flex-col">
       <div className="flex h-16 items-center gap-3 px-5">
         <Link
-          href="/"
+          href="/drivers"
           onClick={onNavigate}
           className="flex items-center gap-3 outline-none focus-visible:underline"
         >
@@ -33,7 +33,7 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
           </span>
           <span className="flex flex-col leading-tight">
             <span className="text-sm font-semibold tracking-tight">{APP_NAME}</span>
-            <span className="text-sidebar-foreground/55 text-xs">Rental Travel</span>
+            <span className="text-sidebar-foreground/55 text-xs">Administracija</span>
           </span>
         </Link>
       </div>
@@ -42,7 +42,7 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
 
       <div className="flex-1 overflow-y-auto py-4">
         <p className="text-sidebar-foreground/45 mb-2 px-6 text-xs font-medium tracking-wider uppercase">
-          Overview
+          Navigacija
         </p>
         <SidebarNav onNavigate={onNavigate} />
       </div>
@@ -73,7 +73,7 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
           }}
         >
           <LogOut className="size-4" aria-hidden />
-          Sign out
+          Odjava
         </Button>
       </div>
     </div>

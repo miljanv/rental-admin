@@ -36,6 +36,39 @@ model FileObject {
   @@index([status, createdAt])
 }
 
+enum DriverStatus {
+  ACTIVE
+  SICK_LEAVE
+  VACATION
+  INACTIVE
+}
+
+/// A driver employed by the company. Field names are English; the admin UI
+/// presents Serbian labels.
+model Driver {
+  id                     String       @id @default(cuid())
+  firstName              String
+  lastName               String
+  jmbg                   String       @unique
+  dateOfBirth            DateTime     @db.Date
+  residencePlace         String
+  educationLevel         String
+  idCardNumber           String
+  drivingLicenseNumber   String
+  drivingLicenseCategory String
+  licenseNumber          String
+  phone                  String
+  email                  String
+  jobTitle               String
+  status                 DriverStatus @default(ACTIVE)
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+
+  @@index([status])
+  @@index([lastName, firstName])
+  @@map("drivers")
+}
+
 /// Bootstrap admin accounts. Passwords are stored as bcrypt hashes and never
 /// returned by the API.
 model User {

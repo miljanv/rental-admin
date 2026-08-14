@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { fetchCurrentUser, login as loginRequest } from '@/features/auth/api/auth-api';
+import { parseApiError } from '@/lib/api-error';
 import { queryKeys } from '@/lib/query-keys';
 import {
   clearAccessToken,
@@ -47,14 +48,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     void fetchCurrentUser(controller.signal)
       .then((currentUser) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
         setUser(currentUser);
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        // Strict Mode remounts abort the first request. That is not a failed
+        // session — clearing the token here logs the user out on the next call.
+        if (controller.signal.aborted || parseApiError(error).isCanceled) {
+          return;
+        }
+
         clearAccessToken();
         setUser(null);
       })
       .finally(() => {
-        setIsReady(true);
+        if (!controller.signal.aborted) {
+          setIsReady(true);
+        }
       });
 
     return () => controller.abort();
@@ -69,6 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(result.user);
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.files.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.drivers.all });
     },
   });
 

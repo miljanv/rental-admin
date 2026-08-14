@@ -43,7 +43,9 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
               aria-hidden
             />
             <span className="truncate">{item.title}</span>
-            {isActive ? <span className="bg-sidebar-primary ml-auto size-1.5 rounded-full" /> : null}
+            {isActive ? (
+              <span className="bg-sidebar-primary ml-auto size-1.5 rounded-full" />
+            ) : null}
           </Link>
         );
       })}

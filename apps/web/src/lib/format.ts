@@ -27,6 +27,23 @@ const dateTimeFormatter = new Intl.DateTimeFormat('en-GB', {
   minute: '2-digit',
 });
 
+/** Calendar date in Serbian numeric form, for example "01.01.1990." */
+export const formatDate = (isoDate: string | null): string => {
+  if (!isoDate) {
+    return '—';
+  }
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(isoDate);
+
+  if (!match) {
+    return '—';
+  }
+
+  const [, year, month, day] = match;
+
+  return `${day}.${month}.${year}.`;
+};
+
 /** Absolute date and time, for example "13 Aug 2026, 15:04". */
 export const formatDateTime = (isoDate: string | null): string => {
   if (!isoDate) {

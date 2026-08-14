@@ -85,4 +85,21 @@ describe('API request pipeline', () => {
     expect(response.status).toBe(400);
     expect(response.body.error.code).toBe('VALIDATION_ERROR');
   });
+
+  it('rejects driver routes without a bearer token', async () => {
+    const response = await request(app).get('/api/v1/drivers');
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('rejects an incomplete driver payload', async () => {
+    const response = await request(app)
+      .post('/api/v1/drivers')
+      .set(auth)
+      .send({ firstName: 'Marko' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
+  });
 });

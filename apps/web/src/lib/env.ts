@@ -63,4 +63,4 @@ export const clientEnv = {
 } as const;
 
 export const APP_NAME = 'Rental Admin';
-export const APP_DESCRIPTION = 'File administration panel';
+export const APP_DESCRIPTION = 'Administracija vozača i flote';

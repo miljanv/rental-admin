@@ -11,6 +11,8 @@ interface ErrorStateProps {
   title?: string;
   onRetry?: () => void;
   isRetrying?: boolean;
+  retryLabel?: string;
+  retryingLabel?: string;
   className?: string;
 }
 
@@ -20,6 +22,8 @@ export function ErrorState({
   title = 'Could not load the data',
   onRetry,
   isRetrying = false,
+  retryLabel = 'Try again',
+  retryingLabel = 'Retrying…',
   className,
 }: ErrorStateProps) {
   return (
@@ -41,7 +45,7 @@ export function ErrorState({
           className="mt-5"
         >
           <RefreshCw className={cn('size-4', isRetrying && 'animate-spin')} aria-hidden />
-          {isRetrying ? 'Retrying…' : 'Try again'}
+          {isRetrying ? retryingLabel : retryLabel}
         </Button>
       ) : null}
     </div>

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Fragment } from 'react';
 
@@ -13,7 +14,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 
-const ROOT_CRUMB = { title: 'Dashboard', href: '/' };
+const ROOT_CRUMB = { title: 'Vozači', href: '/drivers' };
 
 const toTitleCase = (segment: string): string =>
   segment
@@ -21,9 +22,14 @@ const toTitleCase = (segment: string): string =>
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 
+const SEGMENT_LABELS: Record<string, string> = {
+  new: 'Novi vozač',
+  edit: 'Izmena',
+};
+
 /** Builds the trail from the current path, using the nav labels when known. */
 const buildTrail = (pathname: string): { title: string; href: string }[] => {
-  if (pathname === '/') {
+  if (pathname === '/' || pathname === ROOT_CRUMB.href) {
     return [ROOT_CRUMB];
   }
 
@@ -32,11 +38,17 @@ const buildTrail = (pathname: string): { title: string; href: string }[] => {
   const crumbs = segments.map((segment, index) => {
     const href = `/${segments.slice(0, index + 1).join('/')}`;
     const navItem = NAV_ITEMS.find((item) => item.href === href);
+    const previous = segments[index - 1];
+    const isDriverId = previous === 'drivers' && segment !== 'new';
 
-    return { title: navItem?.title ?? toTitleCase(segment), href };
+    return {
+      title:
+        navItem?.title ?? SEGMENT_LABELS[segment] ?? (isDriverId ? 'Profil' : toTitleCase(segment)),
+      href,
+    };
   });
 
-  return [ROOT_CRUMB, ...crumbs];
+  return crumbs[0]?.href === ROOT_CRUMB.href ? crumbs : [ROOT_CRUMB, ...crumbs];
 };
 
 export function Breadcrumbs() {
@@ -55,7 +67,9 @@ export function Breadcrumbs() {
                 {isLast ? (
                   <BreadcrumbPage>{crumb.title}</BreadcrumbPage>
                 ) : (
-                  <BreadcrumbLink href={crumb.href}>{crumb.title}</BreadcrumbLink>
+                  <BreadcrumbLink asChild>
+                    <Link href={crumb.href}>{crumb.title}</Link>
+                  </BreadcrumbLink>
                 )}
               </BreadcrumbItem>
               {isLast ? null : <BreadcrumbSeparator />}

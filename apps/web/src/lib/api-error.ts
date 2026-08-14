@@ -14,6 +14,19 @@ export interface ParsedApiError {
 const GENERIC_MESSAGE = 'Something went wrong. Please try again.';
 const NETWORK_MESSAGE = 'Cannot reach the server. Check your connection and try again.';
 
+/** True when Axios or fetch was aborted (navigation, unmount, Strict Mode). */
+export const isCanceledError = (error: unknown): boolean => {
+  if (axios.isCancel(error)) {
+    return true;
+  }
+
+  if (axios.isAxiosError(error) && error.code === 'ERR_CANCELED') {
+    return true;
+  }
+
+  return error instanceof Error && error.name === 'AbortError';
+};
+
 const isApiErrorResponse = (payload: unknown): payload is ApiErrorResponse => {
   if (typeof payload !== 'object' || payload === null) {
     return false;
@@ -53,7 +66,7 @@ const extractFieldMessages = (error: ApiErrorBody): string[] => {
  * preferring the API's own error message over a generic one.
  */
 export const parseApiError = (error: unknown): ParsedApiError => {
-  if (axios.isCancel(error)) {
+  if (isCanceledError(error)) {
     return {
       code: 'CANCELED',
       message: 'Upload canceled.',
