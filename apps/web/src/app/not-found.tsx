@@ -10,11 +10,11 @@ export default function NotFound() {
     <Card className="shadow-none">
       <EmptyState
         icon={FileQuestion}
-        title="Page not found"
-        description="The page you are looking for does not exist."
+        title="Stranica nije pronađena"
+        description="Stranica koju tražite ne postoji."
         action={
           <Button asChild size="sm">
-            <Link href="/">Back to dashboard</Link>
+            <Link href="/drivers">Nazad na vozače</Link>
           </Button>
         }
       />

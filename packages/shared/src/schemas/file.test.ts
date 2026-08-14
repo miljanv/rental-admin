@@ -55,7 +55,6 @@ describe('createPresignUploadRequestSchema', () => {
     const result = schema.safeParse({
       originalName: 'a.txt',
       mimeType: 'text/plain',
-      size: 1,
       ...override,
     });
 

@@ -26,7 +26,7 @@ const buildCorsOptions = (): CorsOptions => ({
     // Surfaces as a 403 with the standard error envelope instead of a 500.
     callback(forbidden(`Origin ${origin} is not allowed by CORS.`));
   },
-  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
   maxAge: 86_400,
 });

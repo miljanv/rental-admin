@@ -1,4 +1,4 @@
-import { FolderOpen, LayoutDashboard, type LucideIcon } from 'lucide-react';
+import { Bus, type LucideIcon } from 'lucide-react';
 
 export interface NavItem {
   title: string;
@@ -10,16 +10,10 @@ export interface NavItem {
 /** Single source of truth for the sidebar and the breadcrumb labels. */
 export const NAV_ITEMS: NavItem[] = [
   {
-    title: 'Dashboard',
-    href: '/',
-    icon: LayoutDashboard,
-    description: 'Storage overview',
-  },
-  {
-    title: 'Files',
-    href: '/files',
-    icon: FolderOpen,
-    description: 'Upload and manage files',
+    title: 'Vozači',
+    href: '/drivers',
+    icon: Bus,
+    description: 'Evidencija vozača',
   },
 ];
 

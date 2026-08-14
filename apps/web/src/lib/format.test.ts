@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatDateTime, formatFileSize, formatMimeType, getFileExtension } from './format';
+import {
+  formatDate,
+  formatDateTime,
+  formatFileSize,
+  formatMimeType,
+  getFileExtension,
+} from './format';
 
 describe('formatFileSize', () => {
   it('formats bytes below one kilobyte', () => {
@@ -26,6 +32,18 @@ describe('formatFileSize', () => {
     expect(formatFileSize(-1)).toBe('0 B');
     expect(formatFileSize(Number.NaN)).toBe('0 B');
     expect(formatFileSize(Number.POSITIVE_INFINITY)).toBe('0 B');
+  });
+});
+
+describe('formatDate', () => {
+  it('formats an ISO date as a Serbian numeric date', () => {
+    expect(formatDate('1990-01-01')).toBe('01.01.1990.');
+    expect(formatDate('2026-08-14T10:00:00.000Z')).toBe('14.08.2026.');
+  });
+
+  it('renders a dash for a missing or invalid date', () => {
+    expect(formatDate(null)).toBe('—');
+    expect(formatDate('not-a-date')).toBe('—');
   });
 });
 
