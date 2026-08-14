@@ -8,6 +8,7 @@ import {
   type PaginationMeta,
   type PresignUploadRequest,
   type PresignUploadResult,
+  type PreviewUrlResult,
   type SortOrder,
 } from '@rental-admin/shared';
 
@@ -170,7 +171,10 @@ export const listFiles = async (
  * A row whose object has disappeared is marked FAILED instead of handing out a
  * URL that would return an S3 error page.
  */
-export const createDownloadUrl = async (id: string): Promise<DownloadUrlResult> => {
+const createSignedGetUrl = async (
+  id: string,
+  disposition: 'attachment' | 'inline',
+): Promise<{ url: string; fileName: string; expiresIn: number }> => {
   const record = await prisma.fileObject.findUnique({ where: { id } });
 
   if (!record) {
@@ -196,9 +200,22 @@ export const createDownloadUrl = async (id: string): Promise<DownloadUrlResult> 
     storageKey: record.storageKey,
     fileName: record.originalName,
     mimeType: record.mimeType,
+    disposition,
   });
 
-  return { downloadUrl, fileName: record.originalName, expiresIn };
+  return { url: downloadUrl, fileName: record.originalName, expiresIn };
+};
+
+export const createDownloadUrl = async (id: string): Promise<DownloadUrlResult> => {
+  const signed = await createSignedGetUrl(id, 'attachment');
+
+  return { downloadUrl: signed.url, fileName: signed.fileName, expiresIn: signed.expiresIn };
+};
+
+export const createPreviewUrl = async (id: string): Promise<PreviewUrlResult> => {
+  const signed = await createSignedGetUrl(id, 'inline');
+
+  return { previewUrl: signed.url, fileName: signed.fileName, expiresIn: signed.expiresIn };
 };
 
 /**

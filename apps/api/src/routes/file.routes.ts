@@ -38,6 +38,12 @@ fileRouter.get(
   asyncHandler(fileController.getDownloadUrl),
 );
 
+fileRouter.get(
+  '/:id/preview',
+  validateRequest({ params: fileIdParamsSchema }),
+  asyncHandler(fileController.getPreviewUrl),
+);
+
 fileRouter.delete(
   '/:id',
   uploadRateLimiter,

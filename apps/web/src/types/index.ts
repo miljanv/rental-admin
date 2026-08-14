@@ -11,8 +11,11 @@ export type {
   ApiResponse,
   ApiSuccessResponse,
   DashboardStats,
+  DeleteDriverDocumentResult,
   DeleteDriverResult,
   DeleteFileResult,
+  DriverDocumentDto,
+  DriverDocumentType,
   DriverDto,
   DriverStatus,
   DownloadUrlResult,
@@ -23,5 +26,6 @@ export type {
   PaginationMeta,
   PresignUploadRequest,
   PresignUploadResult,
+  PreviewUrlResult,
   SortOrder,
 } from '@rental-admin/shared';

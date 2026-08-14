@@ -33,6 +33,13 @@ export const getDownloadUrl = async (req: Request, res: Response): Promise<void>
   sendSuccess(res, result);
 };
 
+export const getPreviewUrl = async (req: Request, res: Response): Promise<void> => {
+  const { id } = validated<FileIdParams>(req, 'params');
+  const result = await fileService.createPreviewUrl(id);
+
+  sendSuccess(res, result);
+};
+
 export const deleteFile = async (req: Request, res: Response): Promise<void> => {
   const { id } = validated<FileIdParams>(req, 'params');
   const result = await fileService.deleteFile(id);

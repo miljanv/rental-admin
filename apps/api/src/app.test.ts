@@ -102,4 +102,23 @@ describe('API request pipeline', () => {
     expect(response.status).toBe(400);
     expect(response.body.error.code).toBe('VALIDATION_ERROR');
   });
+
+  it('rejects an incomplete driver document payload', async () => {
+    const response = await request(app)
+      .post('/api/v1/drivers/drv_1/documents')
+      .set(auth)
+      .send({ type: 'LICENSE' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('rejects an expiring-documents window outside the allowed range', async () => {
+    const response = await request(app)
+      .get('/api/v1/drivers/expiring-documents?days=0')
+      .set(auth);
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
+  });
 });

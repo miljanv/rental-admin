@@ -91,8 +91,11 @@ export const buildStorageKey = (
  * Content-Disposition value that makes S3 return the file as a download using
  * the original name, with an ASCII fallback for legacy clients (RFC 5987).
  */
-export const buildContentDisposition = (fileName: string): string => {
+export const buildContentDisposition = (
+  fileName: string,
+  disposition: 'attachment' | 'inline' = 'attachment',
+): string => {
   const asciiFallback = fileName.replace(/[^\x20-\x7e]/g, '_').replace(/["\\;]/g, '_');
 
-  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
+  return `${disposition}; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
 };

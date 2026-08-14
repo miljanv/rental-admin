@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/common/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DriverDocumentsTab } from '@/features/driver-documents/components/driver-documents-tab';
 import { DeleteDriverDialog } from '@/features/drivers/components/delete-driver-dialog';
 import { DriverStatusBadge } from '@/features/drivers/components/driver-status-badge';
 import { useDriver } from '@/features/drivers/hooks/use-driver';
@@ -181,7 +182,7 @@ export function DriverProfile({ driverId }: DriverProfileProps) {
       </div>
 
       {activeTab === 'overview' ? <DriverOverview driver={driver} /> : null}
-      {activeTab === 'documents' ? <ComingSoon title="Dokumenti" /> : null}
+      {activeTab === 'documents' ? <DriverDocumentsTab driverId={driver.id} /> : null}
       {activeTab === 'trainings' ? <ComingSoon title="Obuke" /> : null}
       {activeTab === 'exams' ? <ComingSoon title="Pregledi" /> : null}
 
