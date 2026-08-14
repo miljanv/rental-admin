@@ -1,4 +1,12 @@
-import type { DriverSortField, DriverStatus, FileSortField, SortOrder } from '@rental-admin/shared';
+import type {
+  DriverSortField,
+  DriverStatus,
+  FileSortField,
+  SortOrder,
+  VehicleSortField,
+  VehicleStatus,
+  VehicleType,
+} from '@rental-admin/shared';
 
 export interface FileListQueryParams {
   page: number;
@@ -15,6 +23,16 @@ export interface DriverListQueryParams {
   sortBy: DriverSortField;
   sortOrder: SortOrder;
   status?: DriverStatus;
+}
+
+export interface VehicleListQueryParams {
+  page: number;
+  limit: number;
+  search?: string;
+  sortBy: VehicleSortField;
+  sortOrder: SortOrder;
+  status?: VehicleStatus;
+  type?: VehicleType;
 }
 
 /**
@@ -36,5 +54,10 @@ export const queryKeys = {
     detail: (id: string) => ['drivers', 'detail', id] as const,
     documents: (driverId: string) => ['drivers', driverId, 'documents'] as const,
     expiring: (days: number) => ['drivers', 'expiring-documents', days] as const,
+  },
+  vehicles: {
+    all: ['vehicles'] as const,
+    list: (params: VehicleListQueryParams) => ['vehicles', 'list', params] as const,
+    detail: (id: string) => ['vehicles', 'detail', id] as const,
   },
 } as const;

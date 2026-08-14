@@ -6,6 +6,7 @@ import { dashboardRouter } from './dashboard.routes';
 import { driverRouter } from './driver.routes';
 import { fileRouter } from './file.routes';
 import { healthRouter } from './health.routes';
+import { vehicleRouter } from './vehicle.routes';
 
 /** Everything below is mounted under `/api/v1`. */
 export const apiRouter = Router();
@@ -15,3 +16,4 @@ apiRouter.use('/auth', authRouter);
 apiRouter.use('/dashboard', requireAuth, dashboardRouter);
 apiRouter.use('/drivers', requireAuth, driverRouter);
 apiRouter.use('/files', requireAuth, fileRouter);
+apiRouter.use('/vehicles', requireAuth, vehicleRouter);
