@@ -23,6 +23,11 @@ export const storageClient = axios.create({
   transformRequest: [(data: unknown) => data],
 });
 
+// Axios defaults include `Accept`, which triggers a CORS preflight. S3 only
+// needs the signed `Content-Type`; extra request headers fail the bucket CORS
+// rule unless AllowedHeaders is a wildcard.
+storageClient.defaults.headers.common = {};
+
 /** Unwraps the `{ success, data }` envelope. */
 export const unwrap = <TData>(payload: ApiResponse<TData>): TData => {
   if (!payload.success) {

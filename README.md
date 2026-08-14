@@ -331,9 +331,9 @@ origins. Bucket → **Permissions** → **Cross-origin resource sharing (CORS)**
 [
   {
     "AllowedOrigins": ["http://localhost:3000", "https://your-app.vercel.app"],
-    "AllowedMethods": ["PUT", "GET"],
-    "AllowedHeaders": ["content-type"],
-    "ExposeHeaders": ["ETag"],
+    "AllowedMethods": ["PUT", "GET", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag", "Content-Type", "Content-Length"],
     "MaxAgeSeconds": 3000
   }
 ]
