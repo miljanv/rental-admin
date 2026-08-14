@@ -163,7 +163,9 @@ model Vehicle {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
-  inspections VehicleInspection[]
+  inspections     VehicleInspection[]
+  calibrations    TachographCalibration[]
+  safetyEquipment VehicleSafetyEquipment[]
 
   @@index([status])
   @@index([type])
@@ -194,4 +196,46 @@ model VehicleInspection {
   @@index([expiresAt])
   @@index([type])
   @@map("vehicle_inspections")
+}
+
+/// A tachograph calibration record. `expiresAt` is always computed
+/// server-side from the vehicle's `tachographType` + `calibratedAt`.
+model TachographCalibration {
+  id           String   @id @default(cuid())
+  vehicleId    String
+  calibratedAt DateTime @db.Date
+  expiresAt    DateTime @db.Date
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+  @@index([expiresAt])
+  @@map("tachograph_calibrations")
+}
+
+enum SafetyEquipmentType {
+  FIRST_AID_KIT
+  FIRE_EXTINGUISHER
+}
+
+/// PP aparat (fire extinguisher) checks and prva pomoć (first aid kit) box
+/// expiries. `expiresAt` is computed server-side for FIRE_EXTINGUISHER
+/// (+180 days) and entered manually for FIRST_AID_KIT (printed on the box).
+model VehicleSafetyEquipment {
+  id        String              @id @default(cuid())
+  vehicleId String
+  type      SafetyEquipmentType
+  checkedAt DateTime            @db.Date
+  expiresAt DateTime            @db.Date
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+  @@index([expiresAt])
+  @@index([type])
+  @@map("vehicle_safety_equipment")
 }

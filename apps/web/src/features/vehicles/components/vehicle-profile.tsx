@@ -16,7 +16,9 @@ import { PageHeader } from '@/components/common/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { TachographCalibrationsTab } from '@/features/tachograph-calibrations/components/tachograph-calibrations-tab';
 import { VehicleInspectionsTab } from '@/features/vehicle-inspections/components/vehicle-inspections-tab';
+import { VehicleSafetyEquipmentTab } from '@/features/vehicle-safety-equipment/components/vehicle-safety-equipment-tab';
 import { DeleteVehicleDialog } from '@/features/vehicles/components/delete-vehicle-dialog';
 import { VehicleStatusBadge } from '@/features/vehicles/components/vehicle-status-badge';
 import { useVehicle } from '@/features/vehicles/hooks/use-vehicle';
@@ -193,8 +195,12 @@ export function VehicleProfile({ vehicleId }: VehicleProfileProps) {
 
       {activeTab === 'overview' ? <VehicleOverview vehicle={vehicle} /> : null}
       {activeTab === 'inspections' ? <VehicleInspectionsTab vehicleId={vehicle.id} /> : null}
-      {activeTab === 'tachograph' ? <ComingSoon title="Tahograf" /> : null}
-      {activeTab === 'safety-equipment' ? <ComingSoon title="Sigurnosna oprema" /> : null}
+      {activeTab === 'tachograph' ? (
+        <TachographCalibrationsTab vehicleId={vehicle.id} tachographType={vehicle.tachographType} />
+      ) : null}
+      {activeTab === 'safety-equipment' ? (
+        <VehicleSafetyEquipmentTab vehicleId={vehicle.id} />
+      ) : null}
       {activeTab === 'fuel' ? <ComingSoon title="Gorivo i potrošnja" /> : null}
       {activeTab === 'maintenance' ? <ComingSoon title="Održavanje" /> : null}
       {activeTab === 'documents' ? <ComingSoon title="Dokumenti" /> : null}
