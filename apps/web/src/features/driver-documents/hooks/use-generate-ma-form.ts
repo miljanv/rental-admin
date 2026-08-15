@@ -17,6 +17,7 @@ export const useGenerateMaForm = (driverId: string) => {
       toast.success('Obrazac MA je generisan.');
       window.location.assign(result.downloadUrl);
       await queryClient.invalidateQueries({ queryKey: queryKeys.drivers.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.alarms.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.files.all });
     },
     onError: (error) => {

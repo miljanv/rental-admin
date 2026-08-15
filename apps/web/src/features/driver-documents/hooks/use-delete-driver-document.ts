@@ -16,6 +16,7 @@ export const useDeleteDriverDocument = (driverId: string) => {
     onSuccess: async (_result, variables) => {
       toast.success('Dokument je obrisan.', { description: variables.label });
       await queryClient.invalidateQueries({ queryKey: queryKeys.drivers.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.alarms.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.files.all });
     },
     onError: (error) => {

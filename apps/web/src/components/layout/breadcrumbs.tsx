@@ -14,7 +14,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 
-const ROOT_CRUMB = { title: 'Vozači', href: '/drivers' };
+const ROOT_CRUMB = { title: 'Dashboard', href: '/' };
 
 const toTitleCase = (segment: string): string =>
   segment
@@ -25,6 +25,9 @@ const toTitleCase = (segment: string): string =>
 const SEGMENT_LABELS: Record<string, string> = {
   new: 'Novi vozač',
   edit: 'Izmena',
+  settings: 'Podešavanja',
+  finance: 'Finansije',
+  alarms: 'Alarm centar',
 };
 
 /** Builds the trail from the current path, using the nav labels when known. */

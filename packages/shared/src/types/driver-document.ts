@@ -31,6 +31,17 @@ export const EMPLOYMENT_CONTRACT_TYPE_LABELS: Record<EmploymentContractType, str
 
 export type DocumentExpiryUrgency = 'expired' | 'critical' | 'warning' | 'ok' | 'none';
 
+export interface ExpiryThresholds {
+  criticalDays: number;
+  warningDays: number;
+}
+
+/** Default: red within 7 days, yellow within 30. */
+export const DEFAULT_EXPIRY_THRESHOLDS: ExpiryThresholds = {
+  criticalDays: 7,
+  warningDays: 30,
+};
+
 export type DriverDocumentFileDto = AttachedFileDto;
 
 export interface DriverDocumentDto {
@@ -75,6 +86,7 @@ export const daysUntilExpiry = (expiresAt: string, todayIso: string): number =>
 export const getDocumentExpiryUrgency = (
   expiresAt: string | null,
   todayIso: string,
+  thresholds: ExpiryThresholds = DEFAULT_EXPIRY_THRESHOLDS,
 ): DocumentExpiryUrgency => {
   if (!expiresAt) {
     return 'none';
@@ -86,18 +98,18 @@ export const getDocumentExpiryUrgency = (
     return 'expired';
   }
 
-  if (days <= 7) {
+  if (days <= thresholds.criticalDays) {
     return 'critical';
   }
 
-  if (days <= 30) {
+  if (days <= thresholds.warningDays) {
     return 'warning';
   }
 
   return 'ok';
 };
 
-const URGENCY_RANK: Record<DocumentExpiryUrgency, number> = {
+export const URGENCY_RANK: Record<DocumentExpiryUrgency, number> = {
   expired: 0,
   critical: 1,
   warning: 2,

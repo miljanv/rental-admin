@@ -16,6 +16,7 @@ export const useDeleteVehicleInspection = (vehicleId: string) => {
     onSuccess: async (_result, variables) => {
       toast.success('Pregled je obrisan.', { description: variables.label });
       await queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.alarms.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
     },
     onError: (error) => {

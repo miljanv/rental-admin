@@ -1,5 +1,11 @@
-import { redirect } from 'next/navigation';
+import type { Metadata } from 'next';
+
+import { DashboardOverview } from '@/features/dashboard/components/dashboard-overview';
+
+export const metadata: Metadata = {
+  title: 'Dashboard',
+};
 
 export default function HomePage() {
-  redirect('/drivers');
+  return <DashboardOverview />;
 }

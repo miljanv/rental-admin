@@ -91,6 +91,11 @@ export const queryKeys = {
     all: ['dashboard'] as const,
     stats: () => ['dashboard', 'stats'] as const,
   },
+  alarms: {
+    all: ['alarms'] as const,
+    list: () => ['alarms', 'list'] as const,
+    thresholds: () => ['alarms', 'thresholds'] as const,
+  },
   drivers: {
     all: ['drivers'] as const,
     list: (params: DriverListQueryParams) => ['drivers', 'list', params] as const,

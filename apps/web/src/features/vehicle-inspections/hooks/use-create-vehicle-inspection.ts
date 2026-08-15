@@ -16,6 +16,7 @@ export const useCreateVehicleInspection = (vehicleId: string) => {
     onSuccess: async () => {
       toast.success('Pregled je dodat.');
       await queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.alarms.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
     },
     onError: (error) => {
