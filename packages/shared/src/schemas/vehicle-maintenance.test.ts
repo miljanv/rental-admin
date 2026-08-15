@@ -8,6 +8,7 @@ const validRecord = {
   partName: 'Kočione pločice',
   supplier: 'AutoDelovi d.o.o.',
   cost: 8500,
+  paymentMethod: 'ACCOUNT',
   mechanic: 'Petar Petrović',
 } as const;
 
@@ -26,6 +27,11 @@ describe('vehicleMaintenanceWriteSchema', () => {
     expect(vehicleMaintenanceWriteSchema.safeParse({ ...validRecord, cost: 0 }).success).toBe(
       true,
     );
+  });
+
+  it('rejects a missing payment method', () => {
+    const { paymentMethod: _paymentMethod, ...withoutPayment } = validRecord;
+    expect(vehicleMaintenanceWriteSchema.safeParse(withoutPayment).success).toBe(false);
   });
 
   it('rejects a blank part name', () => {

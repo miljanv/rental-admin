@@ -14,6 +14,10 @@ import {
   toVehicleMaintenanceDto,
   type VehicleMaintenanceRecord,
 } from '../utils/vehicle-maintenance-mapper';
+import {
+  deleteOperationalTransaction,
+  upsertOperationalExpense,
+} from './transaction.service';
 
 const parseDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`);
 
@@ -34,6 +38,7 @@ const toWriteData = (input: VehicleMaintenanceWriteRequest) => ({
   partName: input.partName,
   supplier: input.supplier,
   cost: input.cost,
+  paymentMethod: input.paymentMethod,
   mechanic: input.mechanic,
 });
 
@@ -89,6 +94,18 @@ export const createVehicleMaintenance = async (
     data: { vehicleId, ...toWriteData(input) },
   });
 
+  await upsertOperationalExpense({
+    sourceType: 'MAINTENANCE',
+    sourceId: record.id,
+    category: 'PARTS',
+    amount: input.cost,
+    paymentMethod: input.paymentMethod,
+    occurredAt: input.date,
+    vehicleId,
+    supplier: input.supplier,
+    note: `Zamena: ${input.partName}`,
+  });
+
   logger.info('Vehicle maintenance created', { vehicleId, maintenanceId: record.id });
 
   return toVehicleMaintenanceDto(record);
@@ -112,6 +129,18 @@ export const updateVehicleMaintenance = async (
     data: toWriteData(input),
   });
 
+  await upsertOperationalExpense({
+    sourceType: 'MAINTENANCE',
+    sourceId: record.id,
+    category: 'PARTS',
+    amount: input.cost,
+    paymentMethod: input.paymentMethod,
+    occurredAt: input.date,
+    vehicleId,
+    supplier: input.supplier,
+    note: `Zamena: ${input.partName}`,
+  });
+
   logger.info('Vehicle maintenance updated', { vehicleId, maintenanceId });
 
   return toVehicleMaintenanceDto(record);
@@ -129,6 +158,7 @@ export const deleteVehicleMaintenance = async (
     throw notFound('Zapis o održavanju nije pronađen.');
   }
 
+  await deleteOperationalTransaction('MAINTENANCE', maintenanceId);
   await prisma.vehicleMaintenance.delete({ where: { id: maintenanceId } });
   logger.info('Vehicle maintenance deleted', { vehicleId, maintenanceId });
 

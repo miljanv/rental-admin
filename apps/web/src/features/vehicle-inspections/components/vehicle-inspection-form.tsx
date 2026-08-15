@@ -32,6 +32,7 @@ import {
 import { ScanUploadField } from '@/features/vehicles/components/scan-upload-field';
 import { useScanSelection } from '@/features/vehicles/hooks/use-scan-selection';
 import { useUploadVehicleScan } from '@/features/vehicles/hooks/use-upload-vehicle-scan';
+import { PaymentMethodSelect } from '@/features/transactions/components/payment-method-select';
 import { formatDate } from '@/lib/format';
 
 interface VehicleInspectionFormProps {
@@ -74,7 +75,13 @@ export function VehicleInspectionForm({
   const form = useForm<VehicleInspectionFormValues, unknown, VehicleInspectionWriteRequest>({
     resolver: zodResolver(vehicleInspectionFormSchema),
     defaultValues: inspection
-      ? { type: inspection.type, inspectedAt: inspection.inspectedAt, fileId: inspection.file?.id ?? '' }
+      ? {
+          type: inspection.type,
+          inspectedAt: inspection.inspectedAt,
+          fileId: inspection.file?.id ?? '',
+          cost: inspection.cost,
+          paymentMethod: inspection.paymentMethod ?? '',
+        }
       : EMPTY_INSPECTION_FORM,
   });
 
@@ -150,6 +157,34 @@ export function VehicleInspectionForm({
                 {...form.register('inspectedAt')}
               />
             </Field>
+
+            <Field id="cost" label="Iznos (RSD)" error={errors.cost?.message}>
+              <Input
+                id="cost"
+                type="number"
+                step="0.01"
+                inputMode="decimal"
+                disabled={isPending}
+                aria-invalid={Boolean(errors.cost)}
+                {...form.register('cost', { valueAsNumber: true })}
+              />
+            </Field>
+
+            <Controller
+              control={form.control}
+              name="paymentMethod"
+              render={({ field }) => (
+                <Field id="paymentMethod" label="Način plaćanja" error={errors.paymentMethod?.message}>
+                  <PaymentMethodSelect
+                    id="paymentMethod"
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={isPending}
+                    allowEmpty
+                  />
+                </Field>
+              )}
+            />
           </div>
 
           {previewExpiry ? (

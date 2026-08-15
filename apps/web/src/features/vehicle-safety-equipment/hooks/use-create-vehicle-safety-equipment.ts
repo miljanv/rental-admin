@@ -17,6 +17,7 @@ export const useCreateVehicleSafetyEquipment = (vehicleId: string) => {
     onSuccess: async () => {
       toast.success('Oprema je dodata.');
       await queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
     },
     onError: (error) => {
       toast.error('Oprema nije sačuvana.', { description: getApiErrorMessage(error) });

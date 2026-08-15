@@ -28,6 +28,7 @@ import {
   fuelLogFormSchema,
   type FuelLogFormValues,
 } from '@/features/fuel-logs/schemas/fuel-log-form-schema';
+import { PaymentMethodSelect } from '@/features/transactions/components/payment-method-select';
 
 interface FuelLogFormProps {
   vehicleId: string;
@@ -79,6 +80,9 @@ export function FuelLogForm({ vehicleId, fuelLog, onDone }: FuelLogFormProps) {
           fuelType: fuelLog.fuelType,
           litersFilled: fuelLog.litersFilled,
           odometerKm: fuelLog.odometerKm,
+          cost: fuelLog.cost,
+          paymentMethod: fuelLog.paymentMethod ?? '',
+          supplier: fuelLog.supplier ?? '',
         }
       : EMPTY_FUEL_LOG_FORM,
   });
@@ -196,6 +200,44 @@ export function FuelLogForm({ vehicleId, fuelLog, onDone }: FuelLogFormProps) {
                 disabled={isPending}
                 aria-invalid={Boolean(errors.odometerKm)}
                 {...form.register('odometerKm', { valueAsNumber: true })}
+              />
+            </Field>
+
+            <Field id="cost" label="Iznos (RSD)" error={errors.cost?.message}>
+              <Input
+                id="cost"
+                type="number"
+                step="0.01"
+                inputMode="decimal"
+                disabled={isPending}
+                aria-invalid={Boolean(errors.cost)}
+                {...form.register('cost', { valueAsNumber: true })}
+              />
+            </Field>
+
+            <Controller
+              control={form.control}
+              name="paymentMethod"
+              render={({ field }) => (
+                <Field id="paymentMethod" label="Način plaćanja" error={errors.paymentMethod?.message}>
+                  <PaymentMethodSelect
+                    id="paymentMethod"
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={isPending}
+                    allowEmpty
+                  />
+                </Field>
+              )}
+            />
+
+            <Field id="supplier" label="Dobavljač" error={errors.supplier?.message}>
+              <Input
+                id="supplier"
+                placeholder="NIS, OMV…"
+                disabled={isPending}
+                aria-invalid={Boolean(errors.supplier)}
+                {...form.register('supplier')}
               />
             </Field>
           </div>

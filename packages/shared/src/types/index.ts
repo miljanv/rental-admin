@@ -10,6 +10,8 @@ export * from './generated-document';
 export * from './file';
 export * from './fuel-log';
 export * from './tachograph-calibration';
+export * from './transaction';
+export * from './transaction-report';
 export * from './vehicle';
 export * from './vehicle-document';
 export * from './vehicle-inspection';

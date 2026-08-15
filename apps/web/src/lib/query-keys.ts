@@ -3,7 +3,12 @@ import type {
   DriverStatus,
   FileSortField,
   FuelLogFuelType,
+  PaymentMethod,
   SortOrder,
+  TransactionCategory,
+  TransactionSortField,
+  TransactionStatus,
+  TransactionType,
   VehicleSortField,
   VehicleStatus,
   VehicleType,
@@ -55,6 +60,24 @@ export interface MaintenanceCostSummaryParams {
   supplier?: string;
 }
 
+export interface TransactionListQueryParams {
+  page: number;
+  limit: number;
+  search?: string;
+  sortBy: TransactionSortField;
+  sortOrder: SortOrder;
+  type?: TransactionType;
+  category?: TransactionCategory;
+  paymentMethod?: PaymentMethod;
+  status?: TransactionStatus;
+  isAdvance?: boolean;
+  supplier?: string;
+  vehicleId?: string;
+  driverId?: string;
+  from?: string;
+  to?: string;
+}
+
 /**
  * Central query key factory. Mutations invalidate the `all` key for a domain,
  * which covers every list page and related details.
@@ -97,5 +120,13 @@ export const queryKeys = {
     maintenanceCostSummary: (params?: MaintenanceCostSummaryParams) =>
       ['vehicles', 'maintenance-cost-summary', params] as const,
     documents: (vehicleId: string) => ['vehicles', vehicleId, 'documents'] as const,
+  },
+  transactions: {
+    all: ['transactions'] as const,
+    list: (params: TransactionListQueryParams) => ['transactions', 'list', params] as const,
+    detail: (id: string) => ['transactions', 'detail', id] as const,
+    unsettledAdvances: (supplier?: string) =>
+      ['transactions', 'unsettled-advances', supplier] as const,
+    reports: (from?: string, to?: string) => ['transactions', 'reports', from, to] as const,
   },
 } as const;

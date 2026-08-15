@@ -17,6 +17,10 @@ import {
   type TachographCalibrationRecord,
 } from '../utils/tachograph-calibration-mapper';
 import { assertUploadedFile, deleteAttachedFile } from './file-attachment.service';
+import {
+  deleteOperationalTransaction,
+  upsertOperationalExpense,
+} from './transaction.service';
 
 const calibrationInclude = { file: true } as const;
 
@@ -50,6 +54,8 @@ const getVehicleTachographType = async (vehicleId: string): Promise<TachographTy
 const toWriteData = (tachographType: TachographType, input: TachographCalibrationWriteRequest) => ({
   calibratedAt: parseDate(input.calibratedAt),
   expiresAt: parseDate(computeCalibrationExpiry(tachographType, input.calibratedAt)),
+  cost: input.cost,
+  paymentMethod: input.paymentMethod,
   fileId: input.fileId,
 });
 
@@ -97,6 +103,17 @@ export const createTachographCalibration = async (
 
   logger.info('Tachograph calibration created', { vehicleId, calibrationId: record.id });
 
+  await upsertOperationalExpense({
+    sourceType: 'CALIBRATION',
+    sourceId: record.id,
+    category: 'TACHOGRAPH',
+    amount: input.cost,
+    paymentMethod: input.paymentMethod,
+    occurredAt: input.calibratedAt,
+    vehicleId,
+    note: 'Kalibracija tahografa',
+  });
+
   return toTachographCalibrationDto(record);
 };
 
@@ -129,6 +146,17 @@ export const updateTachographCalibration = async (
 
   logger.info('Tachograph calibration updated', { vehicleId, calibrationId });
 
+  await upsertOperationalExpense({
+    sourceType: 'CALIBRATION',
+    sourceId: record.id,
+    category: 'TACHOGRAPH',
+    amount: input.cost,
+    paymentMethod: input.paymentMethod,
+    occurredAt: input.calibratedAt,
+    vehicleId,
+    note: 'Kalibracija tahografa',
+  });
+
   return toTachographCalibrationDto(record);
 };
 
@@ -144,6 +172,7 @@ export const deleteTachographCalibration = async (
     throw notFound('Kalibracija nije pronađena.');
   }
 
+  await deleteOperationalTransaction('CALIBRATION', calibrationId);
   await prisma.tachographCalibration.delete({ where: { id: calibrationId } });
   await deleteAttachedFile(existing.fileId);
   logger.info('Tachograph calibration deleted', { vehicleId, calibrationId });
