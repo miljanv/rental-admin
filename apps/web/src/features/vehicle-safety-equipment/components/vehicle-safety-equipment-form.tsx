@@ -31,6 +31,7 @@ import {
 import { ScanUploadField } from '@/features/vehicles/components/scan-upload-field';
 import { useScanSelection } from '@/features/vehicles/hooks/use-scan-selection';
 import { useUploadVehicleScan } from '@/features/vehicles/hooks/use-upload-vehicle-scan';
+import { PaymentMethodSelect } from '@/features/transactions/components/payment-method-select';
 import { formatDate } from '@/lib/format';
 
 interface VehicleSafetyEquipmentFormProps {
@@ -78,6 +79,8 @@ export function VehicleSafetyEquipmentForm({
           checkedAt: equipment.checkedAt,
           expiresAt: equipment.type === 'FIRST_AID_KIT' ? equipment.expiresAt : '',
           fileId: equipment.file?.id ?? '',
+          cost: equipment.cost,
+          paymentMethod: equipment.paymentMethod ?? '',
         }
       : EMPTY_SAFETY_EQUIPMENT_FORM,
   });
@@ -183,7 +186,36 @@ export function VehicleSafetyEquipmentForm({
                   })}
                 />
               </Field>
-            ) : null}
+            ) : (
+              <>
+                <Field id="cost" label="Iznos (RSD)" error={errors.cost?.message}>
+                  <Input
+                    id="cost"
+                    type="number"
+                    step="0.01"
+                    inputMode="decimal"
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.cost)}
+                    {...form.register('cost', { valueAsNumber: true })}
+                  />
+                </Field>
+                <Controller
+                  control={form.control}
+                  name="paymentMethod"
+                  render={({ field }) => (
+                    <Field id="paymentMethod" label="Način plaćanja" error={errors.paymentMethod?.message}>
+                      <PaymentMethodSelect
+                        id="paymentMethod"
+                        value={field.value}
+                        onChange={field.onChange}
+                        disabled={isPending}
+                        allowEmpty
+                      />
+                    </Field>
+                  )}
+                />
+              </>
+            )}
           </div>
 
           {previewExpiry ? (

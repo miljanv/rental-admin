@@ -1,4 +1,4 @@
-import type { VehicleMaintenanceDto } from '@rental-admin/shared';
+import type { PaymentMethod, VehicleMaintenanceDto } from '@rental-admin/shared';
 
 export interface VehicleMaintenanceRecord {
   id: string;
@@ -8,6 +8,7 @@ export interface VehicleMaintenanceRecord {
   partName: string;
   supplier: string;
   cost: number;
+  paymentMethod: PaymentMethod;
   mechanic: string;
   createdAt: Date;
   updatedAt: Date;
@@ -23,6 +24,7 @@ export const toVehicleMaintenanceDto = (record: VehicleMaintenanceRecord): Vehic
   partName: record.partName,
   supplier: record.supplier,
   cost: record.cost,
+  paymentMethod: record.paymentMethod,
   mechanic: record.mechanic,
   createdAt: record.createdAt.toISOString(),
   updatedAt: record.updatedAt.toISOString(),

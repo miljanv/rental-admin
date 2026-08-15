@@ -1,4 +1,5 @@
 import type { AttachedFileDto } from './file';
+import type { PaymentMethod } from './transaction';
 import { addUtcDays } from './vehicle-inspection';
 
 export const SAFETY_EQUIPMENT_TYPES = ['FIRST_AID_KIT', 'FIRE_EXTINGUISHER'] as const;
@@ -16,6 +17,8 @@ export interface VehicleSafetyEquipmentDto {
   type: SafetyEquipmentType;
   checkedAt: string;
   expiresAt: string;
+  cost: number | null;
+  paymentMethod: PaymentMethod | null;
   file: AttachedFileDto | null;
   createdAt: string;
   updatedAt: string;

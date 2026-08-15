@@ -11,4 +11,7 @@ export const EMPTY_FUEL_LOG_FORM: FuelLogFormValues = {
   fuelType: 'DIESEL',
   litersFilled: 0,
   odometerKm: 0,
+  cost: null,
+  paymentMethod: '',
+  supplier: '',
 };

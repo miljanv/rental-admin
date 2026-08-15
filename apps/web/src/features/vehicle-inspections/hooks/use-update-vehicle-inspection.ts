@@ -17,6 +17,7 @@ export const useUpdateVehicleInspection = (vehicleId: string) => {
     onSuccess: async () => {
       toast.success('Pregled je izmenjen.');
       await queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
     },
     onError: (error) => {
       toast.error('Izmene nisu sačuvane.', { description: getApiErrorMessage(error) });

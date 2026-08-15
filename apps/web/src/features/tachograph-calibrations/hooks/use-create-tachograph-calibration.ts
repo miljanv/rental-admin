@@ -17,6 +17,7 @@ export const useCreateTachographCalibration = (vehicleId: string) => {
     onSuccess: async () => {
       toast.success('Kalibracija je dodata.');
       await queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
     },
     onError: (error) => {
       toast.error('Kalibracija nije sačuvana.', { description: getApiErrorMessage(error) });

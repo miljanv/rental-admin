@@ -72,6 +72,7 @@ model Driver {
   documents              DriverDocument[]
   absenceAttestations    DriverAbsenceAttestation[]
   fuelLogs               FuelLog[]
+  transactions           FinanceTransaction[]
 
   @@index([status])
   @@index([lastName, firstName])
@@ -208,6 +209,7 @@ model Vehicle {
   fuelLogs        FuelLog[]
   maintenance     VehicleMaintenance[]
   documents       VehicleDocument[]
+  transactions    FinanceTransaction[]
 
   @@index([status])
   @@index([type])
@@ -229,6 +231,8 @@ model VehicleInspection {
   type        VehicleInspectionType
   inspectedAt DateTime              @db.Date
   expiresAt   DateTime              @db.Date
+  cost        Float?
+  paymentMethod PaymentMethod?
   fileId      String?               @unique
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @updatedAt
@@ -249,6 +253,8 @@ model TachographCalibration {
   vehicleId    String
   calibratedAt DateTime @db.Date
   expiresAt    DateTime @db.Date
+  cost         Float?
+  paymentMethod PaymentMethod?
   fileId       String?  @unique
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -275,6 +281,8 @@ model VehicleSafetyEquipment {
   type      SafetyEquipmentType
   checkedAt DateTime            @db.Date
   expiresAt DateTime            @db.Date
+  cost      Float?
+  paymentMethod PaymentMethod?
   fileId    String?             @unique
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
@@ -306,6 +314,9 @@ model FuelLog {
   fuelType            FuelLogFuelType
   litersFilled        Float
   odometerKm          Int
+  cost                Float?
+  paymentMethod       PaymentMethod?
+  supplier            String?
   kmDriven            Int?
   consumptionPer100Km Float?
   createdAt           DateTime        @default(now())
@@ -331,6 +342,7 @@ model VehicleMaintenance {
   partName   String
   supplier   String
   cost       Float
+  paymentMethod PaymentMethod @default(ACCOUNT)
   mechanic   String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -365,4 +377,83 @@ model VehicleDocument {
   @@index([vehicleId])
   @@index([type])
   @@map("vehicle_documents")
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionCategory {
+  CONTRACT
+  FUEL
+  PARTS
+  TECHNICAL_INSPECTION
+  TACHOGRAPH
+  FIRE_EXTINGUISHER
+  SALARY
+  OTHER
+}
+
+enum PaymentMethod {
+  ACCOUNT
+  CASH
+}
+
+enum TransactionStatus {
+  OPEN
+  SETTLED
+}
+
+enum TransactionSourceType {
+  MANUAL
+  FUEL_LOG
+  MAINTENANCE
+  INSPECTION
+  CALIBRATION
+  SAFETY_EQUIPMENT
+}
+
+/// A bookkeeping row. Field names are English; the admin UI presents Serbian
+/// labels. Auto-generated rows are keyed by `sourceType` + `sourceId` so an
+/// operational create/update/delete stays in sync. `contractId` is stored as a
+/// plain id until a transport-contract module exists — there is no FK yet.
+model FinanceTransaction {
+  id                  String                @id @default(cuid())
+  type                TransactionType
+  category            TransactionCategory
+  amount              Float
+  occurredAt          DateTime              @db.Date
+  paymentMethod       PaymentMethod
+  note                String?
+  supplier            String?
+  partner             String?
+  route               String?
+  vehicleId           String?
+  driverId            String?
+  contractId          String?
+  isAdvance           Boolean               @default(false)
+  status              TransactionStatus     @default(OPEN)
+  linkedTransactionId String?
+  sourceType          TransactionSourceType @default(MANUAL)
+  sourceId            String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  vehicle          Vehicle?            @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  driver           Driver?             @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  linkedTransaction FinanceTransaction? @relation("AdvanceSettlement", fields: [linkedTransactionId], references: [id], onDelete: SetNull)
+  linkedAdvances   FinanceTransaction[] @relation("AdvanceSettlement")
+
+  @@index([occurredAt])
+  @@index([type])
+  @@index([category])
+  @@index([paymentMethod])
+  @@index([vehicleId])
+  @@index([driverId])
+  @@index([supplier, isAdvance, status])
+  @@index([partner])
+  @@index([route])
+  @@index([sourceType, sourceId])
+  @@map("transactions")
 }

@@ -16,6 +16,10 @@ import {
   type VehicleSafetyEquipmentRecord,
 } from '../utils/vehicle-safety-equipment-mapper';
 import { assertUploadedFile, deleteAttachedFile } from './file-attachment.service';
+import {
+  deleteOperationalTransaction,
+  upsertOperationalExpense,
+} from './transaction.service';
 
 const equipmentInclude = { file: true } as const;
 
@@ -50,6 +54,8 @@ const toWriteData = (input: VehicleSafetyEquipmentWriteRequest) => ({
   expiresAt: parseDate(
     computeSafetyEquipmentExpiry(input.type, input.checkedAt, input.expiresAt),
   ),
+  cost: input.cost,
+  paymentMethod: input.paymentMethod,
   fileId: input.fileId,
 });
 
@@ -101,6 +107,19 @@ export const createVehicleSafetyEquipment = async (
     type: record.type,
   });
 
+  if (input.type === 'FIRE_EXTINGUISHER') {
+    await upsertOperationalExpense({
+      sourceType: 'SAFETY_EQUIPMENT',
+      sourceId: record.id,
+      category: 'FIRE_EXTINGUISHER',
+      amount: input.cost,
+      paymentMethod: input.paymentMethod,
+      occurredAt: input.checkedAt,
+      vehicleId,
+      note: 'PP aparat',
+    });
+  }
+
   return toVehicleSafetyEquipmentDto(record);
 };
 
@@ -131,6 +150,21 @@ export const updateVehicleSafetyEquipment = async (
 
   logger.info('Vehicle safety equipment updated', { vehicleId, equipmentId });
 
+  if (input.type === 'FIRE_EXTINGUISHER') {
+    await upsertOperationalExpense({
+      sourceType: 'SAFETY_EQUIPMENT',
+      sourceId: record.id,
+      category: 'FIRE_EXTINGUISHER',
+      amount: input.cost,
+      paymentMethod: input.paymentMethod,
+      occurredAt: input.checkedAt,
+      vehicleId,
+      note: 'PP aparat',
+    });
+  } else {
+    await deleteOperationalTransaction('SAFETY_EQUIPMENT', record.id);
+  }
+
   return toVehicleSafetyEquipmentDto(record);
 };
 
@@ -146,6 +180,7 @@ export const deleteVehicleSafetyEquipment = async (
     throw notFound('Oprema nije pronađena.');
   }
 
+  await deleteOperationalTransaction('SAFETY_EQUIPMENT', equipmentId);
   await prisma.vehicleSafetyEquipment.delete({ where: { id: equipmentId } });
   await deleteAttachedFile(existing.fileId);
   logger.info('Vehicle safety equipment deleted', { vehicleId, equipmentId });

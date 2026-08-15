@@ -1,4 +1,4 @@
-import type { FuelLogDto, FuelLogFuelType } from '@rental-admin/shared';
+import type { FuelLogDto, FuelLogFuelType, PaymentMethod } from '@rental-admin/shared';
 
 export interface FuelLogDriverRecord {
   id: string;
@@ -15,6 +15,9 @@ export interface FuelLogRecord {
   fuelType: FuelLogFuelType;
   litersFilled: number;
   odometerKm: number;
+  cost: number | null;
+  paymentMethod: PaymentMethod | null;
+  supplier: string | null;
   kmDriven: number | null;
   consumptionPer100Km: number | null;
   createdAt: Date;
@@ -35,6 +38,9 @@ export const toFuelLogDto = (record: FuelLogRecord): FuelLogDto => ({
   fuelType: record.fuelType,
   litersFilled: record.litersFilled,
   odometerKm: record.odometerKm,
+  cost: record.cost,
+  paymentMethod: record.paymentMethod,
+  supplier: record.supplier,
   kmDriven: record.kmDriven,
   consumptionPer100Km: record.consumptionPer100Km,
   createdAt: record.createdAt.toISOString(),

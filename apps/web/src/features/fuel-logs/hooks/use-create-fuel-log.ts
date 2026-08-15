@@ -18,6 +18,7 @@ export const useCreateFuelLog = (vehicleId: string) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.drivers.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all }),
       ]);
     },
     onError: (error) => {

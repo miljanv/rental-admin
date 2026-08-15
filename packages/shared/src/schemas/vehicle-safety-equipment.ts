@@ -2,6 +2,11 @@ import { z } from 'zod';
 
 import { SAFETY_EQUIPMENT_TYPES } from '../types/vehicle-safety-equipment';
 import { isoDateSchema } from './driver';
+import {
+  optionalCostSchema,
+  optionalPaymentMethodSchema,
+  refineCostRequiresPaymentMethod,
+} from './transaction';
 import { vehicleIdSchema } from './vehicle';
 import { optionalFileId } from './vehicle-document';
 
@@ -34,6 +39,8 @@ export const vehicleSafetyEquipmentWriteSchema = z
     checkedAt: isoDateSchema,
     expiresAt: optionalIsoDate,
     fileId: optionalFileId,
+    cost: optionalCostSchema,
+    paymentMethod: optionalPaymentMethodSchema,
   })
   .superRefine((value, ctx) => {
     if (value.type === 'FIRST_AID_KIT' && !value.expiresAt) {
@@ -51,6 +58,8 @@ export const vehicleSafetyEquipmentWriteSchema = z
         message: 'Rok za PP aparat se računa automatski (+180 dana), ne unosi se ručno.',
       });
     }
+
+    refineCostRequiresPaymentMethod(value, ctx);
   });
 
 export type VehicleSafetyEquipmentWriteInput = z.input<typeof vehicleSafetyEquipmentWriteSchema>;

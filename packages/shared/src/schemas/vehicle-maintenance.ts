@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { isoDateSchema } from './driver';
+import { paymentMethodSchema } from './transaction';
 import { vehicleIdSchema } from './vehicle';
 
 export const vehicleMaintenanceIdSchema = z.string().trim().min(1).max(64);
@@ -32,6 +33,7 @@ export const vehicleMaintenanceWriteSchema = z.object({
     .number()
     .min(0, 'Cena ne može biti negativna.')
     .max(10_000_000, 'Cena nije ispravna.'),
+  paymentMethod: paymentMethodSchema,
   mechanic: requiredText('Majstor', 120),
 });
 

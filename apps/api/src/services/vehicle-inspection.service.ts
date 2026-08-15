@@ -16,6 +16,10 @@ import {
   type VehicleInspectionRecord,
 } from '../utils/vehicle-inspection-mapper';
 import { assertUploadedFile, deleteAttachedFile } from './file-attachment.service';
+import {
+  deleteOperationalTransaction,
+  upsertOperationalExpense,
+} from './transaction.service';
 
 const inspectionInclude = { file: true } as const;
 
@@ -48,6 +52,8 @@ const toWriteData = (input: VehicleInspectionWriteRequest) => ({
   type: input.type,
   inspectedAt: parseDate(input.inspectedAt),
   expiresAt: parseDate(computeInspectionExpiry(input.type, input.inspectedAt)),
+  cost: input.cost,
+  paymentMethod: input.paymentMethod,
   fileId: input.fileId,
 });
 
@@ -99,6 +105,17 @@ export const createVehicleInspection = async (
     type: record.type,
   });
 
+  await upsertOperationalExpense({
+    sourceType: 'INSPECTION',
+    sourceId: record.id,
+    category: 'TECHNICAL_INSPECTION',
+    amount: input.cost,
+    paymentMethod: input.paymentMethod,
+    occurredAt: input.inspectedAt,
+    vehicleId,
+    note: 'Tehnički pregled',
+  });
+
   return toVehicleInspectionDto(record);
 };
 
@@ -129,6 +146,17 @@ export const updateVehicleInspection = async (
 
   logger.info('Vehicle inspection updated', { vehicleId, inspectionId });
 
+  await upsertOperationalExpense({
+    sourceType: 'INSPECTION',
+    sourceId: record.id,
+    category: 'TECHNICAL_INSPECTION',
+    amount: input.cost,
+    paymentMethod: input.paymentMethod,
+    occurredAt: input.inspectedAt,
+    vehicleId,
+    note: 'Tehnički pregled',
+  });
+
   return toVehicleInspectionDto(record);
 };
 
@@ -144,6 +172,7 @@ export const deleteVehicleInspection = async (
     throw notFound('Pregled nije pronađen.');
   }
 
+  await deleteOperationalTransaction('INSPECTION', inspectionId);
   await prisma.vehicleInspection.delete({ where: { id: inspectionId } });
   await deleteAttachedFile(existing.fileId);
   logger.info('Vehicle inspection deleted', { vehicleId, inspectionId });

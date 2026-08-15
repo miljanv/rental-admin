@@ -16,6 +16,7 @@ export const useDeleteVehicleMaintenance = (vehicleId: string) => {
     onSuccess: async (_result, variables) => {
       toast.success('Zapis je obrisan.', { description: variables.label });
       await queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
     },
     onError: (error) => {
       toast.error('Zapis nije obrisan.', { description: getApiErrorMessage(error) });

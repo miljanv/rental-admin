@@ -1,5 +1,6 @@
 import type {
   ExpiringVehicleSafetyEquipmentDto,
+  PaymentMethod,
   SafetyEquipmentType,
   VehicleSafetyEquipmentDto,
 } from '@rental-admin/shared';
@@ -12,6 +13,8 @@ export interface VehicleSafetyEquipmentRecord {
   type: SafetyEquipmentType;
   checkedAt: Date;
   expiresAt: Date;
+  cost: number | null;
+  paymentMethod: PaymentMethod | null;
   fileId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -35,6 +38,8 @@ export const toVehicleSafetyEquipmentDto = (
   type: record.type,
   checkedAt: toIsoDate(record.checkedAt),
   expiresAt: toIsoDate(record.expiresAt),
+  cost: record.cost,
+  paymentMethod: record.paymentMethod,
   file: toAttachedFileDto(record.file),
   createdAt: record.createdAt.toISOString(),
   updatedAt: record.updatedAt.toISOString(),

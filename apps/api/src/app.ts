@@ -28,6 +28,7 @@ const buildCorsOptions = (): CorsOptions => ({
   },
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
+  exposedHeaders: ['Content-Disposition'],
   maxAge: 86_400,
 });
 

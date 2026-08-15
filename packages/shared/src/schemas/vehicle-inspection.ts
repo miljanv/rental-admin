@@ -2,6 +2,11 @@ import { z } from 'zod';
 
 import { VEHICLE_INSPECTION_TYPES } from '../types/vehicle-inspection';
 import { isoDateSchema } from './driver';
+import {
+  optionalCostSchema,
+  optionalPaymentMethodSchema,
+  refineCostRequiresPaymentMethod,
+} from './transaction';
 import { vehicleIdSchema } from './vehicle';
 import { optionalFileId } from './vehicle-document';
 
@@ -21,11 +26,15 @@ export type VehicleInspectionParams = z.infer<typeof vehicleInspectionParamsSche
  * computed server-side from `type` + `inspectedAt` (see `computeInspectionExpiry`).
  * The form shows the same computation client-side as a live preview only.
  */
-export const vehicleInspectionWriteSchema = z.object({
-  type: vehicleInspectionTypeSchema,
-  inspectedAt: isoDateSchema,
-  fileId: optionalFileId,
-});
+export const vehicleInspectionWriteSchema = z
+  .object({
+    type: vehicleInspectionTypeSchema,
+    inspectedAt: isoDateSchema,
+    fileId: optionalFileId,
+    cost: optionalCostSchema,
+    paymentMethod: optionalPaymentMethodSchema,
+  })
+  .superRefine(refineCostRequiresPaymentMethod);
 
 export type VehicleInspectionWriteInput = z.input<typeof vehicleInspectionWriteSchema>;
 export type VehicleInspectionWriteRequest = z.output<typeof vehicleInspectionWriteSchema>;

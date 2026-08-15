@@ -17,6 +17,7 @@ export const useUpdateVehicleMaintenance = (vehicleId: string) => {
     onSuccess: async () => {
       toast.success('Izmene su sačuvane.');
       await queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
     },
     onError: (error) => {
       toast.error('Izmene nisu sačuvane.', { description: getApiErrorMessage(error) });

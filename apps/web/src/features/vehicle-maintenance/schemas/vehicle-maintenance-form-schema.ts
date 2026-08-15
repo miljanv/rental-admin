@@ -13,5 +13,6 @@ export const EMPTY_MAINTENANCE_FORM: VehicleMaintenanceFormValues = {
   partName: '',
   supplier: '',
   cost: 0,
+  paymentMethod: 'ACCOUNT',
   mechanic: '',
 };

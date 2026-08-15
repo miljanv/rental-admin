@@ -12,4 +12,6 @@ export const EMPTY_SAFETY_EQUIPMENT_FORM: VehicleSafetyEquipmentFormValues = {
   checkedAt: '',
   expiresAt: '',
   fileId: '',
+  cost: null,
+  paymentMethod: '',
 };
