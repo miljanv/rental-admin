@@ -5,6 +5,7 @@ import { CONTRACT_STATUSES } from '../types/contract';
 import { isoDateSchema } from './driver';
 import { SORT_ORDERS } from './file';
 import {
+  jmbgSchema,
   partnerIdSchema,
   partnerTypeSchema,
   pibSchema,
@@ -77,7 +78,7 @@ export const contractWriteSchema = z
     clientAddress: requiredText('Adresa naručioca', 200),
     clientPib: pibSchema,
     clientRegistrationNumber: registrationNumberSchema,
-    clientPersonalId: optionalText(13),
+    clientPersonalId: jmbgSchema,
   })
   .superRefine((value, ctx) => {
     if (value.serviceEndDate < value.serviceStartDate) {

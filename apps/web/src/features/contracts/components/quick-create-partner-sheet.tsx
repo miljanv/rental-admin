@@ -3,6 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   isLegalEntityPartnerType,
+  JMBG_LENGTH,
   PARTNER_TYPE_LABELS,
   PARTNER_TYPES,
   PIB_LENGTH,
@@ -80,6 +81,7 @@ export function QuickCreatePartnerSheet({ open, onOpenChange, onCreated }: Quick
   const type = useWatch({ control: form.control, name: 'type' });
   const pib = useWatch({ control: form.control, name: 'pib' });
   const registrationNumber = useWatch({ control: form.control, name: 'registrationNumber' });
+  const personalId = useWatch({ control: form.control, name: 'personalId' });
   const isLegalEntity = isLegalEntityPartnerType(type);
 
   const onSubmit = form.handleSubmit(
@@ -217,9 +219,16 @@ export function QuickCreatePartnerSheet({ open, onOpenChange, onCreated }: Quick
                   {...form.register('lastName')}
                 />
               </Field>
-              <Field id="quick-personalId" label="JMBG" error={errors.personalId?.message}>
+              <Field
+                id="quick-personalId"
+                label="JMBG"
+                error={errors.personalId?.message}
+                hint={<CharacterCounter current={(personalId ?? '').length} max={JMBG_LENGTH} />}
+              >
                 <Input
                   id="quick-personalId"
+                  inputMode="numeric"
+                  maxLength={JMBG_LENGTH}
                   disabled={createMutation.isPending}
                   aria-invalid={Boolean(errors.personalId)}
                   {...form.register('personalId')}

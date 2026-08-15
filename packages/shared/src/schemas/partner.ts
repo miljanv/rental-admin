@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { PAGINATION_DEFAULTS } from '../constants';
-import { PARTNER_TYPES, PIB_LENGTH, REGISTRATION_NUMBER_LENGTH } from '../types/partner';
+import { JMBG_LENGTH, PARTNER_TYPES, PIB_LENGTH, REGISTRATION_NUMBER_LENGTH } from '../types/partner';
 import { SORT_ORDERS } from './file';
 
 export const partnerTypeSchema = z.enum(PARTNER_TYPES);
@@ -35,9 +35,10 @@ const optionalDigits = (label: string, length: number) =>
       message: `${label} mora imati tačno ${length} cifara.`,
     });
 
-/** Shared by `partnerWriteSchema` and `contractWriteSchema`'s client-* fields — same PIB/MB format everywhere. */
+/** Shared by `partnerWriteSchema` and `contractWriteSchema`'s client-* fields — same PIB/MB/JMBG format everywhere. */
 export const pibSchema = optionalDigits('PIB', PIB_LENGTH);
 export const registrationNumberSchema = optionalDigits('Matični broj', REGISTRATION_NUMBER_LENGTH);
+export const jmbgSchema = optionalDigits('JMBG', JMBG_LENGTH);
 
 /**
  * Shared by `partnerWriteSchema` and `contractWriteSchema` (whose client-*
@@ -129,7 +130,7 @@ export const partnerWriteSchema = z
     address: requiredText('Adresa', 200),
     pib: pibSchema,
     registrationNumber: registrationNumberSchema,
-    personalId: optionalText(13),
+    personalId: jmbgSchema,
   })
   .superRefine((value, ctx) => superRefinePartyIdentity(value, ctx, PARTY_FIELD_NAMES));
 

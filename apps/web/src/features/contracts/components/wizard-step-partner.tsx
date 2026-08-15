@@ -2,6 +2,7 @@
 
 import {
   isLegalEntityPartnerType,
+  JMBG_LENGTH,
   PARTNER_TYPE_LABELS,
   PARTNER_TYPES,
   partnerDisplayName,
@@ -74,6 +75,7 @@ export function WizardStepPartner() {
   const clientType = useWatch({ control: form.control, name: 'clientType' });
   const clientPib = useWatch({ control: form.control, name: 'clientPib' });
   const clientRegistrationNumber = useWatch({ control: form.control, name: 'clientRegistrationNumber' });
+  const clientPersonalId = useWatch({ control: form.control, name: 'clientPersonalId' });
   const isLegalEntity = isLegalEntityPartnerType(clientType);
 
   const partnersQuery = usePartners({ page: 1, limit: 100, sortBy: 'type', sortOrder: 'asc' });
@@ -229,8 +231,18 @@ export function WizardStepPartner() {
                 <Field id="clientLastName" label="Prezime" error={errors.clientLastName?.message}>
                   <Input id="clientLastName" {...form.register('clientLastName')} />
                 </Field>
-                <Field id="clientPersonalId" label="JMBG" error={errors.clientPersonalId?.message}>
-                  <Input id="clientPersonalId" {...form.register('clientPersonalId')} />
+                <Field
+                  id="clientPersonalId"
+                  label="JMBG"
+                  error={errors.clientPersonalId?.message}
+                  hint={<CharacterCounter current={(clientPersonalId ?? '').length} max={JMBG_LENGTH} />}
+                >
+                  <Input
+                    id="clientPersonalId"
+                    inputMode="numeric"
+                    maxLength={JMBG_LENGTH}
+                    {...form.register('clientPersonalId')}
+                  />
                 </Field>
               </>
             )}

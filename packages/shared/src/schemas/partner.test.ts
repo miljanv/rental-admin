@@ -60,6 +60,12 @@ describe('partnerWriteSchema', () => {
     expect(result.success).toBe(false);
     expect(result.error?.issues.some((issue) => issue.path.includes('registrationNumber'))).toBe(true);
   });
+
+  it('rejects a JMBG that is not exactly 13 digits', () => {
+    const result = partnerWriteSchema.safeParse({ ...validIndividual, personalId: '123' });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.some((issue) => issue.path.includes('personalId'))).toBe(true);
+  });
 });
 
 describe('listPartnersQuerySchema', () => {

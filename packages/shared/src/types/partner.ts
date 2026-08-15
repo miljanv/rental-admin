@@ -25,6 +25,9 @@ export const PIB_LENGTH = 9;
 /** A Serbian matični broj (company registration number) is always exactly 8 digits. */
 export const REGISTRATION_NUMBER_LENGTH = 8;
 
+/** A Serbian JMBG (jedinstveni matični broj građana) is always exactly 13 digits. */
+export const JMBG_LENGTH = 13;
+
 export interface PartnerDto {
   id: string;
   type: PartnerType;
