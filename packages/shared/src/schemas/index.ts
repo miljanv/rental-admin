@@ -1,6 +1,7 @@
 export * from './auth';
 export * from './driver';
 export * from './driver-document';
+export * from './driver-work';
 export * from './absence-attestation';
 export * from './generated-document';
 export * from './file';

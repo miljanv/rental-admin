@@ -46,6 +46,11 @@ export interface DriverDocumentDto {
   updatedAt: string;
 }
 
+export interface DriverDocumentStatusItem {
+  type: DriverDocumentType;
+  document: DriverDocumentDto | null;
+}
+
 export interface ExpiringDriverDocumentDto extends DriverDocumentDto {
   driver: {
     id: string;
@@ -90,4 +95,59 @@ export const getDocumentExpiryUrgency = (
   }
 
   return 'ok';
+};
+
+const URGENCY_RANK: Record<DocumentExpiryUrgency, number> = {
+  expired: 0,
+  critical: 1,
+  warning: 2,
+  ok: 3,
+  none: 4,
+};
+
+/** Expired first, then soonest expiry. Documents without a date sort last. */
+export const compareDocumentUrgency = (
+  leftExpiresAt: string | null,
+  rightExpiresAt: string | null,
+  todayIso: string,
+): number => {
+  const left = getDocumentExpiryUrgency(leftExpiresAt, todayIso);
+  const right = getDocumentExpiryUrgency(rightExpiresAt, todayIso);
+  const rank = URGENCY_RANK[left] - URGENCY_RANK[right];
+
+  if (rank !== 0) {
+    return rank;
+  }
+
+  if (!leftExpiresAt || !rightExpiresAt) {
+    return 0;
+  }
+
+  return daysUntilExpiry(leftExpiresAt, todayIso) - daysUntilExpiry(rightExpiresAt, todayIso);
+};
+
+/** Most recently issued document of each type, then sorted by expiry urgency. */
+export const toDocumentStatusItems = (
+  documents: DriverDocumentDto[],
+  todayIso: string,
+): DriverDocumentStatusItem[] => {
+  const latestByType = new Map<DriverDocumentType, DriverDocumentDto>();
+
+  for (const document of documents) {
+    const current = latestByType.get(document.type);
+
+    if (!current || document.issuedAt > current.issuedAt) {
+      latestByType.set(document.type, document);
+    }
+  }
+
+  return DRIVER_DOCUMENT_TYPES.map((type) => ({
+    type,
+    document: latestByType.get(type) ?? null,
+  })).sort((left, right) => {
+    const leftExpiry = left.document?.expiresAt ?? null;
+    const rightExpiry = right.document?.expiresAt ?? null;
+
+    return compareDocumentUrgency(leftExpiry, rightExpiry, todayIso);
+  });
 };

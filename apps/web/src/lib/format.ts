@@ -27,6 +27,23 @@ const dateTimeFormatter = new Intl.DateTimeFormat('en-GB', {
   minute: '2-digit',
 });
 
+/** Whole kilometers with a Serbian grouping separator, for example "1.234 km". */
+export const formatKilometers = (km: number): string =>
+  `${new Intl.NumberFormat('sr-Latn').format(Math.round(km))} km`;
+
+/** Calendar month in Serbian, for example "avgust 2026.". */
+export const formatMonthYear = (year: number, month: number): string => {
+  if (month < 1 || month > 12) {
+    return '—';
+  }
+
+  return new Intl.DateTimeFormat('sr-Latn', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(year, month - 1, 1)));
+};
+
 /** Calendar date in Serbian numeric form, for example "01.01.1990." */
 export const formatDate = (isoDate: string | null): string => {
   if (!isoDate) {

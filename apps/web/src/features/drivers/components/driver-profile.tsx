@@ -13,8 +13,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { AbsenceAttestationsTab } from '@/features/absence-attestations/components/absence-attestations-tab';
 import { DriverDocumentsTab } from '@/features/driver-documents/components/driver-documents-tab';
+import { DriverWorkTab } from '@/features/driver-work/components/driver-work-tab';
 import { DeleteDriverDialog } from '@/features/drivers/components/delete-driver-dialog';
 import { DriverStatusBadge } from '@/features/drivers/components/driver-status-badge';
+import { DriverStatusOverview } from '@/features/drivers/components/driver-status-overview';
 import { useDriver } from '@/features/drivers/hooks/use-driver';
 import { driverFullName } from '@/features/drivers/lib/driver';
 import { formatDate } from '@/lib/format';
@@ -23,6 +25,7 @@ import { cn } from '@/lib/utils';
 const PROFILE_TABS = [
   { id: 'overview', label: 'Osnovni podaci' },
   { id: 'documents', label: 'Dokumenti' },
+  { id: 'work', label: 'Evidencija rada' },
   { id: 'absences', label: 'Odsustva' },
   { id: 'trainings', label: 'Obuke' },
   { id: 'exams', label: 'Pregledi' },
@@ -61,6 +64,8 @@ function ComingSoon({ title }: { title: string }) {
 function DriverOverview({ driver }: { driver: DriverDto }) {
   return (
     <div className="space-y-6">
+      <DriverStatusOverview driverId={driver.id} />
+
       <Card className="shadow-none">
         <CardHeader>
           <CardTitle>Lični podaci</CardTitle>
@@ -185,6 +190,7 @@ export function DriverProfile({ driverId }: DriverProfileProps) {
 
       {activeTab === 'overview' ? <DriverOverview driver={driver} /> : null}
       {activeTab === 'documents' ? <DriverDocumentsTab driver={driver} /> : null}
+      {activeTab === 'work' ? <DriverWorkTab driverId={driver.id} /> : null}
       {activeTab === 'absences' ? <AbsenceAttestationsTab driver={driver} /> : null}
       {activeTab === 'trainings' ? <ComingSoon title="Obuke" /> : null}
       {activeTab === 'exams' ? <ComingSoon title="Pregledi" /> : null}

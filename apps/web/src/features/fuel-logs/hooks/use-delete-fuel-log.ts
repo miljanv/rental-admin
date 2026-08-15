@@ -15,7 +15,10 @@ export const useDeleteFuelLog = (vehicleId: string) => {
       deleteFuelLog(vehicleId, variables.fuelLogId),
     onSuccess: async (_result, variables) => {
       toast.success('Točenje je obrisano.', { description: variables.label });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.drivers.all }),
+      ]);
     },
     onError: (error) => {
       toast.error('Točenje nije obrisano.', { description: getApiErrorMessage(error) });

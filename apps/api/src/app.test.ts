@@ -113,6 +113,22 @@ describe('API request pipeline', () => {
     expect(response.body.error.code).toBe('VALIDATION_ERROR');
   });
 
+  it('rejects a work-records range that does not move forward', async () => {
+    const response = await request(app)
+      .get('/api/v1/drivers/drv_1/work-records?from=2026-08-31&to=2026-08-01')
+      .set(auth);
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('rejects a status-overview request without a bearer token', async () => {
+    const response = await request(app).get('/api/v1/drivers/drv_1/status-overview');
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('UNAUTHORIZED');
+  });
+
   it('rejects an expiring-documents window outside the allowed range', async () => {
     const response = await request(app)
       .get('/api/v1/drivers/expiring-documents?days=0')

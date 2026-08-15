@@ -43,6 +43,11 @@ export interface FuelLogListQueryParams {
   sortOrder?: SortOrder;
 }
 
+export interface DriverWorkRecordsQueryParams {
+  from?: string;
+  to?: string;
+}
+
 export interface MaintenanceCostSummaryParams {
   vehicleId?: string;
   from?: string;
@@ -70,6 +75,9 @@ export const queryKeys = {
     documents: (driverId: string) => ['drivers', driverId, 'documents'] as const,
     absenceAttestations: (driverId: string) =>
       ['drivers', driverId, 'absence-attestations'] as const,
+    statusOverview: (driverId: string) => ['drivers', driverId, 'status-overview'] as const,
+    workRecords: (driverId: string, params?: DriverWorkRecordsQueryParams) =>
+      ['drivers', driverId, 'work-records', params] as const,
     expiring: (days: number) => ['drivers', 'expiring-documents', days] as const,
   },
   vehicles: {

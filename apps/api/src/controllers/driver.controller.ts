@@ -12,6 +12,13 @@ export const listDrivers = async (req: Request, res: Response): Promise<void> =>
   sendPaginated(res, drivers, pagination);
 };
 
+export const getDriverStatusOverview = async (req: Request, res: Response): Promise<void> => {
+  const { id } = validated<DriverIdParams>(req, 'params');
+  const overview = await driverService.getDriverStatusOverview(id);
+
+  sendSuccess(res, overview);
+};
+
 export const getDriver = async (req: Request, res: Response): Promise<void> => {
   const { id } = validated<DriverIdParams>(req, 'params');
   const driver = await driverService.getDriver(id);
