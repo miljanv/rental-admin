@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { VehicleMaintenanceDto } from '@rental-admin/shared';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +15,7 @@ import {
   vehicleMaintenanceFormSchema,
   type VehicleMaintenanceFormValues,
 } from '@/features/vehicle-maintenance/schemas/vehicle-maintenance-form-schema';
+import { PaymentMethodSelect } from '@/features/transactions/components/payment-method-select';
 
 interface VehicleMaintenanceFormProps {
   vehicleId: string;
@@ -54,6 +55,7 @@ export function VehicleMaintenanceForm({ vehicleId, record, onDone }: VehicleMai
           partName: record.partName,
           supplier: record.supplier,
           cost: record.cost,
+          paymentMethod: record.paymentMethod,
           mechanic: record.mechanic,
         }
       : EMPTY_MAINTENANCE_FORM,
@@ -134,6 +136,21 @@ export function VehicleMaintenanceForm({ vehicleId, record, onDone }: VehicleMai
                 {...form.register('cost', { valueAsNumber: true })}
               />
             </Field>
+
+            <Controller
+              control={form.control}
+              name="paymentMethod"
+              render={({ field }) => (
+                <Field id="paymentMethod" label="Način plaćanja" error={errors.paymentMethod?.message}>
+                  <PaymentMethodSelect
+                    id="paymentMethod"
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={isPending}
+                  />
+                </Field>
+              )}
+            />
 
             <Field id="mechanic" label="Majstor" error={errors.mechanic?.message}>
               <Input

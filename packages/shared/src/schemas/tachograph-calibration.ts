@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
 import { isoDateSchema } from './driver';
+import {
+  optionalCostSchema,
+  optionalPaymentMethodSchema,
+  refineCostRequiresPaymentMethod,
+} from './transaction';
 import { vehicleIdSchema } from './vehicle';
 import { optionalFileId } from './vehicle-document';
 
@@ -17,10 +22,14 @@ export type TachographCalibrationParams = z.infer<typeof tachographCalibrationPa
  * `expiresAt` is not part of the write payload — it is always computed
  * server-side from the vehicle's `tachographType` + `calibratedAt`.
  */
-export const tachographCalibrationWriteSchema = z.object({
-  calibratedAt: isoDateSchema,
-  fileId: optionalFileId,
-});
+export const tachographCalibrationWriteSchema = z
+  .object({
+    calibratedAt: isoDateSchema,
+    fileId: optionalFileId,
+    cost: optionalCostSchema,
+    paymentMethod: optionalPaymentMethodSchema,
+  })
+  .superRefine(refineCostRequiresPaymentMethod);
 
 export type TachographCalibrationWriteInput = z.input<typeof tachographCalibrationWriteSchema>;
 export type TachographCalibrationWriteRequest = z.output<typeof tachographCalibrationWriteSchema>;

@@ -27,6 +27,23 @@ const dateTimeFormatter = new Intl.DateTimeFormat('en-GB', {
   minute: '2-digit',
 });
 
+/** Whole kilometers with a Serbian grouping separator, for example "1.234 km". */
+export const formatKilometers = (km: number): string =>
+  `${new Intl.NumberFormat('sr-Latn').format(Math.round(km))} km`;
+
+/** Calendar month in Serbian, for example "avgust 2026.". */
+export const formatMonthYear = (year: number, month: number): string => {
+  if (month < 1 || month > 12) {
+    return '—';
+  }
+
+  return new Intl.DateTimeFormat('sr-Latn', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(year, month - 1, 1)));
+};
+
 /** Calendar date in Serbian numeric form, for example "01.01.1990." */
 export const formatDate = (isoDate: string | null): string => {
   if (!isoDate) {
@@ -71,6 +88,29 @@ export const formatDateTime = (isoDate: string | null): string => {
 
   return Number.isNaN(date.getTime()) ? '—' : dateTimeFormatter.format(date);
 };
+
+const moneyFormatter = new Intl.NumberFormat('sr-Latn', {
+  style: 'currency',
+  currency: 'RSD',
+  maximumFractionDigits: 2,
+});
+
+/** Serbian dinar amount, for example "12.500,00 RSD". */
+export const formatMoney = (amount: number | null | undefined): string => {
+  if (amount == null || !Number.isFinite(amount)) {
+    return '—';
+  }
+
+  return moneyFormatter.format(amount);
+};
+
+const compactMoneyFormatter = new Intl.NumberFormat('sr-Latn', {
+  notation: 'compact',
+  maximumFractionDigits: 1,
+});
+
+/** Short axis labels, for example "12,5 hilj." */
+export const formatCompactMoney = (amount: number): string => compactMoneyFormatter.format(amount);
 
 /** Short label for a MIME type, falling back to the subtype in upper case. */
 export const formatMimeType = (mimeType: string): string => {

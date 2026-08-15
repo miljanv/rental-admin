@@ -10,6 +10,7 @@ const record: VehicleMaintenanceRecord = {
   partName: 'Kočione pločice',
   supplier: 'AutoDelovi d.o.o.',
   cost: 8500,
+  paymentMethod: 'ACCOUNT',
   mechanic: 'Petar Petrović',
   createdAt: new Date('2026-08-14T10:00:00.000Z'),
   updatedAt: new Date('2026-08-14T10:00:00.000Z'),

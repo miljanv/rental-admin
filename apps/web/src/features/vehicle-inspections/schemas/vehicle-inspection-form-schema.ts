@@ -11,4 +11,6 @@ export const EMPTY_INSPECTION_FORM: VehicleInspectionFormValues = {
   type: 'REGULAR',
   inspectedAt: '',
   fileId: '',
+  cost: null,
+  paymentMethod: '',
 };

@@ -5,7 +5,9 @@ import {
   formatDateTime,
   formatDateTimeSr,
   formatFileSize,
+  formatKilometers,
   formatMimeType,
+  formatMonthYear,
   getFileExtension,
 } from './format';
 
@@ -33,6 +35,23 @@ describe('formatFileSize', () => {
     expect(formatFileSize(-1)).toBe('0 B');
     expect(formatFileSize(Number.NaN)).toBe('0 B');
     expect(formatFileSize(Number.POSITIVE_INFINITY)).toBe('0 B');
+  });
+});
+
+describe('formatKilometers', () => {
+  it('groups thousands in Serbian and appends km', () => {
+    expect(formatKilometers(0)).toBe('0 km');
+    expect(formatKilometers(1234)).toBe('1.234 km');
+  });
+});
+
+describe('formatMonthYear', () => {
+  it('formats a calendar month in Serbian', () => {
+    expect(formatMonthYear(2026, 8)).toMatch(/avgust 2026/i);
+  });
+
+  it('renders a dash for an invalid month', () => {
+    expect(formatMonthYear(2026, 0)).toBe('—');
   });
 });
 

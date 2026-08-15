@@ -1,3 +1,5 @@
+import type { PaymentMethod } from './transaction';
+
 export const FUEL_LOG_FUEL_TYPES = ['DIESEL', 'ADBLUE'] as const;
 
 export type FuelLogFuelType = (typeof FUEL_LOG_FUEL_TYPES)[number];
@@ -22,6 +24,9 @@ export interface FuelLogDto {
   fuelType: FuelLogFuelType;
   litersFilled: number;
   odometerKm: number;
+  cost: number | null;
+  paymentMethod: PaymentMethod | null;
+  supplier: string | null;
   /** Null when there is no earlier reading for this vehicle to compare against. */
   kmDriven: number | null;
   /** L/100km. Null whenever `kmDriven` is null or zero (can't be computed meaningfully). */

@@ -16,6 +16,7 @@ export const useCreateVehicleMaintenance = (vehicleId: string) => {
     onSuccess: async () => {
       toast.success('Zapis je dodat.');
       await queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
     },
     onError: (error) => {
       toast.error('Zapis nije sačuvan.', { description: getApiErrorMessage(error) });

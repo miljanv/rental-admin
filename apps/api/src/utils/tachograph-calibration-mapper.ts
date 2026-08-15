@@ -1,5 +1,6 @@
 import type {
   ExpiringTachographCalibrationDto,
+  PaymentMethod,
   TachographCalibrationDto,
   TachographType,
 } from '@rental-admin/shared';
@@ -11,6 +12,8 @@ export interface TachographCalibrationRecord {
   vehicleId: string;
   calibratedAt: Date;
   expiresAt: Date;
+  cost: number | null;
+  paymentMethod: PaymentMethod | null;
   fileId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -34,6 +37,8 @@ export const toTachographCalibrationDto = (
   vehicleId: record.vehicleId,
   calibratedAt: toIsoDate(record.calibratedAt),
   expiresAt: toIsoDate(record.expiresAt),
+  cost: record.cost,
+  paymentMethod: record.paymentMethod,
   file: toAttachedFileDto(record.file),
   createdAt: record.createdAt.toISOString(),
   updatedAt: record.updatedAt.toISOString(),

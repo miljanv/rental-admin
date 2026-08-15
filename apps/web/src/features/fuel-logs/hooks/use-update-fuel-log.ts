@@ -16,7 +16,11 @@ export const useUpdateFuelLog = (vehicleId: string) => {
       updateFuelLog(vehicleId, variables.fuelLogId, variables.body),
     onSuccess: async () => {
       toast.success('Izmene su sačuvane.');
-      await queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.drivers.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all }),
+      ]);
     },
     onError: (error) => {
       toast.error('Izmene nisu sačuvane.', { description: getApiErrorMessage(error) });

@@ -1,4 +1,5 @@
 import type { AttachedFileDto } from './file';
+import type { PaymentMethod } from './transaction';
 
 export const VEHICLE_INSPECTION_TYPES = ['REGULAR', 'SEMI_ANNUAL', 'MONTHLY'] as const;
 
@@ -16,6 +17,8 @@ export interface VehicleInspectionDto {
   type: VehicleInspectionType;
   inspectedAt: string;
   expiresAt: string;
+  cost: number | null;
+  paymentMethod: PaymentMethod | null;
   file: AttachedFileDto | null;
   createdAt: string;
   updatedAt: string;

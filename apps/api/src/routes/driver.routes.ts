@@ -3,6 +3,7 @@ import { Router } from 'express';
 import * as absenceAttestationController from '../controllers/absence-attestation.controller';
 import * as driverDocumentController from '../controllers/driver-document.controller';
 import * as driverController from '../controllers/driver.controller';
+import * as driverWorkController from '../controllers/driver-work.controller';
 import * as generatedDocumentController from '../controllers/generated-document.controller';
 import { uploadRateLimiter } from '../middleware/rate-limit';
 import { validateRequest } from '../middleware/validate-request';
@@ -20,6 +21,7 @@ import {
   driverWriteSchema,
   listDriversQuerySchema,
 } from '../schemas/driver.schema';
+import { listDriverWorkRecordsQuerySchema } from '../schemas/driver-work.schema';
 import {
   generateEmploymentContractSchema,
   generateMaFormSchema,
@@ -88,6 +90,18 @@ driverRouter.post(
   uploadRateLimiter,
   validateRequest({ params: driverIdParamsSchema, body: generateMaFormSchema }),
   asyncHandler(generatedDocumentController.generateMaForm),
+);
+
+driverRouter.get(
+  '/:id/status-overview',
+  validateRequest({ params: driverIdParamsSchema }),
+  asyncHandler(driverController.getDriverStatusOverview),
+);
+
+driverRouter.get(
+  '/:id/work-records',
+  validateRequest({ params: driverIdParamsSchema, query: listDriverWorkRecordsQuerySchema }),
+  asyncHandler(driverWorkController.listDriverWorkRecords),
 );
 
 driverRouter.get(

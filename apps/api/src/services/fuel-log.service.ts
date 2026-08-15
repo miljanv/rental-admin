@@ -10,6 +10,10 @@ import { prisma } from '../config/prisma';
 import { badRequest, notFound } from '../utils/app-error';
 import { toFuelLogDto, type FuelLogRecord } from '../utils/fuel-log-mapper';
 import { logger } from '../utils/logger';
+import {
+  deleteOperationalTransaction,
+  upsertOperationalExpense,
+} from './transaction.service';
 
 const parseDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`);
 
@@ -131,6 +135,9 @@ export const createFuelLog = async (
       fuelType: input.fuelType,
       litersFilled: input.litersFilled,
       odometerKm: input.odometerKm,
+      cost: input.cost,
+      paymentMethod: input.paymentMethod,
+      supplier: input.supplier,
       kmDriven,
       consumptionPer100Km,
     },
@@ -138,6 +145,18 @@ export const createFuelLog = async (
   });
 
   await bumpVehicleMileage(vehicleId, input.odometerKm);
+  await upsertOperationalExpense({
+    sourceType: 'FUEL_LOG',
+    sourceId: record.id,
+    category: 'FUEL',
+    amount: input.cost,
+    paymentMethod: input.paymentMethod,
+    occurredAt: input.fueledAt,
+    vehicleId,
+    driverId: input.driverId,
+    supplier: input.supplier,
+    note: `Točenje · ${input.location}`,
+  });
 
   logger.info('Fuel log created', { vehicleId, fuelLogId: record.id, fuelType: record.fuelType });
 
@@ -173,6 +192,9 @@ export const updateFuelLog = async (
       fuelType: input.fuelType,
       litersFilled: input.litersFilled,
       odometerKm: input.odometerKm,
+      cost: input.cost,
+      paymentMethod: input.paymentMethod,
+      supplier: input.supplier,
       kmDriven,
       consumptionPer100Km,
     },
@@ -180,6 +202,18 @@ export const updateFuelLog = async (
   });
 
   await bumpVehicleMileage(vehicleId, input.odometerKm);
+  await upsertOperationalExpense({
+    sourceType: 'FUEL_LOG',
+    sourceId: record.id,
+    category: 'FUEL',
+    amount: input.cost,
+    paymentMethod: input.paymentMethod,
+    occurredAt: input.fueledAt,
+    vehicleId,
+    driverId: input.driverId,
+    supplier: input.supplier,
+    note: `Točenje · ${input.location}`,
+  });
 
   logger.info('Fuel log updated', { vehicleId, fuelLogId });
 
@@ -196,6 +230,7 @@ export const deleteFuelLog = async (
     throw notFound('Zapis o točenju nije pronađen.');
   }
 
+  await deleteOperationalTransaction('FUEL_LOG', fuelLogId);
   await prisma.fuelLog.delete({ where: { id: fuelLogId } });
   logger.info('Fuel log deleted', { vehicleId, fuelLogId });
 

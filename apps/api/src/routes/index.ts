@@ -8,6 +8,7 @@ import { driverRouter } from './driver.routes';
 import { fileRouter } from './file.routes';
 import { healthRouter } from './health.routes';
 import { partnerRouter } from './partner.routes';
+import { transactionRouter } from './transaction.routes';
 import { vehicleRouter } from './vehicle.routes';
 
 /** Everything below is mounted under `/api/v1`. */
@@ -20,4 +21,5 @@ apiRouter.use('/dashboard', requireAuth, dashboardRouter);
 apiRouter.use('/drivers', requireAuth, driverRouter);
 apiRouter.use('/files', requireAuth, fileRouter);
 apiRouter.use('/partners', requireAuth, partnerRouter);
+apiRouter.use('/transactions', requireAuth, transactionRouter);
 apiRouter.use('/vehicles', requireAuth, vehicleRouter);

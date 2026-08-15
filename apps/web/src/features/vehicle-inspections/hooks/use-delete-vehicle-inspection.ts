@@ -16,6 +16,7 @@ export const useDeleteVehicleInspection = (vehicleId: string) => {
     onSuccess: async (_result, variables) => {
       toast.success('Pregled je obrisan.', { description: variables.label });
       await queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
     },
     onError: (error) => {
       toast.error('Pregled nije obrisan.', { description: getApiErrorMessage(error) });

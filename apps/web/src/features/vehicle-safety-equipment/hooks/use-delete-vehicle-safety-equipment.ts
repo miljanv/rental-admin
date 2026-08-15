@@ -16,6 +16,7 @@ export const useDeleteVehicleSafetyEquipment = (vehicleId: string) => {
     onSuccess: async (_result, variables) => {
       toast.success('Oprema je obrisana.', { description: variables.label });
       await queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
     },
     onError: (error) => {
       toast.error('Oprema nije obrisana.', { description: getApiErrorMessage(error) });

@@ -16,6 +16,7 @@ export const useDeleteTachographCalibration = (vehicleId: string) => {
     onSuccess: async (_result, variables) => {
       toast.success('Kalibracija je obrisana.', { description: variables.label });
       await queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
     },
     onError: (error) => {
       toast.error('Kalibracija nije obrisana.', { description: getApiErrorMessage(error) });

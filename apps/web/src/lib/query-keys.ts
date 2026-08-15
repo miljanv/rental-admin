@@ -7,7 +7,12 @@ import type {
   FuelLogFuelType,
   PartnerSortField,
   PartnerType,
+  PaymentMethod,
   SortOrder,
+  TransactionCategory,
+  TransactionSortField,
+  TransactionStatus,
+  TransactionType,
   VehicleSortField,
   VehicleStatus,
   VehicleType,
@@ -47,6 +52,11 @@ export interface FuelLogListQueryParams {
   sortOrder?: SortOrder;
 }
 
+export interface DriverWorkRecordsQueryParams {
+  from?: string;
+  to?: string;
+}
+
 export interface MaintenanceCostSummaryParams {
   vehicleId?: string;
   from?: string;
@@ -83,6 +93,24 @@ export interface ContractAvailabilityParams {
   excludeContractId?: string;
 }
 
+export interface TransactionListQueryParams {
+  page: number;
+  limit: number;
+  search?: string;
+  sortBy: TransactionSortField;
+  sortOrder: SortOrder;
+  type?: TransactionType;
+  category?: TransactionCategory;
+  paymentMethod?: PaymentMethod;
+  status?: TransactionStatus;
+  isAdvance?: boolean;
+  supplier?: string;
+  vehicleId?: string;
+  driverId?: string;
+  from?: string;
+  to?: string;
+}
+
 /**
  * Central query key factory. Mutations invalidate the `all` key for a domain,
  * which covers every list page and related details.
@@ -103,6 +131,9 @@ export const queryKeys = {
     documents: (driverId: string) => ['drivers', driverId, 'documents'] as const,
     absenceAttestations: (driverId: string) =>
       ['drivers', driverId, 'absence-attestations'] as const,
+    statusOverview: (driverId: string) => ['drivers', driverId, 'status-overview'] as const,
+    workRecords: (driverId: string, params?: DriverWorkRecordsQueryParams) =>
+      ['drivers', driverId, 'work-records', params] as const,
     expiring: (days: number) => ['drivers', 'expiring-documents', days] as const,
   },
   vehicles: {
@@ -137,5 +168,13 @@ export const queryKeys = {
     travelPermits: (contractId: string) => ['contracts', contractId, 'travel-permits'] as const,
     availability: (params: ContractAvailabilityParams) =>
       ['contracts', 'availability', params] as const,
+  },
+  transactions: {
+    all: ['transactions'] as const,
+    list: (params: TransactionListQueryParams) => ['transactions', 'list', params] as const,
+    detail: (id: string) => ['transactions', 'detail', id] as const,
+    unsettledAdvances: (supplier?: string) =>
+      ['transactions', 'unsettled-advances', supplier] as const,
+    reports: (from?: string, to?: string) => ['transactions', 'reports', from, to] as const,
   },
 } as const;

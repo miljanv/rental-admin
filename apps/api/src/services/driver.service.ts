@@ -1,20 +1,25 @@
-import type {
-  DeleteDriverResult,
-  DriverDto,
-  DriverSortField,
-  DriverWriteRequest,
-  ListDriversQuery,
-  PaginationMeta,
-  SortOrder,
+import {
+  toDocumentStatusItems,
+  utcMonthRangeIso,
+  type DeleteDriverResult,
+  type DriverDto,
+  type DriverSortField,
+  type DriverStatusOverviewDto,
+  type DriverWriteRequest,
+  type ListDriversQuery,
+  type PaginationMeta,
+  type SortOrder,
 } from '@rental-admin/shared';
 
 import { prisma } from '../config/prisma';
 import { conflict, notFound } from '../utils/app-error';
 import { buildPaginationMeta } from '../utils/api-response';
+import { toDriverDocumentDto, type DriverDocumentRecord } from '../utils/driver-document-mapper';
 import { toDriverDto, type DriverRecord } from '../utils/driver-mapper';
 import { logger } from '../utils/logger';
 import { deleteAbsenceFilesForDriver } from './absence-attestation.service';
 import { deleteFilesForDriver } from './driver-document.service';
+import { summarizeDriverWork } from './driver-work.service';
 
 type DriverOrderBy = Partial<Record<DriverSortField, SortOrder>>;
 
@@ -78,6 +83,36 @@ export const listDrivers = async (
   return {
     drivers: records.map((record: DriverRecord) => toDriverDto(record)),
     pagination: buildPaginationMeta({ page: query.page, limit: query.limit, total }),
+  };
+};
+
+const utcTodayIso = (): string => new Date().toISOString().slice(0, 10);
+
+export const getDriverStatusOverview = async (id: string): Promise<DriverStatusOverviewDto> => {
+  await getDriver(id);
+
+  const range = utcMonthRangeIso();
+  const [documentRecords, work] = await Promise.all([
+    prisma.driverDocument.findMany({
+      where: { driverId: id },
+      include: { file: true },
+      orderBy: { issuedAt: 'desc' },
+    }),
+    summarizeDriverWork(id, range.from, range.to),
+  ]);
+
+  return {
+    documents: toDocumentStatusItems(
+      documentRecords.map((record: DriverDocumentRecord) => toDriverDocumentDto(record)),
+      utcTodayIso(),
+    ),
+    monthlyActivity: {
+      year: Number(range.from.slice(0, 4)),
+      month: Number(range.from.slice(5, 7)),
+      kmDriven: work.kmDriven,
+      hoursWorked: work.hoursWorked,
+      fuelLogCount: work.driveCount,
+    },
   };
 };
 

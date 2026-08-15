@@ -2,6 +2,12 @@ import { z } from 'zod';
 
 import { FUEL_LOG_FUEL_TYPES } from '../types/fuel-log';
 import { isoDateSchema } from './driver';
+import {
+  optionalCostSchema,
+  optionalPaymentMethodSchema,
+  optionalSupplierSchema,
+  refineCostRequiresPaymentMethod,
+} from './transaction';
 import { vehicleIdSchema } from './vehicle';
 
 export const fuelLogFuelTypeSchema = z.enum(FUEL_LOG_FUEL_TYPES);
@@ -32,21 +38,26 @@ const optionalId = z
  * they are always derived server-side from `odometerKm` and the vehicle's
  * previous reading.
  */
-export const fuelLogWriteSchema = z.object({
-  fueledAt: isoDateSchema,
-  location: requiredText('Mesto točenja', 120),
-  driverId: optionalId,
-  fuelType: fuelLogFuelTypeSchema,
-  litersFilled: z
-    .number()
-    .positive('Broj litara mora biti veći od nule.')
-    .max(2000, 'Broj litara nije ispravan.'),
-  odometerKm: z
-    .number()
-    .int('Stanje km mora biti ceo broj.')
-    .min(0, 'Stanje km ne može biti negativno.')
-    .max(10_000_000, 'Stanje km nije ispravno.'),
-});
+export const fuelLogWriteSchema = z
+  .object({
+    fueledAt: isoDateSchema,
+    location: requiredText('Mesto točenja', 120),
+    driverId: optionalId,
+    fuelType: fuelLogFuelTypeSchema,
+    litersFilled: z
+      .number()
+      .positive('Broj litara mora biti veći od nule.')
+      .max(2000, 'Broj litara nije ispravan.'),
+    odometerKm: z
+      .number()
+      .int('Stanje km mora biti ceo broj.')
+      .min(0, 'Stanje km ne može biti negativno.')
+      .max(10_000_000, 'Stanje km nije ispravno.'),
+    cost: optionalCostSchema,
+    paymentMethod: optionalPaymentMethodSchema,
+    supplier: optionalSupplierSchema,
+  })
+  .superRefine(refineCostRequiresPaymentMethod);
 
 export type FuelLogWriteInput = z.input<typeof fuelLogWriteSchema>;
 export type FuelLogWriteRequest = z.output<typeof fuelLogWriteSchema>;

@@ -8,7 +8,7 @@ import {
   type TachographCalibrationWriteRequest,
   type TachographType,
 } from '@rental-admin/shared';
-import { useForm, useWatch } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +24,7 @@ import {
 import { ScanUploadField } from '@/features/vehicles/components/scan-upload-field';
 import { useScanSelection } from '@/features/vehicles/hooks/use-scan-selection';
 import { useUploadVehicleScan } from '@/features/vehicles/hooks/use-upload-vehicle-scan';
+import { PaymentMethodSelect } from '@/features/transactions/components/payment-method-select';
 import { formatDate } from '@/lib/format';
 
 interface TachographCalibrationFormProps {
@@ -68,7 +69,12 @@ export function TachographCalibrationForm({
   const form = useForm<TachographCalibrationFormValues, unknown, TachographCalibrationWriteRequest>({
     resolver: zodResolver(tachographCalibrationFormSchema),
     defaultValues: calibration
-      ? { calibratedAt: calibration.calibratedAt, fileId: calibration.file?.id ?? '' }
+      ? {
+          calibratedAt: calibration.calibratedAt,
+          fileId: calibration.file?.id ?? '',
+          cost: calibration.cost,
+          paymentMethod: calibration.paymentMethod ?? '',
+        }
       : EMPTY_CALIBRATION_FORM,
   });
 
@@ -123,6 +129,36 @@ export function TachographCalibrationForm({
               {...form.register('calibratedAt')}
             />
           </Field>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field id="cost" label="Iznos (RSD)" error={errors.cost?.message}>
+              <Input
+                id="cost"
+                type="number"
+                step="0.01"
+                inputMode="decimal"
+                disabled={isPending}
+                aria-invalid={Boolean(errors.cost)}
+                {...form.register('cost', { valueAsNumber: true })}
+              />
+            </Field>
+
+            <Controller
+              control={form.control}
+              name="paymentMethod"
+              render={({ field }) => (
+                <Field id="paymentMethod" label="Način plaćanja" error={errors.paymentMethod?.message}>
+                  <PaymentMethodSelect
+                    id="paymentMethod"
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={isPending}
+                    allowEmpty
+                  />
+                </Field>
+              )}
+            />
+          </div>
 
           {previewExpiry ? (
             <div className="bg-muted/50 rounded-lg border px-3 py-2 text-sm">

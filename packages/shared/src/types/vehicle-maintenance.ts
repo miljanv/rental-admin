@@ -1,3 +1,5 @@
+import type { PaymentMethod } from './transaction';
+
 export interface VehicleMaintenanceDto {
   id: string;
   vehicleId: string;
@@ -6,6 +8,7 @@ export interface VehicleMaintenanceDto {
   partName: string;
   supplier: string;
   cost: number;
+  paymentMethod: PaymentMethod;
   mechanic: string;
   createdAt: string;
   updatedAt: string;
