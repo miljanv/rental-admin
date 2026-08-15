@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import { requireAuth } from '../middleware/require-auth';
+import { alarmRouter } from './alarm.routes';
 import { authRouter } from './auth.routes';
 import { contractRouter } from './contract.routes';
 import { dashboardRouter } from './dashboard.routes';
@@ -16,6 +17,7 @@ export const apiRouter = Router();
 
 apiRouter.use('/health', healthRouter);
 apiRouter.use('/auth', authRouter);
+apiRouter.use('/alarms', requireAuth, alarmRouter);
 apiRouter.use('/contracts', requireAuth, contractRouter);
 apiRouter.use('/dashboard', requireAuth, dashboardRouter);
 apiRouter.use('/drivers', requireAuth, driverRouter);

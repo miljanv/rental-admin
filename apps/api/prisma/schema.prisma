@@ -622,3 +622,13 @@ model FinanceTransaction {
   @@index([sourceType, sourceId])
   @@map("transactions")
 }
+
+/// Per-document red/yellow warning windows for the alarm center.
+model AlarmThreshold {
+  kind         String   @id
+  criticalDays Int
+  warningDays  Int
+  updatedAt    DateTime @updatedAt
+
+  @@map("alarm_thresholds")
+}

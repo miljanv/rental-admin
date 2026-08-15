@@ -18,6 +18,7 @@ export const useDeleteDriver = () => {
     onSuccess: async (_result, variables) => {
       toast.success('Vozač je obrisan.', { description: variables.name });
       await queryClient.invalidateQueries({ queryKey: queryKeys.drivers.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.alarms.all });
 
       if (variables.redirectToList) {
         router.push('/drivers');

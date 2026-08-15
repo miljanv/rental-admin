@@ -16,6 +16,7 @@ export const useCreateDriverDocument = (driverId: string) => {
     onSuccess: async () => {
       toast.success('Dokument je dodat.');
       await queryClient.invalidateQueries({ queryKey: queryKeys.drivers.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.alarms.all });
     },
     onError: (error) => {
       toast.error('Dokument nije sačuvan.', { description: getApiErrorMessage(error) });

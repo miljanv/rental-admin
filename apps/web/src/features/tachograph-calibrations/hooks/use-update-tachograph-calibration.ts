@@ -17,6 +17,7 @@ export const useUpdateTachographCalibration = (vehicleId: string) => {
     onSuccess: async () => {
       toast.success('Kalibracija je izmenjena.');
       await queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.alarms.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
     },
     onError: (error) => {

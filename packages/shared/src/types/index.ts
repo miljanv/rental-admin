@@ -1,3 +1,4 @@
+export * from './alarm';
 export * from './api';
 export * from './auth';
 export * from './contract';

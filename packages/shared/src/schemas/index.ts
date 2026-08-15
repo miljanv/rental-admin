@@ -1,4 +1,5 @@
 export * from './auth';
+export * from './alarm';
 export * from './contract';
 export * from './contract-document';
 export * from './driver';
