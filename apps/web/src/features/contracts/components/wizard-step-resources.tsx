@@ -132,6 +132,13 @@ export function WizardStepResources({ excludeContractId }: WizardStepResourcesPr
           />
         </div>
 
+        {vehiclesQuery.isError || driversQuery.isError ? (
+          <p className="text-destructive text-xs">
+            {vehiclesQuery.isError ? 'Lista vozila nije učitana. ' : ''}
+            {driversQuery.isError ? 'Lista vozača nije učitana.' : ''}
+          </p>
+        ) : null}
+
         {hasConflicts ? (
           <div
             role="alert"

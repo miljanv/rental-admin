@@ -118,6 +118,14 @@ export function WizardStepPartner() {
                 </Field>
               )}
             />
+            {partnersQuery.isError ? (
+              <p className="text-destructive mt-1.5 text-xs">
+                Lista partnera nije učitana.{' '}
+                <button type="button" className="underline" onClick={() => void partnersQuery.refetch()}>
+                  Pokušaj ponovo
+                </button>
+              </p>
+            ) : null}
           </div>
           <Button type="button" variant="outline" onClick={() => setIsSheetOpen(true)}>
             <Plus className="size-4" aria-hidden />

@@ -92,6 +92,11 @@ export function WizardStepReview() {
             value={CONTRACT_STATUS_LABELS[values.status ?? 'DRAFT']}
           />
         </dl>
+        {vehiclesQuery.isError || driversQuery.isError ? (
+          <p className="text-destructive mt-3 text-xs">
+            Nazivi vozila/vozača nisu učitani — ako ste ih izabrali, izbor je ipak sačuvan.
+          </p>
+        ) : null}
       </CardContent>
     </Card>
   );

@@ -186,6 +186,9 @@ export function ContractsList() {
                   ))}
                 </SelectContent>
               </Select>
+              {partnersQuery.isError ? (
+                <p className="text-destructive text-xs">Partneri nisu učitani.</p>
+              ) : null}
             </div>
 
             <div className="space-y-1.5">
