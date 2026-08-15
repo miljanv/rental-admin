@@ -18,6 +18,7 @@ export const useGenerateEmploymentContract = (driverId: string) => {
       toast.success('Ugovor o radu je generisan.');
       window.location.assign(result.downloadUrl);
       await queryClient.invalidateQueries({ queryKey: queryKeys.drivers.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.alarms.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.files.all });
     },
     onError: (error) => {

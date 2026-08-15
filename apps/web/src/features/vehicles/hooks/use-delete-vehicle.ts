@@ -18,6 +18,7 @@ export const useDeleteVehicle = () => {
     onSuccess: async (_result, variables) => {
       toast.success('Vozilo je obrisano.', { description: variables.name });
       await queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.alarms.all });
 
       if (variables.redirectToList) {
         router.push('/vehicles');

@@ -17,6 +17,7 @@ export const useUpdateDriverDocument = (driverId: string) => {
     onSuccess: async () => {
       toast.success('Dokument je izmenjen.');
       await queryClient.invalidateQueries({ queryKey: queryKeys.drivers.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.alarms.all });
     },
     onError: (error) => {
       toast.error('Izmene nisu sačuvane.', { description: getApiErrorMessage(error) });

@@ -18,6 +18,15 @@ describe('getDocumentExpiryUrgency', () => {
     expect(getDocumentExpiryUrgency('2026-09-01', '2026-08-14')).toBe('warning');
     expect(getDocumentExpiryUrgency('2027-01-01', '2026-08-14')).toBe('ok');
   });
+
+  it('uses custom red/yellow windows when provided', () => {
+    expect(
+      getDocumentExpiryUrgency('2026-08-25', '2026-08-14', { criticalDays: 3, warningDays: 7 }),
+    ).toBe('ok');
+    expect(
+      getDocumentExpiryUrgency('2026-08-16', '2026-08-14', { criticalDays: 3, warningDays: 7 }),
+    ).toBe('critical');
+  });
 });
 
 describe('daysUntilExpiry', () => {

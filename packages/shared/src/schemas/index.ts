@@ -1,4 +1,5 @@
 export * from './auth';
+export * from './alarm';
 export * from './driver';
 export * from './driver-document';
 export * from './driver-work';
