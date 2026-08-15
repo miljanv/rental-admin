@@ -318,6 +318,7 @@ model FuelLog {
   @@index([vehicleId, odometerKm])
   @@index([fueledAt])
   @@index([fuelType])
+  @@index([driverId, fueledAt])
   @@map("fuel_logs")
 }
 

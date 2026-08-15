@@ -3,6 +3,7 @@ import type {
   ApiResponse,
   DeleteDriverResult,
   DriverDto,
+  DriverStatusOverviewDto,
   DriverWriteRequest,
   PaginationMeta,
 } from '@rental-admin/shared';
@@ -25,6 +26,18 @@ export const fetchDrivers = async (
   });
 
   return { drivers: response.data.data, pagination: response.data.pagination };
+};
+
+export const fetchDriverStatusOverview = async (
+  id: string,
+  signal?: AbortSignal,
+): Promise<DriverStatusOverviewDto> => {
+  const response = await apiClient.get<ApiResponse<DriverStatusOverviewDto>>(
+    `/drivers/${id}/status-overview`,
+    { signal },
+  );
+
+  return unwrap(response.data);
 };
 
 export const fetchDriver = async (id: string, signal?: AbortSignal): Promise<DriverDto> => {

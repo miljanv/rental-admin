@@ -15,7 +15,10 @@ export const useCreateFuelLog = (vehicleId: string) => {
     mutationFn: (body: FuelLogWriteRequest) => createFuelLog(vehicleId, body),
     onSuccess: async () => {
       toast.success('Točenje je dodato.');
-      await queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.drivers.all }),
+      ]);
     },
     onError: (error) => {
       toast.error('Točenje nije sačuvano.', { description: getApiErrorMessage(error) });
