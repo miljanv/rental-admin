@@ -1,6 +1,9 @@
 import type {
+  ContractAvailabilityQuery,
+  ContractAvailabilityResult,
   ContractDto,
   ContractSortField,
+  ContractStatusChangeRequest,
   ContractWriteRequest,
   DeleteContractResult,
   ListContractsQuery,
@@ -9,11 +12,14 @@ import type {
 } from '@rental-admin/shared';
 
 import { prisma } from '../config/prisma';
-import { badRequest, notFound } from '../utils/app-error';
+import { badRequest, conflict, notFound } from '../utils/app-error';
 import { buildPaginationMeta } from '../utils/api-response';
 import { toContractDto, type ContractRecord } from '../utils/contract-mapper';
 import { logger } from '../utils/logger';
 import { deleteAttachedFile } from './file-attachment.service';
+
+/** Contracts in these statuses don't hold a real claim on the vehicle/driver's calendar. */
+const NON_BLOCKING_STATUSES = ['CANCELLED'] as const;
 
 type ContractOrderBy = Partial<Record<ContractSortField, SortOrder>>;
 
@@ -32,6 +38,7 @@ const toWriteData = (input: ContractWriteRequest) => ({
   advancePercentage: input.advancePercentage,
   status: input.status,
   notes: input.notes,
+  isInternational: input.isInternational,
   clientType: input.clientType,
   clientCompanyName: input.clientCompanyName,
   clientFirstName: input.clientFirstName,
@@ -74,6 +81,9 @@ export const listContracts = async (
   const where = {
     ...(query.status ? { status: query.status } : {}),
     ...(query.partnerId ? { partnerId: query.partnerId } : {}),
+    // Overlap test: the contract's service period intersects [periodFrom, periodTo].
+    ...(query.periodFrom ? { serviceEndDate: { gte: parseIsoDate(query.periodFrom) } } : {}),
+    ...(query.periodTo ? { serviceStartDate: { lte: parseIsoDate(query.periodTo) } } : {}),
     ...(query.search
       ? {
           OR: [
@@ -134,18 +144,75 @@ export const updateContract = async (
   return toContractDto(record);
 };
 
+export const changeContractStatus = async (
+  id: string,
+  input: ContractStatusChangeRequest,
+): Promise<ContractDto> => {
+  const existing = await prisma.contract.findUnique({ where: { id } });
+
+  if (!existing) {
+    throw notFound('Ugovor nije pronađen.');
+  }
+
+  if (input.status === 'IN_PROGRESS' && existing.isInternational) {
+    const permitCount = await prisma.travelPermit.count({ where: { contractId: id } });
+
+    if (permitCount === 0) {
+      throw conflict(
+        'Ugovor ide u inostranstvo i nema nijednu unetu putnu dozvolu. Dodajte dozvolu pre nego što ugovor označite kao "u toku".',
+      );
+    }
+  }
+
+  const record = await prisma.contract.update({ where: { id }, data: { status: input.status } });
+  logger.info('Contract status changed', { contractId: id, status: input.status });
+
+  return toContractDto(record);
+};
+
+export const checkContractAvailability = async (
+  query: ContractAvailabilityQuery,
+): Promise<ContractAvailabilityResult> => {
+  const overlap = {
+    serviceStartDate: { lte: parseIsoDate(query.serviceEndDate) },
+    serviceEndDate: { gte: parseIsoDate(query.serviceStartDate) },
+    status: { notIn: [...NON_BLOCKING_STATUSES] },
+    ...(query.excludeContractId ? { id: { not: query.excludeContractId } } : {}),
+  };
+
+  const [vehicleConflicts, driverConflicts] = await Promise.all([
+    query.vehicleId
+      ? prisma.contract.findMany({ where: { ...overlap, vehicleId: query.vehicleId } })
+      : Promise.resolve([]),
+    query.driverId
+      ? prisma.contract.findMany({ where: { ...overlap, driverId: query.driverId } })
+      : Promise.resolve([]),
+  ]);
+
+  return {
+    vehicleConflicts: vehicleConflicts.map((record: ContractRecord) => toContractDto(record)),
+    driverConflicts: driverConflicts.map((record: ContractRecord) => toContractDto(record)),
+  };
+};
+
 export const deleteContract = async (id: string): Promise<DeleteContractResult> => {
   await getContract(id);
 
-  // Generated PDFs live in S3, not Postgres — cascade removes the ContractDocument
-  // rows but can't reach into the bucket, so the underlying files are deleted first.
-  const documents = await prisma.contractDocument.findMany({
-    where: { contractId: id },
-    select: { fileId: true },
-  });
+  // Generated PDFs and travel-permit scans live in S3, not Postgres — cascade
+  // removes the ContractDocument/TravelPermit rows but can't reach into the
+  // bucket, so the underlying files are deleted first. PassengerList rows
+  // carry no files, so they need no explicit cleanup before the cascade.
+  const [documents, permits] = await Promise.all([
+    prisma.contractDocument.findMany({ where: { contractId: id }, select: { fileId: true } }),
+    prisma.travelPermit.findMany({ where: { contractId: id }, select: { fileId: true } }),
+  ]);
 
   for (const document of documents) {
     await deleteAttachedFile(document.fileId);
+  }
+
+  for (const permit of permits) {
+    await deleteAttachedFile(permit.fileId);
   }
 
   await prisma.contract.delete({ where: { id } });

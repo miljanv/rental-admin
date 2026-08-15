@@ -4,7 +4,13 @@ import { PAGINATION_DEFAULTS } from '../constants';
 import { CONTRACT_STATUSES } from '../types/contract';
 import { isoDateSchema } from './driver';
 import { SORT_ORDERS } from './file';
-import { partnerIdSchema, partnerTypeSchema, superRefinePartyIdentity } from './partner';
+import {
+  partnerIdSchema,
+  partnerTypeSchema,
+  pibSchema,
+  registrationNumberSchema,
+  superRefinePartyIdentity,
+} from './partner';
 
 export const contractStatusSchema = z.enum(CONTRACT_STATUSES);
 
@@ -63,13 +69,14 @@ export const contractWriteSchema = z
       .max(100, 'Procenat avansa ne može biti veći od 100.'),
     status: contractStatusSchema,
     notes: optionalText(2000),
+    isInternational: z.boolean().default(false),
     clientType: partnerTypeSchema,
     clientCompanyName: optionalText(200),
     clientFirstName: optionalText(80),
     clientLastName: optionalText(80),
     clientAddress: requiredText('Adresa naručioca', 200),
-    clientPib: optionalText(20),
-    clientRegistrationNumber: optionalText(20),
+    clientPib: pibSchema,
+    clientRegistrationNumber: registrationNumberSchema,
     clientPersonalId: optionalText(13),
   })
   .superRefine((value, ctx) => {
@@ -121,7 +128,29 @@ export const listContractsQuerySchema = z.object({
   sortOrder: z.enum(SORT_ORDERS).default('desc'),
   status: contractStatusSchema.optional(),
   partnerId: partnerIdSchema.optional(),
+  /** Contracts whose [serviceStartDate, serviceEndDate] overlaps this range. */
+  periodFrom: isoDateSchema.optional(),
+  periodTo: isoDateSchema.optional(),
 });
 
 export type ListContractsQuery = z.output<typeof listContractsQuerySchema>;
 export type ListContractsQueryInput = z.input<typeof listContractsQuerySchema>;
+
+export const contractStatusChangeSchema = z.object({ status: contractStatusSchema });
+
+export type ContractStatusChangeRequest = z.output<typeof contractStatusChangeSchema>;
+
+export const contractAvailabilityQuerySchema = z
+  .object({
+    vehicleId: optionalId,
+    driverId: optionalId,
+    serviceStartDate: isoDateSchema,
+    serviceEndDate: isoDateSchema,
+    excludeContractId: optionalId,
+  })
+  .refine((value) => value.serviceEndDate >= value.serviceStartDate, {
+    message: 'Datum završetka ne može biti pre datuma početka usluge.',
+    path: ['serviceEndDate'],
+  });
+
+export type ContractAvailabilityQuery = z.output<typeof contractAvailabilityQuerySchema>;

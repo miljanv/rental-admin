@@ -1,4 +1,4 @@
-import { Bus, Truck, type LucideIcon } from 'lucide-react';
+import { Bus, FileText, Truck, Users, type LucideIcon } from 'lucide-react';
 
 export interface NavItem {
   title: string;
@@ -20,6 +20,18 @@ export const NAV_ITEMS: NavItem[] = [
     href: '/vehicles',
     icon: Truck,
     description: 'Vozni park i osnovni podaci',
+  },
+  {
+    title: 'Partneri',
+    href: '/partners',
+    icon: Users,
+    description: 'Naručioci prevoza',
+  },
+  {
+    title: 'Ugovori',
+    href: '/contracts',
+    icon: FileText,
+    description: 'Ugovori o prevozu putnika',
   },
 ];
 

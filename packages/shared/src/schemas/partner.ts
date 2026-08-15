@@ -1,12 +1,12 @@
 import { z } from 'zod';
 
 import { PAGINATION_DEFAULTS } from '../constants';
-import { PARTNER_TYPES } from '../types/partner';
+import { PARTNER_TYPES, PIB_LENGTH, REGISTRATION_NUMBER_LENGTH } from '../types/partner';
 import { SORT_ORDERS } from './file';
 
 export const partnerTypeSchema = z.enum(PARTNER_TYPES);
 
-export const partnerIdSchema = z.string().trim().min(1).max(64);
+export const partnerIdSchema = z.string().trim().min(1, 'Partner je obavezan.').max(64);
 
 export const partnerIdParamsSchema = z.object({ id: partnerIdSchema });
 
@@ -24,6 +24,20 @@ const optionalText = (max: number) =>
     .union([z.string().trim().max(max), z.literal(''), z.null()])
     .optional()
     .transform((value) => (value ? value : null));
+
+/** Empty stays optional (→ null); a non-empty value must be exactly `length` digits. */
+const optionalDigits = (label: string, length: number) =>
+  z
+    .union([z.string().trim(), z.literal(''), z.null()])
+    .optional()
+    .transform((value) => (value ? value : null))
+    .refine((value) => value === null || new RegExp(`^\\d{${length}}$`).test(value), {
+      message: `${label} mora imati tačno ${length} cifara.`,
+    });
+
+/** Shared by `partnerWriteSchema` and `contractWriteSchema`'s client-* fields — same PIB/MB format everywhere. */
+export const pibSchema = optionalDigits('PIB', PIB_LENGTH);
+export const registrationNumberSchema = optionalDigits('Matični broj', REGISTRATION_NUMBER_LENGTH);
 
 /**
  * Shared by `partnerWriteSchema` and `contractWriteSchema` (whose client-*
@@ -113,8 +127,8 @@ export const partnerWriteSchema = z
     firstName: optionalText(80),
     lastName: optionalText(80),
     address: requiredText('Adresa', 200),
-    pib: optionalText(20),
-    registrationNumber: optionalText(20),
+    pib: pibSchema,
+    registrationNumber: registrationNumberSchema,
     personalId: optionalText(13),
   })
   .superRefine((value, ctx) => superRefinePartyIdentity(value, ctx, PARTY_FIELD_NAMES));

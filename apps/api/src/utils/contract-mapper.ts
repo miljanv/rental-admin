@@ -14,6 +14,7 @@ export interface ContractRecord {
   advancePercentage: number;
   status: ContractStatus;
   notes: string | null;
+  isInternational: boolean;
   clientType: PartnerType;
   clientCompanyName: string | null;
   clientFirstName: string | null;
@@ -42,6 +43,7 @@ export const toContractDto = (record: ContractRecord): ContractDto => ({
   advancePercentage: record.advancePercentage,
   status: record.status,
   notes: record.notes,
+  isInternational: record.isInternational,
   clientType: record.clientType,
   clientCompanyName: record.clientCompanyName,
   clientFirstName: record.clientFirstName,

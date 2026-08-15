@@ -9,6 +9,8 @@ export * from './absence-attestation';
 export * from './generated-document';
 export * from './file';
 export * from './partner';
+export * from './passenger-list';
+export * from './travel-permit';
 export * from './fuel-log';
 export * from './tachograph-calibration';
 export * from './vehicle';

@@ -19,6 +19,12 @@ export const PARTNER_TYPE_LABELS: Record<PartnerType, string> = {
 /** A legal entity (company) rather than an individual. */
 export const isLegalEntityPartnerType = (type: PartnerType): boolean => type !== 'INDIVIDUAL';
 
+/** A Serbian PIB (poreski identifikacioni broj) is always exactly 9 digits. */
+export const PIB_LENGTH = 9;
+
+/** A Serbian matični broj (company registration number) is always exactly 8 digits. */
+export const REGISTRATION_NUMBER_LENGTH = 8;
+
 export interface PartnerDto {
   id: string;
   type: PartnerType;

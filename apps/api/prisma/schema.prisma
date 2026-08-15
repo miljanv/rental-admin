@@ -37,6 +37,7 @@ model FileObject {
   vehicleSafetyEquipment VehicleSafetyEquipment?
   vehicleDocument        VehicleDocument?
   contractDocument       ContractDocument?
+  travelPermit           TravelPermit?
 
   @@index([status])
   @@index([createdAt])
@@ -426,6 +427,10 @@ model Contract {
   advancePercentage        Int
   status                   ContractStatus @default(DRAFT)
   notes                    String?
+  /// Drives the passenger-list-type suggestion and whether the travel-permit
+  /// section (and its "IN_PROGRESS" gate) applies at all — set explicitly by
+  /// the user, since the free-text `route` can't be parsed reliably.
+  isInternational          Boolean        @default(false)
   clientType               PartnerType
   clientCompanyName        String?
   clientFirstName          String?
@@ -437,10 +442,12 @@ model Contract {
   createdAt                DateTime       @default(now())
   updatedAt                DateTime       @updatedAt
 
-  partner   Partner            @relation(fields: [partnerId], references: [id], onDelete: Restrict)
-  vehicle   Vehicle?           @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
-  driver    Driver?            @relation(fields: [driverId], references: [id], onDelete: SetNull)
-  documents ContractDocument[]
+  partner        Partner            @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  vehicle        Vehicle?           @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  driver         Driver?            @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  documents      ContractDocument[]
+  passengerLists PassengerList[]
+  travelPermits  TravelPermit[]
 
   @@index([partnerId])
   @@index([vehicleId])
@@ -448,6 +455,61 @@ model Contract {
   @@index([status])
   @@index([conclusionDate])
   @@map("contracts")
+}
+
+enum PassengerListType {
+  DOMESTIC
+  INTERNATIONAL
+}
+
+/// "Bela lista" (domestic) or "zelena lista" (international) in Serbian
+/// passenger-transport terminology — one list per contract per type.
+model PassengerList {
+  id         String            @id @default(cuid())
+  contractId String
+  type       PassengerListType
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  contract   Contract    @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  passengers Passenger[]
+
+  @@unique([contractId, type])
+  @@index([contractId])
+  @@map("passenger_lists")
+}
+
+model Passenger {
+  id              String   @id @default(cuid())
+  passengerListId String
+  firstName       String
+  lastName        String
+  documentNumber  String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  passengerList PassengerList @relation(fields: [passengerListId], references: [id], onDelete: Cascade)
+
+  @@index([passengerListId])
+  @@map("passengers")
+}
+
+/// One row per country a contract needs a border-crossing permit for.
+model TravelPermit {
+  id           String   @id @default(cuid())
+  contractId   String
+  country      String
+  permitNumber String
+  issuedAt     DateTime @db.Date
+  fileId       String   @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  contract Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  file     FileObject @relation(fields: [fileId], references: [id], onDelete: Restrict)
+
+  @@index([contractId])
+  @@map("travel_permits")
 }
 
 /// One row per generated contract PDF. Rows are immutable and accumulate —

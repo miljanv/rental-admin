@@ -1,8 +1,12 @@
 import type {
+  ContractSortField,
+  ContractStatus,
   DriverSortField,
   DriverStatus,
   FileSortField,
   FuelLogFuelType,
+  PartnerSortField,
+  PartnerType,
   SortOrder,
   VehicleSortField,
   VehicleStatus,
@@ -50,6 +54,35 @@ export interface MaintenanceCostSummaryParams {
   supplier?: string;
 }
 
+export interface PartnerListQueryParams {
+  page: number;
+  limit: number;
+  search?: string;
+  sortBy: PartnerSortField;
+  sortOrder: SortOrder;
+  type?: PartnerType;
+}
+
+export interface ContractListQueryParams {
+  page: number;
+  limit: number;
+  search?: string;
+  sortBy: ContractSortField;
+  sortOrder: SortOrder;
+  status?: ContractStatus;
+  partnerId?: string;
+  periodFrom?: string;
+  periodTo?: string;
+}
+
+export interface ContractAvailabilityParams {
+  vehicleId?: string;
+  driverId?: string;
+  serviceStartDate: string;
+  serviceEndDate: string;
+  excludeContractId?: string;
+}
+
 /**
  * Central query key factory. Mutations invalidate the `all` key for a domain,
  * which covers every list page and related details.
@@ -89,5 +122,20 @@ export const queryKeys = {
     maintenanceCostSummary: (params?: MaintenanceCostSummaryParams) =>
       ['vehicles', 'maintenance-cost-summary', params] as const,
     documents: (vehicleId: string) => ['vehicles', vehicleId, 'documents'] as const,
+  },
+  partners: {
+    all: ['partners'] as const,
+    list: (params: PartnerListQueryParams) => ['partners', 'list', params] as const,
+    detail: (id: string) => ['partners', 'detail', id] as const,
+  },
+  contracts: {
+    all: ['contracts'] as const,
+    list: (params: ContractListQueryParams) => ['contracts', 'list', params] as const,
+    detail: (id: string) => ['contracts', 'detail', id] as const,
+    documents: (contractId: string) => ['contracts', contractId, 'documents'] as const,
+    passengerLists: (contractId: string) => ['contracts', contractId, 'passenger-lists'] as const,
+    travelPermits: (contractId: string) => ['contracts', contractId, 'travel-permits'] as const,
+    availability: (params: ContractAvailabilityParams) =>
+      ['contracts', 'availability', params] as const,
   },
 } as const;

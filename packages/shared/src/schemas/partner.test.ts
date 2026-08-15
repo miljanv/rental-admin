@@ -48,6 +48,18 @@ describe('partnerWriteSchema', () => {
       partnerWriteSchema.safeParse({ ...validIndividual, companyName: 'Should not be here' }).success,
     ).toBe(false);
   });
+
+  it('rejects a PIB that is not exactly 9 digits', () => {
+    const result = partnerWriteSchema.safeParse({ ...validCompany, pib: '12345' });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.some((issue) => issue.path.includes('pib'))).toBe(true);
+  });
+
+  it('rejects a matični broj that is not exactly 8 digits', () => {
+    const result = partnerWriteSchema.safeParse({ ...validCompany, registrationNumber: '123' });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.some((issue) => issue.path.includes('registrationNumber'))).toBe(true);
+  });
 });
 
 describe('listPartnersQuerySchema', () => {

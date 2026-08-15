@@ -26,6 +26,8 @@ export interface ContractDto {
   advancePercentage: number;
   status: ContractStatus;
   notes: string | null;
+  /** Set explicitly by the user — drives the passenger-list-type suggestion and the travel-permit gate. */
+  isInternational: boolean;
   /**
    * Snapshot of the client's identity at signing time — deliberately
    * duplicated from Partner rather than joined live, so an already-signed
@@ -47,6 +49,12 @@ export interface ContractDto {
 export interface DeleteContractResult {
   id: string;
   deleted: true;
+}
+
+/** Other non-cancelled contracts booking the same vehicle/driver over an overlapping period. */
+export interface ContractAvailabilityResult {
+  vehicleConflicts: ContractDto[];
+  driverConflicts: ContractDto[];
 }
 
 export const contractClientDisplayName = (

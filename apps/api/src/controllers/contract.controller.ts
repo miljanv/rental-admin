@@ -1,4 +1,10 @@
-import type { ContractIdParams, ContractWriteRequest, ListContractsQuery } from '@rental-admin/shared';
+import type {
+  ContractAvailabilityQuery,
+  ContractIdParams,
+  ContractStatusChangeRequest,
+  ContractWriteRequest,
+  ListContractsQuery,
+} from '@rental-admin/shared';
 import type { Request, Response } from 'express';
 
 import { validated } from '../middleware/validate-request';
@@ -37,6 +43,21 @@ export const updateContract = async (req: Request, res: Response): Promise<void>
 export const deleteContract = async (req: Request, res: Response): Promise<void> => {
   const { id } = validated<ContractIdParams>(req, 'params');
   const result = await contractService.deleteContract(id);
+
+  sendSuccess(res, result);
+};
+
+export const changeContractStatus = async (req: Request, res: Response): Promise<void> => {
+  const { id } = validated<ContractIdParams>(req, 'params');
+  const body = validated<ContractStatusChangeRequest>(req, 'body');
+  const contract = await contractService.changeContractStatus(id, body);
+
+  sendSuccess(res, contract);
+};
+
+export const checkContractAvailability = async (req: Request, res: Response): Promise<void> => {
+  const query = validated<ContractAvailabilityQuery>(req, 'query');
+  const result = await contractService.checkContractAvailability(query);
 
   sendSuccess(res, result);
 };

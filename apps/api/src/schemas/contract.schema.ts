@@ -1,3 +1,15 @@
-import { contractIdParamsSchema, contractWriteSchema, listContractsQuerySchema } from '@rental-admin/shared';
+import {
+  contractAvailabilityQuerySchema,
+  contractIdParamsSchema,
+  contractStatusChangeSchema,
+  contractWriteSchema,
+  listContractsQuerySchema,
+} from '@rental-admin/shared';
 
-export { contractIdParamsSchema, contractWriteSchema, listContractsQuerySchema };
+export {
+  contractAvailabilityQuerySchema,
+  contractIdParamsSchema,
+  contractStatusChangeSchema,
+  contractWriteSchema,
+  listContractsQuerySchema,
+};
