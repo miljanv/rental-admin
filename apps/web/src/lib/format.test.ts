@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formatDate,
   formatDateTime,
+  formatDateTimeSr,
   formatFileSize,
   formatMimeType,
   getFileExtension,
@@ -44,6 +45,17 @@ describe('formatDate', () => {
   it('renders a dash for a missing or invalid date', () => {
     expect(formatDate(null)).toBe('—');
     expect(formatDate('not-a-date')).toBe('—');
+  });
+});
+
+describe('formatDateTimeSr', () => {
+  it('formats a UTC wall-clock timestamp in Serbian', () => {
+    expect(formatDateTimeSr('2026-06-17T19:30:00.000Z')).toBe('17.06.2026. 19:30');
+  });
+
+  it('renders a dash for a missing or invalid value', () => {
+    expect(formatDateTimeSr(null)).toBe('—');
+    expect(formatDateTimeSr('not-a-date')).toBe('—');
   });
 });
 

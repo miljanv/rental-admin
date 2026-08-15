@@ -121,4 +121,30 @@ describe('API request pipeline', () => {
     expect(response.status).toBe(400);
     expect(response.body.error.code).toBe('VALIDATION_ERROR');
   });
+
+  it('rejects an incomplete employment-contract generate payload', async () => {
+    const response = await request(app)
+      .post('/api/v1/drivers/drv_1/generated-documents/employment-contract')
+      .set(auth)
+      .send({ employmentContractType: 'INDEFINITE' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('rejects an absence attestation whose period does not move forward', async () => {
+    const response = await request(app)
+      .post('/api/v1/drivers/drv_1/absence-attestations')
+      .set(auth)
+      .send({
+        periodFrom: '2026-06-17T19:30',
+        periodTo: '2026-06-17T19:30',
+        reason: 'LEAVE_OR_REST',
+        issuedAt: '2026-06-20',
+        startedWorkAt: '2026-04-03',
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
+  });
 });

@@ -1,8 +1,15 @@
 import { Router } from 'express';
 
+import * as absenceAttestationController from '../controllers/absence-attestation.controller';
 import * as driverDocumentController from '../controllers/driver-document.controller';
 import * as driverController from '../controllers/driver.controller';
+import * as generatedDocumentController from '../controllers/generated-document.controller';
+import { uploadRateLimiter } from '../middleware/rate-limit';
 import { validateRequest } from '../middleware/validate-request';
+import {
+  absenceAttestationParamsSchema,
+  generateAbsenceAttestationSchema,
+} from '../schemas/absence-attestation.schema';
 import {
   driverDocumentParamsSchema,
   driverDocumentWriteSchema,
@@ -13,6 +20,10 @@ import {
   driverWriteSchema,
   listDriversQuerySchema,
 } from '../schemas/driver.schema';
+import {
+  generateEmploymentContractSchema,
+  generateMaFormSchema,
+} from '../schemas/generated-document.schema';
 import { asyncHandler } from '../utils/async-handler';
 
 export const driverRouter = Router();
@@ -63,6 +74,39 @@ driverRouter.delete(
   '/:id/documents/:documentId',
   validateRequest({ params: driverDocumentParamsSchema }),
   asyncHandler(driverDocumentController.deleteDriverDocument),
+);
+
+driverRouter.post(
+  '/:id/generated-documents/employment-contract',
+  uploadRateLimiter,
+  validateRequest({ params: driverIdParamsSchema, body: generateEmploymentContractSchema }),
+  asyncHandler(generatedDocumentController.generateEmploymentContract),
+);
+
+driverRouter.post(
+  '/:id/generated-documents/ma-form',
+  uploadRateLimiter,
+  validateRequest({ params: driverIdParamsSchema, body: generateMaFormSchema }),
+  asyncHandler(generatedDocumentController.generateMaForm),
+);
+
+driverRouter.get(
+  '/:id/absence-attestations',
+  validateRequest({ params: driverIdParamsSchema }),
+  asyncHandler(absenceAttestationController.listAbsenceAttestations),
+);
+
+driverRouter.post(
+  '/:id/absence-attestations',
+  uploadRateLimiter,
+  validateRequest({ params: driverIdParamsSchema, body: generateAbsenceAttestationSchema }),
+  asyncHandler(absenceAttestationController.generateAbsenceAttestation),
+);
+
+driverRouter.delete(
+  '/:id/absence-attestations/:attestationId',
+  validateRequest({ params: absenceAttestationParamsSchema }),
+  asyncHandler(absenceAttestationController.deleteAbsenceAttestation),
 );
 
 driverRouter.get(

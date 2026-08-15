@@ -2,6 +2,7 @@ import type { AttachedFileDto } from './file';
 
 export const DRIVER_DOCUMENT_TYPES = [
   'EMPLOYMENT_CONTRACT',
+  'MA_FORM',
   'MEDICAL_CERTIFICATE',
   'ACCREDITATION',
   'DRIVING_LICENSE',
@@ -12,6 +13,7 @@ export type DriverDocumentType = (typeof DRIVER_DOCUMENT_TYPES)[number];
 
 export const DRIVER_DOCUMENT_TYPE_LABELS: Record<DriverDocumentType, string> = {
   EMPLOYMENT_CONTRACT: 'Ugovor o radu',
+  MA_FORM: 'Obrazac MA',
   MEDICAL_CERTIFICATE: 'Lekarski',
   ACCREDITATION: 'Akreditacija',
   DRIVING_LICENSE: 'Vozačka dozvola',

@@ -1,6 +1,6 @@
 'use client';
 
-import type { DriverDocumentDto } from '@rental-admin/shared';
+import type { DriverDocumentDto, DriverDto } from '@rental-admin/shared';
 import { Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -10,15 +10,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { DeleteDriverDocumentDialog } from '@/features/driver-documents/components/delete-driver-document-dialog';
 import { DriverDocumentForm } from '@/features/driver-documents/components/driver-document-form';
 import { DriverDocumentsTable } from '@/features/driver-documents/components/driver-documents-table';
+import { GenerateDocumentsPanel } from '@/features/driver-documents/components/generate-documents-panel';
 import { useDriverDocuments } from '@/features/driver-documents/hooks/use-driver-documents';
 import { localTodayIso } from '@/features/driver-documents/lib/document';
 
 interface DriverDocumentsTabProps {
-  driverId: string;
+  driver: DriverDto;
 }
 
-export function DriverDocumentsTab({ driverId }: DriverDocumentsTabProps) {
-  const query = useDriverDocuments(driverId);
+export function DriverDocumentsTab({ driver }: DriverDocumentsTabProps) {
+  const query = useDriverDocuments(driver.id);
   const todayIso = useMemo(() => localTodayIso(), []);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editing, setEditing] = useState<DriverDocumentDto | undefined>(undefined);
@@ -32,10 +33,12 @@ export function DriverDocumentsTab({ driverId }: DriverDocumentsTabProps) {
 
   return (
     <div className="space-y-6">
+      <GenerateDocumentsPanel driver={driver} />
+
       {isFormOpen ? (
         <DriverDocumentForm
           key={editing?.id ?? 'new'}
-          driverId={driverId}
+          driverId={driver.id}
           document={editing}
           onDone={() => {
             setIsFormOpen(false);
@@ -49,7 +52,8 @@ export function DriverDocumentsTab({ driverId }: DriverDocumentsTabProps) {
           <div>
             <CardTitle>Dokumenti</CardTitle>
             <CardDescription>
-              Ugovor, lekarski, akreditacija, vozačka dozvola i licenca, sa rokovima važenja.
+              Ugovor, obrazac MA, lekarski, akreditacija, vozačka dozvola i licenca, sa rokovima
+              važenja.
             </CardDescription>
           </div>
           {isFormOpen ? null : (
@@ -90,7 +94,7 @@ export function DriverDocumentsTab({ driverId }: DriverDocumentsTabProps) {
       </Card>
 
       <DeleteDriverDocumentDialog
-        driverId={driverId}
+        driverId={driver.id}
         document={documentToDelete}
         onOpenChange={(isOpen) => {
           if (!isOpen) {

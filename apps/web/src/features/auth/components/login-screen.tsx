@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { loginFormSchema, type LoginFormValues } from '@/features/auth/schemas/login-schema';
 import { getApiErrorMessage } from '@/lib/api-error';
-import { APP_NAME } from '@/lib/env';
+import { APP_DESCRIPTION, APP_INITIALS, APP_NAME } from '@/lib/env';
 import { useAuth } from '@/providers/auth-provider';
 
 export function LoginScreen() {
@@ -35,26 +35,26 @@ export function LoginScreen() {
       <div className="flex w-full max-w-md flex-col gap-8">
         <div className="flex flex-col items-center gap-3 text-center">
           <span className="bg-primary text-primary-foreground flex size-12 items-center justify-center rounded-xl text-lg font-semibold tracking-tight">
-            RT
+            {APP_INITIALS}
           </span>
           <div className="space-y-1">
             <p className="text-muted-foreground font-mono text-[11px] tracking-[0.2em] uppercase">
-              Rental Travel
+              {APP_NAME}
             </p>
-            <h1 className="font-heading text-2xl font-semibold tracking-tight">{APP_NAME}</h1>
-            <p className="text-muted-foreground text-sm">Sign in to manage private file storage.</p>
+            <h1 className="font-heading text-2xl font-semibold tracking-tight">Admin panel</h1>
+            <p className="text-muted-foreground text-sm">{APP_DESCRIPTION}</p>
           </div>
         </div>
 
         <Card className="shadow-none">
           <CardHeader>
-            <CardTitle>Sign in</CardTitle>
-            <CardDescription>Use your admin account to continue.</CardDescription>
+            <CardTitle>Prijava</CardTitle>
+            <CardDescription>Koristite admin nalog da nastavite.</CardDescription>
           </CardHeader>
           <CardContent>
             <form className="space-y-4" onSubmit={onSubmit} noValidate>
               <div className="space-y-1.5">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="username">Korisničko ime</Label>
                 <Input
                   id="username"
                   autoComplete="username"
@@ -71,7 +71,7 @@ export function LoginScreen() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">Lozinka</Label>
                 <Input
                   id="password"
                   type="password"
@@ -94,7 +94,7 @@ export function LoginScreen() {
               ) : null}
 
               <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
-                {isSubmitting ? 'Signing in…' : 'Sign in'}
+                {isSubmitting ? 'Prijava u toku…' : 'Prijavi se'}
               </Button>
             </form>
           </CardContent>

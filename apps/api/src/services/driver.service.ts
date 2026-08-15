@@ -13,6 +13,7 @@ import { conflict, notFound } from '../utils/app-error';
 import { buildPaginationMeta } from '../utils/api-response';
 import { toDriverDto, type DriverRecord } from '../utils/driver-mapper';
 import { logger } from '../utils/logger';
+import { deleteAbsenceFilesForDriver } from './absence-attestation.service';
 import { deleteFilesForDriver } from './driver-document.service';
 
 type DriverOrderBy = Partial<Record<DriverSortField, SortOrder>>;
@@ -123,6 +124,7 @@ export const updateDriver = async (id: string, input: DriverWriteRequest): Promi
 export const deleteDriver = async (id: string): Promise<DeleteDriverResult> => {
   await getDriver(id);
   await deleteFilesForDriver(id);
+  await deleteAbsenceFilesForDriver(id);
   await prisma.driver.delete({ where: { id } });
   logger.info('Driver deleted', { driverId: id });
 

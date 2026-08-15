@@ -55,7 +55,7 @@ export function DriverDocumentsTable({
       <EmptyState
         icon={FileText}
         title="Još nema dokumenata"
-        description="Dodajte ugovor, lekarski, akreditaciju, vozačku ili licencu i priložite sken."
+        description="Dodajte ugovor, obrazac MA, lekarski, akreditaciju, vozačku ili licencu i priložite sken."
         action={emptyAction}
       />
     );

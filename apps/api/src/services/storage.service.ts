@@ -136,6 +136,30 @@ export const getObjectMetadata = async (
 };
 
 /**
+ * Writes bytes the API generated itself (PDF documents). Browser uploads still
+ * go direct-to-S3 via a presigned PUT; this path is only for server-side files.
+ */
+export const putObject = async (params: {
+  storageKey: string;
+  body: Buffer;
+  mimeType: string;
+}): Promise<void> => {
+  try {
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: S3_BUCKET_NAME,
+        Key: params.storageKey,
+        Body: params.body,
+        ContentType: params.mimeType,
+        ContentLength: params.body.length,
+      }),
+    );
+  } catch (error) {
+    throw toStorageError('put-object', params.storageKey, error);
+  }
+};
+
+/**
  * Deletes the object. A missing object is treated as success so a half-finished
  * upload can always be cleaned up.
  */

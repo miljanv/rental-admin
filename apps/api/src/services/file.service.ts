@@ -206,6 +206,39 @@ const createSignedGetUrl = async (
   return { url: downloadUrl, fileName: record.originalName, expiresIn };
 };
 
+/**
+ * Stores a PDF the API generated. The row is created already UPLOADED because
+ * this process wrote the object — there is no client confirm step.
+ */
+export const storeGeneratedPdf = async (params: {
+  originalName: string;
+  body: Buffer;
+}): Promise<FileObjectRecord> => {
+  const storageKey = buildStorageKey(params.originalName);
+
+  await storage.putObject({
+    storageKey,
+    body: params.body,
+    mimeType: 'application/pdf',
+  });
+
+  try {
+    return await prisma.fileObject.create({
+      data: {
+        originalName: params.originalName,
+        storageKey,
+        mimeType: 'application/pdf',
+        size: params.body.length,
+        status: 'UPLOADED',
+        uploadedAt: new Date(),
+      },
+    });
+  } catch (error) {
+    await storage.deleteObject(storageKey).catch(() => undefined);
+    throw error;
+  }
+};
+
 export const createDownloadUrl = async (id: string): Promise<DownloadUrlResult> => {
   const signed = await createSignedGetUrl(id, 'attachment');
 

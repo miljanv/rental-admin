@@ -25,7 +25,7 @@ export const login = async (input: LoginRequest): Promise<LoginResult> => {
   );
 
   if (!user || !passwordMatches) {
-    throw unauthorized('Invalid username or password.');
+    throw unauthorized('Pogrešno korisničko ime ili lozinka.');
   }
 
   logger.info('User signed in', { userId: user.id, username: user.username });
