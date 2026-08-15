@@ -76,6 +76,7 @@ model Driver {
   fuelLogs               FuelLog[]
   contracts              Contract[]
   transactions           FinanceTransaction[]
+  tripAssignments        TripDriver[]
 
   @@index([status])
   @@index([lastName, firstName])
@@ -214,6 +215,7 @@ model Vehicle {
   documents       VehicleDocument[]
   contracts       Contract[]
   transactions    FinanceTransaction[]
+  tripAssignments TripVehicle[]
 
   @@index([status])
   @@index([type])
@@ -230,16 +232,16 @@ enum VehicleInspectionType {
 /// A technical inspection record for a vehicle. `expiresAt` is always computed
 /// server-side from `type` + `inspectedAt`; it is never trusted from the client.
 model VehicleInspection {
-  id          String                @id @default(cuid())
-  vehicleId   String
-  type        VehicleInspectionType
-  inspectedAt DateTime              @db.Date
-  expiresAt   DateTime              @db.Date
-  cost        Float?
+  id            String                @id @default(cuid())
+  vehicleId     String
+  type          VehicleInspectionType
+  inspectedAt   DateTime              @db.Date
+  expiresAt     DateTime              @db.Date
+  cost          Float?
   paymentMethod PaymentMethod?
-  fileId      String?               @unique
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
+  fileId        String?               @unique
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
 
   vehicle Vehicle     @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   file    FileObject? @relation(fields: [fileId], references: [id], onDelete: SetNull)
@@ -253,15 +255,15 @@ model VehicleInspection {
 /// A tachograph calibration record. `expiresAt` is always computed
 /// server-side from the vehicle's `tachographType` + `calibratedAt`.
 model TachographCalibration {
-  id           String   @id @default(cuid())
-  vehicleId    String
-  calibratedAt DateTime @db.Date
-  expiresAt    DateTime @db.Date
-  cost         Float?
+  id            String         @id @default(cuid())
+  vehicleId     String
+  calibratedAt  DateTime       @db.Date
+  expiresAt     DateTime       @db.Date
+  cost          Float?
   paymentMethod PaymentMethod?
-  fileId       String?  @unique
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  fileId        String?        @unique
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   vehicle Vehicle     @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   file    FileObject? @relation(fields: [fileId], references: [id], onDelete: SetNull)
@@ -280,16 +282,16 @@ enum SafetyEquipmentType {
 /// expiries. `expiresAt` is computed server-side for FIRE_EXTINGUISHER
 /// (+180 days) and entered manually for FIRST_AID_KIT (printed on the box).
 model VehicleSafetyEquipment {
-  id        String              @id @default(cuid())
-  vehicleId String
-  type      SafetyEquipmentType
-  checkedAt DateTime            @db.Date
-  expiresAt DateTime            @db.Date
-  cost      Float?
+  id            String              @id @default(cuid())
+  vehicleId     String
+  type          SafetyEquipmentType
+  checkedAt     DateTime            @db.Date
+  expiresAt     DateTime            @db.Date
+  cost          Float?
   paymentMethod PaymentMethod?
-  fileId    String?             @unique
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
+  fileId        String?             @unique
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
 
   vehicle Vehicle     @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   file    FileObject? @relation(fields: [fileId], references: [id], onDelete: SetNull)
@@ -339,17 +341,17 @@ model FuelLog {
 
 /// A part replacement / maintenance record for a vehicle.
 model VehicleMaintenance {
-  id         String   @id @default(cuid())
-  vehicleId  String
-  date       DateTime @db.Date
-  odometerKm Int
-  partName   String
-  supplier   String
-  cost       Float
+  id            String        @id @default(cuid())
+  vehicleId     String
+  date          DateTime      @db.Date
+  odometerKm    Int
+  partName      String
+  supplier      String
+  cost          Float
   paymentMethod PaymentMethod @default(ACCOUNT)
-  mechanic   String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  mechanic      String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
 
@@ -409,6 +411,7 @@ model Partner {
   updatedAt          DateTime    @updatedAt
 
   contracts Contract[]
+  trips     Trip[]
 
   @@index([type])
   @@map("partners")
@@ -461,6 +464,7 @@ model Contract {
   documents      ContractDocument[]
   passengerLists PassengerList[]
   travelPermits  TravelPermit[]
+  trips          Trip[]
 
   @@index([partnerId])
   @@index([vehicleId])
@@ -605,10 +609,10 @@ model FinanceTransaction {
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
 
-  vehicle          Vehicle?            @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
-  driver           Driver?             @relation(fields: [driverId], references: [id], onDelete: SetNull)
-  linkedTransaction FinanceTransaction? @relation("AdvanceSettlement", fields: [linkedTransactionId], references: [id], onDelete: SetNull)
-  linkedAdvances   FinanceTransaction[] @relation("AdvanceSettlement")
+  vehicle           Vehicle?             @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  driver            Driver?              @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  linkedTransaction FinanceTransaction?  @relation("AdvanceSettlement", fields: [linkedTransactionId], references: [id], onDelete: SetNull)
+  linkedAdvances    FinanceTransaction[] @relation("AdvanceSettlement")
 
   @@index([occurredAt])
   @@index([type])
@@ -631,4 +635,112 @@ model AlarmThreshold {
   updatedAt    DateTime @updatedAt
 
   @@map("alarm_thresholds")
+}
+
+enum TripStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  FREE
+}
+
+enum TripSeriesFrequency {
+  DAILY
+  WEEKLY
+}
+
+/// A recurring-trip template ("COKA - OS Coka svaki radni dan") that generates
+/// concrete Trip rows over [startDate, endDate]. Kept after generation so the
+/// whole run can be bulk-edited from a date onward or terminated early — see
+/// Trip.seriesId and the trip-series bulk-update/terminate endpoints.
+model TripSeries {
+  id           String              @id @default(cuid())
+  name         String?
+  frequency    TripSeriesFrequency
+  /// 0=Sunday..6=Saturday. Ignored when frequency is DAILY.
+  daysOfWeek   Int[]               @default([])
+  startDate    DateTime            @db.Date
+  endDate      DateTime            @db.Date
+  isActive     Boolean             @default(true)
+  terminatedAt DateTime?           @db.Date
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  trips Trip[]
+
+  @@map("trip_series")
+}
+
+/// A single transport job ("vožnja") — distinct from Contract: a trip can be
+/// an informal booking with no paperwork, or reference a Contract. Field names
+/// are English; the admin UI presents Serbian labels. Vehicles and drivers are
+/// many-to-many (one trip regularly runs several buses/drivers, or one driver
+/// covers a shift change) via TripVehicle/TripDriver — never a single FK.
+model Trip {
+  id              String         @id @default(cuid())
+  /// "RN broj" — the operator's own trip reference/registration number.
+  referenceNumber String
+  departureDate   DateTime       @db.Date
+  returnDate      DateTime?      @db.Date
+  country         String?
+  route           String
+  partnerId       String?
+  /// Free-text client name, used when the client isn't a registered Partner.
+  clientName      String?
+  notes           String?
+  price           Float?
+  paymentMethod   PaymentMethod?
+  status          TripStatus     @default(PLANNED)
+  contractId      String?
+  /// Distance covered, filled in after the trip — feeds the statistics
+  /// endpoint's total-km figure. Not part of the original field list; added
+  /// to support Task 3's reporting requirement.
+  distanceKm      Float?
+  /// Set only on instances generated from a TripSeries.
+  seriesId        String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  partner  Partner?      @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  contract Contract?     @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  series   TripSeries?   @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  vehicles TripVehicle[]
+  drivers  TripDriver[]
+
+  @@index([status])
+  @@index([departureDate])
+  @@index([country])
+  @@index([partnerId])
+  @@index([contractId])
+  @@index([seriesId])
+  @@map("trips")
+}
+
+model TripVehicle {
+  id        String   @id @default(cuid())
+  tripId    String
+  vehicleId String
+  createdAt DateTime @default(now())
+
+  trip    Trip    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, vehicleId])
+  @@index([vehicleId])
+  @@map("trip_vehicles")
+}
+
+model TripDriver {
+  id        String   @id @default(cuid())
+  tripId    String
+  driverId  String
+  createdAt DateTime @default(now())
+
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, driverId])
+  @@index([driverId])
+  @@map("trip_drivers")
 }

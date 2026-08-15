@@ -3,6 +3,7 @@ import {
   Bus,
   FileText,
   LayoutDashboard,
+  Route,
   Settings2,
   Truck,
   Users,
@@ -56,6 +57,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: '/contracts',
     icon: FileText,
     description: 'Ugovori o prevozu putnika',
+  },
+  {
+    title: 'Vožnje',
+    href: '/trips',
+    icon: Route,
+    description: 'Pojedinačne i ponavljajuće vožnje',
   },
   {
     title: 'Finansije',

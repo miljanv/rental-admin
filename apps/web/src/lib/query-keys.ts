@@ -13,6 +13,8 @@ import type {
   TransactionSortField,
   TransactionStatus,
   TransactionType,
+  TripSortField,
+  TripStatus,
   VehicleSortField,
   VehicleStatus,
   VehicleType,
@@ -111,6 +113,28 @@ export interface TransactionListQueryParams {
   to?: string;
 }
 
+export interface TripListQueryParams {
+  page: number;
+  limit: number;
+  search?: string;
+  sortBy: TripSortField;
+  sortOrder: SortOrder;
+  status?: TripStatus;
+  vehicleId?: string;
+  driverId?: string;
+  partnerId?: string;
+  country?: string;
+  paymentMethod?: PaymentMethod;
+  seriesId?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface TripStatsParams {
+  from?: string;
+  to?: string;
+}
+
 /**
  * Central query key factory. Mutations invalidate the `all` key for a domain,
  * which covers every list page and related details.
@@ -181,5 +205,12 @@ export const queryKeys = {
     unsettledAdvances: (supplier?: string) =>
       ['transactions', 'unsettled-advances', supplier] as const,
     reports: (from?: string, to?: string) => ['transactions', 'reports', from, to] as const,
+  },
+  trips: {
+    all: ['trips'] as const,
+    list: (params: TripListQueryParams) => ['trips', 'list', params] as const,
+    detail: (id: string) => ['trips', 'detail', id] as const,
+    stats: (params?: TripStatsParams) => ['trips', 'stats', params] as const,
+    series: (id: string) => ['trips', 'series', id] as const,
   },
 } as const;
