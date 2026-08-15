@@ -1,13 +1,25 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { DRIVER_STATUS_LABELS, DRIVER_STATUSES, type DriverDto } from '@rental-admin/shared';
+import {
+  DRIVER_STATUS_LABELS,
+  DRIVER_STATUSES,
+  DRIVING_LICENSE_CATEGORIES,
+  DRIVING_LICENSE_CATEGORY_LABELS,
+  EDUCATION_LEVELS,
+  ID_CARD_NUMBER_LENGTH,
+  JMBG_LENGTH,
+  type DriverDto,
+  type DrivingLicenseCategory,
+} from '@rental-admin/shared';
 import Link from 'next/link';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 
+import { CharacterCounter } from '@/components/common/character-counter';
 import { PageHeader } from '@/components/common/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -30,17 +42,31 @@ interface DriverFormProps {
   driver?: DriverDto;
 }
 
+const isDrivingLicenseCategory = (value: string): value is DrivingLicenseCategory =>
+  (DRIVING_LICENSE_CATEGORIES as readonly string[]).includes(value);
+
+/** `drivingLicenseCategory` is stored as one comma-separated string (e.g. "B, C, CE"). */
+const splitCategoryTokens = (value: string): string[] =>
+  value
+    .split(',')
+    .map((token) => token.trim())
+    .filter(Boolean);
+
 interface FieldProps {
   id: string;
   label: string;
   error?: string;
+  hint?: React.ReactNode;
   children: React.ReactNode;
 }
 
-function Field({ id, label, error, children }: FieldProps) {
+function Field({ id, label, error, hint, children }: FieldProps) {
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <div className="flex items-center justify-between">
+        <Label htmlFor={id}>{label}</Label>
+        {hint}
+      </div>
       {children}
       {error ? <p className="text-destructive text-xs">{error}</p> : null}
     </div>
@@ -69,6 +95,16 @@ export function DriverForm({ driver }: DriverFormProps) {
 
   const errors = form.formState.errors;
   const cancelHref = driver ? `/drivers/${driver.id}` : '/drivers';
+  const jmbg = useWatch({ control: form.control, name: 'jmbg' });
+  const idCardNumber = useWatch({ control: form.control, name: 'idCardNumber' });
+  const educationLevel = useWatch({ control: form.control, name: 'educationLevel' });
+  // educationLevel stays free text on the record, so a value from before this
+  // list existed (or typed by hand) must still show up as selected instead of
+  // silently looking empty.
+  const educationLevelOptions =
+    educationLevel && !(EDUCATION_LEVELS as readonly string[]).includes(educationLevel)
+      ? [educationLevel, ...EDUCATION_LEVELS]
+      : EDUCATION_LEVELS;
 
   return (
     <>
@@ -106,11 +142,16 @@ export function DriverForm({ driver }: DriverFormProps) {
                 {...form.register('lastName')}
               />
             </Field>
-            <Field id="jmbg" label="JMBG" error={errors.jmbg?.message}>
+            <Field
+              id="jmbg"
+              label="JMBG"
+              error={errors.jmbg?.message}
+              hint={<CharacterCounter current={jmbg.length} max={JMBG_LENGTH} />}
+            >
               <Input
                 id="jmbg"
                 inputMode="numeric"
-                maxLength={13}
+                maxLength={JMBG_LENGTH}
                 disabled={isPending}
                 aria-invalid={Boolean(errors.jmbg)}
                 {...form.register('jmbg')}
@@ -137,21 +178,40 @@ export function DriverForm({ driver }: DriverFormProps) {
                 {...form.register('residencePlace')}
               />
             </Field>
+            <Controller
+              control={form.control}
+              name="educationLevel"
+              render={({ field }) => (
+                <Field
+                  id="educationLevel"
+                  label="Stručna sprema"
+                  error={errors.educationLevel?.message}
+                >
+                  <Select value={field.value} onValueChange={field.onChange} disabled={isPending}>
+                    <SelectTrigger id="educationLevel" className="w-full">
+                      <SelectValue placeholder="Izaberite stručnu spremu" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {educationLevelOptions.map((level) => (
+                        <SelectItem key={level} value={level}>
+                          {level}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              )}
+            />
             <Field
-              id="educationLevel"
-              label="Stručna sprema"
-              error={errors.educationLevel?.message}
+              id="idCardNumber"
+              label="Broj lične karte"
+              error={errors.idCardNumber?.message}
+              hint={<CharacterCounter current={idCardNumber.length} max={ID_CARD_NUMBER_LENGTH} />}
             >
               <Input
-                id="educationLevel"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.educationLevel)}
-                {...form.register('educationLevel')}
-              />
-            </Field>
-            <Field id="idCardNumber" label="Broj lične karte" error={errors.idCardNumber?.message}>
-              <Input
                 id="idCardNumber"
+                inputMode="numeric"
+                maxLength={ID_CARD_NUMBER_LENGTH}
                 disabled={isPending}
                 aria-invalid={Boolean(errors.idCardNumber)}
                 {...form.register('idCardNumber')}
@@ -178,19 +238,64 @@ export function DriverForm({ driver }: DriverFormProps) {
                 {...form.register('drivingLicenseNumber')}
               />
             </Field>
-            <Field
-              id="drivingLicenseCategory"
-              label="Kategorija"
-              error={errors.drivingLicenseCategory?.message}
-            >
-              <Input
-                id="drivingLicenseCategory"
-                placeholder="npr. B, C, D, CE"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.drivingLicenseCategory)}
-                {...form.register('drivingLicenseCategory')}
+            <div className="sm:col-span-2">
+              <Controller
+                control={form.control}
+                name="drivingLicenseCategory"
+                render={({ field }) => {
+                  const tokens = splitCategoryTokens(field.value);
+                  const selected = new Set(
+                    tokens.map((token) => token.toUpperCase()).filter(isDrivingLicenseCategory),
+                  );
+                  // Anything already saved that isn't one of the known codes is kept as-is
+                  // instead of being silently dropped the next time this form is submitted.
+                  const unrecognized = tokens.filter(
+                    (token) => !isDrivingLicenseCategory(token.toUpperCase()),
+                  );
+
+                  const toggle = (category: DrivingLicenseCategory) => {
+                    const next = new Set(selected);
+                    if (next.has(category)) {
+                      next.delete(category);
+                    } else {
+                      next.add(category);
+                    }
+                    const ordered = DRIVING_LICENSE_CATEGORIES.filter((code) => next.has(code));
+                    field.onChange([...ordered, ...unrecognized].join(', '));
+                  };
+
+                  return (
+                    <Field
+                      id="drivingLicenseCategory"
+                      label="Kategorija"
+                      error={errors.drivingLicenseCategory?.message}
+                    >
+                      <div className="grid grid-cols-1 gap-x-4 gap-y-2 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {DRIVING_LICENSE_CATEGORIES.map((category) => (
+                          <label
+                            key={category}
+                            className="flex cursor-pointer items-start gap-2 text-sm"
+                          >
+                            <Checkbox
+                              checked={selected.has(category)}
+                              onCheckedChange={() => toggle(category)}
+                              disabled={isPending}
+                              className="mt-0.5"
+                            />
+                            <span>
+                              <span className="font-medium">{category}</span>{' '}
+                              <span className="text-muted-foreground text-xs">
+                                {DRIVING_LICENSE_CATEGORY_LABELS[category]}
+                              </span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </Field>
+                  );
+                }}
               />
-            </Field>
+            </div>
             <Field id="licenseNumber" label="Broj licence" error={errors.licenseNumber?.message}>
               <Input
                 id="licenseNumber"

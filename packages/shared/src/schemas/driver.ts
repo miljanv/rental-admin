@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { PAGINATION_DEFAULTS } from '../constants';
-import { DRIVER_STATUSES } from '../types/driver';
+import { DRIVER_STATUSES, ID_CARD_NUMBER_LENGTH } from '../types/driver';
 import { SORT_ORDERS } from './file';
 
 export const driverStatusSchema = z.enum(DRIVER_STATUSES);
@@ -38,8 +38,13 @@ export const driverWriteSchema = z.object({
   dateOfBirth: isoDateSchema,
   residencePlace: requiredText('Mesto prebivališta', 120),
   educationLevel: requiredText('Stručna sprema', 80),
-  idCardNumber: requiredText('Broj lične karte', 40),
-  drivingLicenseNumber: requiredText('Broj vozačke dozvole', 40),
+  idCardNumber: z
+    .string()
+    .trim()
+    .regex(new RegExp(`^\\d{${ID_CARD_NUMBER_LENGTH}}$`), `Broj lične karte mora imati tačno ${ID_CARD_NUMBER_LENGTH} cifara.`),
+  // No strict format enforced — sources disagree on the exact pattern, so
+  // this only guards against obviously-wrong input (empty or absurdly long).
+  drivingLicenseNumber: requiredText('Broj vozačke dozvole', 15),
   drivingLicenseCategory: requiredText('Kategorija vozačke dozvole', 40),
   licenseNumber: requiredText('Broj licence', 40),
   phone: requiredText('Telefon', 40),

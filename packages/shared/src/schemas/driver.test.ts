@@ -40,6 +40,13 @@ describe('driverWriteSchema', () => {
       false,
     );
   });
+
+  it('rejects an ID card number that is not exactly 9 digits', () => {
+    expect(driverWriteSchema.safeParse({ ...validDriver, idCardNumber: '1234' }).success).toBe(false);
+    expect(
+      driverWriteSchema.safeParse({ ...validDriver, idCardNumber: 'ABCDEFGHI' }).success,
+    ).toBe(false);
+  });
 });
 
 describe('listDriversQuerySchema', () => {

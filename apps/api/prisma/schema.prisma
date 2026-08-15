@@ -21,21 +21,23 @@ enum FileStatus {
 /// presigned upload URL is issued and only becomes UPLOADED once the API has
 /// confirmed the object actually exists in the bucket.
 model FileObject {
-  id                     String                  @id @default(cuid())
+  id                     String                    @id @default(cuid())
   originalName           String
-  storageKey             String                  @unique
+  storageKey             String                    @unique
   mimeType               String
   size                   Int
-  status                 FileStatus              @default(PENDING)
+  status                 FileStatus                @default(PENDING)
   uploadedAt             DateTime?
-  createdAt              DateTime                @default(now())
-  updatedAt              DateTime                @updatedAt
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
   driverDocument         DriverDocument?
   absenceAttestation     DriverAbsenceAttestation?
   vehicleInspection      VehicleInspection?
   tachographCalibration  TachographCalibration?
   vehicleSafetyEquipment VehicleSafetyEquipment?
   vehicleDocument        VehicleDocument?
+  contractDocument       ContractDocument?
+  travelPermit           TravelPermit?
 
   @@index([status])
   @@index([createdAt])
@@ -52,11 +54,11 @@ enum DriverStatus {
 /// A driver employed by the company. Field names are English; the admin UI
 /// presents Serbian labels.
 model Driver {
-  id                     String           @id @default(cuid())
+  id                     String                     @id @default(cuid())
   firstName              String
   lastName               String
-  jmbg                   String           @unique
-  dateOfBirth            DateTime         @db.Date
+  jmbg                   String                     @unique
+  dateOfBirth            DateTime                   @db.Date
   residencePlace         String
   educationLevel         String
   idCardNumber           String
@@ -66,12 +68,13 @@ model Driver {
   phone                  String
   email                  String
   jobTitle               String
-  status                 DriverStatus     @default(ACTIVE)
-  createdAt              DateTime         @default(now())
-  updatedAt              DateTime         @updatedAt
+  status                 DriverStatus               @default(ACTIVE)
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
   documents              DriverDocument[]
   absenceAttestations    DriverAbsenceAttestation[]
   fuelLogs               FuelLog[]
+  contracts              Contract[]
   transactions           FinanceTransaction[]
 
   @@index([status])
@@ -126,18 +129,18 @@ enum AbsenceReason {
 /// A generated AETR / EC 561/2006 attestation that the driver did not drive
 /// during a given period. Kept separate from scanned driver_documents.
 model DriverAbsenceAttestation {
-  id            String         @id @default(cuid())
+  id            String        @id @default(cuid())
   driverId      String
   periodFrom    DateTime
   periodTo      DateTime
   reason        AbsenceReason
   otherReason   String?
   place         String
-  issuedAt      DateTime       @db.Date
-  startedWorkAt DateTime       @db.Date
-  fileId        String         @unique
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  issuedAt      DateTime      @db.Date
+  startedWorkAt DateTime      @db.Date
+  fileId        String        @unique
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   driver Driver     @relation(fields: [driverId], references: [id], onDelete: Cascade)
   file   FileObject @relation(fields: [fileId], references: [id], onDelete: Restrict)
@@ -209,6 +212,7 @@ model Vehicle {
   fuelLogs        FuelLog[]
   maintenance     VehicleMaintenance[]
   documents       VehicleDocument[]
+  contracts       Contract[]
   transactions    FinanceTransaction[]
 
   @@index([status])
@@ -377,6 +381,167 @@ model VehicleDocument {
   @@index([vehicleId])
   @@index([type])
   @@map("vehicle_documents")
+}
+
+enum PartnerType {
+  TRAVEL_AGENCY
+  SPORTS_CLUB
+  CULTURAL_ARTS_SOCIETY
+  INDIVIDUAL
+  OTHER
+}
+
+/// A repeat client the company contracts with (travel agency, sports club,
+/// KUD, individual, or other). Field names are English; the admin UI presents
+/// Serbian labels. Contracts snapshot this identity at signing time instead
+/// of joining live — see Contract's client* fields.
+model Partner {
+  id                 String      @id @default(cuid())
+  type               PartnerType
+  companyName        String?
+  firstName          String?
+  lastName           String?
+  address            String
+  pib                String?
+  registrationNumber String?
+  personalId         String?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  contracts Contract[]
+
+  @@index([type])
+  @@map("partners")
+}
+
+enum ContractStatus {
+  DRAFT
+  SIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+/// A passenger transport contract ("ugovor o prevozu putnika"). `client*`
+/// fields are a point-in-time copy of the partner's identity at signing —
+/// deliberately duplicated so an already-signed contract never silently
+/// changes if the partner's own record is edited later.
+model Contract {
+  id                       String         @id @default(cuid())
+  partnerId                String
+  vehicleId                String?
+  driverId                 String?
+  conclusionDate           DateTime       @db.Date
+  route                    String
+  serviceStartDate         DateTime       @db.Date
+  serviceEndDate           DateTime       @db.Date
+  passengerCount           Int
+  price                    Float
+  advancePercentage        Int
+  status                   ContractStatus @default(DRAFT)
+  notes                    String?
+  /// Drives the passenger-list-type suggestion and whether the travel-permit
+  /// section (and its "IN_PROGRESS" gate) applies at all — set explicitly by
+  /// the user, since the free-text `route` can't be parsed reliably.
+  isInternational          Boolean        @default(false)
+  clientType               PartnerType
+  clientCompanyName        String?
+  clientFirstName          String?
+  clientLastName           String?
+  clientAddress            String
+  clientPib                String?
+  clientRegistrationNumber String?
+  clientPersonalId         String?
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
+
+  partner        Partner            @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  vehicle        Vehicle?           @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  driver         Driver?            @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  documents      ContractDocument[]
+  passengerLists PassengerList[]
+  travelPermits  TravelPermit[]
+
+  @@index([partnerId])
+  @@index([vehicleId])
+  @@index([driverId])
+  @@index([status])
+  @@index([conclusionDate])
+  @@map("contracts")
+}
+
+enum PassengerListType {
+  DOMESTIC
+  INTERNATIONAL
+}
+
+/// "Bela lista" (domestic) or "zelena lista" (international) in Serbian
+/// passenger-transport terminology — one list per contract per type.
+model PassengerList {
+  id         String            @id @default(cuid())
+  contractId String
+  type       PassengerListType
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  contract   Contract    @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  passengers Passenger[]
+
+  @@unique([contractId, type])
+  @@index([contractId])
+  @@map("passenger_lists")
+}
+
+model Passenger {
+  id              String   @id @default(cuid())
+  passengerListId String
+  firstName       String
+  lastName        String
+  documentNumber  String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  passengerList PassengerList @relation(fields: [passengerListId], references: [id], onDelete: Cascade)
+
+  @@index([passengerListId])
+  @@map("passengers")
+}
+
+/// One row per country a contract needs a border-crossing permit for.
+model TravelPermit {
+  id           String   @id @default(cuid())
+  contractId   String
+  country      String
+  permitNumber String
+  issuedAt     DateTime @db.Date
+  fileId       String   @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  contract Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  file     FileObject @relation(fields: [fileId], references: [id], onDelete: Restrict)
+
+  @@index([contractId])
+  @@map("travel_permits")
+}
+
+/// One row per generated contract PDF. Rows are immutable and accumulate —
+/// regenerating a contract creates a new row with the next `version` rather
+/// than overwriting, which is the "istorija verzija" (version history) the
+/// task calls for.
+model ContractDocument {
+  id          String   @id @default(cuid())
+  contractId  String
+  version     Int
+  fileId      String   @unique
+  generatedAt DateTime @default(now())
+
+  contract Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  file     FileObject @relation(fields: [fileId], references: [id], onDelete: Restrict)
+
+  @@unique([contractId, version])
+  @@index([contractId])
+  @@map("contract_documents")
 }
 
 enum TransactionType {
