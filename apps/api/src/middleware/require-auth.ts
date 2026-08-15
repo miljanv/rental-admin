@@ -33,7 +33,7 @@ export const requireAuth: RequestHandler = (req, _res, next) => {
   const token = readBearerToken(req.headers.authorization);
 
   if (!token) {
-    next(unauthorized('Sign in to continue.'));
+    next(unauthorized('Prijavite se da biste nastavili.'));
     return;
   }
 
@@ -47,7 +47,7 @@ export const requireAuth: RequestHandler = (req, _res, next) => {
 
 export const currentUser = (req: { authUser?: AuthUserDto }): AuthUserDto => {
   if (!req.authUser) {
-    throw unauthorized('Sign in to continue.');
+    throw unauthorized('Prijavite se da biste nastavili.');
   }
 
   return req.authUser;

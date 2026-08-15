@@ -68,6 +68,8 @@ export const queryKeys = {
     list: (params: DriverListQueryParams) => ['drivers', 'list', params] as const,
     detail: (id: string) => ['drivers', 'detail', id] as const,
     documents: (driverId: string) => ['drivers', driverId, 'documents'] as const,
+    absenceAttestations: (driverId: string) =>
+      ['drivers', driverId, 'absence-attestations'] as const,
     expiring: (days: number) => ['drivers', 'expiring-documents', days] as const,
   },
   vehicles: {

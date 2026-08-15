@@ -44,6 +44,23 @@ export const formatDate = (isoDate: string | null): string => {
   return `${day}.${month}.${year}.`;
 };
 
+/** Wall-clock datetime stored as UTC, for example "17.06.2026. 19:30". */
+export const formatDateTimeSr = (isoDate: string | null): string => {
+  if (!isoDate) {
+    return '—';
+  }
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(isoDate);
+
+  if (!match) {
+    return '—';
+  }
+
+  const [, year, month, day, hour, minute] = match;
+
+  return `${day}.${month}.${year}. ${hour}:${minute}`;
+};
+
 /** Absolute date and time, for example "13 Aug 2026, 15:04". */
 export const formatDateTime = (isoDate: string | null): string => {
   if (!isoDate) {

@@ -33,7 +33,7 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
           </span>
           <span className="flex flex-col leading-tight">
             <span className="text-sm font-semibold tracking-tight">{APP_NAME}</span>
-            <span className="text-sidebar-foreground/55 text-xs">Administracija</span>
+            <span className="text-sidebar-foreground/55 text-xs">Admin panel</span>
           </span>
         </Link>
       </div>

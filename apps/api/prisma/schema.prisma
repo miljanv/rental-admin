@@ -31,6 +31,7 @@ model FileObject {
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
   driverDocument         DriverDocument?
+  absenceAttestation     DriverAbsenceAttestation?
   vehicleInspection      VehicleInspection?
   tachographCalibration  TachographCalibration?
   vehicleSafetyEquipment VehicleSafetyEquipment?
@@ -69,6 +70,7 @@ model Driver {
   createdAt              DateTime         @default(now())
   updatedAt              DateTime         @updatedAt
   documents              DriverDocument[]
+  absenceAttestations    DriverAbsenceAttestation[]
   fuelLogs               FuelLog[]
 
   @@index([status])
@@ -78,6 +80,7 @@ model Driver {
 
 enum DriverDocumentType {
   EMPLOYMENT_CONTRACT
+  MA_FORM
   MEDICAL_CERTIFICATE
   ACCREDITATION
   DRIVING_LICENSE
@@ -110,6 +113,37 @@ model DriverDocument {
   @@index([expiresAt])
   @@index([type])
   @@map("driver_documents")
+}
+
+enum AbsenceReason {
+  SICK_LEAVE
+  ANNUAL_LEAVE
+  LEAVE_OR_REST
+  OTHER
+}
+
+/// A generated AETR / EC 561/2006 attestation that the driver did not drive
+/// during a given period. Kept separate from scanned driver_documents.
+model DriverAbsenceAttestation {
+  id            String         @id @default(cuid())
+  driverId      String
+  periodFrom    DateTime
+  periodTo      DateTime
+  reason        AbsenceReason
+  otherReason   String?
+  place         String
+  issuedAt      DateTime       @db.Date
+  startedWorkAt DateTime       @db.Date
+  fileId        String         @unique
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  driver Driver     @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  file   FileObject @relation(fields: [fileId], references: [id], onDelete: Restrict)
+
+  @@index([driverId])
+  @@index([periodFrom])
+  @@map("driver_absence_attestations")
 }
 
 /// Bootstrap admin accounts. Passwords are stored as bcrypt hashes and never

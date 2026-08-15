@@ -3,6 +3,8 @@ export * from './auth';
 export * from './dashboard';
 export * from './driver';
 export * from './driver-document';
+export * from './absence-attestation';
+export * from './generated-document';
 export * from './file';
 export * from './fuel-log';
 export * from './tachograph-calibration';
