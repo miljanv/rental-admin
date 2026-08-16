@@ -109,6 +109,7 @@ const toWriteData = (input: TripWriteRequest) => ({
   returnDate: input.returnDate ? parseDate(input.returnDate) : null,
   country: input.country,
   route: input.route,
+  passengerCount: input.passengerCount,
   partnerId: input.partnerId,
   clientName: input.clientName,
   notes: input.notes,

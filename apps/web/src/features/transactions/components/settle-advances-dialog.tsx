@@ -17,6 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { DateField } from '@/components/common/date-field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -89,11 +90,10 @@ export function SettleAdvancesDialog({ group, onOpenChange }: SettleAdvancesDial
         <div className="grid gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="settle-date">Datum fakture</Label>
-            <Input
+            <DateField
               id="settle-date"
-              type="date"
               value={occurredAt}
-              onChange={(event) => setOccurredAt(event.target.value)}
+              onChange={setOccurredAt}
               disabled={settleMutation.isPending}
             />
           </div>

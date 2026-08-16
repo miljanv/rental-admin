@@ -45,16 +45,26 @@ export const driverWriteSchema = z.object({
   // No strict format enforced — sources disagree on the exact pattern, so
   // this only guards against obviously-wrong input (empty or absurdly long).
   drivingLicenseNumber: requiredText('Broj vozačke dozvole', 15),
-  drivingLicenseCategory: requiredText('Kategorija vozačke dozvole', 40),
+  // Stored as one comma-separated string (e.g. "B, C, CE"). 120 covers every
+  // known category selected at once with room to spare — see driver.ts types.
+  drivingLicenseCategory: requiredText('Kategorija vozačke dozvole', 120),
   licenseNumber: requiredText('Broj licence', 40),
   phone: requiredText('Telefon', 40),
+  // Optional — most drivers don't have or use one. Format is only enforced
+  // when something is actually entered.
   email: z
-    .string()
-    .trim()
-    .min(1, 'Email je obavezan.')
-    .email('Unesite ispravan email.')
-    .max(120, 'Email sme imati najviše 120 karaktera.')
-    .transform((value) => value.toLowerCase()),
+    .union([
+      z
+        .string()
+        .trim()
+        .max(120, 'Email sme imati najviše 120 karaktera.')
+        .email('Unesite ispravan email.')
+        .transform((value) => value.toLowerCase()),
+      z.literal(''),
+      z.null(),
+    ])
+    .optional()
+    .transform((value) => (value ? value : null)),
   jobTitle: requiredText('Radno mesto', 80),
   status: driverStatusSchema,
 });

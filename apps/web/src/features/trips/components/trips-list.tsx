@@ -16,6 +16,7 @@ import { RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
+import { DateField } from '@/components/common/date-field';
 import { ErrorState } from '@/components/common/error-state';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -274,12 +275,11 @@ export function TripsList() {
             <Label htmlFor="trip-from" className="text-xs">
               Period od
             </Label>
-            <Input
+            <DateField
               id="trip-from"
-              type="date"
               value={from}
-              onChange={(event) => {
-                setFrom(event.target.value);
+              onChange={(value) => {
+                setFrom(value);
                 setPage(1);
               }}
               className="w-full lg:w-40"
@@ -290,12 +290,11 @@ export function TripsList() {
             <Label htmlFor="trip-to" className="text-xs">
               Period do
             </Label>
-            <Input
+            <DateField
               id="trip-to"
-              type="date"
               value={to}
-              onChange={(event) => {
-                setTo(event.target.value);
+              onChange={(value) => {
+                setTo(value);
                 setPage(1);
               }}
               className="w-full lg:w-40"

@@ -10,12 +10,14 @@ import {
   ID_CARD_NUMBER_LENGTH,
   JMBG_LENGTH,
   type DriverDto,
+  type DriverWriteRequest,
   type DrivingLicenseCategory,
 } from '@rental-admin/shared';
 import Link from 'next/link';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 
 import { CharacterCounter } from '@/components/common/character-counter';
+import { DateField } from '@/components/common/date-field';
 import { PageHeader } from '@/components/common/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -79,7 +81,7 @@ export function DriverForm({ driver }: DriverFormProps) {
   const updateMutation = useUpdateDriver(driver?.id ?? '');
   const isPending = createMutation.isPending || updateMutation.isPending;
 
-  const form = useForm<DriverFormValues>({
+  const form = useForm<DriverFormValues, unknown, DriverWriteRequest>({
     resolver: zodResolver(driverFormSchema),
     defaultValues: driver ? toDriverFormValues(driver) : EMPTY_DRIVER_FORM,
   });
@@ -158,12 +160,18 @@ export function DriverForm({ driver }: DriverFormProps) {
               />
             </Field>
             <Field id="dateOfBirth" label="Datum rođenja" error={errors.dateOfBirth?.message}>
-              <Input
-                id="dateOfBirth"
-                type="date"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.dateOfBirth)}
-                {...form.register('dateOfBirth')}
+              <Controller
+                control={form.control}
+                name="dateOfBirth"
+                render={({ field }) => (
+                  <DateField
+                    id="dateOfBirth"
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.dateOfBirth)}
+                  />
+                )}
               />
             </Field>
             <Field
@@ -323,7 +331,7 @@ export function DriverForm({ driver }: DriverFormProps) {
                 {...form.register('phone')}
               />
             </Field>
-            <Field id="email" label="Email" error={errors.email?.message}>
+            <Field id="email" label="Email (opciono)" error={errors.email?.message}>
               <Input
                 id="email"
                 type="email"

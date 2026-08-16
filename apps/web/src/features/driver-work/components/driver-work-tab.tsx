@@ -4,9 +4,9 @@ import { utcMonthRangeIso } from '@rental-admin/shared';
 import { Clock, Gauge } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import { DateField } from '@/components/common/date-field';
 import { ErrorState } from '@/components/common/error-state';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AetrStatusCard } from '@/features/driver-work/components/aetr-status-card';
@@ -67,27 +67,13 @@ export function DriverWorkTab({ driverId }: DriverWorkTabProps) {
           <Label htmlFor="work-from" className="text-xs">
             Od
           </Label>
-          <Input
-            id="work-from"
-            type="date"
-            value={from}
-            max={to}
-            onChange={(event) => setFrom(event.target.value)}
-            className="w-full sm:w-40"
-          />
+          <DateField id="work-from" value={from} onChange={setFrom} className="w-full sm:w-40" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="work-to" className="text-xs">
             Do
           </Label>
-          <Input
-            id="work-to"
-            type="date"
-            value={to}
-            min={from}
-            onChange={(event) => setTo(event.target.value)}
-            className="w-full sm:w-40"
-          />
+          <DateField id="work-to" value={to} onChange={setTo} className="w-full sm:w-40" />
         </div>
       </div>
 

@@ -11,6 +11,7 @@ import {
 } from '@rental-admin/shared';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 
+import { DateField } from '@/components/common/date-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -190,12 +191,18 @@ export function TransactionForm({ transaction, onDone }: TransactionFormProps) {
             />
 
             <Field id="occurredAt" label="Datum" error={errors.occurredAt?.message}>
-              <Input
-                id="occurredAt"
-                type="date"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.occurredAt)}
-                {...form.register('occurredAt')}
+              <Controller
+                control={form.control}
+                name="occurredAt"
+                render={({ field }) => (
+                  <DateField
+                    id="occurredAt"
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.occurredAt)}
+                  />
+                )}
               />
             </Field>
 

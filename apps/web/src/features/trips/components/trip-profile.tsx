@@ -44,11 +44,12 @@ function TripOverview({ trip }: { trip: TripDto }) {
         </CardHeader>
         <CardContent>
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <DetailItem label="RN broj" value={trip.referenceNumber} />
+            <DetailItem label="RN broj" value={trip.referenceNumber ?? 'Nije dodeljen'} />
             <DetailItem label="Relacija" value={trip.route} />
             <DetailItem label="Država" value={trip.country ?? '—'} />
             <DetailItem label="Datum polaska" value={formatDate(trip.departureDate)} />
             <DetailItem label="Datum povratka" value={formatDate(trip.returnDate)} />
+            <DetailItem label="Broj putnika" value={trip.passengerCount != null ? String(trip.passengerCount) : '—'} />
             <DetailItem label="Kilometraža" value={trip.distanceKm != null ? formatKilometers(trip.distanceKm) : '—'} />
           </dl>
         </CardContent>
@@ -190,7 +191,7 @@ export function TripProfile({ tripId }: TripProfileProps) {
   return (
     <>
       <PageHeader
-        title={trip.referenceNumber}
+        title={trip.referenceNumber ?? 'Bez RN broja'}
         description={trip.route}
         actions={
           <div className="flex flex-wrap items-center gap-2">

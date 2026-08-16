@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { VehicleMaintenanceDto } from '@rental-admin/shared';
 import { Controller, useForm } from 'react-hook-form';
 
+import { DateField } from '@/components/common/date-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -87,12 +88,18 @@ export function VehicleMaintenanceForm({ vehicleId, record, onDone }: VehicleMai
         <form onSubmit={onSubmit} noValidate className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field id="date" label="Datum" error={errors.date?.message}>
-              <Input
-                id="date"
-                type="date"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.date)}
-                {...form.register('date')}
+              <Controller
+                control={form.control}
+                name="date"
+                render={({ field }) => (
+                  <DateField
+                    id="date"
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.date)}
+                  />
+                )}
               />
             </Field>
 

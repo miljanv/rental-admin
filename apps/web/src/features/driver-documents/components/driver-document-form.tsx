@@ -15,6 +15,7 @@ import { FileIcon, X } from 'lucide-react';
 import { useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 
+import { DateField } from '@/components/common/date-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -225,25 +226,35 @@ export function DriverDocumentForm({ driverId, document, onDone }: DriverDocumen
             </Field>
 
             <Field id="issuedAt" label="Datum izdavanja" error={errors.issuedAt?.message}>
-              <Input
-                id="issuedAt"
-                type="date"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.issuedAt)}
-                {...form.register('issuedAt')}
+              <Controller
+                control={form.control}
+                name="issuedAt"
+                render={({ field }) => (
+                  <DateField
+                    id="issuedAt"
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.issuedAt)}
+                  />
+                )}
               />
             </Field>
 
             {isIndefinite ? null : (
               <Field id="expiresAt" label="Datum isteka" error={errors.expiresAt?.message}>
-                <Input
-                  id="expiresAt"
-                  type="date"
-                  disabled={isPending}
-                  aria-invalid={Boolean(errors.expiresAt)}
-                  {...form.register('expiresAt', {
-                    setValueAs: (value: string) => (value ? value : null),
-                  })}
+                <Controller
+                  control={form.control}
+                  name="expiresAt"
+                  render={({ field }) => (
+                    <DateField
+                      id="expiresAt"
+                      value={field.value ?? ''}
+                      onChange={(value) => field.onChange(value ? value : null)}
+                      disabled={isPending}
+                      aria-invalid={Boolean(errors.expiresAt)}
+                    />
+                  )}
                 />
               </Field>
             )}

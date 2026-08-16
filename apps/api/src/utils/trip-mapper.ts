@@ -32,11 +32,12 @@ export interface TripContractRecord {
 
 export interface TripRecord {
   id: string;
-  referenceNumber: string;
+  referenceNumber: string | null;
   departureDate: Date;
   returnDate: Date | null;
   country: string | null;
   route: string;
+  passengerCount: number | null;
   partnerId: string | null;
   clientName: string | null;
   notes: string | null;
@@ -76,6 +77,7 @@ export const toTripDto = (record: TripRecord): TripDto => ({
   returnDate: record.returnDate ? toIsoDate(record.returnDate) : null,
   country: record.country,
   route: record.route,
+  passengerCount: record.passengerCount,
   partnerId: record.partnerId,
   partner: record.partner
     ? {

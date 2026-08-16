@@ -47,6 +47,37 @@ describe('driverWriteSchema', () => {
       driverWriteSchema.safeParse({ ...validDriver, idCardNumber: 'ABCDEFGHI' }).success,
     ).toBe(false);
   });
+
+  it('accepts every driving license category selected at once', () => {
+    const allCategories = 'AM, A1, A2, A, B1, B, BE, C1, C1E, C, CE, D1, D1E, D, DE, F, M';
+    const result = driverWriteSchema.safeParse({
+      ...validDriver,
+      drivingLicenseCategory: allCategories,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts a driver without an email', () => {
+    const { email: _email, ...rest } = validDriver;
+    const result = driverWriteSchema.safeParse(rest);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.email).toBeNull();
+  });
+
+  it('normalizes an empty email to null', () => {
+    const result = driverWriteSchema.safeParse({ ...validDriver, email: '' });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.email).toBeNull();
+  });
+
+  it('still rejects a malformed email when one is provided', () => {
+    expect(driverWriteSchema.safeParse({ ...validDriver, email: 'not-an-email' }).success).toBe(
+      false,
+    );
+  });
 });
 
 describe('listDriversQuerySchema', () => {

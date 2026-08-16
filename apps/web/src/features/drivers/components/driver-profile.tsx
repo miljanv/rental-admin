@@ -104,7 +104,7 @@ function DriverOverview({ driver }: { driver: DriverDto }) {
         <CardContent>
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <DetailItem label="Telefon" value={driver.phone} />
-            <DetailItem label="Email" value={driver.email} />
+            <DetailItem label="Email" value={driver.email ?? '—'} />
             <DetailItem label="Radno mesto" value={driver.jobTitle} />
           </dl>
         </CardContent>

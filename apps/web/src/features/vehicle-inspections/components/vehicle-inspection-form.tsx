@@ -10,6 +10,7 @@ import {
 } from '@rental-admin/shared';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 
+import { DateField } from '@/components/common/date-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -149,12 +150,18 @@ export function VehicleInspectionForm({
             />
 
             <Field id="inspectedAt" label="Datum pregleda" error={errors.inspectedAt?.message}>
-              <Input
-                id="inspectedAt"
-                type="date"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.inspectedAt)}
-                {...form.register('inspectedAt')}
+              <Controller
+                control={form.control}
+                name="inspectedAt"
+                render={({ field }) => (
+                  <DateField
+                    id="inspectedAt"
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.inspectedAt)}
+                  />
+                )}
               />
             </Field>
 

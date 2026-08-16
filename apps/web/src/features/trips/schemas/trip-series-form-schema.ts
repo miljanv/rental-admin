@@ -13,6 +13,7 @@ export const EMPTY_TRIP_SERIES_FORM: TripSeriesFormValues = {
   referenceNumber: '',
   route: '',
   country: '',
+  passengerCount: '',
   partnerId: '',
   clientName: '',
   notes: '',

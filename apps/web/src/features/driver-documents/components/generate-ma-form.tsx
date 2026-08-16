@@ -12,6 +12,7 @@ import {
 import { FileDown } from 'lucide-react';
 import { Controller, useForm } from 'react-hook-form';
 
+import { DateField } from '@/components/common/date-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -115,7 +116,13 @@ export function GenerateMaForm({ driver }: GenerateMaFormProps) {
               label="Datum početka osiguranja"
               error={errors.insuranceStartDate?.message}
             >
-              <Input id="insuranceStartDate" type="date" {...form.register('insuranceStartDate')} />
+              <Controller
+                control={form.control}
+                name="insuranceStartDate"
+                render={({ field }) => (
+                  <DateField id="insuranceStartDate" value={field.value} onChange={field.onChange} />
+                )}
+              />
             </Field>
             <Field id="occupation" label="Zanimanje" error={errors.occupation?.message}>
               <Input id="occupation" {...form.register('occupation')} />

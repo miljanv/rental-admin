@@ -11,6 +11,7 @@ import {
   VEHICLE_TYPE_LABELS,
   VEHICLE_TYPES,
   type VehicleDto,
+  type VehicleWriteRequest,
 } from '@rental-admin/shared';
 import Link from 'next/link';
 import { Controller, useForm } from 'react-hook-form';
@@ -63,7 +64,7 @@ export function VehicleForm({ vehicle }: VehicleFormProps) {
   const updateMutation = useUpdateVehicle(vehicle?.id ?? '');
   const isPending = createMutation.isPending || updateMutation.isPending;
 
-  const form = useForm<VehicleFormValues>({
+  const form = useForm<VehicleFormValues, unknown, VehicleWriteRequest>({
     resolver: zodResolver(vehicleFormSchema),
     defaultValues: vehicle ? toVehicleFormValues(vehicle) : EMPTY_VEHICLE_FORM,
   });
@@ -114,7 +115,50 @@ export function VehicleForm({ vehicle }: VehicleFormProps) {
                 {...form.register('model')}
               />
             </Field>
-            <Field id="year" label="Godište" error={errors.year?.message}>
+            <Field id="licensePlate" label="Registarske tablice" error={errors.licensePlate?.message}>
+              <Input
+                id="licensePlate"
+                disabled={isPending}
+                aria-invalid={Boolean(errors.licensePlate)}
+                {...form.register('licensePlate')}
+              />
+            </Field>
+            <Field id="vin" label="Broj šasije (VIN)" error={errors.vin?.message}>
+              <Input
+                id="vin"
+                disabled={isPending}
+                aria-invalid={Boolean(errors.vin)}
+                {...form.register('vin')}
+              />
+            </Field>
+            <Field
+              id="engineNumber"
+              label="Broj motora (opciono)"
+              error={errors.engineNumber?.message as string | undefined}
+            >
+              <Input
+                id="engineNumber"
+                disabled={isPending}
+                aria-invalid={Boolean(errors.engineNumber)}
+                {...form.register('engineNumber')}
+              />
+            </Field>
+            <Field
+              id="enginePower"
+              label="Snaga motora (kW, opciono)"
+              error={errors.enginePower?.message as string | undefined}
+            >
+              <Input
+                id="enginePower"
+                type="number"
+                inputMode="decimal"
+                step="0.1"
+                disabled={isPending}
+                aria-invalid={Boolean(errors.enginePower)}
+                {...form.register('enginePower', { valueAsNumber: true })}
+              />
+            </Field>
+            <Field id="year" label="Godina proizvodnje" error={errors.year?.message}>
               <Input
                 id="year"
                 type="number"
@@ -124,23 +168,36 @@ export function VehicleForm({ vehicle }: VehicleFormProps) {
                 {...form.register('year', { valueAsNumber: true })}
               />
             </Field>
-            <Field id="licensePlate" label="Registarske tablice" error={errors.licensePlate?.message}>
+            <Field
+              id="engineDisplacement"
+              label="Zapremina motora (cm³, opciono)"
+              error={errors.engineDisplacement?.message as string | undefined}
+            >
               <Input
-                id="licensePlate"
+                id="engineDisplacement"
+                type="number"
+                inputMode="numeric"
                 disabled={isPending}
-                aria-invalid={Boolean(errors.licensePlate)}
-                {...form.register('licensePlate')}
+                aria-invalid={Boolean(errors.engineDisplacement)}
+                {...form.register('engineDisplacement', { valueAsNumber: true })}
               />
             </Field>
-            <Field id="vin" label="VIN" error={errors.vin?.message}>
+            <Field
+              id="mass"
+              label="Masa (kg, opciono)"
+              error={errors.mass?.message as string | undefined}
+            >
               <Input
-                id="vin"
+                id="mass"
+                type="number"
+                inputMode="decimal"
+                step="0.1"
                 disabled={isPending}
-                aria-invalid={Boolean(errors.vin)}
-                {...form.register('vin')}
+                aria-invalid={Boolean(errors.mass)}
+                {...form.register('mass', { valueAsNumber: true })}
               />
             </Field>
-            <Field id="seatCount" label="Broj sedišta" error={errors.seatCount?.message}>
+            <Field id="seatCount" label="Broj mesta za sedenje" error={errors.seatCount?.message}>
               <Input
                 id="seatCount"
                 type="number"
@@ -148,6 +205,20 @@ export function VehicleForm({ vehicle }: VehicleFormProps) {
                 disabled={isPending}
                 aria-invalid={Boolean(errors.seatCount)}
                 {...form.register('seatCount', { valueAsNumber: true })}
+              />
+            </Field>
+            <Field
+              id="standingCapacity"
+              label="Broj mesta za stajanje (opciono)"
+              error={errors.standingCapacity?.message as string | undefined}
+            >
+              <Input
+                id="standingCapacity"
+                type="number"
+                inputMode="numeric"
+                disabled={isPending}
+                aria-invalid={Boolean(errors.standingCapacity)}
+                {...form.register('standingCapacity', { valueAsNumber: true })}
               />
             </Field>
           </CardContent>
@@ -229,19 +300,54 @@ export function VehicleForm({ vehicle }: VehicleFormProps) {
         <Card className="shadow-none">
           <CardHeader>
             <CardTitle>Status i kilometraža</CardTitle>
-            <CardDescription>Trenutno stanje vozila.</CardDescription>
+            <CardDescription>
+              Početno stanje se unosi jednom, pri ulasku vozila u firmu, i ne može se menjati kasnije
+              — osnova je za buduću statistiku pređenih kilometara.
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            <Field id="currentMileage" label="Trenutna kilometraža" error={errors.currentMileage?.message}>
+            <Field
+              id="initialMileageKm"
+              label="Početna kilometraža (pri ulasku u firmu)"
+              error={errors.initialMileageKm?.message}
+            >
               <Input
-                id="currentMileage"
+                id="initialMileageKm"
                 type="number"
                 inputMode="numeric"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.currentMileage)}
-                {...form.register('currentMileage', { valueAsNumber: true })}
+                disabled={isPending || isEdit}
+                aria-invalid={Boolean(errors.initialMileageKm)}
+                {...form.register('initialMileageKm', {
+                  valueAsNumber: true,
+                  onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
+                    if (isEdit) {
+                      return;
+                    }
+
+                    const value = Number(event.target.value);
+                    if (!Number.isNaN(value)) {
+                      form.setValue('currentMileage', value);
+                    }
+                  },
+                })}
               />
             </Field>
+            {isEdit ? (
+              <Field
+                id="currentMileage"
+                label="Trenutna kilometraža"
+                error={errors.currentMileage?.message}
+              >
+                <Input
+                  id="currentMileage"
+                  type="number"
+                  inputMode="numeric"
+                  disabled={isPending}
+                  aria-invalid={Boolean(errors.currentMileage)}
+                  {...form.register('currentMileage', { valueAsNumber: true })}
+                />
+              </Field>
+            ) : null}
             <Controller
               control={form.control}
               name="status"

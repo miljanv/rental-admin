@@ -22,7 +22,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { TripStatusBadge } from '@/features/trips/components/trip-status-badge';
-import { tripClientDisplayName } from '@/features/trips/lib/trip';
+import { tripClientDisplayName, tripLabel } from '@/features/trips/lib/trip';
 import { formatDate } from '@/lib/format';
 
 const COLUMN_COUNT = 6;
@@ -69,7 +69,9 @@ export function TripsTable({ trips, isLoading, hasFilters, onRequestDelete, empt
             <TableRow key={trip.id}>
               <TableCell className="max-w-[240px]">
                 <Link href={`/trips/${trip.id}`} className="hover:text-primary block">
-                  <span className="block truncate font-medium">{trip.referenceNumber}</span>
+                  <span className="block truncate font-medium">
+                    {trip.referenceNumber ?? 'Bez RN broja'}
+                  </span>
                   <span className="text-muted-foreground block truncate text-xs">{trip.route}</span>
                 </Link>
               </TableCell>
@@ -96,7 +98,7 @@ export function TripsTable({ trips, isLoading, hasFilters, onRequestDelete, empt
               <TableCell className="text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" aria-label={`Akcije za vožnju ${trip.referenceNumber}`}>
+                    <Button variant="ghost" size="icon" aria-label={`Akcije za vožnju ${tripLabel(trip)}`}>
                       <MoreHorizontal className="size-4" aria-hidden />
                     </Button>
                   </DropdownMenuTrigger>

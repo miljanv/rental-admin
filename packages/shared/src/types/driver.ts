@@ -102,7 +102,7 @@ export interface DriverDto {
   drivingLicenseCategory: string;
   licenseNumber: string;
   phone: string;
-  email: string;
+  email: string | null;
   jobTitle: string;
   status: DriverStatus;
   createdAt: string;

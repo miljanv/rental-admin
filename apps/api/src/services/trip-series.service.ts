@@ -94,6 +94,7 @@ export const generateTripSeries = async (
           departureDate: date,
           country: input.country,
           route: input.route,
+          passengerCount: input.passengerCount,
           partnerId: input.partnerId,
           clientName: input.clientName,
           notes: input.notes,

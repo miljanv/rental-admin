@@ -10,6 +10,7 @@ import {
 import { FileDown } from 'lucide-react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 
+import { DateField } from '@/components/common/date-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -96,15 +97,33 @@ export function GenerateEmploymentContractForm({ driver }: GenerateEmploymentCon
               />
             </Field>
             <Field id="startsAt" label="Datum stupanja" error={errors.startsAt?.message}>
-              <Input id="startsAt" type="date" {...form.register('startsAt')} />
+              <Controller
+                control={form.control}
+                name="startsAt"
+                render={({ field }) => (
+                  <DateField id="startsAt" value={field.value} onChange={field.onChange} />
+                )}
+              />
             </Field>
             {contractType === 'FIXED_TERM' ? (
               <Field id="expiresAt" label="Datum isteka" error={errors.expiresAt?.message}>
-                <Input id="expiresAt" type="date" {...form.register('expiresAt')} />
+                <Controller
+                  control={form.control}
+                  name="expiresAt"
+                  render={({ field }) => (
+                    <DateField id="expiresAt" value={field.value ?? ''} onChange={field.onChange} />
+                  )}
+                />
               </Field>
             ) : null}
             <Field id="signedAt" label="Datum zaključenja" error={errors.signedAt?.message}>
-              <Input id="signedAt" type="date" {...form.register('signedAt')} />
+              <Controller
+                control={form.control}
+                name="signedAt"
+                render={({ field }) => (
+                  <DateField id="signedAt" value={field.value} onChange={field.onChange} />
+                )}
+              />
             </Field>
             <Field id="netSalary" label="Zarada (neto, RSD)" error={errors.netSalary?.message}>
               <Input id="netSalary" type="number" step="0.01" {...form.register('netSalary')} />

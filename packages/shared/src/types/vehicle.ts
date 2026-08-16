@@ -1,4 +1,4 @@
-export const VEHICLE_TYPES = ['BUS', 'VAN', 'MIDIBUS'] as const;
+export const VEHICLE_TYPES = ['BUS', 'VAN', 'MIDIBUS', 'CAR'] as const;
 
 export type VehicleType = (typeof VEHICLE_TYPES)[number];
 
@@ -6,6 +6,7 @@ export const VEHICLE_TYPE_LABELS: Record<VehicleType, string> = {
   BUS: 'Autobus',
   VAN: 'Kombi',
   MIDIBUS: 'Midibus',
+  CAR: 'Automobil',
 };
 
 export const VEHICLE_FUEL_TYPES = ['DIESEL', 'PETROL', 'LPG', 'CNG', 'ELECTRIC', 'HYBRID'] as const;
@@ -47,11 +48,18 @@ export interface VehicleDto {
   year: number;
   licensePlate: string;
   vin: string;
+  engineNumber: string | null;
+  enginePower: number | null;
+  engineDisplacement: number | null;
+  mass: number | null;
   seatCount: number;
+  standingCapacity: number | null;
   type: VehicleType;
   fuelType: VehicleFuelType;
   tachographType: TachographType;
   status: VehicleStatus;
+  /** Odometer reading at the moment this vehicle entered the fleet. Set once, immutable after. */
+  initialMileageKm: number;
   currentMileage: number;
   createdAt: string;
   updatedAt: string;
