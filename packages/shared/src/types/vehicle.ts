@@ -5,7 +5,7 @@ export type VehicleType = (typeof VEHICLE_TYPES)[number];
 export const VEHICLE_TYPE_LABELS: Record<VehicleType, string> = {
   BUS: 'Autobus',
   VAN: 'Kombi',
-  MIDIBUS: 'Midibus',
+  MIDIBUS: 'Minibus',
   CAR: 'Automobil',
 };
 

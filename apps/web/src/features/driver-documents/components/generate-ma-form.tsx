@@ -6,6 +6,7 @@ import {
   GENDERS,
   MA_EMPLOYMENT_KIND_LABELS,
   MA_EMPLOYMENT_KINDS,
+  type DriverDocumentDto,
   type DriverDto,
   type GenerateMaFormRequest,
 } from '@rental-admin/shared';
@@ -26,13 +27,16 @@ import {
 } from '@/components/ui/select';
 import { useGenerateMaForm } from '@/features/driver-documents/hooks/use-generate-ma-form';
 import {
-  emptyMaForm,
   maFormSchema,
+  maFormValues,
   type MaFormValues,
 } from '@/features/driver-documents/schemas/generated-document-form-schema';
 
 interface GenerateMaFormProps {
   driver: DriverDto;
+  /** The existing Obrazac MA, if any — pre-fills the form so "izmeni" replaces it instead of duplicating it. */
+  existing?: DriverDocumentDto;
+  onSaved?: () => void;
 }
 
 interface FieldProps {
@@ -52,25 +56,28 @@ function Field({ id, label, error, children }: FieldProps) {
   );
 }
 
-export function GenerateMaForm({ driver }: GenerateMaFormProps) {
+export function GenerateMaForm({ driver, existing, onSaved }: GenerateMaFormProps) {
+  const isEdit = Boolean(existing);
   const mutation = useGenerateMaForm(driver.id);
   const form = useForm<MaFormValues, unknown, GenerateMaFormRequest>({
     resolver: zodResolver(maFormSchema),
-    defaultValues: emptyMaForm(driver),
+    defaultValues: maFormValues(driver, existing),
   });
   const errors = form.formState.errors;
 
   const onSubmit = form.handleSubmit(async (values) => {
     await mutation.mutateAsync(values);
+    onSaved?.();
   });
 
   return (
     <Card className="shadow-none">
       <CardHeader>
-        <CardTitle>Obrazac MA</CardTitle>
+        <CardTitle>{isEdit ? 'Izmena obrasca MA' : 'Obrazac MA'}</CardTitle>
         <CardDescription>
-          Prijava na obavezno socijalno osiguranje. JMBG, ime i prebivalište se uzimaju sa profila.
-          Generisani PDF se čuva u dokumentima.
+          {isEdit
+            ? 'Menja postojeći obrazac — generisani PDF zamenjuje prethodni, broj dokumenta ostaje isti.'
+            : 'Prijava na obavezno socijalno osiguranje. JMBG, ime i prebivalište se uzimaju sa profila. Generisani PDF se čuva u dokumentima.'}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -178,7 +185,7 @@ export function GenerateMaForm({ driver }: GenerateMaFormProps) {
           </div>
           <Button type="submit" disabled={mutation.isPending}>
             <FileDown className="size-4" aria-hidden />
-            {mutation.isPending ? 'Generisanje…' : 'Generiši PDF'}
+            {mutation.isPending ? 'Generisanje…' : isEdit ? 'Sačuvaj izmene' : 'Generiši PDF'}
           </Button>
         </form>
       </CardContent>

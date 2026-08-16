@@ -3,20 +3,29 @@
 import {
   DRIVER_DOCUMENT_TYPE_LABELS,
   type DriverDocumentStatusItem,
+  type DriverDto,
   type DriverMonthlyActivityDto,
 } from '@rental-admin/shared';
-import { Clock, FileWarning, Gauge } from 'lucide-react';
+import { Clock, FileText, FileWarning, Gauge } from 'lucide-react';
+import { useState } from 'react';
 
 import { ErrorState } from '@/components/common/error-state';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { GenerateAbsenceAttestationForm } from '@/features/absence-attestations/components/generate-absence-attestation-form';
+import { useAbsenceAttestations } from '@/features/absence-attestations/hooks/use-absence-attestations';
 import { DocumentExpiryBadge } from '@/features/driver-documents/components/document-expiry-badge';
+import { GenerateEmploymentContractForm } from '@/features/driver-documents/components/generate-employment-contract-form';
+import { GenerateMaForm } from '@/features/driver-documents/components/generate-ma-form';
 import { localTodayIso } from '@/features/driver-documents/lib/document';
 import { useDriverStatusOverview } from '@/features/drivers/hooks/use-driver-status-overview';
 import { formatDate, formatKilometers, formatMonthYear } from '@/lib/format';
+import { cn } from '@/lib/utils';
 
 interface DriverStatusOverviewProps {
-  driverId: string;
+  driver: DriverDto;
+  onNavigateToDocuments: () => void;
 }
 
 function ActivityCard({
@@ -55,12 +64,25 @@ function ActivityCard({
 function DocumentStatusCard({
   item,
   todayIso,
+  onClick,
 }: {
   item: DriverDocumentStatusItem;
   todayIso: string;
+  onClick: () => void;
 }) {
   return (
-    <Card className="shadow-none">
+    <Card
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onClick();
+        }
+      }}
+      className="hover:border-primary/50 hover:bg-muted/40 shadow-none cursor-pointer transition-colors"
+    >
       <CardHeader className="space-y-1">
         <CardTitle className="text-base">{DRIVER_DOCUMENT_TYPE_LABELS[item.type]}</CardTitle>
         {item.document ? (
@@ -76,8 +98,45 @@ function DocumentStatusCard({
             </p>
           </div>
         ) : (
-          <p className="text-muted-foreground text-sm">Nije unešen.</p>
+          <p className="text-muted-foreground text-sm">Nije unešen. Kliknite da dodate.</p>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function QuickDocumentCard({
+  title,
+  description,
+  status,
+  actionLabel,
+  isOpen,
+  onToggle,
+}: {
+  title: string;
+  description: string;
+  status: React.ReactNode;
+  actionLabel: string;
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <Card className={cn('shadow-none', isOpen && 'ring-primary/50 ring-2')}>
+      <CardHeader className="space-y-1">
+        <CardTitle className="text-base">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {status}
+        <Button
+          type="button"
+          size="sm"
+          variant={isOpen ? 'default' : 'outline'}
+          onClick={onToggle}
+          className="w-full"
+        >
+          {actionLabel}
+        </Button>
       </CardContent>
     </Card>
   );
@@ -97,11 +156,15 @@ function activityHint(activity: DriverMonthlyActivityDto | undefined): string {
   return `${monthLabel} · ${activity.fuelLogCount} točenja`;
 }
 
-export function DriverStatusOverview({ driverId }: DriverStatusOverviewProps) {
-  const query = useDriverStatusOverview(driverId);
+type QuickKind = 'contract' | 'ma' | 'absence';
+
+export function DriverStatusOverview({ driver, onNavigateToDocuments }: DriverStatusOverviewProps) {
+  const query = useDriverStatusOverview(driver.id);
+  const attestationsQuery = useAbsenceAttestations(driver.id);
   const todayIso = localTodayIso();
   const activity = query.data?.monthlyActivity;
   const documents = query.data?.documents ?? [];
+  const [openQuick, setOpenQuick] = useState<QuickKind | null>(null);
 
   if (query.isError) {
     return (
@@ -115,6 +178,18 @@ export function DriverStatusOverview({ driverId }: DriverStatusOverviewProps) {
       />
     );
   }
+
+  const contractItem = documents.find((item) => item.type === 'EMPLOYMENT_CONTRACT');
+  const maItem = documents.find((item) => item.type === 'MA_FORM');
+  const otherDocuments = documents.filter(
+    (item) => item.type !== 'EMPLOYMENT_CONTRACT' && item.type !== 'MA_FORM',
+  );
+  const latestAttestation = [...(attestationsQuery.data ?? [])].sort((a, b) =>
+    b.issuedAt.localeCompare(a.issuedAt),
+  )[0];
+
+  const toggle = (kind: QuickKind) =>
+    setOpenQuick((current) => (current === kind ? null : kind));
 
   return (
     <div className="space-y-6">
@@ -137,19 +212,117 @@ export function DriverStatusOverview({ driverId }: DriverStatusOverviewProps) {
 
       <div className="space-y-3">
         <div className="flex items-center gap-2">
+          <FileText className="text-muted-foreground size-4" aria-hidden />
+          <h2 className="text-sm font-medium">Brzo generisanje dokumenata</h2>
+        </div>
+
+        {query.isPending || attestationsQuery.isPending ? (
+          <div className="grid gap-4 sm:grid-cols-3">
+            {Array.from({ length: 3 }, (_, index) => (
+              <Skeleton key={index} className="h-40 w-full" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-3">
+            <QuickDocumentCard
+              title="Ugovor o radu"
+              description="Popunjava se podacima vozača."
+              status={
+                contractItem?.document ? (
+                  <div className="space-y-1.5">
+                    <p className="text-muted-foreground text-xs">
+                      Br. {contractItem.document.documentNumber}
+                    </p>
+                    <DocumentExpiryBadge
+                      expiresAt={contractItem.document.expiresAt}
+                      todayIso={todayIso}
+                    />
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm">Nije generisan.</p>
+                )
+              }
+              actionLabel={contractItem?.document ? 'Izmeni' : 'Generiši'}
+              isOpen={openQuick === 'contract'}
+              onToggle={() => toggle('contract')}
+            />
+            <QuickDocumentCard
+              title="Obrazac MA"
+              description="Prijava na obavezno socijalno osiguranje."
+              status={
+                maItem?.document ? (
+                  <div className="space-y-1.5">
+                    <p className="text-muted-foreground text-xs">
+                      Br. {maItem.document.documentNumber}
+                    </p>
+                    <DocumentExpiryBadge expiresAt={maItem.document.expiresAt} todayIso={todayIso} />
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm">Nije generisan.</p>
+                )
+              }
+              actionLabel={maItem?.document ? 'Izmeni' : 'Generiši'}
+              isOpen={openQuick === 'ma'}
+              onToggle={() => toggle('ma')}
+            />
+            <QuickDocumentCard
+              title="Potvrda o odsustvu"
+              description="Svaki period se dopunjuje posebno — uvek nova potvrda."
+              status={
+                latestAttestation ? (
+                  <p className="text-muted-foreground text-xs">
+                    Poslednja: {formatDate(latestAttestation.issuedAt)}
+                  </p>
+                ) : (
+                  <p className="text-muted-foreground text-sm">Nije generisana.</p>
+                )
+              }
+              actionLabel="Nova potvrda"
+              isOpen={openQuick === 'absence'}
+              onToggle={() => toggle('absence')}
+            />
+          </div>
+        )}
+
+        {openQuick === 'contract' ? (
+          <GenerateEmploymentContractForm
+            driver={driver}
+            existing={contractItem?.document ?? undefined}
+            onSaved={() => setOpenQuick(null)}
+          />
+        ) : null}
+        {openQuick === 'ma' ? (
+          <GenerateMaForm
+            driver={driver}
+            existing={maItem?.document ?? undefined}
+            onSaved={() => setOpenQuick(null)}
+          />
+        ) : null}
+        {openQuick === 'absence' ? (
+          <GenerateAbsenceAttestationForm driverId={driver.id} onSaved={() => setOpenQuick(null)} />
+        ) : null}
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
           <FileWarning className="text-muted-foreground size-4" aria-hidden />
-          <h2 className="text-sm font-medium">Rokovi dokumenata</h2>
+          <h2 className="text-sm font-medium">Rokovi ostalih dokumenata</h2>
         </div>
         {query.isPending ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }, (_, index) => (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }, (_, index) => (
               <Skeleton key={index} className="h-28 w-full" />
             ))}
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {documents.map((item) => (
-              <DocumentStatusCard key={item.type} item={item} todayIso={todayIso} />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {otherDocuments.map((item) => (
+              <DocumentStatusCard
+                key={item.type}
+                item={item}
+                todayIso={todayIso}
+                onClick={onNavigateToDocuments}
+              />
             ))}
           </div>
         )}

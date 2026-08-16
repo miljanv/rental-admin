@@ -1,10 +1,11 @@
 import { z } from 'zod';
 
 import { PAGINATION_DEFAULTS } from '../constants';
-import { DRIVER_STATUSES, ID_CARD_NUMBER_LENGTH } from '../types/driver';
+import { DRIVER_STATUSES, EMPLOYMENT_TYPES, ID_CARD_NUMBER_LENGTH } from '../types/driver';
 import { SORT_ORDERS } from './file';
 
 export const driverStatusSchema = z.enum(DRIVER_STATUSES);
+export const employmentTypeSchema = z.enum(EMPLOYMENT_TYPES);
 
 export const driverIdSchema = z.string().trim().min(1).max(64);
 
@@ -18,6 +19,12 @@ const requiredText = (label: string, max: number) =>
     .trim()
     .min(1, `${label} je obavezno.`)
     .max(max, `${label} sme imati najviše ${max} karaktera.`);
+
+const optionalText = (max: number) =>
+  z
+    .union([z.string().trim().max(max), z.literal(''), z.null()])
+    .optional()
+    .transform((value) => (value ? value : null));
 
 export const isoDateSchema = z
   .string()
@@ -37,6 +44,9 @@ export const driverWriteSchema = z.object({
     .regex(/^\d{13}$/, 'JMBG mora imati tačno 13 cifara.'),
   dateOfBirth: isoDateSchema,
   residencePlace: requiredText('Mesto prebivališta', 120),
+  // Optional — not every driver's street address is on hand yet, but once
+  // saved it auto-fills the Ugovor o radu / Obrazac MA generators.
+  residenceAddress: optionalText(160),
   educationLevel: requiredText('Stručna sprema', 80),
   idCardNumber: z
     .string()
@@ -67,6 +77,7 @@ export const driverWriteSchema = z.object({
     .transform((value) => (value ? value : null)),
   jobTitle: requiredText('Radno mesto', 80),
   status: driverStatusSchema,
+  employmentType: employmentTypeSchema,
 });
 
 export type DriverWriteInput = z.input<typeof driverWriteSchema>;

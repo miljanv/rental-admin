@@ -89,6 +89,20 @@ export const DRIVER_STATUS_LABELS: Record<DriverStatus, string> = {
   INACTIVE: 'Neaktivan',
 };
 
+/**
+ * ACTUAL: genuinely employed — contract paperwork rarely changes. NOMINAL:
+ * employed on paper only for a given trip/engagement — new employment
+ * documents get generated almost every time they go out.
+ */
+export const EMPLOYMENT_TYPES = ['ACTUAL', 'NOMINAL'] as const;
+
+export type EmploymentType = (typeof EMPLOYMENT_TYPES)[number];
+
+export const EMPLOYMENT_TYPE_LABELS: Record<EmploymentType, string> = {
+  ACTUAL: 'Stvarno zaposlen',
+  NOMINAL: 'Fiktivno zaposlen',
+};
+
 export interface DriverDto {
   id: string;
   firstName: string;
@@ -96,6 +110,8 @@ export interface DriverDto {
   jmbg: string;
   dateOfBirth: string;
   residencePlace: string;
+  /** Street and house number. Optional — used to auto-fill the generated-document forms. */
+  residenceAddress: string | null;
   educationLevel: string;
   idCardNumber: string;
   drivingLicenseNumber: string;
@@ -105,6 +121,7 @@ export interface DriverDto {
   email: string | null;
   jobTitle: string;
   status: DriverStatus;
+  employmentType: EmploymentType;
   createdAt: string;
   updatedAt: string;
 }

@@ -10,6 +10,7 @@ export const EMPTY_DRIVER_FORM: DriverFormValues = {
   jmbg: '',
   dateOfBirth: '',
   residencePlace: '',
+  residenceAddress: '',
   educationLevel: '',
   idCardNumber: '',
   drivingLicenseNumber: '',
@@ -19,4 +20,5 @@ export const EMPTY_DRIVER_FORM: DriverFormValues = {
   email: '',
   jobTitle: '',
   status: 'ACTIVE',
+  employmentType: 'ACTUAL',
 };

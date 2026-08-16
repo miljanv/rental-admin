@@ -53,6 +53,12 @@ export interface DriverDocumentDto {
   expiresAt: string | null;
   employmentContractType: EmploymentContractType | null;
   file: DriverDocumentFileDto | null;
+  /**
+   * The exact generator payload last used for this document (Ugovor o radu /
+   * Obrazac MA only) — lets "izmeni" reopen the generator pre-filled. Null
+   * for scanned document types and for anything predating this field.
+   */
+  generationData: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
 }

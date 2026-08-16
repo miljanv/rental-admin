@@ -6,11 +6,29 @@ import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
-import { formatMonthYear } from '@/lib/format';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 const WEEKDAY_HEADER = ['Pon', 'Uto', 'Sre', 'Čet', 'Pet', 'Sub', 'Ned'];
 const CELL_COUNT = 42;
+const MONTH_LABELS = [
+  'Januar',
+  'Februar',
+  'Mart',
+  'April',
+  'Maj',
+  'Jun',
+  'Jul',
+  'Avgust',
+  'Septembar',
+  'Oktobar',
+  'Novembar',
+  'Decembar',
+];
+// Generous on both ends — the same picker is used for dates of birth decades
+// back and document expiry dates a few years out.
+const YEARS_PAST = 100;
+const YEARS_FUTURE = 20;
 
 const toIsoDate = (date: Date): string => date.toISOString().slice(0, 10);
 
@@ -104,6 +122,15 @@ function DateFieldCalendar({ value, onSelect }: DateFieldCalendarProps) {
 
   const days = useMemo(() => buildMonthGrid(year, month), [year, month]);
   const todayIso = toIsoDate(today);
+  const currentRealYear = today.getUTCFullYear();
+  const years = useMemo(
+    () =>
+      Array.from(
+        { length: YEARS_PAST + YEARS_FUTURE + 1 },
+        (_, index) => currentRealYear - YEARS_PAST + index,
+      ),
+    [currentRealYear],
+  );
 
   const goToPreviousMonth = () => {
     if (month === 0) {
@@ -124,8 +151,8 @@ function DateFieldCalendar({ value, onSelect }: DateFieldCalendarProps) {
   };
 
   return (
-    <div className="w-64 space-y-2">
-      <div className="flex items-center justify-between">
+    <div className="w-72 space-y-2">
+      <div className="flex items-center justify-between gap-1">
         <Button
           type="button"
           variant="ghost"
@@ -135,7 +162,32 @@ function DateFieldCalendar({ value, onSelect }: DateFieldCalendarProps) {
         >
           <ChevronLeft className="size-4" aria-hidden />
         </Button>
-        <p className="text-sm font-medium capitalize">{formatMonthYear(year, month + 1)}</p>
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-1">
+          <Select value={String(month)} onValueChange={(value) => setMonth(Number(value))}>
+            <SelectTrigger size="sm" className="min-w-0 flex-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTH_LABELS.map((label, index) => (
+                <SelectItem key={label} value={String(index)}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={String(year)} onValueChange={(value) => setYear(Number(value))}>
+            <SelectTrigger size="sm" className="w-[84px] shrink-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map((value) => (
+                <SelectItem key={value} value={String(value)}>
+                  {value}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <Button
           type="button"
           variant="ghost"

@@ -17,6 +17,7 @@ export interface DriverDocumentRecord {
   expiresAt: Date | null;
   employmentContractType: EmploymentContractType | null;
   fileId: string | null;
+  generationData: unknown;
   createdAt: Date;
   updatedAt: Date;
   file: FileObjectRecord | null;
@@ -52,6 +53,7 @@ export const toDriverDocumentDto = (record: DriverDocumentRecord): DriverDocumen
   expiresAt: record.expiresAt ? toIsoDate(record.expiresAt) : null,
   employmentContractType: record.employmentContractType,
   file: toFileDto(record.file),
+  generationData: (record.generationData ?? null) as Record<string, unknown> | null,
   createdAt: record.createdAt.toISOString(),
   updatedAt: record.updatedAt.toISOString(),
 });

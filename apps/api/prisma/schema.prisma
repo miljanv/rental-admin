@@ -60,6 +60,10 @@ model Driver {
   jmbg                   String                     @unique
   dateOfBirth            DateTime                   @db.Date
   residencePlace         String
+  /// Street and house number — captured once here so the employment
+  /// contract / MA form generators can auto-fill it instead of asking
+  /// every single time (residencePlace alone already does this for town).
+  residenceAddress       String?
   educationLevel         String
   idCardNumber           String
   drivingLicenseNumber   String
@@ -69,6 +73,10 @@ model Driver {
   email                  String?
   jobTitle               String
   status                 DriverStatus               @default(ACTIVE)
+  /// Actually employed vs. nominally employed for tax/paperwork purposes —
+  /// see EmploymentType. Drives generated-document naming and how often
+  /// those documents realistically get regenerated.
+  employmentType         EmploymentType             @default(ACTUAL)
   createdAt              DateTime                   @default(now())
   updatedAt              DateTime                   @updatedAt
   documents              DriverDocument[]
@@ -97,6 +105,14 @@ enum EmploymentContractType {
   INDEFINITE
 }
 
+/// ACTUAL: genuinely employed, paperwork rarely changes. NOMINAL: employed
+/// on paper only for a specific trip/engagement — new documents almost
+/// every time they go out.
+enum EmploymentType {
+  ACTUAL
+  NOMINAL
+}
+
 /// A scanned driver document with optional validity dates. Field names are
 /// English; the admin UI presents Serbian labels.
 model DriverDocument {
@@ -108,6 +124,11 @@ model DriverDocument {
   expiresAt              DateTime?               @db.Date
   employmentContractType EmploymentContractType?
   fileId                 String?                 @unique
+  /// The exact form payload last used to generate this document (Ugovor o
+  /// radu / Obrazac MA only) — lets the "izmeni" flow reopen the generator
+  /// pre-filled instead of starting from a blank form. Null for scanned
+  /// document types, which have no generator.
+  generationData         Json?
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
 

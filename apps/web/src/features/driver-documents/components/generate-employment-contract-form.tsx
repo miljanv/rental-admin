@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   EMPLOYMENT_CONTRACT_TYPE_LABELS,
   EMPLOYMENT_CONTRACT_TYPES,
+  type DriverDocumentDto,
   type DriverDto,
   type GenerateEmploymentContractRequest,
 } from '@rental-admin/shared';
@@ -24,14 +25,17 @@ import {
 } from '@/components/ui/select';
 import { useGenerateEmploymentContract } from '@/features/driver-documents/hooks/use-generate-employment-contract';
 import {
-  emptyEmploymentContractForm,
   employmentContractFormSchema,
+  employmentContractFormValues,
   type EmploymentContractFormValues,
 } from '@/features/driver-documents/schemas/generated-document-form-schema';
 import { cn } from '@/lib/utils';
 
 interface GenerateEmploymentContractFormProps {
   driver: DriverDto;
+  /** The existing Ugovor o radu, if any — pre-fills the form so "izmeni" replaces it instead of duplicating it. */
+  existing?: DriverDocumentDto;
+  onSaved?: () => void;
 }
 
 interface FieldProps {
@@ -51,26 +55,33 @@ function Field({ id, label, error, children }: FieldProps) {
   );
 }
 
-export function GenerateEmploymentContractForm({ driver }: GenerateEmploymentContractFormProps) {
+export function GenerateEmploymentContractForm({
+  driver,
+  existing,
+  onSaved,
+}: GenerateEmploymentContractFormProps) {
+  const isEdit = Boolean(existing);
   const mutation = useGenerateEmploymentContract(driver.id);
   const form = useForm<EmploymentContractFormValues, unknown, GenerateEmploymentContractRequest>({
     resolver: zodResolver(employmentContractFormSchema),
-    defaultValues: emptyEmploymentContractForm(driver),
+    defaultValues: employmentContractFormValues(driver, existing),
   });
   const contractType = useWatch({ control: form.control, name: 'employmentContractType' });
   const errors = form.formState.errors;
 
   const onSubmit = form.handleSubmit(async (values) => {
     await mutation.mutateAsync(values);
+    onSaved?.();
   });
 
   return (
     <Card className="shadow-none">
       <CardHeader>
-        <CardTitle>Ugovor o radu</CardTitle>
+        <CardTitle>{isEdit ? 'Izmena ugovora o radu' : 'Ugovor o radu'}</CardTitle>
         <CardDescription>
-          Popunjava se podacima vozača {driver.firstName} {driver.lastName}. Generisani PDF se čuva
-          u dokumentima.
+          {isEdit
+            ? 'Menja postojeći ugovor — generisani PDF zamenjuje prethodni, broj dokumenta ostaje isti.'
+            : `Popunjava se podacima vozača ${driver.firstName} ${driver.lastName}. Generisani PDF se čuva u dokumentima.`}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -180,7 +191,7 @@ export function GenerateEmploymentContractForm({ driver }: GenerateEmploymentCon
           </Field>
           <Button type="submit" disabled={mutation.isPending}>
             <FileDown className="size-4" aria-hidden />
-            {mutation.isPending ? 'Generisanje…' : 'Generiši PDF'}
+            {mutation.isPending ? 'Generisanje…' : isEdit ? 'Sačuvaj izmene' : 'Generiši PDF'}
           </Button>
         </form>
       </CardContent>

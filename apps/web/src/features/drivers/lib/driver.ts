@@ -9,6 +9,7 @@ export const toDriverFormValues = (driver: DriverDto): DriverWriteRequest => ({
   jmbg: driver.jmbg,
   dateOfBirth: driver.dateOfBirth,
   residencePlace: driver.residencePlace,
+  residenceAddress: driver.residenceAddress,
   educationLevel: driver.educationLevel,
   idCardNumber: driver.idCardNumber,
   drivingLicenseNumber: driver.drivingLicenseNumber,
@@ -18,4 +19,5 @@ export const toDriverFormValues = (driver: DriverDto): DriverWriteRequest => ({
   email: driver.email,
   jobTitle: driver.jobTitle,
   status: driver.status,
+  employmentType: driver.employmentType,
 });

@@ -31,6 +31,7 @@ const toWriteData = (input: DriverWriteRequest) => ({
   jmbg: input.jmbg,
   dateOfBirth: parseDateOfBirth(input.dateOfBirth),
   residencePlace: input.residencePlace,
+  residenceAddress: input.residenceAddress,
   educationLevel: input.educationLevel,
   idCardNumber: input.idCardNumber,
   drivingLicenseNumber: input.drivingLicenseNumber,
@@ -40,6 +41,7 @@ const toWriteData = (input: DriverWriteRequest) => ({
   email: input.email,
   jobTitle: input.jobTitle,
   status: input.status,
+  employmentType: input.employmentType,
 });
 
 const isJmbgConflict = (error: unknown): boolean => {

@@ -7,6 +7,8 @@ import {
   DRIVING_LICENSE_CATEGORIES,
   DRIVING_LICENSE_CATEGORY_LABELS,
   EDUCATION_LEVELS,
+  EMPLOYMENT_TYPE_LABELS,
+  EMPLOYMENT_TYPES,
   ID_CARD_NUMBER_LENGTH,
   JMBG_LENGTH,
   type DriverDto,
@@ -186,6 +188,19 @@ export function DriverForm({ driver }: DriverFormProps) {
                 {...form.register('residencePlace')}
               />
             </Field>
+            <Field
+              id="residenceAddress"
+              label="Adresa (ulica i broj, opciono)"
+              error={errors.residenceAddress?.message as string | undefined}
+            >
+              <Input
+                id="residenceAddress"
+                placeholder="npr. Cara Dušana 12"
+                disabled={isPending}
+                aria-invalid={Boolean(errors.residenceAddress)}
+                {...form.register('residenceAddress')}
+              />
+            </Field>
             <Controller
               control={form.control}
               name="educationLevel"
@@ -362,6 +377,30 @@ export function DriverForm({ driver }: DriverFormProps) {
                       {DRIVER_STATUSES.map((status) => (
                         <SelectItem key={status} value={status}>
                           {DRIVER_STATUS_LABELS[status]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              )}
+            />
+            <Controller
+              control={form.control}
+              name="employmentType"
+              render={({ field }) => (
+                <Field
+                  id="employmentType"
+                  label="Tip zaposlenja"
+                  error={errors.employmentType?.message}
+                >
+                  <Select value={field.value} onValueChange={field.onChange} disabled={isPending}>
+                    <SelectTrigger id="employmentType" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EMPLOYMENT_TYPES.map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {EMPLOYMENT_TYPE_LABELS[value]}
                         </SelectItem>
                       ))}
                     </SelectContent>

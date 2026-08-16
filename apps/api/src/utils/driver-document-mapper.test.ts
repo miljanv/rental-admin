@@ -14,6 +14,7 @@ const record: DriverDocumentRecord = {
   expiresAt: new Date('2026-01-15T00:00:00.000Z'),
   employmentContractType: null,
   fileId: 'file_1',
+  generationData: null,
   createdAt: new Date('2026-08-14T10:00:00.000Z'),
   updatedAt: new Date('2026-08-14T10:00:00.000Z'),
   file: {

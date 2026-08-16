@@ -17,6 +17,7 @@ const validDriver = {
   email: 'marko@example.com',
   jobTitle: 'Vozač',
   status: 'ACTIVE',
+  employmentType: 'ACTUAL',
 } as const;
 
 describe('driverWriteSchema', () => {
@@ -77,6 +78,39 @@ describe('driverWriteSchema', () => {
     expect(driverWriteSchema.safeParse({ ...validDriver, email: 'not-an-email' }).success).toBe(
       false,
     );
+  });
+
+  it('accepts a nominal employment type', () => {
+    const result = driverWriteSchema.safeParse({ ...validDriver, employmentType: 'NOMINAL' });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.employmentType).toBe('NOMINAL');
+  });
+
+  it('rejects an invalid employment type', () => {
+    expect(
+      driverWriteSchema.safeParse({ ...validDriver, employmentType: 'CONTRACTOR' }).success,
+    ).toBe(false);
+  });
+
+  it('defaults a missing residence address to null', () => {
+    const result = driverWriteSchema.safeParse(validDriver);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.residenceAddress).toBeNull();
+  });
+
+  it('accepts a residence address and normalizes an empty one to null', () => {
+    const withAddress = driverWriteSchema.safeParse({
+      ...validDriver,
+      residenceAddress: 'Cara Dušana 12',
+    });
+    expect(withAddress.success).toBe(true);
+    expect(withAddress.data?.residenceAddress).toBe('Cara Dušana 12');
+
+    const emptyAddress = driverWriteSchema.safeParse({ ...validDriver, residenceAddress: '' });
+    expect(emptyAddress.success).toBe(true);
+    expect(emptyAddress.data?.residenceAddress).toBeNull();
   });
 });
 

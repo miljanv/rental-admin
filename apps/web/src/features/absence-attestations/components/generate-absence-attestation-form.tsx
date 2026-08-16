@@ -30,6 +30,7 @@ import {
 
 interface GenerateAbsenceAttestationFormProps {
   driverId: string;
+  onSaved?: () => void;
 }
 
 interface FieldProps {
@@ -49,7 +50,10 @@ function Field({ id, label, error, children }: FieldProps) {
   );
 }
 
-export function GenerateAbsenceAttestationForm({ driverId }: GenerateAbsenceAttestationFormProps) {
+export function GenerateAbsenceAttestationForm({
+  driverId,
+  onSaved,
+}: GenerateAbsenceAttestationFormProps) {
   const mutation = useGenerateAbsenceAttestation(driverId);
   const form = useForm<AbsenceAttestationFormValues, unknown, GenerateAbsenceAttestationRequest>({
     resolver: zodResolver(absenceAttestationFormSchema),
@@ -60,6 +64,7 @@ export function GenerateAbsenceAttestationForm({ driverId }: GenerateAbsenceAtte
 
   const onSubmit = form.handleSubmit(async (values) => {
     await mutation.mutateAsync(values);
+    onSaved?.();
   });
 
   return (
