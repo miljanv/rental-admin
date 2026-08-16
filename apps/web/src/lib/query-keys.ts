@@ -51,6 +51,7 @@ export interface FuelLogListQueryParams {
   from?: string;
   to?: string;
   fuelType?: FuelLogFuelType;
+  driverId?: string;
   sortOrder?: SortOrder;
 }
 

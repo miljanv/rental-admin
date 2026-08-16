@@ -70,6 +70,7 @@ export const listFuelLogsQuerySchema = z.object({
   from: isoDateSchema.optional(),
   to: isoDateSchema.optional(),
   fuelType: fuelLogFuelTypeSchema.optional(),
+  driverId: z.string().trim().min(1).max(64).optional(),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 
