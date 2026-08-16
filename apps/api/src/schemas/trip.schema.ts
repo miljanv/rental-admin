@@ -1,3 +1,19 @@
-import { listTripsQuerySchema, tripIdParamsSchema, tripStatsQuerySchema, tripWriteSchema } from '@rental-admin/shared';
+import {
+  listTripsQuerySchema,
+  tripExpenseParamsSchema,
+  tripExpenseWriteSchema,
+  tripIdParamsSchema,
+  tripSettlementWriteSchema,
+  tripStatsQuerySchema,
+  tripWriteSchema,
+} from '@rental-admin/shared';
 
-export { listTripsQuerySchema, tripIdParamsSchema, tripStatsQuerySchema, tripWriteSchema };
+export {
+  listTripsQuerySchema,
+  tripExpenseParamsSchema,
+  tripExpenseWriteSchema,
+  tripIdParamsSchema,
+  tripSettlementWriteSchema,
+  tripStatsQuerySchema,
+  tripWriteSchema,
+};

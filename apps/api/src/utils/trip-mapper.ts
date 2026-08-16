@@ -3,6 +3,7 @@ import type {
   PaymentMethod,
   TripDriverDto,
   TripDto,
+  TripPartnerDto,
   TripSeriesDto,
   TripSeriesFrequency,
   TripStatus,
@@ -14,6 +15,8 @@ export interface TripVehicleAssignmentRecord {
 }
 
 export interface TripDriverAssignmentRecord {
+  perDiemAmount: number | null;
+  advanceAmount: number | null;
   driver: { id: string; firstName: string; lastName: string };
 }
 
@@ -48,9 +51,12 @@ export interface TripRecord {
   contractId: string | null;
   distanceKm: number | null;
   seriesId: string | null;
+  paidAt: Date | null;
+  carrierId: string | null;
   createdAt: Date;
   updatedAt: Date;
   partner: TripPartnerRecord | null;
+  carrier: TripPartnerRecord | null;
   contract: TripContractRecord | null;
   vehicles: TripVehicleAssignmentRecord[];
   drivers: TripDriverAssignmentRecord[];
@@ -71,6 +77,14 @@ export interface TripSeriesRecord {
 
 const toIsoDate = (value: Date): string => value.toISOString().slice(0, 10);
 
+export const toTripPartnerDto = (partner: TripPartnerRecord): TripPartnerDto => ({
+  id: partner.id,
+  type: partner.type,
+  companyName: partner.companyName,
+  firstName: partner.firstName,
+  lastName: partner.lastName,
+});
+
 export const toTripDto = (record: TripRecord): TripDto => ({
   id: record.id,
   referenceNumber: record.referenceNumber,
@@ -81,15 +95,10 @@ export const toTripDto = (record: TripRecord): TripDto => ({
   destination: record.destination,
   passengerCount: record.passengerCount,
   partnerId: record.partnerId,
-  partner: record.partner
-    ? {
-        id: record.partner.id,
-        type: record.partner.type,
-        companyName: record.partner.companyName,
-        firstName: record.partner.firstName,
-        lastName: record.partner.lastName,
-      }
-    : null,
+  partner: record.partner ? toTripPartnerDto(record.partner) : null,
+  carrierId: record.carrierId,
+  carrier: record.carrier ? toTripPartnerDto(record.carrier) : null,
+  paidAt: record.paidAt ? toIsoDate(record.paidAt) : null,
   clientName: record.clientName,
   notes: record.notes,
   price: record.price,
@@ -112,6 +121,8 @@ export const toTripDto = (record: TripRecord): TripDto => ({
       id: assignment.driver.id,
       firstName: assignment.driver.firstName,
       lastName: assignment.driver.lastName,
+      perDiemAmount: assignment.perDiemAmount,
+      advanceAmount: assignment.advanceAmount,
     }),
   ),
   createdAt: record.createdAt.toISOString(),

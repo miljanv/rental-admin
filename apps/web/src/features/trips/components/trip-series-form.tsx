@@ -3,6 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   CONTRACT_STATUS_LABELS,
+  MAX_TRIP_DRIVERS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
   partnerSelectLabel,
@@ -395,6 +396,7 @@ export function TripSeriesForm() {
                 onChange={(next) => form.setValue('driverIds', next)}
                 disabled={isPending || driversQuery.isPending}
                 emptyLabel="Nema unetih vozača."
+                maxSelected={MAX_TRIP_DRIVERS}
               />
             </Field>
           </CardContent>

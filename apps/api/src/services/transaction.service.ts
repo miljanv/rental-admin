@@ -353,9 +353,11 @@ export interface OperationalExpenseInput {
   amount: number | null | undefined;
   paymentMethod: PaymentMethod | null | undefined;
   occurredAt: string;
-  vehicleId: string;
+  vehicleId?: string | null;
   driverId?: string | null;
   supplier?: string | null;
+  partner?: string | null;
+  route?: string | null;
   note?: string | null;
 }
 
@@ -399,7 +401,9 @@ export const upsertOperationalExpense = async (input: OperationalExpenseInput): 
     paymentMethod: posted.paymentMethod,
     note: input.note ?? null,
     supplier: input.supplier ?? null,
-    vehicleId: input.vehicleId,
+    partner: input.partner ?? null,
+    route: input.route ?? null,
+    vehicleId: input.vehicleId ?? null,
     driverId: input.driverId ?? null,
     isAdvance: false,
     status: 'OPEN' as const,

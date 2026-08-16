@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DeleteTripDialog } from '@/features/trips/components/delete-trip-dialog';
+import { TripSettlementSection } from '@/features/trips/components/trip-settlement-section';
 import { TripStatusBadge } from '@/features/trips/components/trip-status-badge';
 import { useTrip } from '@/features/trips/hooks/use-trip';
 import { formatDate, formatKilometers, formatMoney } from '@/lib/format';
@@ -216,7 +217,10 @@ export function TripProfile({ tripId }: TripProfileProps) {
         }
       />
 
-      <TripOverview trip={trip} />
+      <div className="space-y-6">
+        <TripOverview trip={trip} />
+        <TripSettlementSection tripId={trip.id} />
+      </div>
 
       <DeleteTripDialog
         trip={tripToDelete}

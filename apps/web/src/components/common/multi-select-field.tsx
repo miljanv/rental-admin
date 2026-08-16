@@ -15,6 +15,7 @@ interface MultiSelectFieldProps {
   disabled?: boolean;
   emptyLabel?: string;
   className?: string;
+  maxSelected?: number;
 }
 
 /** A bordered checkbox list for picking several ids at once (e.g. several vehicles/drivers on one trip). */
@@ -25,14 +26,19 @@ export function MultiSelectField({
   disabled,
   emptyLabel = 'Nema dostupnih opcija.',
   className,
+  maxSelected,
 }: MultiSelectFieldProps) {
   const selectedSet = new Set(selected);
+  const atLimit = maxSelected != null && selected.length >= maxSelected;
 
   const toggle = (value: string) => {
     const next = new Set(selectedSet);
     if (next.has(value)) {
       next.delete(value);
     } else {
+      if (atLimit) {
+        return;
+      }
       next.add(value);
     }
     onChange(options.filter((option) => next.has(option.value)).map((option) => option.value));
@@ -54,7 +60,7 @@ export function MultiSelectField({
           <Checkbox
             checked={selectedSet.has(option.value)}
             onCheckedChange={() => toggle(option.value)}
-            disabled={disabled}
+            disabled={disabled || (!selectedSet.has(option.value) && atLimit)}
           />
           <span className="truncate">{option.label}</span>
         </label>

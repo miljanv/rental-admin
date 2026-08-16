@@ -38,6 +38,7 @@ model FileObject {
   vehicleDocument        VehicleDocument?
   contractDocument       ContractDocument?
   travelPermit           TravelPermit?
+  tripExpense            TripExpense?
 
   @@index([status])
   @@index([createdAt])
@@ -455,8 +456,9 @@ model Partner {
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
-  contracts Contract[]
-  trips     Trip[]
+  contracts    Contract[]
+  trips        Trip[]     @relation("TripClient")
+  carrierTrips Trip[]     @relation("TripCarrier")
 
   @@index([type])
   @@map("partners")
@@ -626,6 +628,7 @@ enum TransactionSourceType {
   INSPECTION
   CALIBRATION
   SAFETY_EQUIPMENT
+  TRIP_EXPENSE
 }
 
 /// A bookkeeping row. Field names are English; the admin UI presents Serbian
@@ -749,19 +752,26 @@ model Trip {
   distanceKm      Float?
   /// Set only on instances generated from a TripSeries.
   seriesId        String?
+  /// When the client actually paid for this trip. Null means completed but unpaid.
+  paidAt          DateTime?      @db.Date
+  /// Actual carrier on this trip (subcontractor / another brand), distinct from the client `partnerId`.
+  carrierId       String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
-  partner  Partner?      @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  partner  Partner?      @relation("TripClient", fields: [partnerId], references: [id], onDelete: SetNull)
+  carrier  Partner?      @relation("TripCarrier", fields: [carrierId], references: [id], onDelete: SetNull)
   contract Contract?     @relation(fields: [contractId], references: [id], onDelete: SetNull)
   series   TripSeries?   @relation(fields: [seriesId], references: [id], onDelete: SetNull)
   vehicles TripVehicle[]
   drivers  TripDriver[]
+  expenses TripExpense[]
 
   @@index([status])
   @@index([departureDate])
   @@index([country])
   @@index([partnerId])
+  @@index([carrierId])
   @@index([contractId])
   @@index([seriesId])
   @@map("trips")
@@ -782,10 +792,14 @@ model TripVehicle {
 }
 
 model TripDriver {
-  id        String   @id @default(cuid())
-  tripId    String
-  driverId  String
-  createdAt DateTime @default(now())
+  id            String   @id @default(cuid())
+  tripId        String
+  driverId      String
+  /// Per-driver per diem for this trip — not a company-wide fixed rate.
+  perDiemAmount Float?
+  /// Cash given to the driver up front, later deducted from the wage settlement.
+  advanceAmount Float?
+  createdAt     DateTime @default(now())
 
   trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
   driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
@@ -793,4 +807,42 @@ model TripDriver {
   @@unique([tripId, driverId])
   @@index([driverId])
   @@map("trip_drivers")
+}
+
+enum TripExpenseCategory {
+  FUEL
+  TOLL
+  PARKING
+  FOOD
+  LODGING
+  PER_DIEM
+  ROADSIDE_REPAIR
+  VISA_PERMIT
+  OTHER
+}
+
+enum TripExpensePaymentMethod {
+  CASH
+  COMPANY_CARD
+  INVOICE
+}
+
+/// A cost line on a single trip. Auto-posted into `transactions` as an EXPENSE
+/// keyed by sourceType=TRIP_EXPENSE + this row's id.
+model TripExpense {
+  id            String                   @id @default(cuid())
+  tripId        String
+  category      TripExpenseCategory
+  amount        Float
+  paymentMethod TripExpensePaymentMethod
+  note          String?
+  fileId        String?                  @unique
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+
+  trip Trip        @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  file FileObject? @relation(fields: [fileId], references: [id], onDelete: SetNull)
+
+  @@index([tripId])
+  @@map("trip_expenses")
 }

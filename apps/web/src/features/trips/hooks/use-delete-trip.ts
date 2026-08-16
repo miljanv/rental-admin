@@ -18,6 +18,7 @@ export const useDeleteTrip = () => {
     onSuccess: async (_result, variables) => {
       toast.success('Vožnja je obrisana.', { description: variables.name });
       await queryClient.invalidateQueries({ queryKey: queryKeys.trips.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
 
       if (variables.redirectToList) {
         router.push('/trips');
