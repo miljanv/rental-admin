@@ -10,6 +10,7 @@ import {
 } from '@rental-admin/shared';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 
+import { DateField } from '@/components/common/date-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -121,12 +122,18 @@ export function TachographCalibrationForm({
       <CardContent>
         <form onSubmit={onSubmit} noValidate className="space-y-4">
           <Field id="calibratedAt" label="Datum kalibracije" error={errors.calibratedAt?.message}>
-            <Input
-              id="calibratedAt"
-              type="date"
-              disabled={isPending}
-              aria-invalid={Boolean(errors.calibratedAt)}
-              {...form.register('calibratedAt')}
+            <Controller
+              control={form.control}
+              name="calibratedAt"
+              render={({ field }) => (
+                <DateField
+                  id="calibratedAt"
+                  value={field.value}
+                  onChange={field.onChange}
+                  disabled={isPending}
+                  aria-invalid={Boolean(errors.calibratedAt)}
+                />
+              )}
             />
           </Field>
 

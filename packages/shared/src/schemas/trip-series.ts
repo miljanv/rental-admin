@@ -6,6 +6,7 @@ import { optionalPaymentMethodSchema } from './transaction';
 import {
   optionalId,
   optionalNonNegative,
+  optionalPositiveInt,
   optionalText,
   requiredText,
   tripStatusSchema,
@@ -35,9 +36,12 @@ export const generateTripSeriesSchema = z
     daysOfWeek: z.array(weekdaySchema).max(7).default([]),
     startDate: isoDateSchema,
     endDate: isoDateSchema,
-    referenceNumber: requiredText('RN broj', 60),
+    // Assigned per invoiced trip afterward — left blank, every generated
+    // instance is created without one.
+    referenceNumber: optionalText(60),
     route: requiredText('Relacija', 300),
     country: optionalText(80),
+    passengerCount: optionalPositiveInt('Broj putnika', 500),
     partnerId: optionalId,
     clientName: optionalText(200),
     notes: optionalText(2000),

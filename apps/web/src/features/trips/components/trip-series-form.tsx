@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 
+import { DateField } from '@/components/common/date-field';
 import { MultiSelectField } from '@/components/common/multi-select-field';
 import { PageHeader } from '@/components/common/page-header';
 import { Button } from '@/components/ui/button';
@@ -151,10 +152,32 @@ export function TripSeriesForm() {
               )}
             />
             <Field id="startDate" label="Datum početka" error={errors.startDate?.message}>
-              <Input id="startDate" type="date" disabled={isPending} {...form.register('startDate')} />
+              <Controller
+                control={form.control}
+                name="startDate"
+                render={({ field }) => (
+                  <DateField
+                    id="startDate"
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={isPending}
+                  />
+                )}
+              />
             </Field>
             <Field id="endDate" label="Datum završetka" error={errors.endDate?.message}>
-              <Input id="endDate" type="date" disabled={isPending} {...form.register('endDate')} />
+              <Controller
+                control={form.control}
+                name="endDate"
+                render={({ field }) => (
+                  <DateField
+                    id="endDate"
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={isPending}
+                  />
+                )}
+              />
             </Field>
 
             {frequency === 'WEEKLY' ? (
@@ -196,13 +219,32 @@ export function TripSeriesForm() {
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <Field
               id="referenceNumber"
-              label="RN broj"
+              label="RN broj (opciono)"
               error={errors.referenceNumber?.message as string | undefined}
             >
-              <Input id="referenceNumber" disabled={isPending} {...form.register('referenceNumber')} />
+              <Input
+                id="referenceNumber"
+                placeholder="Obično se dodeljuje po instanci, ne za celu seriju"
+                disabled={isPending}
+                {...form.register('referenceNumber')}
+              />
             </Field>
             <Field id="country" label="Država" error={errors.country?.message as string | undefined}>
               <Input id="country" placeholder="npr. Srbija" disabled={isPending} {...form.register('country')} />
+            </Field>
+            <Field
+              id="passengerCount"
+              label="Broj putnika (opciono)"
+              error={errors.passengerCount?.message as string | undefined}
+            >
+              <Input
+                id="passengerCount"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                disabled={isPending}
+                {...form.register('passengerCount', { valueAsNumber: true })}
+              />
             </Field>
             <div className="sm:col-span-2">
               <Field id="route" label="Relacija" error={errors.route?.message as string | undefined}>

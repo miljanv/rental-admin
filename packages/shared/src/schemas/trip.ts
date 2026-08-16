@@ -51,13 +51,28 @@ export const optionalNonNegative = (label: string, max: number) =>
     return value;
   }, z.number().min(0, `${label} ne može biti negativan.`).max(max, `${label} nije ispravan.`).nullable());
 
+export const optionalPositiveInt = (label: string, max: number) =>
+  z.preprocess((value) => {
+    if (value === '' || value === undefined || value === null) {
+      return null;
+    }
+
+    if (typeof value === 'number' && Number.isNaN(value)) {
+      return null;
+    }
+
+    return value;
+  }, z.number().int(`${label} mora biti ceo broj.`).min(1, `${label} mora biti najmanje 1.`).max(max, `${label} nije ispravan.`).nullable());
+
 export const tripWriteSchema = z
   .object({
-    referenceNumber: requiredText('RN broj', 60),
+    // Assigned once invoicing happens — not a condition for creating a trip.
+    referenceNumber: optionalText(60),
     departureDate: isoDateSchema,
     returnDate: optionalIsoDate,
     country: optionalText(80),
     route: requiredText('Relacija', 300),
+    passengerCount: optionalPositiveInt('Broj putnika', 500),
     partnerId: optionalId,
     clientName: optionalText(200),
     notes: optionalText(2000),

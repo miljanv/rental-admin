@@ -13,6 +13,7 @@ import { Plus, RefreshCw, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
+import { DateField } from '@/components/common/date-field';
 import { ErrorState } from '@/components/common/error-state';
 import { PageHeader } from '@/components/common/page-header';
 import { Button } from '@/components/ui/button';
@@ -195,12 +196,11 @@ export function ContractsList() {
               <Label htmlFor="contract-period-from" className="text-xs">
                 Period od
               </Label>
-              <Input
+              <DateField
                 id="contract-period-from"
-                type="date"
                 value={periodFrom}
-                onChange={(event) => {
-                  setPeriodFrom(event.target.value);
+                onChange={(value) => {
+                  setPeriodFrom(value);
                   setPage(1);
                 }}
                 className="w-full lg:w-40"
@@ -211,12 +211,11 @@ export function ContractsList() {
               <Label htmlFor="contract-period-to" className="text-xs">
                 Period do
               </Label>
-              <Input
+              <DateField
                 id="contract-period-to"
-                type="date"
                 value={periodTo}
-                onChange={(event) => {
-                  setPeriodTo(event.target.value);
+                onChange={(value) => {
+                  setPeriodTo(value);
                   setPage(1);
                 }}
                 className="w-full lg:w-40"

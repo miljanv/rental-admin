@@ -9,6 +9,7 @@ import {
 } from '@rental-admin/shared';
 import { Controller, useForm } from 'react-hook-form';
 
+import { DateField } from '@/components/common/date-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -136,12 +137,18 @@ export function FuelLogForm({ vehicleId, fuelLog, onDone }: FuelLogFormProps) {
             />
 
             <Field id="fueledAt" label="Datum točenja" error={errors.fueledAt?.message}>
-              <Input
-                id="fueledAt"
-                type="date"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.fueledAt)}
-                {...form.register('fueledAt')}
+              <Controller
+                control={form.control}
+                name="fueledAt"
+                render={({ field }) => (
+                  <DateField
+                    id="fueledAt"
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.fueledAt)}
+                  />
+                )}
               />
             </Field>
 

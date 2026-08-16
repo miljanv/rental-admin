@@ -14,6 +14,7 @@ import {
 } from '@rental-admin/shared';
 import { useState } from 'react';
 
+import { DateField } from '@/components/common/date-field';
 import { ErrorState } from '@/components/common/error-state';
 import { MultiSelectField } from '@/components/common/multi-select-field';
 import { PageHeader } from '@/components/common/page-header';
@@ -115,12 +116,10 @@ function BulkUpdateCard({ seriesId }: { seriesId: string }) {
         <form onSubmit={(event) => void handleSubmit(event)} className="space-y-4">
           <div className="max-w-xs space-y-1.5">
             <Label htmlFor="bulk-from-date">Od datuma</Label>
-            <Input
+            <DateField
               id="bulk-from-date"
-              type="date"
               value={fromDate}
-              onChange={(event) => setFromDate(event.target.value)}
-              required
+              onChange={setFromDate}
               disabled={mutation.isPending}
             />
           </div>
@@ -299,12 +298,11 @@ function TerminateSeriesCard({ seriesId, isActive }: { seriesId: string; isActiv
       <CardContent className="space-y-4">
         <div className="max-w-xs space-y-1.5">
           <Label htmlFor="terminate-from-date">Od datuma</Label>
-          <Input
+          <DateField
             id="terminate-from-date"
-            type="date"
             value={fromDate}
-            onChange={(event) => {
-              setFromDate(event.target.value);
+            onChange={(value) => {
+              setFromDate(value);
               setIsConfirming(false);
             }}
             disabled={mutation.isPending}

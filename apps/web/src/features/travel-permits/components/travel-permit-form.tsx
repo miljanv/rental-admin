@@ -7,10 +7,11 @@ import {
   type TravelPermitWriteRequest,
 } from '@rental-admin/shared';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import type { z } from 'zod';
 
+import { DateField } from '@/components/common/date-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -137,12 +138,18 @@ export function TravelPermitForm({ contractId, permit, onDone }: TravelPermitFor
               />
             </Field>
             <Field id="issuedAt" label="Datum izdavanja" error={errors.issuedAt?.message}>
-              <Input
-                id="issuedAt"
-                type="date"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.issuedAt)}
-                {...form.register('issuedAt')}
+              <Controller
+                control={form.control}
+                name="issuedAt"
+                render={({ field }) => (
+                  <DateField
+                    id="issuedAt"
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.issuedAt)}
+                  />
+                )}
               />
             </Field>
           </div>

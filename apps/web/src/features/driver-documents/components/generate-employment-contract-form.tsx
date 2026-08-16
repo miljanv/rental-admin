@@ -4,12 +4,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   EMPLOYMENT_CONTRACT_TYPE_LABELS,
   EMPLOYMENT_CONTRACT_TYPES,
+  type DriverDocumentDto,
   type DriverDto,
   type GenerateEmploymentContractRequest,
 } from '@rental-admin/shared';
 import { FileDown } from 'lucide-react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 
+import { DateField } from '@/components/common/date-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -23,14 +25,17 @@ import {
 } from '@/components/ui/select';
 import { useGenerateEmploymentContract } from '@/features/driver-documents/hooks/use-generate-employment-contract';
 import {
-  emptyEmploymentContractForm,
   employmentContractFormSchema,
+  employmentContractFormValues,
   type EmploymentContractFormValues,
 } from '@/features/driver-documents/schemas/generated-document-form-schema';
 import { cn } from '@/lib/utils';
 
 interface GenerateEmploymentContractFormProps {
   driver: DriverDto;
+  /** The existing Ugovor o radu, if any — pre-fills the form so "izmeni" replaces it instead of duplicating it. */
+  existing?: DriverDocumentDto;
+  onSaved?: () => void;
 }
 
 interface FieldProps {
@@ -50,26 +55,33 @@ function Field({ id, label, error, children }: FieldProps) {
   );
 }
 
-export function GenerateEmploymentContractForm({ driver }: GenerateEmploymentContractFormProps) {
+export function GenerateEmploymentContractForm({
+  driver,
+  existing,
+  onSaved,
+}: GenerateEmploymentContractFormProps) {
+  const isEdit = Boolean(existing);
   const mutation = useGenerateEmploymentContract(driver.id);
   const form = useForm<EmploymentContractFormValues, unknown, GenerateEmploymentContractRequest>({
     resolver: zodResolver(employmentContractFormSchema),
-    defaultValues: emptyEmploymentContractForm(driver),
+    defaultValues: employmentContractFormValues(driver, existing),
   });
   const contractType = useWatch({ control: form.control, name: 'employmentContractType' });
   const errors = form.formState.errors;
 
   const onSubmit = form.handleSubmit(async (values) => {
     await mutation.mutateAsync(values);
+    onSaved?.();
   });
 
   return (
     <Card className="shadow-none">
       <CardHeader>
-        <CardTitle>Ugovor o radu</CardTitle>
+        <CardTitle>{isEdit ? 'Izmena ugovora o radu' : 'Ugovor o radu'}</CardTitle>
         <CardDescription>
-          Popunjava se podacima vozača {driver.firstName} {driver.lastName}. Generisani PDF se čuva
-          u dokumentima.
+          {isEdit
+            ? 'Menja postojeći ugovor — generisani PDF zamenjuje prethodni, broj dokumenta ostaje isti.'
+            : `Popunjava se podacima vozača ${driver.firstName} ${driver.lastName}. Generisani PDF se čuva u dokumentima.`}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -96,15 +108,33 @@ export function GenerateEmploymentContractForm({ driver }: GenerateEmploymentCon
               />
             </Field>
             <Field id="startsAt" label="Datum stupanja" error={errors.startsAt?.message}>
-              <Input id="startsAt" type="date" {...form.register('startsAt')} />
+              <Controller
+                control={form.control}
+                name="startsAt"
+                render={({ field }) => (
+                  <DateField id="startsAt" value={field.value} onChange={field.onChange} />
+                )}
+              />
             </Field>
             {contractType === 'FIXED_TERM' ? (
               <Field id="expiresAt" label="Datum isteka" error={errors.expiresAt?.message}>
-                <Input id="expiresAt" type="date" {...form.register('expiresAt')} />
+                <Controller
+                  control={form.control}
+                  name="expiresAt"
+                  render={({ field }) => (
+                    <DateField id="expiresAt" value={field.value ?? ''} onChange={field.onChange} />
+                  )}
+                />
               </Field>
             ) : null}
             <Field id="signedAt" label="Datum zaključenja" error={errors.signedAt?.message}>
-              <Input id="signedAt" type="date" {...form.register('signedAt')} />
+              <Controller
+                control={form.control}
+                name="signedAt"
+                render={({ field }) => (
+                  <DateField id="signedAt" value={field.value} onChange={field.onChange} />
+                )}
+              />
             </Field>
             <Field id="netSalary" label="Zarada (neto, RSD)" error={errors.netSalary?.message}>
               <Input id="netSalary" type="number" step="0.01" {...form.register('netSalary')} />
@@ -161,7 +191,7 @@ export function GenerateEmploymentContractForm({ driver }: GenerateEmploymentCon
           </Field>
           <Button type="submit" disabled={mutation.isPending}>
             <FileDown className="size-4" aria-hidden />
-            {mutation.isPending ? 'Generisanje…' : 'Generiši PDF'}
+            {mutation.isPending ? 'Generisanje…' : isEdit ? 'Sačuvaj izmene' : 'Generiši PDF'}
           </Button>
         </form>
       </CardContent>

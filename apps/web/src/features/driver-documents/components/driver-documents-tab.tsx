@@ -10,7 +10,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { DeleteDriverDocumentDialog } from '@/features/driver-documents/components/delete-driver-document-dialog';
 import { DriverDocumentForm } from '@/features/driver-documents/components/driver-document-form';
 import { DriverDocumentsTable } from '@/features/driver-documents/components/driver-documents-table';
-import { GenerateDocumentsPanel } from '@/features/driver-documents/components/generate-documents-panel';
 import { useDriverDocuments } from '@/features/driver-documents/hooks/use-driver-documents';
 import { localTodayIso } from '@/features/driver-documents/lib/document';
 
@@ -33,8 +32,6 @@ export function DriverDocumentsTab({ driver }: DriverDocumentsTabProps) {
 
   return (
     <div className="space-y-6">
-      <GenerateDocumentsPanel driver={driver} />
-
       {isFormOpen ? (
         <DriverDocumentForm
           key={editing?.id ?? 'new'}
@@ -52,8 +49,8 @@ export function DriverDocumentsTab({ driver }: DriverDocumentsTabProps) {
           <div>
             <CardTitle>Dokumenti</CardTitle>
             <CardDescription>
-              Ugovor, obrazac MA, lekarski, akreditacija, vozačka dozvola i licenca, sa rokovima
-              važenja.
+              Svi dokumenti vozača sa rokovima važenja. Ugovor o radu i obrazac MA se generišu sa
+              Osnovnih podataka — ovde se mogu i ručno doraditi.
             </CardDescription>
           </div>
           {isFormOpen ? null : (

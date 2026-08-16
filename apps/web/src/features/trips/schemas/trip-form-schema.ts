@@ -10,6 +10,7 @@ export const EMPTY_TRIP_FORM: TripFormValues = {
   returnDate: '',
   country: '',
   route: '',
+  passengerCount: '',
   partnerId: '',
   clientName: '',
   notes: '',

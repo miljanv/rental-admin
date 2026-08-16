@@ -9,6 +9,7 @@ const record: DriverRecord = {
   jmbg: '0101990710123',
   dateOfBirth: new Date('1990-01-01T00:00:00.000Z'),
   residencePlace: 'Novi Sad',
+  residenceAddress: null,
   educationLevel: 'SSS',
   idCardNumber: '123456789',
   drivingLicenseNumber: 'NS-123456',
@@ -18,6 +19,7 @@ const record: DriverRecord = {
   email: 'marko@example.com',
   jobTitle: 'Vozač',
   status: 'ACTIVE',
+  employmentType: 'ACTUAL',
   createdAt: new Date('2026-08-14T10:00:00.000Z'),
   updatedAt: new Date('2026-08-14T10:00:00.000Z'),
 };

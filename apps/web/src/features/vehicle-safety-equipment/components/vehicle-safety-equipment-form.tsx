@@ -10,6 +10,7 @@ import {
 } from '@rental-admin/shared';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 
+import { DateField } from '@/components/common/date-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -161,12 +162,18 @@ export function VehicleSafetyEquipmentForm({
             />
 
             <Field id="checkedAt" label="Datum provere" error={errors.checkedAt?.message}>
-              <Input
-                id="checkedAt"
-                type="date"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.checkedAt)}
-                {...form.register('checkedAt')}
+              <Controller
+                control={form.control}
+                name="checkedAt"
+                render={({ field }) => (
+                  <DateField
+                    id="checkedAt"
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.checkedAt)}
+                  />
+                )}
               />
             </Field>
 
@@ -176,14 +183,18 @@ export function VehicleSafetyEquipmentForm({
                 label="Datum isteka (piše na kutiji)"
                 error={errors.expiresAt?.message}
               >
-                <Input
-                  id="expiresAt"
-                  type="date"
-                  disabled={isPending}
-                  aria-invalid={Boolean(errors.expiresAt)}
-                  {...form.register('expiresAt', {
-                    setValueAs: (value: string) => (value ? value : null),
-                  })}
+                <Controller
+                  control={form.control}
+                  name="expiresAt"
+                  render={({ field }) => (
+                    <DateField
+                      id="expiresAt"
+                      value={field.value ?? ''}
+                      onChange={(value) => field.onChange(value ? value : null)}
+                      disabled={isPending}
+                      aria-invalid={Boolean(errors.expiresAt)}
+                    />
+                  )}
                 />
               </Field>
             ) : (

@@ -80,10 +80,24 @@ function VehicleOverview({ vehicle }: { vehicle: VehicleDto }) {
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <DetailItem label="Marka" value={vehicle.make} />
             <DetailItem label="Model" value={vehicle.model} />
-            <DetailItem label="Godište" value={String(vehicle.year)} />
             <DetailItem label="Registarske tablice" value={vehicle.licensePlate} />
-            <DetailItem label="VIN" value={vehicle.vin} />
-            <DetailItem label="Broj sedišta" value={String(vehicle.seatCount)} />
+            <DetailItem label="Broj šasije (VIN)" value={vehicle.vin} />
+            <DetailItem label="Broj motora" value={vehicle.engineNumber ?? '—'} />
+            <DetailItem
+              label="Snaga motora"
+              value={vehicle.enginePower != null ? `${vehicle.enginePower} kW` : '—'}
+            />
+            <DetailItem label="Godina proizvodnje" value={String(vehicle.year)} />
+            <DetailItem
+              label="Zapremina motora"
+              value={vehicle.engineDisplacement != null ? `${vehicle.engineDisplacement} cm³` : '—'}
+            />
+            <DetailItem label="Masa" value={vehicle.mass != null ? `${vehicle.mass} kg` : '—'} />
+            <DetailItem label="Broj mesta za sedenje" value={String(vehicle.seatCount)} />
+            <DetailItem
+              label="Broj mesta za stajanje"
+              value={vehicle.standingCapacity != null ? String(vehicle.standingCapacity) : '—'}
+            />
           </dl>
         </CardContent>
       </Card>
@@ -107,12 +121,21 @@ function VehicleOverview({ vehicle }: { vehicle: VehicleDto }) {
       <Card className="shadow-none">
         <CardHeader>
           <CardTitle>Stanje</CardTitle>
+          <CardDescription>Početno stanje je fiksno od ulaska vozila u firmu.</CardDescription>
         </CardHeader>
         <CardContent>
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <DetailItem
+              label="Početna kilometraža"
+              value={`${vehicle.initialMileageKm.toLocaleString('sr-RS')} km`}
+            />
+            <DetailItem
               label="Trenutna kilometraža"
               value={`${vehicle.currentMileage.toLocaleString('sr-RS')} km`}
+            />
+            <DetailItem
+              label="Pređeno u floti"
+              value={`${(vehicle.currentMileage - vehicle.initialMileageKm).toLocaleString('sr-RS')} km`}
             />
           </dl>
         </CardContent>

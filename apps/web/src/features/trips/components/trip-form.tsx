@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 
+import { DateField } from '@/components/common/date-field';
 import { MultiSelectField } from '@/components/common/multi-select-field';
 import { PageHeader } from '@/components/common/page-header';
 import { Button } from '@/components/ui/button';
@@ -123,12 +124,17 @@ export function TripForm({ trip }: TripFormProps) {
         <Card className="shadow-none">
           <CardHeader>
             <CardTitle>Osnovni podaci</CardTitle>
-            <CardDescription>RN broj, period i relacija.</CardDescription>
+            <CardDescription>Period, relacija i broj putnika. RN broj se dodeljuje naknadno.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            <Field id="referenceNumber" label="RN broj" error={errors.referenceNumber?.message}>
+            <Field
+              id="referenceNumber"
+              label="RN broj (opciono)"
+              error={errors.referenceNumber?.message}
+            >
               <Input
                 id="referenceNumber"
+                placeholder="Dodeljuje se pri fakturisanju"
                 disabled={isPending}
                 aria-invalid={Boolean(errors.referenceNumber)}
                 {...form.register('referenceNumber')}
@@ -144,21 +150,48 @@ export function TripForm({ trip }: TripFormProps) {
               />
             </Field>
             <Field id="departureDate" label="Datum polaska" error={errors.departureDate?.message}>
-              <Input
-                id="departureDate"
-                type="date"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.departureDate)}
-                {...form.register('departureDate')}
+              <Controller
+                control={form.control}
+                name="departureDate"
+                render={({ field }) => (
+                  <DateField
+                    id="departureDate"
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.departureDate)}
+                  />
+                )}
               />
             </Field>
             <Field id="returnDate" label="Datum povratka" error={errors.returnDate?.message}>
+              <Controller
+                control={form.control}
+                name="returnDate"
+                render={({ field }) => (
+                  <DateField
+                    id="returnDate"
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.returnDate)}
+                  />
+                )}
+              />
+            </Field>
+            <Field
+              id="passengerCount"
+              label="Broj putnika (opciono)"
+              error={errors.passengerCount?.message as string | undefined}
+            >
               <Input
-                id="returnDate"
-                type="date"
+                id="passengerCount"
+                type="number"
+                inputMode="numeric"
+                min={1}
                 disabled={isPending}
-                aria-invalid={Boolean(errors.returnDate)}
-                {...form.register('returnDate')}
+                aria-invalid={Boolean(errors.passengerCount)}
+                {...form.register('passengerCount', { valueAsNumber: true })}
               />
             </Field>
             <div className="sm:col-span-2">

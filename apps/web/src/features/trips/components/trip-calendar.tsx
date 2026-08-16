@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select';
 import { TRIP_STATUS_CLASS } from '@/features/trips/components/trip-status-badge';
 import { useTrips } from '@/features/trips/hooks/use-trips';
+import { tripLabel } from '@/features/trips/lib/trip';
 import { formatMonthYear } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -191,7 +192,7 @@ export function TripCalendar() {
                       <Link
                         key={trip.id}
                         href={`/trips/${trip.id}`}
-                        title={`${trip.referenceNumber} — ${trip.route}`}
+                        title={tripLabel(trip)}
                         className={cn(
                           'block truncate rounded px-1 py-0.5 text-[10px] leading-tight',
                           TRIP_STATUS_CLASS[trip.status],

@@ -7,15 +7,19 @@ import {
   DRIVING_LICENSE_CATEGORIES,
   DRIVING_LICENSE_CATEGORY_LABELS,
   EDUCATION_LEVELS,
+  EMPLOYMENT_TYPE_LABELS,
+  EMPLOYMENT_TYPES,
   ID_CARD_NUMBER_LENGTH,
   JMBG_LENGTH,
   type DriverDto,
+  type DriverWriteRequest,
   type DrivingLicenseCategory,
 } from '@rental-admin/shared';
 import Link from 'next/link';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 
 import { CharacterCounter } from '@/components/common/character-counter';
+import { DateField } from '@/components/common/date-field';
 import { PageHeader } from '@/components/common/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -79,7 +83,7 @@ export function DriverForm({ driver }: DriverFormProps) {
   const updateMutation = useUpdateDriver(driver?.id ?? '');
   const isPending = createMutation.isPending || updateMutation.isPending;
 
-  const form = useForm<DriverFormValues>({
+  const form = useForm<DriverFormValues, unknown, DriverWriteRequest>({
     resolver: zodResolver(driverFormSchema),
     defaultValues: driver ? toDriverFormValues(driver) : EMPTY_DRIVER_FORM,
   });
@@ -158,12 +162,18 @@ export function DriverForm({ driver }: DriverFormProps) {
               />
             </Field>
             <Field id="dateOfBirth" label="Datum rođenja" error={errors.dateOfBirth?.message}>
-              <Input
-                id="dateOfBirth"
-                type="date"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.dateOfBirth)}
-                {...form.register('dateOfBirth')}
+              <Controller
+                control={form.control}
+                name="dateOfBirth"
+                render={({ field }) => (
+                  <DateField
+                    id="dateOfBirth"
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.dateOfBirth)}
+                  />
+                )}
               />
             </Field>
             <Field
@@ -176,6 +186,19 @@ export function DriverForm({ driver }: DriverFormProps) {
                 disabled={isPending}
                 aria-invalid={Boolean(errors.residencePlace)}
                 {...form.register('residencePlace')}
+              />
+            </Field>
+            <Field
+              id="residenceAddress"
+              label="Adresa (ulica i broj, opciono)"
+              error={errors.residenceAddress?.message as string | undefined}
+            >
+              <Input
+                id="residenceAddress"
+                placeholder="npr. Cara Dušana 12"
+                disabled={isPending}
+                aria-invalid={Boolean(errors.residenceAddress)}
+                {...form.register('residenceAddress')}
               />
             </Field>
             <Controller
@@ -323,7 +346,7 @@ export function DriverForm({ driver }: DriverFormProps) {
                 {...form.register('phone')}
               />
             </Field>
-            <Field id="email" label="Email" error={errors.email?.message}>
+            <Field id="email" label="Email (opciono)" error={errors.email?.message}>
               <Input
                 id="email"
                 type="email"
@@ -354,6 +377,30 @@ export function DriverForm({ driver }: DriverFormProps) {
                       {DRIVER_STATUSES.map((status) => (
                         <SelectItem key={status} value={status}>
                           {DRIVER_STATUS_LABELS[status]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              )}
+            />
+            <Controller
+              control={form.control}
+              name="employmentType"
+              render={({ field }) => (
+                <Field
+                  id="employmentType"
+                  label="Tip zaposlenja"
+                  error={errors.employmentType?.message}
+                >
+                  <Select value={field.value} onValueChange={field.onChange} disabled={isPending}>
+                    <SelectTrigger id="employmentType" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EMPLOYMENT_TYPES.map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {EMPLOYMENT_TYPE_LABELS[value]}
                         </SelectItem>
                       ))}
                     </SelectContent>

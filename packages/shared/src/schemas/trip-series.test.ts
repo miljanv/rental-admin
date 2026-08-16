@@ -44,6 +44,21 @@ describe('generateTripSeriesSchema', () => {
 
     expect(result.success).toBe(true);
   });
+
+  it('accepts a series without a reference number — each instance gets its own later', () => {
+    const { referenceNumber: _referenceNumber, ...rest } = validSeries;
+    const result = generateTripSeriesSchema.safeParse(rest);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.referenceNumber).toBeNull();
+  });
+
+  it('accepts an optional passenger count', () => {
+    const result = generateTripSeriesSchema.safeParse({ ...validSeries, passengerCount: 45 });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.passengerCount).toBe(45);
+  });
 });
 
 describe('bulkUpdateTripSeriesSchema', () => {

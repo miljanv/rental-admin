@@ -4,10 +4,10 @@ import { defaultFinanceReportRange } from '@rental-admin/shared';
 import { Building2, MapPin, RefreshCw, Truck } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import { DateField } from '@/components/common/date-field';
 import { ErrorState } from '@/components/common/error-state';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ExpenseCategoryPie } from '@/features/transactions/components/expense-category-pie';
 import { FinanceExportMenu } from '@/features/transactions/components/finance-export-menu';
@@ -38,23 +38,13 @@ export function FinanceOverview({ onSettleAdvance }: FinanceOverviewProps) {
           <Label htmlFor="report-from" className="text-xs">
             Od
           </Label>
-          <Input
-            id="report-from"
-            type="date"
-            value={from}
-            onChange={(event) => setFrom(event.target.value)}
-          />
+          <DateField id="report-from" value={from} onChange={setFrom} />
         </div>
         <div className="space-y-1.5 sm:w-40">
           <Label htmlFor="report-to" className="text-xs">
             Do
           </Label>
-          <Input
-            id="report-to"
-            type="date"
-            value={to}
-            onChange={(event) => setTo(event.target.value)}
-          />
+          <DateField id="report-to" value={to} onChange={setTo} />
         </div>
         <Button
           variant="outline"

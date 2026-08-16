@@ -1,8 +1,8 @@
-import { driverWriteSchema, type DriverWriteRequest } from '@rental-admin/shared';
+import { driverWriteSchema, type DriverWriteInput } from '@rental-admin/shared';
 
 export const driverFormSchema = driverWriteSchema;
 
-export type DriverFormValues = DriverWriteRequest;
+export type DriverFormValues = DriverWriteInput;
 
 export const EMPTY_DRIVER_FORM: DriverFormValues = {
   firstName: '',
@@ -10,6 +10,7 @@ export const EMPTY_DRIVER_FORM: DriverFormValues = {
   jmbg: '',
   dateOfBirth: '',
   residencePlace: '',
+  residenceAddress: '',
   educationLevel: '',
   idCardNumber: '',
   drivingLicenseNumber: '',
@@ -19,4 +20,5 @@ export const EMPTY_DRIVER_FORM: DriverFormValues = {
   email: '',
   jobTitle: '',
   status: 'ACTIVE',
+  employmentType: 'ACTUAL',
 };

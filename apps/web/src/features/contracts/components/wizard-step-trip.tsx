@@ -3,6 +3,7 @@
 import type { ContractWriteRequest } from '@rental-admin/shared';
 import { Controller, useFormContext, type UseFormReturn } from 'react-hook-form';
 
+import { DateField } from '@/components/common/date-field';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -40,7 +41,13 @@ export function WizardStepTrip() {
       </CardHeader>
       <CardContent className="grid gap-4 sm:grid-cols-2">
         <Field id="conclusionDate" label="Datum zaključenja" error={errors.conclusionDate?.message}>
-          <Input id="conclusionDate" type="date" {...form.register('conclusionDate')} />
+          <Controller
+            control={form.control}
+            name="conclusionDate"
+            render={({ field }) => (
+              <DateField id="conclusionDate" value={field.value} onChange={field.onChange} />
+            )}
+          />
         </Field>
         <Field id="passengerCount" label="Broj putnika" error={errors.passengerCount?.message}>
           <Input
@@ -52,10 +59,22 @@ export function WizardStepTrip() {
           />
         </Field>
         <Field id="serviceStartDate" label="Početak usluge" error={errors.serviceStartDate?.message}>
-          <Input id="serviceStartDate" type="date" {...form.register('serviceStartDate')} />
+          <Controller
+            control={form.control}
+            name="serviceStartDate"
+            render={({ field }) => (
+              <DateField id="serviceStartDate" value={field.value} onChange={field.onChange} />
+            )}
+          />
         </Field>
         <Field id="serviceEndDate" label="Kraj usluge" error={errors.serviceEndDate?.message}>
-          <Input id="serviceEndDate" type="date" {...form.register('serviceEndDate')} />
+          <Controller
+            control={form.control}
+            name="serviceEndDate"
+            render={({ field }) => (
+              <DateField id="serviceEndDate" value={field.value} onChange={field.onChange} />
+            )}
+          />
         </Field>
         <div className="sm:col-span-2">
           <Field id="route" label="Relacija" error={errors.route?.message}>

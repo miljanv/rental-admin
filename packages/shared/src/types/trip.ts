@@ -86,11 +86,13 @@ export interface TripSeriesDto {
 
 export interface TripDto {
   id: string;
-  referenceNumber: string;
+  /** Assigned once invoicing happens — most trips start out without one. */
+  referenceNumber: string | null;
   departureDate: string;
   returnDate: string | null;
   country: string | null;
   route: string;
+  passengerCount: number | null;
   partnerId: string | null;
   partner: TripPartnerDto | null;
   clientName: string | null;

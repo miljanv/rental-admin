@@ -2,7 +2,8 @@ import { tripClientDisplayName, type TripDto, type TripWriteRequest } from '@ren
 
 export { tripClientDisplayName };
 
-export const tripLabel = (trip: TripDto): string => `${trip.referenceNumber} — ${trip.route}`;
+export const tripLabel = (trip: TripDto): string =>
+  `${trip.referenceNumber ?? 'Bez RN broja'} — ${trip.route}`;
 
 export const toTripFormValues = (trip: TripDto): TripWriteRequest => ({
   referenceNumber: trip.referenceNumber,
@@ -10,6 +11,7 @@ export const toTripFormValues = (trip: TripDto): TripWriteRequest => ({
   returnDate: trip.returnDate,
   country: trip.country,
   route: trip.route,
+  passengerCount: trip.passengerCount,
   partnerId: trip.partnerId,
   clientName: trip.clientName,
   notes: trip.notes,

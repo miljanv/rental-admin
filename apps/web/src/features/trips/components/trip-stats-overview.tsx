@@ -4,10 +4,10 @@ import { defaultTripStatsRange } from '@rental-admin/shared';
 import { Building2, MapPin, RefreshCw } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import { DateField } from '@/components/common/date-field';
 import { ErrorState } from '@/components/common/error-state';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { TripMonthlyChart } from '@/features/trips/components/trip-monthly-chart';
 import { TripPaymentBreakdown } from '@/features/trips/components/trip-payment-breakdown';
@@ -31,13 +31,13 @@ export function TripStatsOverview() {
           <Label htmlFor="stats-from" className="text-xs">
             Od
           </Label>
-          <Input id="stats-from" type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
+          <DateField id="stats-from" value={from} onChange={setFrom} />
         </div>
         <div className="space-y-1.5 sm:w-40">
           <Label htmlFor="stats-to" className="text-xs">
             Do
           </Label>
-          <Input id="stats-to" type="date" value={to} onChange={(event) => setTo(event.target.value)} />
+          <DateField id="stats-to" value={to} onChange={setTo} />
         </div>
         <Button
           variant="outline"

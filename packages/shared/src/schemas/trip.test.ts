@@ -55,6 +55,33 @@ describe('tripWriteSchema', () => {
 
     expect(result.success).toBe(false);
   });
+
+  it('accepts a trip without a reference number — it is assigned at invoicing time', () => {
+    const { referenceNumber: _referenceNumber, ...rest } = validTrip;
+    const result = tripWriteSchema.safeParse(rest);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.referenceNumber).toBeNull();
+  });
+
+  it('normalizes an empty passenger count to null', () => {
+    const result = tripWriteSchema.safeParse({ ...validTrip, passengerCount: '' });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.passengerCount).toBeNull();
+  });
+
+  it('accepts a valid passenger count', () => {
+    const result = tripWriteSchema.safeParse({ ...validTrip, passengerCount: 45 });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.passengerCount).toBe(45);
+  });
+
+  it('rejects a zero or negative passenger count', () => {
+    expect(tripWriteSchema.safeParse({ ...validTrip, passengerCount: 0 }).success).toBe(false);
+    expect(tripWriteSchema.safeParse({ ...validTrip, passengerCount: -1 }).success).toBe(false);
+  });
 });
 
 describe('listTripsQuerySchema', () => {

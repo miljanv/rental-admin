@@ -1,6 +1,6 @@
 'use client';
 
-import type { DriverDto } from '@rental-admin/shared';
+import { EMPLOYMENT_TYPE_LABELS, type DriverDto } from '@rental-admin/shared';
 import { Clock, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -61,10 +61,16 @@ function ComingSoon({ title }: { title: string }) {
   );
 }
 
-function DriverOverview({ driver }: { driver: DriverDto }) {
+function DriverOverview({
+  driver,
+  onNavigateToDocuments,
+}: {
+  driver: DriverDto;
+  onNavigateToDocuments: () => void;
+}) {
   return (
     <div className="space-y-6">
-      <DriverStatusOverview driverId={driver.id} />
+      <DriverStatusOverview driver={driver} onNavigateToDocuments={onNavigateToDocuments} />
 
       <Card className="shadow-none">
         <CardHeader>
@@ -78,6 +84,7 @@ function DriverOverview({ driver }: { driver: DriverDto }) {
             <DetailItem label="JMBG" value={driver.jmbg} />
             <DetailItem label="Datum rođenja" value={formatDate(driver.dateOfBirth)} />
             <DetailItem label="Mesto prebivališta" value={driver.residencePlace} />
+            <DetailItem label="Adresa" value={driver.residenceAddress ?? '—'} />
             <DetailItem label="Stručna sprema" value={driver.educationLevel} />
             <DetailItem label="Broj lične karte" value={driver.idCardNumber} />
           </dl>
@@ -104,8 +111,9 @@ function DriverOverview({ driver }: { driver: DriverDto }) {
         <CardContent>
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <DetailItem label="Telefon" value={driver.phone} />
-            <DetailItem label="Email" value={driver.email} />
+            <DetailItem label="Email" value={driver.email ?? '—'} />
             <DetailItem label="Radno mesto" value={driver.jobTitle} />
+            <DetailItem label="Tip zaposlenja" value={EMPLOYMENT_TYPE_LABELS[driver.employmentType]} />
           </dl>
         </CardContent>
       </Card>
@@ -188,7 +196,9 @@ export function DriverProfile({ driverId }: DriverProfileProps) {
         ))}
       </div>
 
-      {activeTab === 'overview' ? <DriverOverview driver={driver} /> : null}
+      {activeTab === 'overview' ? (
+        <DriverOverview driver={driver} onNavigateToDocuments={() => setActiveTab('documents')} />
+      ) : null}
       {activeTab === 'documents' ? <DriverDocumentsTab driver={driver} /> : null}
       {activeTab === 'work' ? <DriverWorkTab driverId={driver.id} /> : null}
       {activeTab === 'absences' ? <AbsenceAttestationsTab driver={driver} /> : null}

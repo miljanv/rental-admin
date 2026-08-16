@@ -60,15 +60,23 @@ model Driver {
   jmbg                   String                     @unique
   dateOfBirth            DateTime                   @db.Date
   residencePlace         String
+  /// Street and house number — captured once here so the employment
+  /// contract / MA form generators can auto-fill it instead of asking
+  /// every single time (residencePlace alone already does this for town).
+  residenceAddress       String?
   educationLevel         String
   idCardNumber           String
   drivingLicenseNumber   String
   drivingLicenseCategory String
   licenseNumber          String
   phone                  String
-  email                  String
+  email                  String?
   jobTitle               String
   status                 DriverStatus               @default(ACTIVE)
+  /// Actually employed vs. nominally employed for tax/paperwork purposes —
+  /// see EmploymentType. Drives generated-document naming and how often
+  /// those documents realistically get regenerated.
+  employmentType         EmploymentType             @default(ACTUAL)
   createdAt              DateTime                   @default(now())
   updatedAt              DateTime                   @updatedAt
   documents              DriverDocument[]
@@ -97,6 +105,14 @@ enum EmploymentContractType {
   INDEFINITE
 }
 
+/// ACTUAL: genuinely employed, paperwork rarely changes. NOMINAL: employed
+/// on paper only for a specific trip/engagement — new documents almost
+/// every time they go out.
+enum EmploymentType {
+  ACTUAL
+  NOMINAL
+}
+
 /// A scanned driver document with optional validity dates. Field names are
 /// English; the admin UI presents Serbian labels.
 model DriverDocument {
@@ -108,6 +124,11 @@ model DriverDocument {
   expiresAt              DateTime?               @db.Date
   employmentContractType EmploymentContractType?
   fileId                 String?                 @unique
+  /// The exact form payload last used to generate this document (Ugovor o
+  /// radu / Obrazac MA only) — lets the "izmeni" flow reopen the generator
+  /// pre-filled instead of starting from a blank form. Null for scanned
+  /// document types, which have no generator.
+  generationData         Json?
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
 
@@ -165,6 +186,7 @@ enum VehicleType {
   BUS
   VAN
   MIDIBUS
+  CAR
 }
 
 enum VehicleFuelType {
@@ -192,20 +214,29 @@ enum VehicleStatus {
 /// tachograph calibration, safety equipment, fuel, maintenance, documents)
 /// attach to this model as they are built.
 model Vehicle {
-  id             String          @id @default(cuid())
-  make           String
-  model          String
-  year           Int
-  licensePlate   String          @unique
-  vin            String          @unique
-  seatCount      Int
-  type           VehicleType
-  fuelType       VehicleFuelType
-  tachographType TachographType
-  status         VehicleStatus   @default(ACTIVE)
-  currentMileage Int
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id                 String          @id @default(cuid())
+  make               String
+  model              String
+  year               Int
+  licensePlate       String          @unique
+  vin                String          @unique
+  engineNumber       String?
+  enginePower        Float?
+  engineDisplacement Int?
+  mass               Float?
+  seatCount          Int
+  standingCapacity   Int?
+  type               VehicleType
+  fuelType           VehicleFuelType
+  tachographType     TachographType
+  status             VehicleStatus   @default(ACTIVE)
+  /// Odometer reading at the moment the vehicle entered the fleet — set once
+  /// at creation and never changed again. The baseline for "km driven since
+  /// intake" statistics; `currentMileage` is the one that moves.
+  initialMileageKm   Int
+  currentMileage     Int
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
 
   inspections     VehicleInspection[]
   calibrations    TachographCalibration[]
@@ -680,11 +711,13 @@ model TripSeries {
 model Trip {
   id              String         @id @default(cuid())
   /// "RN broj" — the operator's own trip reference/registration number.
-  referenceNumber String
+  /// Assigned once invoicing happens, so it's null on most newly-created trips.
+  referenceNumber String?
   departureDate   DateTime       @db.Date
   returnDate      DateTime?      @db.Date
   country         String?
   route           String
+  passengerCount  Int?
   partnerId       String?
   /// Free-text client name, used when the client isn't a registered Partner.
   clientName      String?

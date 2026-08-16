@@ -13,6 +13,7 @@ import {
 import { Plus, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { DateField } from '@/components/common/date-field';
 import { ErrorState } from '@/components/common/error-state';
 import { PageHeader } from '@/components/common/page-header';
 import { Button } from '@/components/ui/button';
@@ -218,12 +219,11 @@ export function FinanceManager() {
               <Label htmlFor="from" className="text-xs">
                 Od
               </Label>
-              <Input
+              <DateField
                 id="from"
-                type="date"
                 value={from}
-                onChange={(event) => {
-                  setFrom(event.target.value);
+                onChange={(value) => {
+                  setFrom(value);
                   setPage(1);
                 }}
               />
@@ -233,12 +233,11 @@ export function FinanceManager() {
               <Label htmlFor="to" className="text-xs">
                 Do
               </Label>
-              <Input
+              <DateField
                 id="to"
-                type="date"
                 value={to}
-                onChange={(event) => {
-                  setTo(event.target.value);
+                onChange={(value) => {
+                  setTo(value);
                   setPage(1);
                 }}
               />

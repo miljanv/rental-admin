@@ -20,13 +20,23 @@ import { deleteFilesForVehicle as deleteSafetyEquipmentFiles } from './vehicle-s
 
 type VehicleOrderBy = Partial<Record<VehicleSortField, SortOrder>>;
 
+// `initialMileageKm` is deliberately excluded here — it's the odometer
+// reading at intake and must never change after the vehicle is created.
+// `createVehicle` sets it explicitly once; `updateVehicle` reuses this
+// builder as-is, so no update request can touch it no matter what the
+// client sends.
 const toWriteData = (input: VehicleWriteRequest) => ({
   make: input.make,
   model: input.model,
   year: input.year,
   licensePlate: input.licensePlate,
   vin: input.vin,
+  engineNumber: input.engineNumber,
+  enginePower: input.enginePower,
+  engineDisplacement: input.engineDisplacement,
+  mass: input.mass,
   seatCount: input.seatCount,
+  standingCapacity: input.standingCapacity,
   type: input.type,
   fuelType: input.fuelType,
   tachographType: input.tachographType,
@@ -123,7 +133,9 @@ export const getVehicle = async (id: string): Promise<VehicleDto> => {
 
 export const createVehicle = async (input: VehicleWriteRequest): Promise<VehicleDto> => {
   try {
-    const record = await prisma.vehicle.create({ data: toWriteData(input) });
+    const record = await prisma.vehicle.create({
+      data: { ...toWriteData(input), initialMileageKm: input.initialMileageKm },
+    });
     logger.info('Vehicle created', { vehicleId: record.id, licensePlate: record.licensePlate });
     return toVehicleDto(record);
   } catch (error) {

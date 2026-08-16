@@ -9,10 +9,10 @@ import {
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 
+import { DateField } from '@/components/common/date-field';
 import { ErrorState } from '@/components/common/error-state';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -72,25 +72,13 @@ export function FuelLogsTab({ vehicleId }: FuelLogsTabProps) {
           <Label htmlFor="fuel-from" className="text-xs">
             Od
           </Label>
-          <Input
-            id="fuel-from"
-            type="date"
-            value={from}
-            onChange={(event) => setFrom(event.target.value)}
-            className="w-full sm:w-40"
-          />
+          <DateField id="fuel-from" value={from} onChange={setFrom} className="w-full sm:w-40" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="fuel-to" className="text-xs">
             Do
           </Label>
-          <Input
-            id="fuel-to"
-            type="date"
-            value={to}
-            onChange={(event) => setTo(event.target.value)}
-            className="w-full sm:w-40"
-          />
+          <DateField id="fuel-to" value={to} onChange={setTo} className="w-full sm:w-40" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="fuel-type-filter" className="text-xs">

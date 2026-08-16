@@ -3,6 +3,7 @@ import {
   DEFAULT_DRIVER_DUTIES,
   generateEmploymentContractSchema,
   generateMaFormSchema,
+  type DriverDocumentDto,
   type DriverDto,
   type GenerateEmploymentContractInput,
   type GenerateMaFormInput,
@@ -27,17 +28,29 @@ export const emptyEmploymentContractForm = (driver: DriverDto): EmploymentContra
   holidayAllowance: 500,
   workplace: `${COMPANY.city}, ${COMPANY.streetAddress}`,
   municipality: driver.residencePlace,
-  residenceStreet: '',
+  residenceStreet: driver.residenceAddress ?? '',
   trialPeriodDays: 5,
   weeklyHours: 40,
   jobDescription: DEFAULT_DRIVER_DUTIES,
 });
 
+/**
+ * Pre-fills from the last submitted payload when correcting an existing
+ * document, so "izmeni" never means retyping the whole contract from
+ * scratch — falls back to fresh driver-derived defaults otherwise.
+ */
+export const employmentContractFormValues = (
+  driver: DriverDto,
+  existing?: DriverDocumentDto,
+): EmploymentContractFormValues =>
+  (existing?.generationData as EmploymentContractFormValues | undefined) ??
+  emptyEmploymentContractForm(driver);
+
 export const emptyMaForm = (driver: DriverDto): MaFormValues => ({
   gender: 'MALE',
   parentName: '',
   municipality: driver.residencePlace,
-  residenceStreet: '',
+  residenceStreet: driver.residenceAddress ?? '',
   apartment: '',
   citizenship: COMPANY.country,
   insuranceStartDate: localTodayIso(),
@@ -51,3 +64,7 @@ export const emptyMaForm = (driver: DriverDto): MaFormValues => ({
   activityCode: '',
   activity: COMPANY.activity,
 });
+
+/** Same idea as `employmentContractFormValues`, for Obrazac MA. */
+export const maFormValues = (driver: DriverDto, existing?: DriverDocumentDto): MaFormValues =>
+  (existing?.generationData as MaFormValues | undefined) ?? emptyMaForm(driver);

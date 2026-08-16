@@ -15,6 +15,7 @@ const driver: DriverRecord = {
   jmbg: '2209974800091',
   dateOfBirth: new Date('1974-09-22T00:00:00.000Z'),
   residencePlace: 'Novi Sad',
+  residenceAddress: 'Bulevar oslobođenja 1',
   educationLevel: 'III SSS',
   idCardNumber: '005026603',
   drivingLicenseNumber: 'NS-123456',
@@ -24,6 +25,7 @@ const driver: DriverRecord = {
   email: 'milan@example.com',
   jobTitle: 'vozač autobusa u zemlji i inostranstvu',
   status: 'ACTIVE',
+  employmentType: 'ACTUAL',
   createdAt: new Date('2026-08-14T10:00:00.000Z'),
   updatedAt: new Date('2026-08-14T10:00:00.000Z'),
 };

@@ -9,9 +9,9 @@ import {
 } from '@rental-admin/shared';
 import { Controller, useForm } from 'react-hook-form';
 
+import { DateField } from '@/components/common/date-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -125,14 +125,18 @@ export function VehicleDocumentForm({ vehicleId, document, onDone }: VehicleDocu
             />
 
             <Field id="issuedAt" label="Datum izdavanja" error={errors.issuedAt?.message}>
-              <Input
-                id="issuedAt"
-                type="date"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.issuedAt)}
-                {...form.register('issuedAt', {
-                  setValueAs: (value: string) => (value ? value : null),
-                })}
+              <Controller
+                control={form.control}
+                name="issuedAt"
+                render={({ field }) => (
+                  <DateField
+                    id="issuedAt"
+                    value={field.value ?? ''}
+                    onChange={(value) => field.onChange(value ? value : null)}
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.issuedAt)}
+                  />
+                )}
               />
             </Field>
           </div>

@@ -9,6 +9,7 @@ import {
 import { FileDown } from 'lucide-react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 
+import { DateField } from '@/components/common/date-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,7 @@ import {
 
 interface GenerateAbsenceAttestationFormProps {
   driverId: string;
+  onSaved?: () => void;
 }
 
 interface FieldProps {
@@ -48,7 +50,10 @@ function Field({ id, label, error, children }: FieldProps) {
   );
 }
 
-export function GenerateAbsenceAttestationForm({ driverId }: GenerateAbsenceAttestationFormProps) {
+export function GenerateAbsenceAttestationForm({
+  driverId,
+  onSaved,
+}: GenerateAbsenceAttestationFormProps) {
   const mutation = useGenerateAbsenceAttestation(driverId);
   const form = useForm<AbsenceAttestationFormValues, unknown, GenerateAbsenceAttestationRequest>({
     resolver: zodResolver(absenceAttestationFormSchema),
@@ -59,6 +64,7 @@ export function GenerateAbsenceAttestationForm({ driverId }: GenerateAbsenceAtte
 
   const onSubmit = form.handleSubmit(async (values) => {
     await mutation.mutateAsync(values);
+    onSaved?.();
   });
 
   return (
@@ -107,14 +113,26 @@ export function GenerateAbsenceAttestationForm({ driverId }: GenerateAbsenceAtte
               <Input id="place" {...form.register('place')} />
             </Field>
             <Field id="issuedAt" label="Datum izdavanja" error={errors.issuedAt?.message}>
-              <Input id="issuedAt" type="date" {...form.register('issuedAt')} />
+              <Controller
+                control={form.control}
+                name="issuedAt"
+                render={({ field }) => (
+                  <DateField id="issuedAt" value={field.value} onChange={field.onChange} />
+                )}
+              />
             </Field>
             <Field
               id="startedWorkAt"
               label="Početak rada u firmi"
               error={errors.startedWorkAt?.message}
             >
-              <Input id="startedWorkAt" type="date" {...form.register('startedWorkAt')} />
+              <Controller
+                control={form.control}
+                name="startedWorkAt"
+                render={({ field }) => (
+                  <DateField id="startedWorkAt" value={field.value} onChange={field.onChange} />
+                )}
+              />
             </Field>
             <Field id="passportNumber" label="Broj pasoša (opciono)" error={errors.passportNumber?.message}>
               <Input id="passportNumber" {...form.register('passportNumber')} />
