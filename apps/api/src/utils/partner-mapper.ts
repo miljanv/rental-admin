@@ -7,6 +7,8 @@ export interface PartnerRecord {
   firstName: string | null;
   lastName: string | null;
   address: string;
+  city: string;
+  nickname: string | null;
   pib: string | null;
   registrationNumber: string | null;
   personalId: string | null;
@@ -21,6 +23,8 @@ export const toPartnerDto = (record: PartnerRecord): PartnerDto => ({
   firstName: record.firstName,
   lastName: record.lastName,
   address: record.address,
+  city: record.city,
+  nickname: record.nickname,
   pib: record.pib,
   registrationNumber: record.registrationNumber,
   personalId: record.personalId,

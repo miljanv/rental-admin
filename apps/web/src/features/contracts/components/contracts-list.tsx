@@ -3,7 +3,7 @@
 import {
   CONTRACT_STATUS_LABELS,
   CONTRACT_STATUSES,
-  partnerDisplayName,
+  partnerSelectLabel,
   type ContractDto,
   type ContractSortField,
   type ContractStatus,
@@ -182,7 +182,7 @@ export function ContractsList() {
                   <SelectItem value={ALL_PARTNERS}>Svi partneri</SelectItem>
                   {partners.map((partner) => (
                     <SelectItem key={partner.id} value={partner.id}>
-                      {partnerDisplayName(partner)}
+                      {partnerSelectLabel(partner)}
                     </SelectItem>
                   ))}
                 </SelectContent>

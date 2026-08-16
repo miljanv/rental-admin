@@ -420,7 +420,12 @@ enum PartnerType {
   TRAVEL_AGENCY
   SPORTS_CLUB
   CULTURAL_ARTS_SOCIETY
+  BUS_OPERATOR
+  FACTORY
   INDIVIDUAL
+  SCHOOL
+  HOTEL
+  MUNICIPALITY
   OTHER
 }
 
@@ -434,7 +439,13 @@ model Partner {
   companyName        String?
   firstName          String?
   lastName           String?
+  /// Street and house number — `city` holds the town separately.
   address            String
+  city               String
+  /// Common/informal name the office actually recognizes the partner by
+  /// (e.g. legal name "PIP DOO" but everyone says "Tortilje") — optional,
+  /// searchable.
+  nickname           String?
   pib                String?
   registrationNumber String?
   personalId         String?
@@ -716,7 +727,10 @@ model Trip {
   departureDate   DateTime       @db.Date
   returnDate      DateTime?      @db.Date
   country         String?
-  route           String
+  /// Split from a single "Relacija" text field so a dash-separated place
+  /// name (e.g. "Novi Sad") can't be misread as two legs of the route.
+  origin          String
+  destination     String
   passengerCount  Int?
   partnerId       String?
   /// Free-text client name, used when the client isn't a registered Partner.

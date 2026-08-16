@@ -8,6 +8,8 @@ export const toPartnerFormValues = (partner: PartnerDto): PartnerWriteRequest =>
   firstName: partner.firstName,
   lastName: partner.lastName,
   address: partner.address,
+  city: partner.city,
+  nickname: partner.nickname,
   pib: partner.pib,
   registrationNumber: partner.registrationNumber,
   personalId: partner.personalId,

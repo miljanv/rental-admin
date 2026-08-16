@@ -53,7 +53,8 @@ export interface TripStatsDto {
 export interface TripStatsRow {
   status: TripStatus;
   departureDate: string;
-  route: string;
+  origin: string;
+  destination: string;
   price: number | null;
   paymentMethod: PaymentMethod | null;
   distanceKm: number | null;
@@ -134,7 +135,8 @@ export const buildTripStats = (rows: TripStatsRow[], from: string, to: string): 
       point.revenue += revenue;
     }
 
-    routeCounts.set(row.route, (routeCounts.get(row.route) ?? 0) + 1);
+    const routeLabel = `${row.origin} - ${row.destination}`;
+    routeCounts.set(routeLabel, (routeCounts.get(routeLabel) ?? 0) + 1);
 
     const partnerKey = row.partnerId ?? `client:${row.clientName ?? ''}`;
     const partnerLabel = row.partnerLabel ?? row.clientName ?? '';

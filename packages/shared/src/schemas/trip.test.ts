@@ -5,7 +5,8 @@ import { listTripsQuerySchema, tripWriteSchema } from './trip';
 const validTrip = {
   referenceNumber: 'RN-1042',
   departureDate: '2026-09-01',
-  route: 'Novi Sad - Zlatibor',
+  origin: 'Novi Sad',
+  destination: 'Zlatibor',
   status: 'PLANNED',
   vehicleIds: ['vehicle_1'],
   driverIds: ['driver_1'],

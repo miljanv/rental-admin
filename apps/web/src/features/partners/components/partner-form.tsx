@@ -113,7 +113,7 @@ export function PartnerForm({ partner }: PartnerFormProps) {
             <CardTitle>Tip partnera</CardTitle>
             <CardDescription>Određuje koja polja identiteta su obavezna.</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
+          <CardContent className="max-w-md space-y-4">
             <Controller
               control={form.control}
               name="type"
@@ -164,7 +164,7 @@ export function PartnerForm({ partner }: PartnerFormProps) {
                 : 'Ime, prezime i JMBG fizičkog lica.'}
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
+          <CardContent className="max-w-md space-y-4">
             {isLegalEntity ? (
               <>
                 <Field id="companyName" label="Naziv firme" error={errors.companyName?.message}>
@@ -173,6 +173,19 @@ export function PartnerForm({ partner }: PartnerFormProps) {
                     disabled={isPending}
                     aria-invalid={Boolean(errors.companyName)}
                     {...form.register('companyName')}
+                  />
+                </Field>
+                <Field
+                  id="nickname"
+                  label="Nadimak / uobičajen naziv (opciono)"
+                  error={errors.nickname?.message as string | undefined}
+                >
+                  <Input
+                    id="nickname"
+                    placeholder="npr. Tortilje"
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.nickname)}
+                    {...form.register('nickname')}
                   />
                 </Field>
                 <Field
@@ -246,12 +259,20 @@ export function PartnerForm({ partner }: PartnerFormProps) {
                 </Field>
               </>
             )}
-            <Field id="address" label="Adresa" error={errors.address?.message}>
+            <Field id="address" label="Adresa (ulica i broj)" error={errors.address?.message}>
               <Input
                 id="address"
                 disabled={isPending}
                 aria-invalid={Boolean(errors.address)}
                 {...form.register('address')}
+              />
+            </Field>
+            <Field id="city" label="Mesto" error={errors.city?.message}>
+              <Input
+                id="city"
+                disabled={isPending}
+                aria-invalid={Boolean(errors.city)}
+                {...form.register('city')}
               />
             </Field>
           </CardContent>

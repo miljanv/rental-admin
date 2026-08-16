@@ -1,6 +1,11 @@
 'use client';
 
-import { PAYMENT_METHOD_LABELS, tripClientDisplayName, type TripDto } from '@rental-admin/shared';
+import {
+  PAYMENT_METHOD_LABELS,
+  tripClientDisplayName,
+  tripRouteLabel,
+  type TripDto,
+} from '@rental-admin/shared';
 import { Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -40,12 +45,13 @@ function TripOverview({ trip }: { trip: TripDto }) {
       <Card className="shadow-none">
         <CardHeader>
           <CardTitle>Osnovni podaci</CardTitle>
-          <CardDescription>Relacija, period i država.</CardDescription>
+          <CardDescription>Polazište, odredište, period i država.</CardDescription>
         </CardHeader>
         <CardContent>
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <DetailItem label="RN broj" value={trip.referenceNumber ?? 'Nije dodeljen'} />
-            <DetailItem label="Relacija" value={trip.route} />
+            <DetailItem label="Polazište" value={trip.origin} />
+            <DetailItem label="Odredište" value={trip.destination} />
             <DetailItem label="Država" value={trip.country ?? '—'} />
             <DetailItem label="Datum polaska" value={formatDate(trip.departureDate)} />
             <DetailItem label="Datum povratka" value={formatDate(trip.returnDate)} />
@@ -192,7 +198,7 @@ export function TripProfile({ tripId }: TripProfileProps) {
     <>
       <PageHeader
         title={trip.referenceNumber ?? 'Bez RN broja'}
-        description={trip.route}
+        description={tripRouteLabel(trip)}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <TripStatusBadge status={trip.status} />

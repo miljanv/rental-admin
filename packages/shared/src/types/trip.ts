@@ -91,7 +91,8 @@ export interface TripDto {
   departureDate: string;
   returnDate: string | null;
   country: string | null;
-  route: string;
+  origin: string;
+  destination: string;
   passengerCount: number | null;
   partnerId: string | null;
   partner: TripPartnerDto | null;
@@ -134,6 +135,10 @@ export interface TerminateTripSeriesResult {
   series: TripSeriesDto;
   deletedCount: number;
 }
+
+/** "Polazište - Odredište" — the two-field split displayed as one route string. */
+export const tripRouteLabel = (trip: Pick<TripDto, 'origin' | 'destination'>): string =>
+  `${trip.origin} - ${trip.destination}`;
 
 /** Registered partner if linked, otherwise the free-text client name. */
 export const tripClientDisplayName = (trip: Pick<TripDto, 'partner' | 'clientName'>): string => {

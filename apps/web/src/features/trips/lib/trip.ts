@@ -1,16 +1,22 @@
-import { tripClientDisplayName, type TripDto, type TripWriteRequest } from '@rental-admin/shared';
+import {
+  tripClientDisplayName,
+  tripRouteLabel,
+  type TripDto,
+  type TripWriteRequest,
+} from '@rental-admin/shared';
 
-export { tripClientDisplayName };
+export { tripClientDisplayName, tripRouteLabel };
 
 export const tripLabel = (trip: TripDto): string =>
-  `${trip.referenceNumber ?? 'Bez RN broja'} — ${trip.route}`;
+  `${trip.referenceNumber ?? 'Bez RN broja'} — ${tripRouteLabel(trip)}`;
 
 export const toTripFormValues = (trip: TripDto): TripWriteRequest => ({
   referenceNumber: trip.referenceNumber,
   departureDate: trip.departureDate,
   returnDate: trip.returnDate,
   country: trip.country,
-  route: trip.route,
+  origin: trip.origin,
+  destination: trip.destination,
   passengerCount: trip.passengerCount,
   partnerId: trip.partnerId,
   clientName: trip.clientName,

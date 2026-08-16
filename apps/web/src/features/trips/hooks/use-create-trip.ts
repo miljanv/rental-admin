@@ -1,5 +1,6 @@
 'use client';
 
+import { tripRouteLabel } from '@rental-admin/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -15,7 +16,7 @@ export const useCreateTrip = () => {
   return useMutation({
     mutationFn: createTrip,
     onSuccess: async (trip) => {
-      toast.success('Vožnja je kreirana.', { description: trip.route });
+      toast.success('Vožnja je kreirana.', { description: tripRouteLabel(trip) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.trips.all });
       router.push(`/trips/${trip.id}`);
     },
