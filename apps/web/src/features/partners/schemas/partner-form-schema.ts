@@ -10,6 +10,8 @@ export const EMPTY_PARTNER_FORM: PartnerFormValues = {
   firstName: '',
   lastName: '',
   address: '',
+  city: '',
+  nickname: '',
   pib: '',
   registrationNumber: '',
   personalId: '',

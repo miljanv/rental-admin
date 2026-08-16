@@ -39,7 +39,8 @@ export const generateTripSeriesSchema = z
     // Assigned per invoiced trip afterward — left blank, every generated
     // instance is created without one.
     referenceNumber: optionalText(60),
-    route: requiredText('Relacija', 300),
+    origin: requiredText('Polazište', 150),
+    destination: requiredText('Odredište', 150),
     country: optionalText(80),
     passengerCount: optionalPositiveInt('Broj putnika', 500),
     partnerId: optionalId,

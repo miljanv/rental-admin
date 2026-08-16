@@ -128,6 +128,8 @@ export const partnerWriteSchema = z
     firstName: optionalText(80),
     lastName: optionalText(80),
     address: requiredText('Adresa', 200),
+    city: requiredText('Mesto', 120),
+    nickname: optionalText(120),
     pib: pibSchema,
     registrationNumber: registrationNumberSchema,
     personalId: jmbgSchema,

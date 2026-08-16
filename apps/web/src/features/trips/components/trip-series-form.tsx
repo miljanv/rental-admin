@@ -5,7 +5,7 @@ import {
   CONTRACT_STATUS_LABELS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
-  partnerDisplayName,
+  partnerSelectLabel,
   TRIP_SERIES_FREQUENCY_LABELS,
   TRIP_SERIES_FREQUENCIES,
   TRIP_STATUS_LABELS,
@@ -246,16 +246,26 @@ export function TripSeriesForm() {
                 {...form.register('passengerCount', { valueAsNumber: true })}
               />
             </Field>
-            <div className="sm:col-span-2">
-              <Field id="route" label="Relacija" error={errors.route?.message as string | undefined}>
-                <Input
-                  id="route"
-                  placeholder="npr. Čoka - OŠ Čoka"
-                  disabled={isPending}
-                  {...form.register('route')}
-                />
-              </Field>
-            </div>
+            <Field id="origin" label="Polazište" error={errors.origin?.message as string | undefined}>
+              <Input
+                id="origin"
+                placeholder="npr. Čoka"
+                disabled={isPending}
+                {...form.register('origin')}
+              />
+            </Field>
+            <Field
+              id="destination"
+              label="Odredište"
+              error={errors.destination?.message as string | undefined}
+            >
+              <Input
+                id="destination"
+                placeholder="npr. OŠ Čoka"
+                disabled={isPending}
+                {...form.register('destination')}
+              />
+            </Field>
           </CardContent>
         </Card>
 
@@ -318,7 +328,7 @@ export function TripSeriesForm() {
                         <SelectItem value={NONE}>Nije izabran</SelectItem>
                         {partners.map((partner) => (
                           <SelectItem key={partner.id} value={partner.id}>
-                            {partnerDisplayName(partner)}
+                            {partnerSelectLabel(partner)}
                           </SelectItem>
                         ))}
                       </SelectContent>

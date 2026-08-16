@@ -166,6 +166,19 @@ export function QuickCreatePartnerSheet({ open, onOpenChange, onCreated }: Quick
                 />
               </Field>
               <Field
+                id="quick-nickname"
+                label="Nadimak / uobičajen naziv (opciono)"
+                error={errors.nickname?.message as string | undefined}
+              >
+                <Input
+                  id="quick-nickname"
+                  placeholder="npr. Tortilje"
+                  disabled={createMutation.isPending}
+                  aria-invalid={Boolean(errors.nickname)}
+                  {...form.register('nickname')}
+                />
+              </Field>
+              <Field
                 id="quick-pib"
                 label="PIB"
                 error={errors.pib?.message}
@@ -237,12 +250,21 @@ export function QuickCreatePartnerSheet({ open, onOpenChange, onCreated }: Quick
             </>
           )}
 
-          <Field id="quick-address" label="Adresa" error={errors.address?.message}>
+          <Field id="quick-address" label="Adresa (ulica i broj)" error={errors.address?.message}>
             <Input
               id="quick-address"
               disabled={createMutation.isPending}
               aria-invalid={Boolean(errors.address)}
               {...form.register('address')}
+            />
+          </Field>
+
+          <Field id="quick-city" label="Mesto" error={errors.city?.message}>
+            <Input
+              id="quick-city"
+              disabled={createMutation.isPending}
+              aria-invalid={Boolean(errors.city)}
+              {...form.register('city')}
             />
           </Field>
 

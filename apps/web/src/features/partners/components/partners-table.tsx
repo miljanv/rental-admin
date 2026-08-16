@@ -1,6 +1,6 @@
 'use client';
 
-import { PARTNER_TYPE_LABELS, type PartnerDto } from '@rental-admin/shared';
+import { PARTNER_TYPE_LABELS, partnerFullAddress, type PartnerDto } from '@rental-admin/shared';
 import { MoreHorizontal, Pencil, Trash2, Users } from 'lucide-react';
 import Link from 'next/link';
 
@@ -76,11 +76,16 @@ export function PartnersTable({
               <TableCell className="max-w-[280px]">
                 <Link href={`/partners/${partner.id}/edit`} className="hover:text-primary block">
                   <span className="block truncate font-medium">{partnerLabel(partner)}</span>
+                  {partner.nickname ? (
+                    <span className="text-muted-foreground block truncate text-xs">
+                      {partner.nickname}
+                    </span>
+                  ) : null}
                 </Link>
               </TableCell>
               <TableCell>{PARTNER_TYPE_LABELS[partner.type]}</TableCell>
               <TableCell className="text-muted-foreground max-w-[280px] truncate">
-                {partner.address}
+                {partnerFullAddress(partner)}
               </TableCell>
               <TableCell className="text-right">
                 <DropdownMenu>

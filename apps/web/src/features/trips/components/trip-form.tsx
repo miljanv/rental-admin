@@ -5,7 +5,7 @@ import {
   CONTRACT_STATUS_LABELS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
-  partnerDisplayName,
+  partnerSelectLabel,
   TRIP_STATUS_LABELS,
   TRIP_STATUSES,
   type TripDto,
@@ -194,17 +194,24 @@ export function TripForm({ trip }: TripFormProps) {
                 {...form.register('passengerCount', { valueAsNumber: true })}
               />
             </Field>
-            <div className="sm:col-span-2">
-              <Field id="route" label="Relacija" error={errors.route?.message}>
-                <Input
-                  id="route"
-                  placeholder="npr. Novi Sad - Zlatibor"
-                  disabled={isPending}
-                  aria-invalid={Boolean(errors.route)}
-                  {...form.register('route')}
-                />
-              </Field>
-            </div>
+            <Field id="origin" label="Polazište" error={errors.origin?.message}>
+              <Input
+                id="origin"
+                placeholder="npr. Novi Sad"
+                disabled={isPending}
+                aria-invalid={Boolean(errors.origin)}
+                {...form.register('origin')}
+              />
+            </Field>
+            <Field id="destination" label="Odredište" error={errors.destination?.message}>
+              <Input
+                id="destination"
+                placeholder="npr. Zlatibor"
+                disabled={isPending}
+                aria-invalid={Boolean(errors.destination)}
+                {...form.register('destination')}
+              />
+            </Field>
           </CardContent>
         </Card>
 
@@ -268,7 +275,7 @@ export function TripForm({ trip }: TripFormProps) {
                         <SelectItem value={NONE}>Nije izabran</SelectItem>
                         {partners.map((partner) => (
                           <SelectItem key={partner.id} value={partner.id}>
-                            {partnerDisplayName(partner)}
+                            {partnerSelectLabel(partner)}
                           </SelectItem>
                         ))}
                       </SelectContent>

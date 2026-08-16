@@ -2,7 +2,12 @@ export const PARTNER_TYPES = [
   'TRAVEL_AGENCY',
   'SPORTS_CLUB',
   'CULTURAL_ARTS_SOCIETY',
+  'BUS_OPERATOR',
+  'FACTORY',
   'INDIVIDUAL',
+  'SCHOOL',
+  'HOTEL',
+  'MUNICIPALITY',
   'OTHER',
 ] as const;
 
@@ -10,9 +15,14 @@ export type PartnerType = (typeof PARTNER_TYPES)[number];
 
 export const PARTNER_TYPE_LABELS: Record<PartnerType, string> = {
   TRAVEL_AGENCY: 'Turistička agencija',
-  SPORTS_CLUB: 'Sportski klub',
-  CULTURAL_ARTS_SOCIETY: 'KUD',
+  SPORTS_CLUB: 'Sport',
+  CULTURAL_ARTS_SOCIETY: 'Kultura',
+  BUS_OPERATOR: 'Autobuski prevoznik',
+  FACTORY: 'Fabrika',
   INDIVIDUAL: 'Fizičko lice',
+  SCHOOL: 'Škola',
+  HOTEL: 'Hotel',
+  MUNICIPALITY: 'Opština',
   OTHER: 'Drugo',
 };
 
@@ -34,7 +44,11 @@ export interface PartnerDto {
   companyName: string | null;
   firstName: string | null;
   lastName: string | null;
+  /** Street and house number. */
   address: string;
+  city: string;
+  /** Common/informal name the office actually recognizes the partner by. */
+  nickname: string | null;
   pib: string | null;
   registrationNumber: string | null;
   personalId: string | null;
@@ -54,3 +68,19 @@ export const partnerDisplayName = (
   partner.type === 'INDIVIDUAL'
     ? `${partner.firstName ?? ''} ${partner.lastName ?? ''}`.trim()
     : (partner.companyName ?? '');
+
+/** "Ulica i broj, Mesto" — the two address parts joined for display or for copying onto a contract snapshot. */
+export const partnerFullAddress = (partner: Pick<PartnerDto, 'address' | 'city'>): string =>
+  [partner.address, partner.city].filter(Boolean).join(', ');
+
+/**
+ * Legal/display name plus the nickname in parentheses when there is one —
+ * the whole point of the nickname is recognizing a partner nobody calls by
+ * its formal name, so every partner picker should show it, not just the list.
+ */
+export const partnerSelectLabel = (
+  partner: Pick<PartnerDto, 'type' | 'companyName' | 'firstName' | 'lastName' | 'nickname'>,
+): string => {
+  const name = partnerDisplayName(partner);
+  return partner.nickname ? `${name} (${partner.nickname})` : name;
+};

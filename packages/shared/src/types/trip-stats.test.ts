@@ -5,7 +5,8 @@ import { buildTripStats, type TripStatsRow } from './trip-stats';
 const row = (overrides: Partial<TripStatsRow>): TripStatsRow => ({
   status: 'COMPLETED',
   departureDate: '2026-09-05',
-  route: 'Novi Sad - Zlatibor',
+  origin: 'Novi Sad',
+  destination: 'Zlatibor',
   price: 50000,
   paymentMethod: 'ACCOUNT',
   distanceKm: 250,
@@ -43,14 +44,14 @@ describe('buildTripStats', () => {
 
   it('ranks top routes and top partners by trip count', () => {
     const rows = [
-      row({ route: 'Ruta A' }),
-      row({ route: 'Ruta A' }),
-      row({ route: 'Ruta B' }),
+      row({ origin: 'Ruta', destination: 'A' }),
+      row({ origin: 'Ruta', destination: 'A' }),
+      row({ origin: 'Ruta', destination: 'B' }),
       row({ partnerId: 'partner_2', partnerLabel: 'Drugi partner' }),
     ];
     const stats = buildTripStats(rows, '2026-09-01', '2026-09-30');
 
-    expect(stats.topRoutes[0]).toEqual({ route: 'Ruta A', count: 2 });
+    expect(stats.topRoutes[0]).toEqual({ route: 'Ruta - A', count: 2 });
     expect(stats.topPartners.find((p) => p.partnerId === 'partner_1')?.count).toBe(3);
   });
 

@@ -22,7 +22,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { TripStatusBadge } from '@/features/trips/components/trip-status-badge';
-import { tripClientDisplayName, tripLabel } from '@/features/trips/lib/trip';
+import { tripClientDisplayName, tripLabel, tripRouteLabel } from '@/features/trips/lib/trip';
 import { formatDate } from '@/lib/format';
 
 const COLUMN_COUNT = 6;
@@ -72,7 +72,9 @@ export function TripsTable({ trips, isLoading, hasFilters, onRequestDelete, empt
                   <span className="block truncate font-medium">
                     {trip.referenceNumber ?? 'Bez RN broja'}
                   </span>
-                  <span className="text-muted-foreground block truncate text-xs">{trip.route}</span>
+                  <span className="text-muted-foreground block truncate text-xs">
+                    {tripRouteLabel(trip)}
+                  </span>
                 </Link>
               </TableCell>
               <TableCell className="text-muted-foreground text-sm whitespace-nowrap">

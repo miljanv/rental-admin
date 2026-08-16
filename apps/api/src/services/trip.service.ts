@@ -52,7 +52,8 @@ const tripListWhere = (query: TripListFilters) => ({
     ? {
         OR: [
           { referenceNumber: { contains: query.search, mode: 'insensitive' as const } },
-          { route: { contains: query.search, mode: 'insensitive' as const } },
+          { origin: { contains: query.search, mode: 'insensitive' as const } },
+          { destination: { contains: query.search, mode: 'insensitive' as const } },
           { clientName: { contains: query.search, mode: 'insensitive' as const } },
           { notes: { contains: query.search, mode: 'insensitive' as const } },
         ],
@@ -108,7 +109,8 @@ const toWriteData = (input: TripWriteRequest) => ({
   departureDate: parseDate(input.departureDate),
   returnDate: input.returnDate ? parseDate(input.returnDate) : null,
   country: input.country,
-  route: input.route,
+  origin: input.origin,
+  destination: input.destination,
   passengerCount: input.passengerCount,
   partnerId: input.partnerId,
   clientName: input.clientName,
@@ -228,7 +230,8 @@ export const getTripStats = async (query: TripStatsQueryRequest): Promise<TripSt
     select: {
       status: true,
       departureDate: true,
-      route: true,
+      origin: true,
+      destination: true,
       price: true,
       paymentMethod: true,
       distanceKm: true,
@@ -242,7 +245,8 @@ export const getTripStats = async (query: TripStatsQueryRequest): Promise<TripSt
     records.map((record) => ({
       status: record.status,
       departureDate: toIsoDate(record.departureDate),
-      route: record.route,
+      origin: record.origin,
+      destination: record.destination,
       price: record.price,
       paymentMethod: record.paymentMethod,
       distanceKm: record.distanceKm,

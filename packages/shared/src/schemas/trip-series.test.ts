@@ -7,7 +7,8 @@ const validSeries = {
   startDate: '2026-09-01',
   endDate: '2026-09-30',
   referenceNumber: 'RN-COKA',
-  route: 'Čoka - OŠ Čoka',
+  origin: 'Čoka',
+  destination: 'OŠ Čoka',
 } as const;
 
 describe('generateTripSeriesSchema', () => {

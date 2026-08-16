@@ -5,7 +5,8 @@ import {
   JMBG_LENGTH,
   PARTNER_TYPE_LABELS,
   PARTNER_TYPES,
-  partnerDisplayName,
+  partnerFullAddress,
+  partnerSelectLabel,
   PIB_LENGTH,
   REGISTRATION_NUMBER_LENGTH,
   type ContractWriteRequest,
@@ -60,7 +61,7 @@ const applyPartnerToClientFields = (form: ContractForm, partner: PartnerDto): vo
   form.setValue('clientCompanyName', partner.companyName);
   form.setValue('clientFirstName', partner.firstName);
   form.setValue('clientLastName', partner.lastName);
-  form.setValue('clientAddress', partner.address);
+  form.setValue('clientAddress', partnerFullAddress(partner));
   form.setValue('clientPib', partner.pib);
   form.setValue('clientRegistrationNumber', partner.registrationNumber);
   form.setValue('clientPersonalId', partner.personalId);
@@ -112,7 +113,7 @@ export function WizardStepPartner() {
                     <SelectContent>
                       {partners.map((partner) => (
                         <SelectItem key={partner.id} value={partner.id}>
-                          {partnerDisplayName(partner)} — {PARTNER_TYPE_LABELS[partner.type]}
+                          {partnerSelectLabel(partner)} — {PARTNER_TYPE_LABELS[partner.type]}
                         </SelectItem>
                       ))}
                     </SelectContent>

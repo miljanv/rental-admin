@@ -3,7 +3,7 @@
 import {
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
-  partnerDisplayName,
+  partnerSelectLabel,
   TRIP_STATUS_LABELS,
   TRIP_STATUSES,
   type PaymentMethod,
@@ -225,7 +225,7 @@ export function TripsList() {
                 <SelectItem value={ALL}>Svi partneri</SelectItem>
                 {partners.map((partner) => (
                   <SelectItem key={partner.id} value={partner.id}>
-                    {partnerDisplayName(partner)}
+                    {partnerSelectLabel(partner)}
                   </SelectItem>
                 ))}
               </SelectContent>
