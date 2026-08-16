@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 import { COMPANY } from '../company';
-import { GENDERS, MA_EMPLOYMENT_KINDS } from '../types/generated-document';
+import { GENDERS, MA_EMPLOYMENT_KINDS, MA_REGISTRATION_TYPE } from '../types/generated-document';
+import { isoDateTimeLocalSchema } from './absence-attestation';
 import { driverIdSchema, isoDateSchema } from './driver';
 import { employmentContractTypeSchema } from './driver-document';
 
@@ -94,6 +95,9 @@ export const generateMaFormSchema = z.object({
   companyRegistrationNumber: requiredText('Matični broj', 20),
   activityCode: requiredText('Šifra delatnosti', 20),
   activity: requiredText('Delatnost', 120).default(COMPANY.activity),
+  registrationType: z.literal(MA_REGISTRATION_TYPE).default(MA_REGISTRATION_TYPE),
+  documentNumber: requiredText('Delovodni broj', 80),
+  registeredAt: isoDateTimeLocalSchema,
 });
 
 export type GenerateMaFormInput = z.input<typeof generateMaFormSchema>;

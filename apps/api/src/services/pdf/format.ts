@@ -41,6 +41,14 @@ export const formatSlashDate = (isoDate: string): string => {
   return `${day}/${month}/${year}`;
 };
 
+/** CROSO datetime on the M/A header: `16/06/2026 09:15:00`. */
+export const formatSlashDateTime = (isoLocal: string): string => {
+  const [date = '', time = ''] = isoLocal.split('T');
+  const clock = time.length === 5 ? `${time}:00` : time;
+
+  return `${formatSlashDate(date)} ${clock}`.trim();
+};
+
 export const splitStreetAndNumber = (value: string): { street: string; number: string } => {
   const match = /^(.*?)[\s,]+(\d[\dA-Za-z/-]*)$/u.exec(value.trim());
 

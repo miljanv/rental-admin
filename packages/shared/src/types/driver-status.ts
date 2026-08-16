@@ -16,4 +16,6 @@ export interface DriverMonthlyActivityDto {
 export interface DriverStatusOverviewDto {
   documents: DriverDocumentStatusItem[];
   monthlyActivity: DriverMonthlyActivityDto;
+  /** Suggested delovodni broj for a new Obrazac MA (company-wide sequence). */
+  nextMaDocumentNumber: string;
 }

@@ -36,6 +36,10 @@ interface GenerateMaFormProps {
   driver: DriverDto;
   /** The existing Obrazac MA, if any — pre-fills the form so "izmeni" replaces it instead of duplicating it. */
   existing?: DriverDocumentDto;
+  /** Employment-contract signing date, used to default vreme zavođenja to the next day. */
+  contractSignedAt?: string | null;
+  /** Suggested company-wide delovodni broj for a new form. */
+  nextDocumentNumber?: string;
   onSaved?: () => void;
 }
 
@@ -56,12 +60,18 @@ function Field({ id, label, error, children }: FieldProps) {
   );
 }
 
-export function GenerateMaForm({ driver, existing, onSaved }: GenerateMaFormProps) {
+export function GenerateMaForm({
+  driver,
+  existing,
+  contractSignedAt,
+  nextDocumentNumber,
+  onSaved,
+}: GenerateMaFormProps) {
   const isEdit = Boolean(existing);
   const mutation = useGenerateMaForm(driver.id);
   const form = useForm<MaFormValues, unknown, GenerateMaFormRequest>({
     resolver: zodResolver(maFormSchema),
-    defaultValues: maFormValues(driver, existing),
+    defaultValues: maFormValues(driver, existing, { contractSignedAt, nextDocumentNumber }),
   });
   const errors = form.formState.errors;
 
@@ -76,13 +86,35 @@ export function GenerateMaForm({ driver, existing, onSaved }: GenerateMaFormProp
         <CardTitle>{isEdit ? 'Izmena obrasca MA' : 'Obrazac MA'}</CardTitle>
         <CardDescription>
           {isEdit
-            ? 'Menja postojeći obrazac — generisani PDF zamenjuje prethodni, broj dokumenta ostaje isti.'
-            : 'Prijava na obavezno socijalno osiguranje. JMBG, ime i prebivalište se uzimaju sa profila. Generisani PDF se čuva u dokumentima.'}
+            ? 'Menja postojeći obrazac — generisani PDF zamenjuje prethodni. Delovodni broj možete ostaviti ili ispraviti.'
+            : 'Prijava na obavezno socijalno osiguranje. Tip prijave je uvek PRIJAVA. JMBG, ime i prebivalište se uzimaju sa profila. Generisani PDF se čuva u dokumentima.'}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form className="space-y-4" onSubmit={onSubmit}>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Field id="registrationType" label="Tip prijave" error={errors.registrationType?.message}>
+              <Input id="registrationType" readOnly className="bg-muted" {...form.register('registrationType')} />
+            </Field>
+            <Field
+              id="documentNumber"
+              label="Delovodni broj"
+              error={errors.documentNumber?.message}
+            >
+              <Input
+                id="documentNumber"
+                placeholder="npr. 12"
+                aria-invalid={Boolean(errors.documentNumber)}
+                {...form.register('documentNumber')}
+              />
+            </Field>
+            <Field
+              id="registeredAt"
+              label="Vreme zavođenja"
+              error={errors.registeredAt?.message}
+            >
+              <Input id="registeredAt" type="datetime-local" {...form.register('registeredAt')} />
+            </Field>
             <Field id="gender" label="Pol" error={errors.gender?.message}>
               <Controller
                 control={form.control}

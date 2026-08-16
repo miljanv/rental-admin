@@ -58,10 +58,31 @@ describe('generateMaFormSchema', () => {
       workplace: 'Novi Sad',
       companyRegistrationNumber: '12345678',
       activityCode: '4931',
+      documentNumber: '12',
+      registeredAt: '2026-06-16T09:15',
     });
 
     expect(result.success).toBe(true);
     expect(result.data?.citizenship).toBe('Republika Srbija');
     expect(result.data?.insuranceBasis).toBe('101');
+    expect(result.data?.registrationType).toBe('PRIJAVA');
+  });
+
+  it('requires a delovodni broj and vreme zavođenja', () => {
+    const result = generateMaFormSchema.safeParse({
+      gender: 'MALE',
+      parentName: 'Petar',
+      municipality: 'Novi Sad',
+      residenceStreet: 'Mornarska 1',
+      insuranceStartDate: '2026-06-16',
+      occupation: 'Vozač autobusa',
+      qualification: 'III SSS',
+      employmentKind: 'PERMANENT',
+      workplace: 'Novi Sad',
+      companyRegistrationNumber: '12345678',
+      activityCode: '4931',
+    });
+
+    expect(result.success).toBe(false);
   });
 });

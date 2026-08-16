@@ -5,6 +5,7 @@ import {
   formatSerbianDate,
   formatSerbianMoney,
   formatSlashDate,
+  formatSlashDateTime,
   parseDateTimeLocal,
   splitStreetAndNumber,
 } from './format';
@@ -29,6 +30,10 @@ describe('PDF format helpers', () => {
 
   it('formats a CROSO slash date', () => {
     expect(formatSlashDate('1998-08-10')).toBe('10/08/1998');
+  });
+
+  it('formats a CROSO slash datetime', () => {
+    expect(formatSlashDateTime('2026-06-16T09:15')).toBe('16/06/2026 09:15:00');
   });
 
   it('splits a street and house number', () => {
