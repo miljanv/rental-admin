@@ -4,25 +4,21 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { deleteFuelLog } from '@/features/fuel-logs/api/fuel-logs-api';
+import { invalidateFuelLogQueries } from '@/features/fuel-logs/hooks/invalidate-fuel-logs';
 import { getApiErrorMessage } from '@/lib/api-error';
-import { queryKeys } from '@/lib/query-keys';
 
-export const useDeleteFuelLog = (vehicleId: string) => {
+export const useDeleteFuelLog = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (variables: { fuelLogId: string; label: string }) =>
-      deleteFuelLog(vehicleId, variables.fuelLogId),
+      deleteFuelLog(variables.fuelLogId),
     onSuccess: async (_result, variables) => {
-      toast.success('Točenje je obrisano.', { description: variables.label });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.drivers.all }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all }),
-      ]);
+      toast.success('Sipanje je obrisano.', { description: variables.label });
+      await invalidateFuelLogQueries(queryClient);
     },
     onError: (error) => {
-      toast.error('Točenje nije obrisano.', { description: getApiErrorMessage(error) });
+      toast.error('Sipanje nije obrisano.', { description: getApiErrorMessage(error) });
     },
   });
 };

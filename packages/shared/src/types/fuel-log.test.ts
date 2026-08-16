@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeFuelLogDerivedFields } from './fuel-log';
+import {
+  closestEarlierOdometer,
+  computeFuelLogDerivedFields,
+  mergeFuelSuppliers,
+  summarizeFuelLogs,
+  type FuelLogDto,
+} from './fuel-log';
 
 describe('computeFuelLogDerivedFields', () => {
   it('returns nulls when there is no previous reading', () => {
@@ -34,5 +40,55 @@ describe('computeFuelLogDerivedFields', () => {
       kmDriven: -1000,
       consumptionPer100Km: null,
     });
+  });
+});
+
+describe('closestEarlierOdometer', () => {
+  it('picks the highest reading still below the current one', () => {
+    expect(closestEarlierOdometer(120_000, [100_000, 110_000, 130_000, null])).toBe(110_000);
+    expect(closestEarlierOdometer(90_000, [100_000, null])).toBeNull();
+  });
+});
+
+describe('mergeFuelSuppliers', () => {
+  it('unions suggested names with stored ones', () => {
+    expect(mergeFuelSuppliers(['  Petrol  ', 'NIS'])).toEqual(
+      expect.arrayContaining(['EuroWag', 'NIS', 'OMV', 'Petrol']),
+    );
+  });
+});
+
+describe('summarizeFuelLogs', () => {
+  const item = (overrides: Partial<FuelLogDto>): FuelLogDto => ({
+    id: '1',
+    vehicleId: 'v1',
+    vehicle: { id: 'v1', make: 'Setra', model: 'S 516', licensePlate: 'NS-001-AA' },
+    fueledAt: '2026-08-16',
+    location: '',
+    driver: null,
+    fuelType: 'DIESEL',
+    litersFilled: 40,
+    odometerKm: 100_500,
+    cost: null,
+    paymentMethod: null,
+    supplier: 'NIS',
+    note: null,
+    kmDriven: 500,
+    consumptionPer100Km: 8,
+    createdAt: '2026-08-16T00:00:00.000Z',
+    updatedAt: '2026-08-16T00:00:00.000Z',
+    ...overrides,
+  });
+
+  it('averages L/100km from total liters over total km', () => {
+    const summary = summarizeFuelLogs([
+      item({ litersFilled: 40, kmDriven: 500 }),
+      item({ id: '2', litersFilled: 50, kmDriven: 400 }),
+    ]);
+
+    expect(summary.fillCount).toBe(2);
+    expect(summary.litersFilled).toBe(90);
+    expect(summary.kmDriven).toBe(900);
+    expect(summary.avgConsumptionPer100Km).toBe(10);
   });
 });

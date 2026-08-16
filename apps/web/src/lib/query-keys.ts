@@ -48,11 +48,19 @@ export interface VehicleListQueryParams {
 }
 
 export interface FuelLogListQueryParams {
+  vehicleId?: string;
+  supplier?: string;
   from?: string;
   to?: string;
   fuelType?: FuelLogFuelType;
   driverId?: string;
   sortOrder?: SortOrder;
+}
+
+export interface FuelConsumptionQueryParams {
+  vehicleId: string;
+  from?: string;
+  to?: string;
 }
 
 export interface DriverWorkRecordsQueryParams {
@@ -179,6 +187,8 @@ export const queryKeys = {
       ['vehicles', 'expiring-safety-equipment', days] as const,
     fuelLogs: (vehicleId: string, params?: FuelLogListQueryParams) =>
       ['vehicles', vehicleId, 'fuel-logs', params] as const,
+    fuelConsumption: (params: FuelConsumptionQueryParams) =>
+      ['vehicles', params.vehicleId, 'fuel-consumption', params] as const,
     maintenance: (vehicleId: string) => ['vehicles', vehicleId, 'maintenance'] as const,
     maintenanceCostSummary: (params?: MaintenanceCostSummaryParams) =>
       ['vehicles', 'maintenance-cost-summary', params] as const,
@@ -213,5 +223,12 @@ export const queryKeys = {
     detail: (id: string) => ['trips', 'detail', id] as const,
     stats: (params?: TripStatsParams) => ['trips', 'stats', params] as const,
     series: (id: string) => ['trips', 'series', id] as const,
+  },
+  fuelLogs: {
+    all: ['fuel-logs'] as const,
+    list: (params?: FuelLogListQueryParams) => ['fuel-logs', 'list', params] as const,
+    suppliers: () => ['fuel-logs', 'suppliers'] as const,
+    consumption: (params: FuelConsumptionQueryParams) =>
+      ['fuel-logs', 'consumption', params] as const,
   },
 } as const;

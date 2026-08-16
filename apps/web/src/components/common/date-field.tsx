@@ -301,6 +301,18 @@ export function DateField({
     setIsOpen(false);
   };
 
+  const handleBlur = () => {
+    if (text === '') {
+      onChange('');
+      return;
+    }
+
+    const iso = parseMaskedDate(text);
+    if (iso) {
+      onChange(iso);
+    }
+  };
+
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverAnchor asChild>
@@ -312,6 +324,7 @@ export function DateField({
             autoComplete="off"
             value={text}
             onChange={handleTextChange}
+            onBlur={handleBlur}
             onFocus={() => setIsOpen(true)}
             disabled={disabled}
             placeholder={placeholder}

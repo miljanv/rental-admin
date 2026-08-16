@@ -1,7 +1,17 @@
-import { computeFuelLogDerivedFields } from '@rental-admin/shared';
+import {
+  closestEarlierOdometer,
+  computeFuelLogDerivedFields,
+  mergeFuelSuppliers,
+  summarizeFuelLogs,
+} from '@rental-admin/shared';
 import type {
   DeleteFuelLogResult,
+  FuelConsumptionHistoryDto,
+  FuelConsumptionQuery,
+  FuelLogBulkWriteRequest,
+  FuelLogCreateRequest,
   FuelLogDto,
+  FuelLogSuppliersDto,
   FuelLogWriteRequest,
   ListFuelLogsQuery,
 } from '@rental-admin/shared';
@@ -19,7 +29,20 @@ const parseDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`
 
 const fuelLogInclude = {
   driver: { select: { id: true, firstName: true, lastName: true } },
+  vehicle: { select: { id: true, make: true, model: true, licensePlate: true } },
 } as const;
+
+const expenseNote = (input: { note: string | null; location: string; supplier: string }): string => {
+  if (input.note) {
+    return input.note;
+  }
+
+  if (input.location) {
+    return `Točenje · ${input.location}`;
+  }
+
+  return `Točenje · ${input.supplier}`;
+};
 
 const assertVehicleExists = async (vehicleId: string): Promise<void> => {
   const vehicle = await prisma.vehicle.findUnique({
@@ -71,38 +94,43 @@ const bumpVehicleMileage = async (vehicleId: string, odometerKm: number): Promis
   });
 };
 
-export const listFuelLogs = async (
-  vehicleId: string,
-  query: ListFuelLogsQuery,
-): Promise<FuelLogDto[]> => {
-  await assertVehicleExists(vehicleId);
+const toCreateInput = (vehicleId: string, input: FuelLogWriteRequest): FuelLogCreateRequest => ({
+  ...input,
+  vehicleId,
+});
 
-  const where = {
-    vehicleId,
-    ...(query.fuelType ? { fuelType: query.fuelType } : {}),
-    ...(query.driverId ? { driverId: query.driverId } : {}),
-    ...(query.from || query.to
-      ? {
-          fueledAt: {
-            ...(query.from ? { gte: parseDate(query.from) } : {}),
-            ...(query.to ? { lte: parseDate(query.to) } : {}),
-          },
-        }
-      : {}),
-  };
+export const listFuelLogs = async (query: ListFuelLogsQuery): Promise<FuelLogDto[]> => {
+  if (query.vehicleId) {
+    await assertVehicleExists(query.vehicleId);
+  }
 
   const records = await prisma.fuelLog.findMany({
-    where,
+    where: {
+      ...(query.vehicleId ? { vehicleId: query.vehicleId } : {}),
+      ...(query.supplier
+        ? { supplier: { contains: query.supplier, mode: 'insensitive' as const } }
+        : {}),
+      ...(query.fuelType ? { fuelType: query.fuelType } : {}),
+      ...(query.driverId ? { driverId: query.driverId } : {}),
+      ...(query.from || query.to
+        ? {
+            fueledAt: {
+              ...(query.from ? { gte: parseDate(query.from) } : {}),
+              ...(query.to ? { lte: parseDate(query.to) } : {}),
+            },
+          }
+        : {}),
+    },
     include: fuelLogInclude,
-    orderBy: { fueledAt: query.sortOrder },
+    orderBy: [{ fueledAt: query.sortOrder }, { odometerKm: query.sortOrder }],
   });
 
   return records.map((record: FuelLogRecord) => toFuelLogDto(record));
 };
 
-export const getFuelLog = async (vehicleId: string, fuelLogId: string): Promise<FuelLogDto> => {
+export const getFuelLog = async (fuelLogId: string, vehicleId?: string): Promise<FuelLogDto> => {
   const record = await prisma.fuelLog.findFirst({
-    where: { id: fuelLogId, vehicleId },
+    where: { id: fuelLogId, ...(vehicleId ? { vehicleId } : {}) },
     include: fuelLogInclude,
   });
 
@@ -114,13 +142,17 @@ export const getFuelLog = async (vehicleId: string, fuelLogId: string): Promise<
 };
 
 export const createFuelLog = async (
-  vehicleId: string,
-  input: FuelLogWriteRequest,
+  input: FuelLogCreateRequest,
+  previousOdometerOverride?: number | null,
 ): Promise<FuelLogDto> => {
-  await assertVehicleExists(vehicleId);
+  await assertVehicleExists(input.vehicleId);
   await assertDriverExists(input.driverId);
 
-  const previousOdometerKm = await findPreviousOdometerKm(vehicleId, input.odometerKm);
+  const previousFromDb = await findPreviousOdometerKm(input.vehicleId, input.odometerKm);
+  const previousOdometerKm =
+    previousOdometerOverride !== undefined
+      ? closestEarlierOdometer(input.odometerKm, [previousFromDb, previousOdometerOverride])
+      : previousFromDb;
   const { kmDriven, consumptionPer100Km } = computeFuelLogDerivedFields(
     input.odometerKm,
     previousOdometerKm,
@@ -129,7 +161,7 @@ export const createFuelLog = async (
 
   const record = await prisma.fuelLog.create({
     data: {
-      vehicleId,
+      vehicleId: input.vehicleId,
       fueledAt: parseDate(input.fueledAt),
       location: input.location,
       driverId: input.driverId,
@@ -139,13 +171,14 @@ export const createFuelLog = async (
       cost: input.cost,
       paymentMethod: input.paymentMethod,
       supplier: input.supplier,
+      note: input.note,
       kmDriven,
       consumptionPer100Km,
     },
     include: fuelLogInclude,
   });
 
-  await bumpVehicleMileage(vehicleId, input.odometerKm);
+  await bumpVehicleMileage(input.vehicleId, input.odometerKm);
   await upsertOperationalExpense({
     sourceType: 'FUEL_LOG',
     sourceId: record.id,
@@ -153,31 +186,87 @@ export const createFuelLog = async (
     amount: input.cost,
     paymentMethod: input.paymentMethod,
     occurredAt: input.fueledAt,
-    vehicleId,
+    vehicleId: input.vehicleId,
     driverId: input.driverId,
     supplier: input.supplier,
-    note: `Točenje · ${input.location}`,
+    note: expenseNote(input),
   });
 
-  logger.info('Fuel log created', { vehicleId, fuelLogId: record.id, fuelType: record.fuelType });
+  logger.info('Fuel log created', {
+    vehicleId: input.vehicleId,
+    fuelLogId: record.id,
+    fuelType: record.fuelType,
+  });
 
   return toFuelLogDto(record);
 };
 
+export const createFuelLogsBulk = async (
+  input: FuelLogBulkWriteRequest,
+): Promise<FuelLogDto[]> => {
+  const vehicleIds = [...new Set(input.rows.map((row) => row.vehicleId))];
+  const vehicles = await prisma.vehicle.findMany({
+    where: { id: { in: vehicleIds } },
+    select: { id: true },
+  });
+
+  if (vehicles.length !== vehicleIds.length) {
+    throw badRequest('Jedno ili više vozila ne postoji.');
+  }
+
+  const created: FuelLogDto[] = [];
+  const lastOdometerByVehicle = new Map<string, number>();
+  const sortedRows = [...input.rows].sort((left, right) => {
+    if (left.vehicleId !== right.vehicleId) {
+      return left.vehicleId.localeCompare(right.vehicleId);
+    }
+
+    return left.odometerKm - right.odometerKm;
+  });
+
+  for (const row of sortedRows) {
+    const dto = await createFuelLog(
+      {
+        vehicleId: row.vehicleId,
+        fueledAt: input.fueledAt,
+        location: input.location,
+        supplier: input.supplier,
+        driverId: row.driverId,
+        fuelType: row.fuelType ?? input.fuelType,
+        litersFilled: row.litersFilled,
+        odometerKm: row.odometerKm,
+        cost: row.cost,
+        paymentMethod: row.paymentMethod,
+        note: row.note,
+      },
+      lastOdometerByVehicle.get(row.vehicleId) ?? null,
+    );
+
+    lastOdometerByVehicle.set(row.vehicleId, row.odometerKm);
+    created.push(dto);
+  }
+
+  return created;
+};
+
 export const updateFuelLog = async (
-  vehicleId: string,
   fuelLogId: string,
-  input: FuelLogWriteRequest,
+  input: FuelLogCreateRequest,
 ): Promise<FuelLogDto> => {
-  const existing = await prisma.fuelLog.findFirst({ where: { id: fuelLogId, vehicleId } });
+  const existing = await prisma.fuelLog.findFirst({ where: { id: fuelLogId } });
 
   if (!existing) {
     throw notFound('Zapis o točenju nije pronađen.');
   }
 
+  await assertVehicleExists(input.vehicleId);
   await assertDriverExists(input.driverId);
 
-  const previousOdometerKm = await findPreviousOdometerKm(vehicleId, input.odometerKm, fuelLogId);
+  const previousOdometerKm = await findPreviousOdometerKm(
+    input.vehicleId,
+    input.odometerKm,
+    fuelLogId,
+  );
   const { kmDriven, consumptionPer100Km } = computeFuelLogDerivedFields(
     input.odometerKm,
     previousOdometerKm,
@@ -187,6 +276,7 @@ export const updateFuelLog = async (
   const record = await prisma.fuelLog.update({
     where: { id: fuelLogId },
     data: {
+      vehicleId: input.vehicleId,
       fueledAt: parseDate(input.fueledAt),
       location: input.location,
       driverId: input.driverId,
@@ -196,13 +286,14 @@ export const updateFuelLog = async (
       cost: input.cost,
       paymentMethod: input.paymentMethod,
       supplier: input.supplier,
+      note: input.note,
       kmDriven,
       consumptionPer100Km,
     },
     include: fuelLogInclude,
   });
 
-  await bumpVehicleMileage(vehicleId, input.odometerKm);
+  await bumpVehicleMileage(input.vehicleId, input.odometerKm);
   await upsertOperationalExpense({
     sourceType: 'FUEL_LOG',
     sourceId: record.id,
@@ -210,18 +301,82 @@ export const updateFuelLog = async (
     amount: input.cost,
     paymentMethod: input.paymentMethod,
     occurredAt: input.fueledAt,
-    vehicleId,
+    vehicleId: input.vehicleId,
     driverId: input.driverId,
     supplier: input.supplier,
-    note: `Točenje · ${input.location}`,
+    note: expenseNote(input),
   });
 
-  logger.info('Fuel log updated', { vehicleId, fuelLogId });
+  logger.info('Fuel log updated', { vehicleId: input.vehicleId, fuelLogId });
 
   return toFuelLogDto(record);
 };
 
-export const deleteFuelLog = async (
+export const deleteFuelLog = async (fuelLogId: string): Promise<DeleteFuelLogResult> => {
+  const existing = await prisma.fuelLog.findFirst({ where: { id: fuelLogId } });
+
+  if (!existing) {
+    throw notFound('Zapis o točenju nije pronađen.');
+  }
+
+  await deleteOperationalTransaction('FUEL_LOG', fuelLogId);
+  await prisma.fuelLog.delete({ where: { id: fuelLogId } });
+  logger.info('Fuel log deleted', { vehicleId: existing.vehicleId, fuelLogId });
+
+  return { id: fuelLogId, deleted: true };
+};
+
+export const listFuelSuppliers = async (): Promise<FuelLogSuppliersDto> => {
+  const rows = await prisma.fuelLog.findMany({
+    where: { supplier: { not: '' } },
+    distinct: ['supplier'],
+    select: { supplier: true },
+    orderBy: { supplier: 'asc' },
+  });
+
+  return { suppliers: mergeFuelSuppliers(rows.map((row) => row.supplier)) };
+};
+
+export const getFuelConsumption = async (
+  query: FuelConsumptionQuery,
+): Promise<FuelConsumptionHistoryDto> => {
+  const items = await listFuelLogs({
+    vehicleId: query.vehicleId,
+    from: query.from,
+    to: query.to,
+    sortOrder: 'asc',
+  });
+
+  return {
+    vehicleId: query.vehicleId,
+    from: query.from ?? null,
+    to: query.to ?? null,
+    items,
+    diesel: summarizeFuelLogs(items.filter((item) => item.fuelType === 'DIESEL')),
+    adblue: summarizeFuelLogs(items.filter((item) => item.fuelType === 'ADBLUE')),
+  };
+};
+
+export const createVehicleFuelLog = async (
+  vehicleId: string,
+  input: FuelLogWriteRequest,
+): Promise<FuelLogDto> => createFuelLog(toCreateInput(vehicleId, input));
+
+export const updateVehicleFuelLog = async (
+  vehicleId: string,
+  fuelLogId: string,
+  input: FuelLogWriteRequest,
+): Promise<FuelLogDto> => {
+  const existing = await prisma.fuelLog.findFirst({ where: { id: fuelLogId, vehicleId } });
+
+  if (!existing) {
+    throw notFound('Zapis o točenju nije pronađen.');
+  }
+
+  return updateFuelLog(fuelLogId, toCreateInput(vehicleId, input));
+};
+
+export const deleteVehicleFuelLog = async (
   vehicleId: string,
   fuelLogId: string,
 ): Promise<DeleteFuelLogResult> => {
@@ -231,9 +386,5 @@ export const deleteFuelLog = async (
     throw notFound('Zapis o točenju nije pronađen.');
   }
 
-  await deleteOperationalTransaction('FUEL_LOG', fuelLogId);
-  await prisma.fuelLog.delete({ where: { id: fuelLogId } });
-  logger.info('Fuel log deleted', { vehicleId, fuelLogId });
-
-  return { id: fuelLogId, deleted: true };
+  return deleteFuelLog(fuelLogId);
 };

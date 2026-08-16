@@ -184,31 +184,31 @@ vehicleRouter.delete(
 vehicleRouter.get(
   '/:id/fuel-logs',
   validateRequest({ params: vehicleIdParamsSchema, query: listFuelLogsQuerySchema }),
-  asyncHandler(fuelLogController.listFuelLogs),
+  asyncHandler(fuelLogController.listVehicleFuelLogs),
 );
 
 vehicleRouter.post(
   '/:id/fuel-logs',
   validateRequest({ params: vehicleIdParamsSchema, body: fuelLogWriteSchema }),
-  asyncHandler(fuelLogController.createFuelLog),
+  asyncHandler(fuelLogController.createVehicleFuelLog),
 );
 
 vehicleRouter.get(
   '/:id/fuel-logs/:fuelLogId',
   validateRequest({ params: fuelLogParamsSchema }),
-  asyncHandler(fuelLogController.getFuelLog),
+  asyncHandler(fuelLogController.getVehicleFuelLog),
 );
 
 vehicleRouter.patch(
   '/:id/fuel-logs/:fuelLogId',
   validateRequest({ params: fuelLogParamsSchema, body: fuelLogWriteSchema }),
-  asyncHandler(fuelLogController.updateFuelLog),
+  asyncHandler(fuelLogController.updateVehicleFuelLog),
 );
 
 vehicleRouter.delete(
   '/:id/fuel-logs/:fuelLogId',
   validateRequest({ params: fuelLogParamsSchema }),
-  asyncHandler(fuelLogController.deleteFuelLog),
+  asyncHandler(fuelLogController.deleteVehicleFuelLog),
 );
 
 vehicleRouter.get(

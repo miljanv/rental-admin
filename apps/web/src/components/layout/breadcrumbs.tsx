@@ -28,6 +28,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   settings: 'Podešavanja',
   finance: 'Finansije',
   alarms: 'Alarm centar',
+  fuel: 'Gorivo',
 };
 
 /** Builds the trail from the current path, using the nav labels when known. */
