@@ -3,6 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   CONTRACT_STATUS_LABELS,
+  MAX_TRIP_DRIVERS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
   partnerSelectLabel,
@@ -317,7 +318,8 @@ export function TripForm({ trip }: TripFormProps) {
           <CardHeader>
             <CardTitle>Vozila i vozači</CardTitle>
             <CardDescription>
-              Moguće je izabrati više vozila i više vozača na istoj vožnji (npr. grupni izlet ili smena).
+              Moguće je izabrati više vozila i do {MAX_TRIP_DRIVERS} vozača na istoj vožnji (npr. grupni
+              izlet ili smena).
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -337,6 +339,7 @@ export function TripForm({ trip }: TripFormProps) {
                 onChange={(next) => form.setValue('driverIds', next)}
                 disabled={isPending || driversQuery.isPending}
                 emptyLabel="Nema unetih vozača."
+                maxSelected={MAX_TRIP_DRIVERS}
               />
             </Field>
           </CardContent>

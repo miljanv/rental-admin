@@ -15,6 +15,8 @@ import { badRequest, notFound } from '../utils/app-error';
 import { buildPaginationMeta } from '../utils/api-response';
 import { toTripDto, type TripRecord } from '../utils/trip-mapper';
 import { logger } from '../utils/logger';
+import { deleteAttachedFile } from './file-attachment.service';
+import { deleteOperationalTransaction } from './transaction.service';
 
 type SortOrder = ListTripsQuery['sortOrder'];
 type TripOrderBy = Partial<Record<TripSortField, SortOrder>>;
@@ -25,6 +27,7 @@ const toIsoDate = (value: Date): string => value.toISOString().slice(0, 10);
 
 export const tripInclude = {
   partner: { select: { id: true, type: true, companyName: true, firstName: true, lastName: true } },
+  carrier: { select: { id: true, type: true, companyName: true, firstName: true, lastName: true } },
   contract: { select: { id: true, route: true } },
   vehicles: { include: { vehicle: { select: { id: true, make: true, model: true, licensePlate: true } } } },
   drivers: { include: { driver: { select: { id: true, firstName: true, lastName: true } } } },
@@ -102,6 +105,27 @@ const assertReferencesExist = async (input: TripWriteRequest): Promise<void> => 
 
   await assertVehiclesExist(input.vehicleIds);
   await assertDriversExist(input.driverIds);
+};
+
+const syncTripDrivers = async (
+  tx: Pick<typeof prisma, 'tripDriver'>,
+  tripId: string,
+  driverIds: string[],
+): Promise<void> => {
+  const existing = await tx.tripDriver.findMany({ where: { tripId }, select: { driverId: true } });
+  const existingIds = new Set(existing.map((row) => row.driverId));
+
+  await tx.tripDriver.deleteMany({
+    where: { tripId, driverId: { notIn: driverIds } },
+  });
+
+  const toCreate = driverIds.filter((driverId) => !existingIds.has(driverId));
+
+  if (toCreate.length > 0) {
+    await tx.tripDriver.createMany({
+      data: toCreate.map((driverId) => ({ tripId, driverId })),
+    });
+  }
 };
 
 const toWriteData = (input: TripWriteRequest) => ({
@@ -188,7 +212,6 @@ export const updateTrip = async (id: string, input: TripWriteRequest): Promise<T
   const record = await prisma.$transaction(async (tx) => {
     await tx.trip.update({ where: { id }, data: toWriteData(input) });
     await tx.tripVehicle.deleteMany({ where: { tripId: id } });
-    await tx.tripDriver.deleteMany({ where: { tripId: id } });
 
     if (input.vehicleIds.length > 0) {
       await tx.tripVehicle.createMany({
@@ -196,11 +219,7 @@ export const updateTrip = async (id: string, input: TripWriteRequest): Promise<T
       });
     }
 
-    if (input.driverIds.length > 0) {
-      await tx.tripDriver.createMany({
-        data: input.driverIds.map((driverId) => ({ tripId: id, driverId })),
-      });
-    }
+    await syncTripDrivers(tx, id, input.driverIds);
 
     return tx.trip.findUniqueOrThrow({ where: { id }, include: tripInclude });
   });
@@ -213,7 +232,19 @@ export const updateTrip = async (id: string, input: TripWriteRequest): Promise<T
 export const deleteTrip = async (id: string): Promise<DeleteTripResult> => {
   await getTrip(id);
 
-  // TripVehicle/TripDriver rows cascade automatically (onDelete: Cascade).
+  const expenses = await prisma.tripExpense.findMany({
+    where: { tripId: id },
+    select: { id: true, fileId: true },
+  });
+
+  await Promise.all(
+    expenses.map(async (expense) => {
+      await deleteOperationalTransaction('TRIP_EXPENSE', expense.id);
+      await deleteAttachedFile(expense.fileId);
+    }),
+  );
+
+  // TripVehicle/TripDriver/TripExpense rows cascade automatically (onDelete: Cascade).
   await prisma.trip.delete({ where: { id } });
   logger.info('Trip deleted', { tripId: id });
 

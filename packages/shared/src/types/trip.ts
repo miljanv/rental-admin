@@ -52,10 +52,15 @@ export interface TripVehicleDto {
   licensePlate: string;
 }
 
+/** Hard cap on drivers assigned to one trip (and therefore on per-diem rows). */
+export const MAX_TRIP_DRIVERS = 3;
+
 export interface TripDriverDto {
   id: string;
   firstName: string;
   lastName: string;
+  perDiemAmount: number | null;
+  advanceAmount: number | null;
 }
 
 export interface TripPartnerDto {
@@ -96,6 +101,9 @@ export interface TripDto {
   passengerCount: number | null;
   partnerId: string | null;
   partner: TripPartnerDto | null;
+  carrierId: string | null;
+  carrier: TripPartnerDto | null;
+  paidAt: string | null;
   clientName: string | null;
   notes: string | null;
   price: number | null;

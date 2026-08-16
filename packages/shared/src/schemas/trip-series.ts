@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { TRIP_SERIES_FREQUENCIES } from '../types/trip';
+import { MAX_TRIP_DRIVERS, TRIP_SERIES_FREQUENCIES } from '../types/trip';
 import { driverIdSchema, isoDateSchema } from './driver';
 import { optionalPaymentMethodSchema } from './transaction';
 import {
@@ -51,7 +51,10 @@ export const generateTripSeriesSchema = z
     status: tripStatusSchema.default('PLANNED'),
     contractId: optionalId,
     vehicleIds: z.array(vehicleIdSchema).max(20, 'Najviše 20 vozila po vožnji.').default([]),
-    driverIds: z.array(driverIdSchema).max(20, 'Najviše 20 vozača po vožnji.').default([]),
+    driverIds: z
+      .array(driverIdSchema)
+      .max(MAX_TRIP_DRIVERS, `Najviše ${MAX_TRIP_DRIVERS} vozača po vožnji.`)
+      .default([]),
   })
   .superRefine((value, ctx) => {
     if (value.endDate < value.startDate) {
@@ -83,7 +86,10 @@ export const bulkUpdateTripSeriesSchema = z
   .object({
     fromDate: isoDateSchema,
     vehicleIds: z.array(vehicleIdSchema).max(20, 'Najviše 20 vozila po vožnji.').optional(),
-    driverIds: z.array(driverIdSchema).max(20, 'Najviše 20 vozača po vožnji.').optional(),
+    driverIds: z
+      .array(driverIdSchema)
+      .max(MAX_TRIP_DRIVERS, `Najviše ${MAX_TRIP_DRIVERS} vozača po vožnji.`)
+      .optional(),
     status: tripStatusSchema.optional(),
     price: optionalNonNegative('Cena', 10_000_000).optional(),
     paymentMethod: optionalPaymentMethodSchema.optional(),

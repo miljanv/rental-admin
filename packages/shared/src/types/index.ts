@@ -19,6 +19,7 @@ export * from './tachograph-calibration';
 export * from './transaction';
 export * from './transaction-report';
 export * from './trip';
+export * from './trip-expense';
 export * from './trip-stats';
 export * from './vehicle';
 export * from './vehicle-document';

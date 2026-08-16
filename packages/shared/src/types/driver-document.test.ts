@@ -49,6 +49,7 @@ const document = (
   issuedAt,
   expiresAt,
   employmentContractType: type === 'EMPLOYMENT_CONTRACT' ? 'FIXED_TERM' : null,
+  generationData: null,
   file: null,
   createdAt: `${issuedAt}T00:00:00.000Z`,
   updatedAt: `${issuedAt}T00:00:00.000Z`,

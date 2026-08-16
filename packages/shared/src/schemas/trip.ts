@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { PAGINATION_DEFAULTS } from '../constants';
-import { TRIP_STATUSES } from '../types/trip';
+import { MAX_TRIP_DRIVERS, TRIP_STATUSES } from '../types/trip';
 import { driverIdSchema, isoDateSchema } from './driver';
 import { SORT_ORDERS } from './file';
 import { optionalPaymentMethodSchema, paymentMethodSchema } from './transaction';
@@ -83,7 +83,10 @@ export const tripWriteSchema = z
     contractId: optionalId,
     distanceKm: optionalNonNegative('Kilometraža', 100_000),
     vehicleIds: z.array(vehicleIdSchema).max(20, 'Najviše 20 vozila po vožnji.').default([]),
-    driverIds: z.array(driverIdSchema).max(20, 'Najviše 20 vozača po vožnji.').default([]),
+    driverIds: z
+      .array(driverIdSchema)
+      .max(MAX_TRIP_DRIVERS, `Najviše ${MAX_TRIP_DRIVERS} vozača po vožnji.`)
+      .default([]),
   })
   .superRefine((value, ctx) => {
     if (value.returnDate && value.returnDate < value.departureDate) {

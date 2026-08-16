@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  MAX_TRIP_DRIVERS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
   TRIP_SERIES_FREQUENCY_LABELS,
@@ -166,6 +167,7 @@ function BulkUpdateCard({ seriesId }: { seriesId: string }) {
                 onChange={setDriverIds}
                 disabled={mutation.isPending || driversQuery.isPending}
                 emptyLabel="Nema unetih vozača."
+                maxSelected={MAX_TRIP_DRIVERS}
               />
             ) : null}
           </div>

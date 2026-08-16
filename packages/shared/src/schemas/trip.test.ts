@@ -57,6 +57,15 @@ describe('tripWriteSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('rejects more than 3 drivers', () => {
+    const result = tripWriteSchema.safeParse({
+      ...validTrip,
+      driverIds: Array.from({ length: 4 }, (_, index) => `driver_${index}`),
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it('accepts a trip without a reference number — it is assigned at invoicing time', () => {
     const { referenceNumber: _referenceNumber, ...rest } = validTrip;
     const result = tripWriteSchema.safeParse(rest);
