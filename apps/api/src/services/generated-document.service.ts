@@ -45,8 +45,9 @@ const persistGeneratedDocument = async (params: {
   originalName: string;
   body: Buffer;
   type: 'EMPLOYMENT_CONTRACT' | 'MA_FORM';
-  documentNumberPrefix: string;
-  numberStamp: string;
+  documentNumber?: string;
+  documentNumberPrefix?: string;
+  numberStamp?: string;
   issuedAt: string;
   expiresAt: string | null;
   employmentContractType: 'FIXED_TERM' | 'INDEFINITE' | null;
@@ -70,12 +71,17 @@ const persistGeneratedDocument = async (params: {
       generationData: params.generationData as Prisma.InputJsonValue,
     };
 
+    const documentNumber =
+      params.documentNumber ??
+      existing?.documentNumber ??
+      `${params.documentNumberPrefix ?? ''}${params.numberStamp ?? ''}`;
+
     let record: DriverDocumentRecord;
 
     if (existing) {
       record = await prisma.driverDocument.update({
         where: { id: existing.id },
-        data: sharedData,
+        data: { ...sharedData, documentNumber },
         include: { file: true },
       });
     } else {
@@ -84,7 +90,7 @@ const persistGeneratedDocument = async (params: {
           ...sharedData,
           driverId: params.driverId,
           type: params.type,
-          documentNumber: `${params.documentNumberPrefix}${params.numberStamp}`,
+          documentNumber,
         },
         include: { file: true },
       });
@@ -151,8 +157,7 @@ export const generateMaForm = async (
     originalName: `${namePrefix} ${driverFullName(driver)} ${formatSerbianDate(input.insuranceStartDate)}.pdf`,
     body,
     type: 'MA_FORM',
-    documentNumberPrefix: nominal ? 'FIKT-MA-' : 'MA-',
-    numberStamp: `${input.insuranceStartDate.replaceAll('-', '')}-${Date.now().toString(36)}`,
+    documentNumber: input.documentNumber,
     issuedAt: input.insuranceStartDate,
     expiresAt: null,
     employmentContractType: null,

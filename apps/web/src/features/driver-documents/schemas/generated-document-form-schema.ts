@@ -1,8 +1,10 @@
 import {
   COMPANY,
   DEFAULT_DRIVER_DUTIES,
+  defaultMaRegisteredAt,
   generateEmploymentContractSchema,
   generateMaFormSchema,
+  MA_REGISTRATION_TYPE,
   type DriverDocumentDto,
   type DriverDto,
   type GenerateEmploymentContractInput,
@@ -46,25 +48,49 @@ export const employmentContractFormValues = (
   (existing?.generationData as EmploymentContractFormValues | undefined) ??
   emptyEmploymentContractForm(driver);
 
-export const emptyMaForm = (driver: DriverDto): MaFormValues => ({
-  gender: 'MALE',
-  parentName: '',
-  municipality: driver.residencePlace,
-  residenceStreet: driver.residenceAddress ?? '',
-  apartment: '',
-  citizenship: COMPANY.country,
-  insuranceStartDate: localTodayIso(),
-  occupation: driver.jobTitle,
-  qualification: driver.educationLevel,
-  weeklyHours: 40,
-  insuranceBasis: '101',
-  employmentKind: 'PERMANENT',
-  workplace: COMPANY.city,
-  companyRegistrationNumber: COMPANY.registrationNumber,
-  activityCode: '',
-  activity: COMPANY.activity,
-});
+export const emptyMaForm = (
+  driver: DriverDto,
+  options?: { contractSignedAt?: string | null; nextDocumentNumber?: string },
+): MaFormValues => {
+  const signedAt = options?.contractSignedAt?.slice(0, 10);
+
+  return {
+    gender: 'MALE',
+    parentName: '',
+    municipality: driver.residencePlace,
+    residenceStreet: driver.residenceAddress ?? '',
+    apartment: '',
+    citizenship: COMPANY.country,
+    insuranceStartDate: localTodayIso(),
+    occupation: driver.jobTitle,
+    qualification: driver.educationLevel,
+    weeklyHours: 40,
+    insuranceBasis: '101',
+    employmentKind: 'PERMANENT',
+    workplace: COMPANY.city,
+    companyRegistrationNumber: COMPANY.registrationNumber,
+    activityCode: '',
+    activity: COMPANY.activity,
+    registrationType: MA_REGISTRATION_TYPE,
+    documentNumber: options?.nextDocumentNumber ?? '',
+    registeredAt: signedAt ? defaultMaRegisteredAt(signedAt) : `${localTodayIso()}T09:15`,
+  };
+};
 
 /** Same idea as `employmentContractFormValues`, for Obrazac MA. */
-export const maFormValues = (driver: DriverDto, existing?: DriverDocumentDto): MaFormValues =>
-  (existing?.generationData as MaFormValues | undefined) ?? emptyMaForm(driver);
+export const maFormValues = (
+  driver: DriverDto,
+  existing?: DriverDocumentDto,
+  options?: { contractSignedAt?: string | null; nextDocumentNumber?: string },
+): MaFormValues => {
+  const defaults = emptyMaForm(driver, options);
+  const previous = existing?.generationData as Partial<MaFormValues> | undefined;
+
+  return {
+    ...defaults,
+    ...previous,
+    registrationType: MA_REGISTRATION_TYPE,
+    documentNumber: existing?.documentNumber || previous?.documentNumber || defaults.documentNumber,
+    registeredAt: previous?.registeredAt || defaults.registeredAt,
+  };
+};

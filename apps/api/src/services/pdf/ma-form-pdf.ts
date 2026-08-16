@@ -1,10 +1,10 @@
 import fs from 'node:fs';
 
-import { COMPANY, type GenerateMaFormRequest } from '@rental-admin/shared';
+import { COMPANY, MA_REGISTRATION_TYPE, type GenerateMaFormRequest } from '@rental-admin/shared';
 
 import type { DriverRecord } from '../../utils/driver-mapper';
 import { FONT_PATHS } from './fonts';
-import { formatSlashDate, splitStreetAndNumber } from './format';
+import { formatSlashDate, formatSlashDateTime, splitStreetAndNumber } from './format';
 import { loadTemplate, toBuffer } from './overlay';
 
 interface MaFormPdfInput {
@@ -96,6 +96,9 @@ export const buildMaFormPdf = async (params: MaFormPdfInput): Promise<Buffer> =>
   set('DATUM_PODNOSENJA', start);
   set('DATUM_PRIJAVE', start);
   set('PRIJAVU_PRIMIO', MA_COMPANY.director);
+  set('TIP_REGISTRACIJE', MA_REGISTRATION_TYPE);
+  set('REGISTRATIONFORMID', input.documentNumber);
+  set('STATUSUPDATEDATETIME', formatSlashDateTime(input.registeredAt));
 
   form.flatten();
 

@@ -295,6 +295,12 @@ export function DriverStatusOverview({ driver, onNavigateToDocuments }: DriverSt
           <GenerateMaForm
             driver={driver}
             existing={maItem?.document ?? undefined}
+            contractSignedAt={
+              typeof contractItem?.document?.generationData?.signedAt === 'string'
+                ? contractItem.document.generationData.signedAt
+                : null
+            }
+            nextDocumentNumber={query.data?.nextMaDocumentNumber}
             onSaved={() => setOpenQuick(null)}
           />
         ) : null}

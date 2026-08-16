@@ -82,6 +82,9 @@ describe('generated PDFs', () => {
         companyRegistrationNumber: '12345678',
         activityCode: '4931',
         activity: COMPANY.activity,
+        registrationType: 'PRIJAVA',
+        documentNumber: '12',
+        registeredAt: '2026-06-16T09:15',
       },
     });
 

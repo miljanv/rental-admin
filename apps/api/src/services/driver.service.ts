@@ -1,4 +1,5 @@
 import {
+  nextSequentialDocumentNumber,
   toDocumentStatusItems,
   utcMonthRangeIso,
   type DeleteDriverResult,
@@ -94,11 +95,15 @@ export const getDriverStatusOverview = async (id: string): Promise<DriverStatusO
   await getDriver(id);
 
   const range = utcMonthRangeIso();
-  const [documentRecords, work] = await Promise.all([
+  const [documentRecords, maNumbers, work] = await Promise.all([
     prisma.driverDocument.findMany({
       where: { driverId: id },
       include: { file: true },
       orderBy: { issuedAt: 'desc' },
+    }),
+    prisma.driverDocument.findMany({
+      where: { type: 'MA_FORM' },
+      select: { documentNumber: true },
     }),
     summarizeDriverWork(id, range.from, range.to),
   ]);
@@ -115,6 +120,7 @@ export const getDriverStatusOverview = async (id: string): Promise<DriverStatusO
       hoursWorked: work.hoursWorked,
       fuelLogCount: work.driveCount,
     },
+    nextMaDocumentNumber: nextSequentialDocumentNumber(maNumbers.map((row) => row.documentNumber)),
   };
 };
 
