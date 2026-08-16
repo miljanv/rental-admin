@@ -16,13 +16,12 @@ import { useDeleteFuelLog } from '@/features/fuel-logs/hooks/use-delete-fuel-log
 import { formatDate } from '@/lib/format';
 
 interface DeleteFuelLogDialogProps {
-  vehicleId: string;
   fuelLog: FuelLogDto | null;
   onOpenChange: (isOpen: boolean) => void;
 }
 
-export function DeleteFuelLogDialog({ vehicleId, fuelLog, onOpenChange }: DeleteFuelLogDialogProps) {
-  const deleteMutation = useDeleteFuelLog(vehicleId);
+export function DeleteFuelLogDialog({ fuelLog, onOpenChange }: DeleteFuelLogDialogProps) {
+  const deleteMutation = useDeleteFuelLog();
 
   const handleConfirm = async () => {
     if (!fuelLog) {
@@ -44,10 +43,10 @@ export function DeleteFuelLogDialog({ vehicleId, fuelLog, onOpenChange }: Delete
     <AlertDialog open={fuelLog !== null} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Obrisati ovo točenje?</AlertDialogTitle>
+          <AlertDialogTitle>Obrisati ovo sipanje?</AlertDialogTitle>
           <AlertDialogDescription>
             {fuelLog
-              ? `Zapis o točenju od ${formatDate(fuelLog.fueledAt)} će biti uklonjen iz istorije. Ova radnja se ne može opozvati.`
+              ? `Zapis o sipanju od ${formatDate(fuelLog.fueledAt)} će biti uklonjen iz istorije. Ova radnja se ne može opozvati.`
               : ''}
           </AlertDialogDescription>
         </AlertDialogHeader>

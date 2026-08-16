@@ -14,19 +14,24 @@ const record: FuelLogRecord = {
   cost: 8_400,
   paymentMethod: 'ACCOUNT',
   supplier: 'NIS',
+  note: 'Grupni račun',
   kmDriven: 500,
   consumptionPer100Km: 8,
   createdAt: new Date('2026-08-14T10:00:00.000Z'),
   updatedAt: new Date('2026-08-14T10:00:00.000Z'),
   driver: { id: 'drv_1', firstName: 'Marko', lastName: 'Marković' },
+  vehicle: { id: 'veh_1', make: 'Setra', model: 'S 516', licensePlate: 'NS-001-AA' },
 };
 
 describe('toFuelLogDto', () => {
-  it('maps a fuel log with driver and derived fields', () => {
+  it('maps a fuel log with driver, vehicle and derived fields', () => {
     expect(toFuelLogDto(record)).toMatchObject({
       id: 'log_1',
       fueledAt: '2026-08-14',
+      supplier: 'NIS',
+      note: 'Grupni račun',
       driver: { id: 'drv_1', firstName: 'Marko', lastName: 'Marković' },
+      vehicle: { id: 'veh_1', licensePlate: 'NS-001-AA' },
       kmDriven: 500,
       consumptionPer100Km: 8,
     });

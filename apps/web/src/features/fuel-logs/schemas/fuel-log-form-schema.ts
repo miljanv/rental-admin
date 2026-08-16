@@ -1,10 +1,11 @@
-import { fuelLogWriteSchema, type FuelLogWriteInput } from '@rental-admin/shared';
+import { fuelLogCreateSchema, type FuelLogCreateInput } from '@rental-admin/shared';
 
-export const fuelLogFormSchema = fuelLogWriteSchema;
+export const fuelLogFormSchema = fuelLogCreateSchema;
 
-export type FuelLogFormValues = FuelLogWriteInput;
+export type FuelLogFormValues = FuelLogCreateInput;
 
 export const EMPTY_FUEL_LOG_FORM: FuelLogFormValues = {
+  vehicleId: '',
   fueledAt: '',
   location: '',
   driverId: '',
@@ -14,4 +15,5 @@ export const EMPTY_FUEL_LOG_FORM: FuelLogFormValues = {
   cost: null,
   paymentMethod: '',
   supplier: '',
+  note: '',
 };

@@ -1,3 +1,9 @@
-import { fuelLogParamsSchema, fuelLogWriteSchema, listFuelLogsQuerySchema } from '@rental-admin/shared';
-
-export { fuelLogParamsSchema, fuelLogWriteSchema, listFuelLogsQuerySchema };
+export {
+  fuelConsumptionQuerySchema,
+  fuelLogBulkWriteSchema,
+  fuelLogCreateSchema,
+  fuelLogIdParamsSchema,
+  fuelLogParamsSchema,
+  fuelLogWriteSchema,
+  listFuelLogsQuerySchema,
+} from '@rental-admin/shared';

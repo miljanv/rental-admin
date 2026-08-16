@@ -346,14 +346,15 @@ model FuelLog {
   id                  String          @id @default(cuid())
   vehicleId           String
   fueledAt            DateTime        @db.Date
-  location            String
+  location            String          @default("")
   driverId            String?
   fuelType            FuelLogFuelType
   litersFilled        Float
   odometerKm          Int
   cost                Float?
   paymentMethod       PaymentMethod?
-  supplier            String?
+  supplier            String
+  note                String?
   kmDriven            Int?
   consumptionPer100Km Float?
   createdAt           DateTime        @default(now())
@@ -364,8 +365,10 @@ model FuelLog {
 
   @@index([vehicleId])
   @@index([vehicleId, odometerKm])
+  @@index([vehicleId, fueledAt])
   @@index([fueledAt])
   @@index([fuelType])
+  @@index([supplier])
   @@index([driverId, fueledAt])
   @@map("fuel_logs")
 }

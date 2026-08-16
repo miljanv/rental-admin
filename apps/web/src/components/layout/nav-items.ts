@@ -2,6 +2,7 @@ import {
   Bell,
   Bus,
   FileText,
+  Fuel,
   LayoutDashboard,
   Route,
   Settings2,
@@ -45,6 +46,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: '/vehicles',
     icon: Truck,
     description: 'Vozni park i osnovni podaci',
+  },
+  {
+    title: 'Gorivo',
+    href: '/fuel',
+    icon: Fuel,
+    description: 'Sipanja za sva vozila, sa grupnih računa',
   },
   {
     title: 'Partneri',
