@@ -26,12 +26,14 @@ import { FuelConsumptionChart } from '@/features/fuel-logs/components/fuel-consu
 import { FuelLogForm } from '@/features/fuel-logs/components/fuel-log-form';
 import { FuelLogsTable } from '@/features/fuel-logs/components/fuel-logs-table';
 import { useFuelLogs } from '@/features/fuel-logs/hooks/use-fuel-logs';
+import { useDrivers } from '@/features/drivers/hooks/use-drivers';
 
 interface FuelLogsTabProps {
   vehicleId: string;
 }
 
 const ALL_FUEL_TYPES = 'all';
+const ALL_DRIVERS = 'all';
 
 export function FuelLogsTab({ vehicleId }: FuelLogsTabProps) {
   const [from, setFrom] = useState('');
@@ -39,15 +41,21 @@ export function FuelLogsTab({ vehicleId }: FuelLogsTabProps) {
   const [fuelTypeFilter, setFuelTypeFilter] = useState<typeof ALL_FUEL_TYPES | FuelLogFuelType>(
     ALL_FUEL_TYPES,
   );
+  const [driverFilter, setDriverFilter] = useState<typeof ALL_DRIVERS | string>(ALL_DRIVERS);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editing, setEditing] = useState<FuelLogDto | undefined>(undefined);
   const [logToDelete, setLogToDelete] = useState<FuelLogDto | null>(null);
 
+  const driversQuery = useDrivers({ page: 1, limit: 100, sortBy: 'lastName', sortOrder: 'asc' });
+  const drivers = driversQuery.data?.drivers ?? [];
+
   const fuelType = fuelTypeFilter === ALL_FUEL_TYPES ? undefined : fuelTypeFilter;
+  const driverId = driverFilter === ALL_DRIVERS ? undefined : driverFilter;
   const query = useFuelLogs(vehicleId, {
     ...(from ? { from } : {}),
     ...(to ? { to } : {}),
     ...(fuelType ? { fuelType } : {}),
+    ...(driverId ? { driverId } : {}),
     sortOrder: 'desc',
   });
 
@@ -100,6 +108,24 @@ export function FuelLogsTab({ vehicleId }: FuelLogsTabProps) {
               {FUEL_LOG_FUEL_TYPES.map((value) => (
                 <SelectItem key={value} value={value}>
                   {FUEL_LOG_FUEL_TYPE_LABELS[value]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="fuel-driver-filter" className="text-xs">
+            Vozač
+          </Label>
+          <Select value={driverFilter} onValueChange={setDriverFilter}>
+            <SelectTrigger id="fuel-driver-filter" className="w-full sm:w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_DRIVERS}>Svi vozači</SelectItem>
+              {drivers.map((driver) => (
+                <SelectItem key={driver.id} value={driver.id}>
+                  {driver.firstName} {driver.lastName}
                 </SelectItem>
               ))}
             </SelectContent>

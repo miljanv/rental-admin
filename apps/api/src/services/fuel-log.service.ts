@@ -80,6 +80,7 @@ export const listFuelLogs = async (
   const where = {
     vehicleId,
     ...(query.fuelType ? { fuelType: query.fuelType } : {}),
+    ...(query.driverId ? { driverId: query.driverId } : {}),
     ...(query.from || query.to
       ? {
           fueledAt: {

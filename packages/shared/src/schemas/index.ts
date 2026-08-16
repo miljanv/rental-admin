@@ -14,6 +14,8 @@ export * from './travel-permit';
 export * from './fuel-log';
 export * from './tachograph-calibration';
 export * from './transaction';
+export * from './trip';
+export * from './trip-series';
 export * from './vehicle';
 export * from './vehicle-document';
 export * from './vehicle-inspection';

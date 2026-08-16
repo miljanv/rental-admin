@@ -30,4 +30,11 @@ describe('listFuelLogsQuerySchema', () => {
   it('defaults to descending order with no filters', () => {
     expect(listFuelLogsQuerySchema.parse({})).toEqual({ sortOrder: 'desc' });
   });
+
+  it('accepts an optional driverId filter', () => {
+    expect(listFuelLogsQuerySchema.parse({ driverId: 'driver-1' })).toEqual({
+      driverId: 'driver-1',
+      sortOrder: 'desc',
+    });
+  });
 });

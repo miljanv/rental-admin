@@ -1,0 +1,69 @@
+import { describe, expect, it } from 'vitest';
+
+import { listTripsQuerySchema, tripWriteSchema } from './trip';
+
+const validTrip = {
+  referenceNumber: 'RN-1042',
+  departureDate: '2026-09-01',
+  route: 'Novi Sad - Zlatibor',
+  status: 'PLANNED',
+  vehicleIds: ['vehicle_1'],
+  driverIds: ['driver_1'],
+} as const;
+
+describe('tripWriteSchema', () => {
+  it('accepts a minimal trip and defaults optional fields to null/empty', () => {
+    const result = tripWriteSchema.safeParse(validTrip);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.partnerId).toBeNull();
+    expect(result.data?.clientName).toBeNull();
+    expect(result.data?.price).toBeNull();
+  });
+
+  it('rejects a return date before the departure date', () => {
+    const result = tripWriteSchema.safeParse({
+      ...validTrip,
+      departureDate: '2026-09-05',
+      returnDate: '2026-09-01',
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts a return date on or after the departure date', () => {
+    const result = tripWriteSchema.safeParse({
+      ...validTrip,
+      returnDate: '2026-09-01',
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('normalizes an empty price to null', () => {
+    const result = tripWriteSchema.safeParse({ ...validTrip, price: '' });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.price).toBeNull();
+  });
+
+  it('rejects more than 20 vehicles', () => {
+    const result = tripWriteSchema.safeParse({
+      ...validTrip,
+      vehicleIds: Array.from({ length: 21 }, (_, index) => `vehicle_${index}`),
+    });
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('listTripsQuerySchema', () => {
+  it('defaults to departure date descending', () => {
+    expect(listTripsQuerySchema.parse({})).toMatchObject({
+      page: 1,
+      limit: 10,
+      sortBy: 'departureDate',
+      sortOrder: 'desc',
+    });
+  });
+});
