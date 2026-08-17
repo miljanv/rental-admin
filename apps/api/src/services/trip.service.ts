@@ -1,14 +1,17 @@
-import type {
-  DeleteTripResult,
-  ListTripsQuery,
-  PaginationMeta,
-  TripDto,
-  TripSortField,
-  TripStatsDto,
-  TripStatsQueryRequest,
-  TripWriteRequest,
+import {
+  buildTripStats,
+  defaultTripStatsRange,
+  tripClientDisplayName,
+  tripRouteLabel,
+  type DeleteTripResult,
+  type ListTripsQuery,
+  type PaginationMeta,
+  type TripDto,
+  type TripSortField,
+  type TripStatsDto,
+  type TripStatsQueryRequest,
+  type TripWriteRequest,
 } from '@rental-admin/shared';
-import { buildTripStats, defaultTripStatsRange } from '@rental-admin/shared';
 
 import { prisma } from '../config/prisma';
 import { badRequest, notFound } from '../utils/app-error';
@@ -16,7 +19,7 @@ import { buildPaginationMeta } from '../utils/api-response';
 import { toTripDto, type TripRecord } from '../utils/trip-mapper';
 import { logger } from '../utils/logger';
 import { deleteAttachedFile } from './file-attachment.service';
-import { deleteOperationalTransaction } from './transaction.service';
+import { deleteOperationalTransaction, upsertOperationalIncome } from './transaction.service';
 
 type SortOrder = ListTripsQuery['sortOrder'];
 type TripOrderBy = Partial<Record<TripSortField, SortOrder>>;
@@ -112,12 +115,22 @@ const syncTripDrivers = async (
   tripId: string,
   driverIds: string[],
 ): Promise<void> => {
-  const existing = await tx.tripDriver.findMany({ where: { tripId }, select: { driverId: true } });
+  const existing = await tx.tripDriver.findMany({ where: { tripId } });
   const existingIds = new Set(existing.map((row) => row.driverId));
+  const removed = existing.filter((row) => !driverIds.includes(row.driverId));
 
   await tx.tripDriver.deleteMany({
     where: { tripId, driverId: { notIn: driverIds } },
   });
+
+  // A dropped driver's per-diem/advance Finance rows would otherwise point
+  // at a TripDriver id that no longer exists.
+  await Promise.all(
+    removed.flatMap((row) => [
+      deleteOperationalTransaction('TRIP_DRIVER_PER_DIEM', row.id),
+      deleteOperationalTransaction('TRIP_DRIVER_ADVANCE', row.id),
+    ]),
+  );
 
   const toCreate = driverIds.filter((driverId) => !existingIds.has(driverId));
 
@@ -126,6 +139,26 @@ const syncTripDrivers = async (
       data: toCreate.map((driverId) => ({ tripId, driverId })),
     });
   }
+};
+
+/**
+ * Posts/updates/removes the trip's own INCOME row — only once it's actually
+ * marked paid (`paidAt`), so Finance reflects real cash flow instead of every
+ * planned-but-unpaid trip's full price.
+ */
+export const syncTripRevenue = async (trip: TripDto): Promise<void> => {
+  await upsertOperationalIncome({
+    sourceType: 'TRIP_REVENUE',
+    sourceId: trip.id,
+    category: 'CONTRACT',
+    amount: trip.paidAt ? trip.price : null,
+    paymentMethod: trip.paymentMethod,
+    occurredAt: trip.paidAt ?? trip.departureDate,
+    vehicleId: trip.vehicles[0]?.id ?? null,
+    partner: tripClientDisplayName(trip) || null,
+    route: tripRouteLabel(trip),
+    note: trip.referenceNumber ? `Vožnja ${trip.referenceNumber}` : `Vožnja ${tripRouteLabel(trip)}`,
+  });
 };
 
 const toWriteData = (input: TripWriteRequest) => ({
@@ -224,25 +257,35 @@ export const updateTrip = async (id: string, input: TripWriteRequest): Promise<T
     return tx.trip.findUniqueOrThrow({ where: { id }, include: tripInclude });
   });
 
+  const trip = toTripDto(record);
+  // Price/paymentMethod live on this form too — if the trip is already
+  // marked paid, keep its posted revenue in sync instead of leaving it stale.
+  await syncTripRevenue(trip);
+
   logger.info('Trip updated', { tripId: id });
 
-  return toTripDto(record);
+  return trip;
 };
 
 export const deleteTrip = async (id: string): Promise<DeleteTripResult> => {
   await getTrip(id);
 
-  const expenses = await prisma.tripExpense.findMany({
-    where: { tripId: id },
-    select: { id: true, fileId: true },
-  });
+  const [expenses, tripDrivers] = await Promise.all([
+    prisma.tripExpense.findMany({ where: { tripId: id }, select: { id: true, fileId: true } }),
+    prisma.tripDriver.findMany({ where: { tripId: id }, select: { id: true } }),
+  ]);
 
-  await Promise.all(
-    expenses.map(async (expense) => {
+  await Promise.all([
+    ...expenses.map(async (expense) => {
       await deleteOperationalTransaction('TRIP_EXPENSE', expense.id);
       await deleteAttachedFile(expense.fileId);
     }),
-  );
+    ...tripDrivers.flatMap((tripDriver) => [
+      deleteOperationalTransaction('TRIP_DRIVER_PER_DIEM', tripDriver.id),
+      deleteOperationalTransaction('TRIP_DRIVER_ADVANCE', tripDriver.id),
+    ]),
+    deleteOperationalTransaction('TRIP_REVENUE', id),
+  ]);
 
   // TripVehicle/TripDriver/TripExpense rows cascade automatically (onDelete: Cascade).
   await prisma.trip.delete({ where: { id } });

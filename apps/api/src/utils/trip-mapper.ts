@@ -6,6 +6,7 @@ import type {
   TripPartnerDto,
   TripSeriesDto,
   TripSeriesFrequency,
+  TripSeriesPauseDto,
   TripStatus,
   TripVehicleDto,
 } from '@rental-admin/shared';
@@ -63,6 +64,13 @@ export interface TripRecord {
   drivers: TripDriverAssignmentRecord[];
 }
 
+export interface TripSeriesPauseRecord {
+  id: string;
+  startDate: Date;
+  endDate: Date;
+  reason: string | null;
+}
+
 export interface TripSeriesRecord {
   id: string;
   name: string | null;
@@ -72,6 +80,7 @@ export interface TripSeriesRecord {
   endDate: Date;
   isActive: boolean;
   terminatedAt: Date | null;
+  pauses: TripSeriesPauseRecord[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -132,6 +141,13 @@ export const toTripDto = (record: TripRecord): TripDto => ({
   updatedAt: record.updatedAt.toISOString(),
 });
 
+const toTripSeriesPauseDto = (record: TripSeriesPauseRecord): TripSeriesPauseDto => ({
+  id: record.id,
+  startDate: toIsoDate(record.startDate),
+  endDate: toIsoDate(record.endDate),
+  reason: record.reason,
+});
+
 export const toTripSeriesDto = (record: TripSeriesRecord): TripSeriesDto => ({
   id: record.id,
   name: record.name,
@@ -141,6 +157,7 @@ export const toTripSeriesDto = (record: TripSeriesRecord): TripSeriesDto => ({
   endDate: toIsoDate(record.endDate),
   isActive: record.isActive,
   terminatedAt: record.terminatedAt ? toIsoDate(record.terminatedAt) : null,
+  pauses: record.pauses.map(toTripSeriesPauseDto),
   createdAt: record.createdAt.toISOString(),
   updatedAt: record.updatedAt.toISOString(),
 });

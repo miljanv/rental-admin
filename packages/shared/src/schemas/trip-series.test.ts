@@ -60,6 +60,32 @@ describe('generateTripSeriesSchema', () => {
     expect(result.success).toBe(true);
     expect(result.data?.passengerCount).toBe(45);
   });
+
+  it('defaults to no pauses', () => {
+    const result = generateTripSeriesSchema.safeParse(validSeries);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.pauses).toEqual([]);
+  });
+
+  it('accepts a pause within the series period', () => {
+    const result = generateTripSeriesSchema.safeParse({
+      ...validSeries,
+      pauses: [{ startDate: '2026-09-10', endDate: '2026-09-15', reason: 'Kolektivni godišnji' }],
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.pauses).toHaveLength(1);
+  });
+
+  it('rejects a pause whose end date is before its start date', () => {
+    const result = generateTripSeriesSchema.safeParse({
+      ...validSeries,
+      pauses: [{ startDate: '2026-09-15', endDate: '2026-09-10' }],
+    });
+
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('bulkUpdateTripSeriesSchema', () => {

@@ -422,6 +422,25 @@ export function TripSeriesManager({ seriesId }: TripSeriesManagerProps) {
           </CardContent>
         </Card>
 
+        {series.pauses.length > 0 ? (
+          <Card className="shadow-none">
+            <CardHeader>
+              <CardTitle>Pauze</CardTitle>
+              <CardDescription>Dani u periodu serije koji su preskočeni pri generisanju.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {series.pauses.map((pause) => (
+                <div key={pause.id} className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="font-medium">
+                    {formatDate(pause.startDate)} – {formatDate(pause.endDate)}
+                  </span>
+                  {pause.reason ? <span className="text-muted-foreground">{pause.reason}</span> : null}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        ) : null}
+
         {series.isActive ? <BulkUpdateCard seriesId={series.id} /> : null}
         <TerminateSeriesCard seriesId={series.id} isActive={series.isActive} />
 

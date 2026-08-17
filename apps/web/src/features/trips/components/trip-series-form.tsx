@@ -16,9 +16,10 @@ import {
   WEEKDAY_SHORT_LABELS,
   type GenerateTripSeriesRequest,
 } from '@rental-admin/shared';
+import { Plus, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
-import { Controller, useForm, useWatch } from 'react-hook-form';
+import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 
 import { DateField } from '@/components/common/date-field';
 import { MultiSelectField } from '@/components/common/multi-select-field';
@@ -78,6 +79,7 @@ export function TripSeriesForm() {
   });
 
   const errors = form.formState.errors;
+  const pauseFields = useFieldArray({ control: form.control, name: 'pauses' });
   const frequency = useWatch({ control: form.control, name: 'frequency' });
   const daysOfWeek = useWatch({ control: form.control, name: 'daysOfWeek' }) ?? [];
   const vehicleIds = useWatch({ control: form.control, name: 'vehicleIds' }) ?? [];
@@ -211,6 +213,91 @@ export function TripSeriesForm() {
                 </Field>
               </div>
             ) : null}
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-none">
+          <CardHeader>
+            <CardTitle>Pauze (opciono)</CardTitle>
+            <CardDescription>
+              Dani u ovom periodu koji se preskaču pri generisanju — npr. kolektivni godišnji odmor.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {pauseFields.fields.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nema dodatih pauza.</p>
+            ) : (
+              pauseFields.fields.map((field, index) => (
+                <div key={field.id} className="grid gap-4 rounded-lg border p-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
+                  <Field
+                    id={`pauses.${index}.startDate`}
+                    label="Od"
+                    error={errors.pauses?.[index]?.startDate?.message}
+                  >
+                    <Controller
+                      control={form.control}
+                      name={`pauses.${index}.startDate`}
+                      render={({ field: dateField }) => (
+                        <DateField
+                          id={`pauses.${index}.startDate`}
+                          value={dateField.value ?? ''}
+                          onChange={dateField.onChange}
+                          disabled={isPending}
+                        />
+                      )}
+                    />
+                  </Field>
+                  <Field
+                    id={`pauses.${index}.endDate`}
+                    label="Do"
+                    error={errors.pauses?.[index]?.endDate?.message}
+                  >
+                    <Controller
+                      control={form.control}
+                      name={`pauses.${index}.endDate`}
+                      render={({ field: dateField }) => (
+                        <DateField
+                          id={`pauses.${index}.endDate`}
+                          value={dateField.value ?? ''}
+                          onChange={dateField.onChange}
+                          disabled={isPending}
+                        />
+                      )}
+                    />
+                  </Field>
+                  <Field id={`pauses.${index}.reason`} label="Razlog (opciono)">
+                    <Input
+                      id={`pauses.${index}.reason`}
+                      placeholder="npr. Kolektivni godišnji"
+                      disabled={isPending}
+                      {...form.register(`pauses.${index}.reason`)}
+                    />
+                  </Field>
+                  <div className="flex items-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      disabled={isPending}
+                      aria-label="Ukloni pauzu"
+                      onClick={() => pauseFields.remove(index)}
+                    >
+                      <Trash2 className="size-4" aria-hidden />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isPending}
+              onClick={() => pauseFields.append({ startDate: '', endDate: '', reason: '' })}
+            >
+              <Plus className="size-4" aria-hidden />
+              Dodaj pauzu
+            </Button>
           </CardContent>
         </Card>
 

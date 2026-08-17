@@ -634,6 +634,9 @@ enum TransactionSourceType {
   CALIBRATION
   SAFETY_EQUIPMENT
   TRIP_EXPENSE
+  TRIP_REVENUE
+  TRIP_DRIVER_PER_DIEM
+  TRIP_DRIVER_ADVANCE
 }
 
 /// A bookkeeping row. Field names are English; the admin UI presents Serbian
@@ -720,9 +723,28 @@ model TripSeries {
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 
-  trips Trip[]
+  trips  Trip[]
+  pauses TripSeriesPause[]
 
   @@map("trip_series")
+}
+
+/// A date range within the series' own [startDate, endDate] that generation
+/// skips — e.g. the collective annual leave in an otherwise-daily series.
+/// Only affects generation time; doesn't retroactively remove already-created
+/// trips.
+model TripSeriesPause {
+  id        String   @id @default(cuid())
+  seriesId  String
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  reason    String?
+  createdAt DateTime @default(now())
+
+  series TripSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@index([seriesId])
+  @@map("trip_series_pauses")
 }
 
 /// A single transport job ("vožnja") — distinct from Contract: a trip can be
