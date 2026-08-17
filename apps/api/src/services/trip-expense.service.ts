@@ -24,7 +24,7 @@ import {
   deleteOperationalTransaction,
   upsertOperationalExpense,
 } from './transaction.service';
-import { parseDate, tripInclude } from './trip.service';
+import { parseDate, syncTripRevenue, tripInclude } from './trip.service';
 
 const expenseInclude = { file: true } as const;
 
@@ -103,6 +103,53 @@ const syncFinanceExpense = async (
     route: tripRouteLabel(trip),
     note: financeNote(trip, expense),
   });
+};
+
+/**
+ * Posts each assigned driver's per-diem and advance as its own Finance
+ * expense row (category SALARY, paid in cash — how these are actually
+ * handed over) so "Neto rezultat" on the trip and the Finance ledger agree.
+ * Keyed by the TripDriver assignment's own id, not the driver's id, so two
+ * trips with the same driver never collide.
+ */
+const syncTripDriverPayouts = async (tripId: string): Promise<void> => {
+  const trip = toTripDto(await loadTrip(tripId));
+  const assignments = await prisma.tripDriver.findMany({
+    where: { tripId },
+    include: { driver: { select: { firstName: true, lastName: true } } },
+  });
+
+  for (const assignment of assignments) {
+    const driverName = `${assignment.driver.firstName} ${assignment.driver.lastName}`;
+    const label = trip.referenceNumber ?? tripRouteLabel(trip);
+    const shared = {
+      occurredAt: trip.departureDate,
+      vehicleId: trip.vehicles[0]?.id ?? null,
+      driverId: assignment.driverId,
+      partner: tripClientDisplayName(trip) || null,
+      route: tripRouteLabel(trip),
+    };
+
+    await upsertOperationalExpense({
+      sourceType: 'TRIP_DRIVER_PER_DIEM',
+      sourceId: assignment.id,
+      category: 'SALARY',
+      amount: assignment.perDiemAmount,
+      paymentMethod: assignment.perDiemAmount ? 'CASH' : null,
+      note: `Dnevnica — ${driverName} (${label})`,
+      ...shared,
+    });
+
+    await upsertOperationalExpense({
+      sourceType: 'TRIP_DRIVER_ADVANCE',
+      sourceId: assignment.id,
+      category: 'SALARY',
+      amount: assignment.advanceAmount,
+      paymentMethod: assignment.advanceAmount ? 'CASH' : null,
+      note: `Akontacija — ${driverName} (${label})`,
+      ...shared,
+    });
+  }
 };
 
 const assertCarrierExists = async (carrierId: string | null): Promise<void> => {
@@ -254,13 +301,17 @@ export const updateTripSettlement = async (
     }
   }
 
-  await prisma.trip.update({
+  const record = await prisma.trip.update({
     where: { id: tripId },
     data: {
       paidAt: input.paidAt ? parseDate(input.paidAt) : null,
       carrierId: input.carrierId,
     },
+    include: tripInclude,
   });
+
+  await syncTripRevenue(toTripDto(record));
+  await syncTripDriverPayouts(tripId);
 
   logger.info('Trip settlement updated', { tripId });
 

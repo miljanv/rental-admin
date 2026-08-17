@@ -4,6 +4,7 @@ import {
   computeAdvanceAmount,
   computeRemainderAmount,
   contractClientDisplayName,
+  contractRouteLabel,
   isLegalEntityPartnerType,
   PARTNER_TYPE_LABELS,
   type ContractDto,
@@ -91,11 +92,12 @@ function ContractOverview({ contract }: { contract: ContractDto }) {
       <Card className="shadow-none">
         <CardHeader>
           <CardTitle>Prevoz</CardTitle>
-          <CardDescription>Relacija, period i resursi.</CardDescription>
+          <CardDescription>Polazište, odredište, period i resursi.</CardDescription>
         </CardHeader>
         <CardContent>
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <DetailItem label="Relacija" value={contract.route} />
+            <DetailItem label="Polazište" value={contract.origin} />
+            <DetailItem label="Odredište" value={contract.destination} />
             <DetailItem label="Datum zaključenja" value={formatDate(contract.conclusionDate)} />
             <DetailItem
               label="Period usluge"
@@ -182,7 +184,7 @@ export function ContractProfile({ contractId }: ContractProfileProps) {
     <>
       <PageHeader
         title={contractClientDisplayName(contract)}
-        description={contract.route}
+        description={contractRouteLabel(contract)}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <ContractStatusControl contractId={contract.id} status={contract.status} />

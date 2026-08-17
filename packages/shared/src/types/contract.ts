@@ -18,7 +18,8 @@ export interface ContractDto {
   vehicleId: string | null;
   driverId: string | null;
   conclusionDate: string;
-  route: string;
+  origin: string;
+  destination: string;
   serviceStartDate: string;
   serviceEndDate: string;
   passengerCount: number;
@@ -56,6 +57,10 @@ export interface ContractAvailabilityResult {
   vehicleConflicts: ContractDto[];
   driverConflicts: ContractDto[];
 }
+
+/** "Polazište - Odredište" — the two-field split displayed as one route string. */
+export const contractRouteLabel = (contract: Pick<ContractDto, 'origin' | 'destination'>): string =>
+  `${contract.origin} - ${contract.destination}`;
 
 export const contractClientDisplayName = (
   contract: Pick<ContractDto, 'clientType' | 'clientCompanyName' | 'clientFirstName' | 'clientLastName'>,

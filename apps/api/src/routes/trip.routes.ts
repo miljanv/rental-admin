@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import * as tripSeriesController from '../controllers/trip-series.controller';
+import * as tripBillingDocumentController from '../controllers/trip-billing-document.controller';
 import * as tripExpenseController from '../controllers/trip-expense.controller';
 import * as tripController from '../controllers/trip.controller';
 import { validateRequest } from '../middleware/validate-request';
@@ -97,6 +98,24 @@ tripRouter.delete(
   '/:id/expenses/:expenseId',
   validateRequest({ params: tripExpenseParamsSchema }),
   asyncHandler(tripExpenseController.deleteTripExpense),
+);
+
+tripRouter.get(
+  '/:id/billing-documents',
+  validateRequest({ params: tripIdParamsSchema }),
+  asyncHandler(tripBillingDocumentController.listTripBillingDocuments),
+);
+
+tripRouter.post(
+  '/:id/billing-documents/predracun',
+  validateRequest({ params: tripIdParamsSchema }),
+  asyncHandler(tripBillingDocumentController.generatePredracun),
+);
+
+tripRouter.post(
+  '/:id/billing-documents/racun',
+  validateRequest({ params: tripIdParamsSchema }),
+  asyncHandler(tripBillingDocumentController.generateRacun),
 );
 
 tripRouter.get(

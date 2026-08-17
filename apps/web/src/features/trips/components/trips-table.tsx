@@ -1,6 +1,6 @@
 'use client';
 
-import type { TripDto } from '@rental-admin/shared';
+import { PAYMENT_METHOD_LABELS, type TripDto } from '@rental-admin/shared';
 import { MoreHorizontal, Pencil, Route, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -23,9 +23,9 @@ import {
 } from '@/components/ui/table';
 import { TripStatusBadge } from '@/features/trips/components/trip-status-badge';
 import { tripClientDisplayName, tripLabel, tripRouteLabel } from '@/features/trips/lib/trip';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatMoney } from '@/lib/format';
 
-const COLUMN_COUNT = 6;
+const COLUMN_COUNT = 13;
 
 interface TripsTableProps {
   trips: TripDto[];
@@ -52,11 +52,17 @@ export function TripsTable({ trips, isLoading, hasFilters, onRequestDelete, empt
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>RN broj / relacija</TableHead>
-          <TableHead>Datum polaska</TableHead>
-          <TableHead>Vozila</TableHead>
-          <TableHead>Vozači</TableHead>
+          <TableHead>RN broj</TableHead>
+          <TableHead>Odlazak</TableHead>
+          <TableHead>Povratak</TableHead>
+          <TableHead>Država</TableHead>
+          <TableHead>Relacija</TableHead>
           <TableHead>Naručilac</TableHead>
+          <TableHead>Napomena</TableHead>
+          <TableHead>Vozilo</TableHead>
+          <TableHead>Vozači</TableHead>
+          <TableHead>Način plaćanja</TableHead>
+          <TableHead className="text-right">Cena</TableHead>
           <TableHead>Status</TableHead>
           <TableHead className="w-[60px] text-right">Akcije</TableHead>
         </TableRow>
@@ -67,32 +73,47 @@ export function TripsTable({ trips, isLoading, hasFilters, onRequestDelete, empt
         ) : (
           trips.map((trip) => (
             <TableRow key={trip.id}>
-              <TableCell className="max-w-[240px]">
-                <Link href={`/trips/${trip.id}`} className="hover:text-primary block">
-                  <span className="block truncate font-medium">
-                    {trip.referenceNumber ?? 'Bez RN broja'}
-                  </span>
-                  <span className="text-muted-foreground block truncate text-xs">
-                    {tripRouteLabel(trip)}
-                  </span>
+              <TableCell className="max-w-[140px]">
+                <Link href={`/trips/${trip.id}`} className="hover:text-primary block truncate font-medium">
+                  {trip.referenceNumber ?? 'Bez RN broja'}
+                  {trip.seriesId ? <span className="text-muted-foreground text-xs"> · serija</span> : null}
                 </Link>
               </TableCell>
               <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
                 {formatDate(trip.departureDate)}
-                {trip.seriesId ? <span className="text-muted-foreground ml-1 text-xs">(serija)</span> : null}
+              </TableCell>
+              <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+                {trip.returnDate ? formatDate(trip.returnDate) : '—'}
+              </TableCell>
+              <TableCell className="text-muted-foreground max-w-[120px] truncate text-sm">
+                {trip.country ?? '—'}
+              </TableCell>
+              <TableCell className="text-muted-foreground max-w-[200px] truncate text-sm">
+                {tripRouteLabel(trip)}
               </TableCell>
               <TableCell className="text-muted-foreground max-w-[160px] truncate text-sm">
-                {trip.vehicles.length === 0
-                  ? '—'
-                  : trip.vehicles.map((vehicle) => vehicle.licensePlate).join(', ')}
+                {tripClientDisplayName(trip) || '—'}
+              </TableCell>
+              <TableCell className="text-muted-foreground max-w-[200px] truncate text-sm">
+                {trip.notes || '—'}
+              </TableCell>
+              <TableCell className="max-w-[160px] truncate text-sm">
+                {trip.vehicles.length === 0 ? (
+                  <span className="text-muted-foreground">—</span>
+                ) : (
+                  trip.vehicles.map((vehicle) => vehicle.licensePlate).join(', ')
+                )}
               </TableCell>
               <TableCell className="text-muted-foreground max-w-[160px] truncate text-sm">
                 {trip.drivers.length === 0
                   ? '—'
                   : trip.drivers.map((driver) => driver.firstName).join(', ')}
               </TableCell>
-              <TableCell className="text-muted-foreground max-w-[160px] truncate text-sm">
-                {tripClientDisplayName(trip) || '—'}
+              <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+                {trip.paymentMethod ? PAYMENT_METHOD_LABELS[trip.paymentMethod] : '—'}
+              </TableCell>
+              <TableCell className="text-right text-sm whitespace-nowrap tabular-nums">
+                {trip.price != null ? formatMoney(trip.price) : '—'}
               </TableCell>
               <TableCell>
                 <TripStatusBadge status={trip.status} />

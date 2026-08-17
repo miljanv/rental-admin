@@ -1,6 +1,6 @@
 'use client';
 
-import type { ContractWriteRequest } from '@rental-admin/shared';
+import { contractRouteLabel, type ContractWriteRequest } from '@rental-admin/shared';
 import { AlertTriangle } from 'lucide-react';
 import { Controller, useFormContext, useWatch, type UseFormReturn } from 'react-hook-form';
 
@@ -149,11 +149,13 @@ export function WizardStepResources({ excludeContractId }: WizardStepResourcesPr
               <p className="font-medium">Vozilo ili vozač su već zauzeti u ovom periodu.</p>
               {vehicleConflicts.length > 0 ? (
                 <p>
-                  Vozilo je već rezervisano za: {vehicleConflicts.map((c) => c.route).join(', ')}.
+                  Vozilo je već rezervisano za: {vehicleConflicts.map((c) => contractRouteLabel(c)).join(', ')}.
                 </p>
               ) : null}
               {driverConflicts.length > 0 ? (
-                <p>Vozač je već rezervisan za: {driverConflicts.map((c) => c.route).join(', ')}.</p>
+                <p>
+                  Vozač je već rezervisan za: {driverConflicts.map((c) => contractRouteLabel(c)).join(', ')}.
+                </p>
               ) : null}
               <p className="text-amber-800/80 dark:text-amber-300/80">
                 Ovo je samo upozorenje — ugovor i dalje možete sačuvati.

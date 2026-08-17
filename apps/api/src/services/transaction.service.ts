@@ -361,7 +361,7 @@ export interface OperationalExpenseInput {
   note?: string | null;
 }
 
-const postedExpenseFields = (
+const postedFields = (
   amount: number | null | undefined,
   paymentMethod: PaymentMethod | null | undefined,
 ): { amount: number; paymentMethod: PaymentMethod } | null => {
@@ -378,12 +378,22 @@ const postedExpenseFields = (
   return { amount, paymentMethod };
 };
 
-export const upsertOperationalExpense = async (input: OperationalExpenseInput): Promise<void> => {
+/**
+ * Keeps one FinanceTransaction in sync with an operational source row —
+ * an amount of `null`/`undefined` (or one with no payment method) removes
+ * the transaction instead of leaving a stale/zero row behind. Shared by
+ * every "auto-posted" side effect (fuel, maintenance, trip costs, and now
+ * trip revenue and driver payouts) — only the `type` differs.
+ */
+const upsertOperationalTransaction = async (
+  type: 'INCOME' | 'EXPENSE',
+  input: OperationalExpenseInput,
+): Promise<void> => {
   const existing = await prisma.financeTransaction.findFirst({
     where: { sourceType: input.sourceType, sourceId: input.sourceId },
     select: { id: true, status: true, isAdvance: true },
   });
-  const posted = postedExpenseFields(input.amount, input.paymentMethod);
+  const posted = postedFields(input.amount, input.paymentMethod);
 
   if (!posted) {
     if (existing && existing.status !== 'SETTLED') {
@@ -394,7 +404,7 @@ export const upsertOperationalExpense = async (input: OperationalExpenseInput): 
   }
 
   const data = {
-    type: 'EXPENSE' as const,
+    type,
     category: input.category,
     amount: posted.amount,
     occurredAt: parseDate(input.occurredAt),
@@ -422,6 +432,13 @@ export const upsertOperationalExpense = async (input: OperationalExpenseInput): 
 
   await prisma.financeTransaction.create({ data });
 };
+
+export const upsertOperationalExpense = (input: OperationalExpenseInput): Promise<void> =>
+  upsertOperationalTransaction('EXPENSE', input);
+
+/** Same upsert-in-place behavior as `upsertOperationalExpense`, posted as INCOME instead. */
+export const upsertOperationalIncome = (input: OperationalExpenseInput): Promise<void> =>
+  upsertOperationalTransaction('INCOME', input);
 
 export const deleteOperationalTransaction = async (
   sourceType: Exclude<TransactionSourceType, 'MANUAL'>,

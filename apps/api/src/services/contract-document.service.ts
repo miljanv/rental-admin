@@ -1,7 +1,8 @@
-import type {
-  ContractDocumentDto,
-  DeleteContractDocumentResult,
-  GeneratedContractDocumentResult,
+import {
+  contractRouteLabel,
+  type ContractDocumentDto,
+  type DeleteContractDocumentResult,
+  type GeneratedContractDocumentResult,
 } from '@rental-admin/shared';
 
 import { prisma } from '../config/prisma';
@@ -48,7 +49,7 @@ export const generateContractDocument = async (
 
   const version = (lastDocument?.version ?? 0) + 1;
   const body = await buildPassengerTransportContractPdf({ contract, vehicle, driver });
-  const originalName = `Ugovor o prevozu putnika ${contract.route} v${version}.pdf`;
+  const originalName = `Ugovor o prevozu putnika ${contractRouteLabel(contract)} v${version}.pdf`;
   const file = await fileService.storeGeneratedPdf({ originalName, body });
 
   try {

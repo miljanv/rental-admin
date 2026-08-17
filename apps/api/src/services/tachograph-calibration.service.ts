@@ -1,5 +1,6 @@
 import { computeCalibrationExpiry } from '@rental-admin/shared';
 import type {
+  CalibratedTachographType,
   DeleteTachographCalibrationResult,
   ExpiringCalibrationsQuery,
   ExpiringTachographCalibrationDto,
@@ -9,7 +10,7 @@ import type {
 } from '@rental-admin/shared';
 
 import { prisma } from '../config/prisma';
-import { notFound } from '../utils/app-error';
+import { badRequest, notFound } from '../utils/app-error';
 import { logger } from '../utils/logger';
 import {
   toExpiringTachographCalibrationDto,
@@ -51,7 +52,16 @@ const getVehicleTachographType = async (vehicleId: string): Promise<TachographTy
   return vehicle.tachographType;
 };
 
-const toWriteData = (tachographType: TachographType, input: TachographCalibrationWriteRequest) => ({
+/** A vehicle with no tachograph has nothing to calibrate. */
+const assertCalibratable = (tachographType: TachographType): CalibratedTachographType => {
+  if (tachographType === 'NONE') {
+    throw badRequest('Vozilo nema tahograf — kalibracija nije primenljiva.');
+  }
+
+  return tachographType;
+};
+
+const toWriteData = (tachographType: CalibratedTachographType, input: TachographCalibrationWriteRequest) => ({
   calibratedAt: parseDate(input.calibratedAt),
   expiresAt: parseDate(computeCalibrationExpiry(tachographType, input.calibratedAt)),
   cost: input.cost,
@@ -93,7 +103,7 @@ export const createTachographCalibration = async (
   vehicleId: string,
   input: TachographCalibrationWriteRequest,
 ): Promise<TachographCalibrationDto> => {
-  const tachographType = await getVehicleTachographType(vehicleId);
+  const tachographType = assertCalibratable(await getVehicleTachographType(vehicleId));
   await assertUploadedFile(input.fileId);
 
   const record = await prisma.tachographCalibration.create({
@@ -132,7 +142,7 @@ export const updateTachographCalibration = async (
 
   await assertUploadedFile(input.fileId);
 
-  const tachographType = await getVehicleTachographType(vehicleId);
+  const tachographType = assertCalibratable(await getVehicleTachographType(vehicleId));
 
   const record = await prisma.tachographCalibration.update({
     where: { id: calibrationId },

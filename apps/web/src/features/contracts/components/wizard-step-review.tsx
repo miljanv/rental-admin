@@ -65,7 +65,8 @@ export function WizardStepReview() {
                 : '—'
             }
           />
-          <SummaryRow label="Relacija" value={values.route || '—'} />
+          <SummaryRow label="Polazište" value={values.origin || '—'} />
+          <SummaryRow label="Odredište" value={values.destination || '—'} />
           <SummaryRow
             label="Period usluge"
             value={

@@ -18,11 +18,22 @@ import { assertDriversExist, assertVehiclesExist, parseDate, tripInclude } from 
 /** Safety cap on how many trips one generation call can create in a single transaction. */
 const MAX_SERIES_INSTANCES = 400;
 
+const isPaused = (
+  date: Date,
+  pauses: Array<{ startDate: string; endDate: string }>,
+): boolean =>
+  pauses.some((pause) => {
+    const from = new Date(`${pause.startDate}T00:00:00.000Z`);
+    const to = new Date(`${pause.endDate}T00:00:00.000Z`);
+    return date.getTime() >= from.getTime() && date.getTime() <= to.getTime();
+  });
+
 const computeSeriesDates = (
   frequency: GenerateTripSeriesRequest['frequency'],
   daysOfWeek: number[],
   startDate: string,
   endDate: string,
+  pauses: GenerateTripSeriesRequest['pauses'],
 ): Date[] => {
   const dates: Date[] = [];
   const cursor = new Date(`${startDate}T00:00:00.000Z`);
@@ -30,7 +41,7 @@ const computeSeriesDates = (
   const daySet = new Set(daysOfWeek);
 
   while (cursor.getTime() <= end.getTime()) {
-    if (frequency === 'DAILY' || daySet.has(cursor.getUTCDay())) {
+    if ((frequency === 'DAILY' || daySet.has(cursor.getUTCDay())) && !isPaused(cursor, pauses)) {
       dates.push(new Date(cursor));
     }
 
@@ -66,7 +77,13 @@ export const generateTripSeries = async (
 ): Promise<GenerateTripSeriesResult> => {
   await assertReferencesExist(input);
 
-  const dates = computeSeriesDates(input.frequency, input.daysOfWeek, input.startDate, input.endDate);
+  const dates = computeSeriesDates(
+    input.frequency,
+    input.daysOfWeek,
+    input.startDate,
+    input.endDate,
+    input.pauses,
+  );
 
   if (dates.length === 0) {
     throw badRequest('Izabrani period i dani u nedelji ne generišu nijednu vožnju.');
@@ -85,7 +102,15 @@ export const generateTripSeries = async (
           daysOfWeek: input.daysOfWeek,
           startDate: parseDate(input.startDate),
           endDate: parseDate(input.endDate),
+          pauses: {
+            create: input.pauses.map((pause) => ({
+              startDate: parseDate(pause.startDate),
+              endDate: parseDate(pause.endDate),
+              reason: pause.reason,
+            })),
+          },
         },
+        include: { pauses: true },
       });
 
       const createdTrips = await tx.trip.createManyAndReturn({
@@ -146,7 +171,7 @@ export const generateTripSeries = async (
 export const getTripSeries = async (
   id: string,
 ): Promise<{ series: TripSeriesDto; trips: TripDto[] }> => {
-  const series = await prisma.tripSeries.findUnique({ where: { id } });
+  const series = await prisma.tripSeries.findUnique({ where: { id }, include: { pauses: true } });
 
   if (!series) {
     throw notFound('Serija nije pronađena.');
@@ -255,6 +280,7 @@ export const terminateTripSeries = async (
     const updated = await tx.tripSeries.update({
       where: { id: seriesId },
       data: { isActive: false, terminatedAt: fromDate },
+      include: { pauses: true },
     });
 
     return { series: updated, deletedCount: deleteResult.count };

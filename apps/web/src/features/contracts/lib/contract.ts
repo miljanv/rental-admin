@@ -1,18 +1,22 @@
 import {
   contractClientDisplayName,
+  contractRouteLabel,
   type ContractDto,
   type ContractWriteRequest,
 } from '@rental-admin/shared';
 
+export { contractRouteLabel };
+
 export const contractLabel = (contract: ContractDto): string =>
-  `${contractClientDisplayName(contract)} — ${contract.route}`;
+  `${contractClientDisplayName(contract)} — ${contractRouteLabel(contract)}`;
 
 export const toContractFormValues = (contract: ContractDto): ContractWriteRequest => ({
   partnerId: contract.partnerId,
   vehicleId: contract.vehicleId,
   driverId: contract.driverId,
   conclusionDate: contract.conclusionDate,
-  route: contract.route,
+  origin: contract.origin,
+  destination: contract.destination,
   serviceStartDate: contract.serviceStartDate,
   serviceEndDate: contract.serviceEndDate,
   passengerCount: contract.passengerCount,

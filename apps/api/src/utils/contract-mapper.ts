@@ -6,7 +6,8 @@ export interface ContractRecord {
   vehicleId: string | null;
   driverId: string | null;
   conclusionDate: Date;
-  route: string;
+  origin: string;
+  destination: string;
   serviceStartDate: Date;
   serviceEndDate: Date;
   passengerCount: number;
@@ -35,7 +36,8 @@ export const toContractDto = (record: ContractRecord): ContractDto => ({
   vehicleId: record.vehicleId,
   driverId: record.driverId,
   conclusionDate: toIsoDate(record.conclusionDate),
-  route: record.route,
+  origin: record.origin,
+  destination: record.destination,
   serviceStartDate: toIsoDate(record.serviceStartDate),
   serviceEndDate: toIsoDate(record.serviceEndDate),
   passengerCount: record.passengerCount,

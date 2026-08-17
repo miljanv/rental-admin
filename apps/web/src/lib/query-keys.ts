@@ -224,6 +224,7 @@ export const queryKeys = {
     stats: (params?: TripStatsParams) => ['trips', 'stats', params] as const,
     series: (id: string) => ['trips', 'series', id] as const,
     settlement: (id: string) => ['trips', 'settlement', id] as const,
+    billingDocuments: (id: string) => ['trips', id, 'billing-documents'] as const,
   },
   fuelLogs: {
     all: ['fuel-logs'] as const,

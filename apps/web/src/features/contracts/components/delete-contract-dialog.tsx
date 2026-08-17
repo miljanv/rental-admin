@@ -1,6 +1,6 @@
 'use client';
 
-import { contractClientDisplayName, type ContractDto } from '@rental-admin/shared';
+import { contractClientDisplayName, contractRouteLabel, type ContractDto } from '@rental-admin/shared';
 
 import {
   AlertDialog,
@@ -35,7 +35,7 @@ export function DeleteContractDialog({
     try {
       await deleteMutation.mutateAsync({
         id: contract.id,
-        name: `${contractClientDisplayName(contract)} — ${contract.route}`,
+        name: `${contractClientDisplayName(contract)} — ${contractRouteLabel(contract)}`,
         redirectToList,
       });
       onOpenChange(false);
@@ -51,7 +51,7 @@ export function DeleteContractDialog({
           <AlertDialogTitle>Obrisati ovaj ugovor?</AlertDialogTitle>
           <AlertDialogDescription>
             {contract
-              ? `Ugovor sa ${contractClientDisplayName(contract)} (${contract.route}) i svi generisani dokumenti biće trajno uklonjeni. Ova radnja se ne može opozvati.`
+              ? `Ugovor sa ${contractClientDisplayName(contract)} (${contractRouteLabel(contract)}) i svi generisani dokumenti biće trajno uklonjeni. Ova radnja se ne može opozvati.`
               : ''}
           </AlertDialogDescription>
         </AlertDialogHeader>

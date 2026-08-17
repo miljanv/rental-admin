@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 
 export interface MultiSelectOption {
   value: string;
-  label: string;
+  label: React.ReactNode;
 }
 
 interface MultiSelectFieldProps {

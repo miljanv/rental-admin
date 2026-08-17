@@ -23,12 +23,23 @@ const toTitleCase = (segment: string): string =>
     .join(' ');
 
 const SEGMENT_LABELS: Record<string, string> = {
-  new: 'Novi vozač',
   edit: 'Izmena',
   settings: 'Podešavanja',
   finance: 'Finansije',
   alarms: 'Alarm centar',
   fuel: 'Gorivo',
+};
+
+// "new" is shared across every section's create page — the label depends on
+// what's being created, keyed by the segment right before "new" (matches
+// each section's own page.tsx <title> exactly).
+const NEW_LABELS: Record<string, string> = {
+  drivers: 'Novi vozač',
+  vehicles: 'Novo vozilo',
+  partners: 'Novi partner',
+  trips: 'Nova vožnja',
+  contracts: 'Novi ugovor',
+  series: 'Ponavljajuća vožnja',
 };
 
 /** Builds the trail from the current path, using the nav labels when known. */
@@ -47,7 +58,10 @@ const buildTrail = (pathname: string): { title: string; href: string }[] => {
 
     return {
       title:
-        navItem?.title ?? SEGMENT_LABELS[segment] ?? (isDriverId ? 'Profil' : toTitleCase(segment)),
+        navItem?.title ??
+        (segment === 'new' ? NEW_LABELS[previous ?? ''] : undefined) ??
+        SEGMENT_LABELS[segment] ??
+        (isDriverId ? 'Profil' : toTitleCase(segment)),
       href,
     };
   });

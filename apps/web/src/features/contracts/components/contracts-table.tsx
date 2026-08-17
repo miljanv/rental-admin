@@ -1,6 +1,6 @@
 'use client';
 
-import { contractClientDisplayName, type ContractDto } from '@rental-admin/shared';
+import { contractClientDisplayName, contractRouteLabel, type ContractDto } from '@rental-admin/shared';
 import { FileText, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -81,7 +81,7 @@ export function ContractsTable({
                     {contractClientDisplayName(contract)}
                   </span>
                   <span className="text-muted-foreground block truncate text-xs">
-                    {contract.route}
+                    {contractRouteLabel(contract)}
                   </span>
                 </Link>
               </TableCell>
@@ -100,7 +100,7 @@ export function ContractsTable({
                     <Button
                       variant="ghost"
                       size="icon"
-                      aria-label={`Akcije za ugovor ${contract.route}`}
+                      aria-label={`Akcije za ugovor ${contractRouteLabel(contract)}`}
                     >
                       <MoreHorizontal className="size-4" aria-hidden />
                     </Button>

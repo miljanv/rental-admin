@@ -40,6 +40,7 @@ import { useTerminateTripSeries } from '@/features/trips/hooks/use-terminate-tri
 import { useTripSeries } from '@/features/trips/hooks/use-trip-series';
 import { useDrivers } from '@/features/drivers/hooks/use-drivers';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
+import { vehicleSelectLabel } from '@/features/vehicles/lib/vehicle';
 import { formatDate } from '@/lib/format';
 
 const NONE = 'none';
@@ -50,7 +51,7 @@ interface TripSeriesManagerProps {
 
 function BulkUpdateCard({ seriesId }: { seriesId: string }) {
   const mutation = useBulkUpdateTripSeries(seriesId);
-  const vehiclesQuery = useVehicles({ page: 1, limit: 100, sortBy: 'make', sortOrder: 'asc' });
+  const vehiclesQuery = useVehicles({ page: 1, limit: 100, sortBy: 'licensePlate', sortOrder: 'asc' });
   const driversQuery = useDrivers({ page: 1, limit: 100, sortBy: 'lastName', sortOrder: 'asc' });
 
   const [fromDate, setFromDate] = useState('');
@@ -67,7 +68,7 @@ function BulkUpdateCard({ seriesId }: { seriesId: string }) {
 
   const vehicleOptions = (vehiclesQuery.data?.vehicles ?? []).map((vehicle) => ({
     value: vehicle.id,
-    label: `${vehicle.make} ${vehicle.model} (${vehicle.licensePlate})`,
+    label: vehicleSelectLabel(vehicle),
   }));
   const driverOptions = (driversQuery.data?.drivers ?? []).map((driver) => ({
     value: driver.id,
@@ -420,6 +421,25 @@ export function TripSeriesManager({ seriesId }: TripSeriesManagerProps) {
             </dl>
           </CardContent>
         </Card>
+
+        {series.pauses.length > 0 ? (
+          <Card className="shadow-none">
+            <CardHeader>
+              <CardTitle>Pauze</CardTitle>
+              <CardDescription>Dani u periodu serije koji su preskočeni pri generisanju.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {series.pauses.map((pause) => (
+                <div key={pause.id} className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="font-medium">
+                    {formatDate(pause.startDate)} – {formatDate(pause.endDate)}
+                  </span>
+                  {pause.reason ? <span className="text-muted-foreground">{pause.reason}</span> : null}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        ) : null}
 
         {series.isActive ? <BulkUpdateCard seriesId={series.id} /> : null}
         <TerminateSeriesCard seriesId={series.id} isActive={series.isActive} />

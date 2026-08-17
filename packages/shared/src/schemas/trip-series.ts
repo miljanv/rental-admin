@@ -23,6 +23,13 @@ export type TripSeriesIdParams = z.infer<typeof tripSeriesIdParamsSchema>;
 
 const weekdaySchema = z.number().int().min(0).max(6);
 
+/** A date range within the series that generation skips — e.g. collective annual leave. */
+const tripSeriesPauseSchema = z.object({
+  startDate: isoDateSchema,
+  endDate: isoDateSchema,
+  reason: optionalText(200),
+});
+
 /**
  * Creates a TripSeries and generates one Trip (with the same vehicles/drivers)
  * per matching day in [startDate, endDate]. Rotation across instances isn't a
@@ -55,6 +62,9 @@ export const generateTripSeriesSchema = z
       .array(driverIdSchema)
       .max(MAX_TRIP_DRIVERS, `Najviše ${MAX_TRIP_DRIVERS} vozača po vožnji.`)
       .default([]),
+    // Days generation should skip within [startDate, endDate] — e.g. the
+    // collective annual leave in an otherwise-daily series.
+    pauses: z.array(tripSeriesPauseSchema).max(20, 'Najviše 20 pauza.').default([]),
   })
   .superRefine((value, ctx) => {
     if (value.endDate < value.startDate) {
@@ -72,6 +82,16 @@ export const generateTripSeriesSchema = z
         message: 'Izaberite bar jedan dan u nedelji.',
       });
     }
+
+    value.pauses.forEach((pause, index) => {
+      if (pause.endDate < pause.startDate) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['pauses', index, 'endDate'],
+          message: 'Kraj pauze ne može biti pre početka pauze.',
+        });
+      }
+    });
   });
 
 export type GenerateTripSeriesInput = z.input<typeof generateTripSeriesSchema>;

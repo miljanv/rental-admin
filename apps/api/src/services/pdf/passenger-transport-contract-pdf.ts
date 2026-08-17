@@ -4,6 +4,7 @@ import {
   computeAdvanceAmount,
   computeRemainderAmount,
   contractClientDisplayName,
+  contractRouteLabel,
   isLegalEntityPartnerType,
 } from '@rental-admin/shared';
 import { rgb, type PDFFont } from 'pdf-lib';
@@ -136,7 +137,7 @@ export const buildPassengerTransportContractPdf = async (
   // --- Articles ---
   heading('Predmet ugovora');
   paragraph(
-    `Prevoznik se obavezuje da za potrebe Naručioca izvrši prevoz putnika na relaciji ${contract.route}, ` +
+    `Prevoznik se obavezuje da za potrebe Naručioca izvrši prevoz putnika na relaciji ${contractRouteLabel(contract)}, ` +
       `u periodu od ${formatSerbianDate(isoDate(contract.serviceStartDate))} do ` +
       `${formatSerbianDate(isoDate(contract.serviceEndDate))}, za grupu od ${contract.passengerCount} putnika, ` +
       `a Naručilac se obavezuje da za izvršenu uslugu plati ugovorenu cenu pod uslovima iz ovog ugovora.`,

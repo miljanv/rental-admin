@@ -1,5 +1,6 @@
 'use client';
 
+import { contractRouteLabel } from '@rental-admin/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -15,7 +16,7 @@ export const useUpdateContract = (id: string) => {
   return useMutation({
     mutationFn: (body: Parameters<typeof updateContract>[1]) => updateContract(id, body),
     onSuccess: async (contract) => {
-      toast.success('Izmene su sačuvane.', { description: contract.route });
+      toast.success('Izmene su sačuvane.', { description: contractRouteLabel(contract) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.contracts.all });
       router.push(`/contracts/${contract.id}`);
     },

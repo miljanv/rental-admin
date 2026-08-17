@@ -57,6 +57,9 @@ export const TRANSACTION_SOURCE_TYPES = [
   'CALIBRATION',
   'SAFETY_EQUIPMENT',
   'TRIP_EXPENSE',
+  'TRIP_REVENUE',
+  'TRIP_DRIVER_PER_DIEM',
+  'TRIP_DRIVER_ADVANCE',
 ] as const;
 
 export type TransactionSourceType = (typeof TRANSACTION_SOURCE_TYPES)[number];
@@ -69,6 +72,9 @@ export const TRANSACTION_SOURCE_TYPE_LABELS: Record<TransactionSourceType, strin
   CALIBRATION: 'Kalibracija tahografa',
   SAFETY_EQUIPMENT: 'PP aparat',
   TRIP_EXPENSE: 'Trošak vožnje',
+  TRIP_REVENUE: 'Prihod od vožnje',
+  TRIP_DRIVER_PER_DIEM: 'Dnevnica vozača',
+  TRIP_DRIVER_ADVANCE: 'Akontacija vozača',
 };
 
 export const FINANCE_EXPORT_FORMATS = ['pdf', 'xlsx'] as const;

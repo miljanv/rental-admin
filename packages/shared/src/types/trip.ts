@@ -73,7 +73,16 @@ export interface TripPartnerDto {
 
 export interface TripContractDto {
   id: string;
-  route: string;
+  origin: string;
+  destination: string;
+}
+
+/** A date range within the series that generation skips — e.g. collective annual leave. */
+export interface TripSeriesPauseDto {
+  id: string;
+  startDate: string;
+  endDate: string;
+  reason: string | null;
 }
 
 export interface TripSeriesDto {
@@ -85,6 +94,7 @@ export interface TripSeriesDto {
   endDate: string;
   isActive: boolean;
   terminatedAt: string | null;
+  pauses: TripSeriesPauseDto[];
   createdAt: string;
   updatedAt: string;
 }

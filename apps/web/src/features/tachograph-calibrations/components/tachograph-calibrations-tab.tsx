@@ -36,6 +36,17 @@ export function TachographCalibrationsTab({
     setIsFormOpen(true);
   };
 
+  if (tachographType === 'NONE') {
+    return (
+      <Card className="shadow-none">
+        <CardHeader>
+          <CardTitle>Tahograf</CardTitle>
+          <CardDescription>Ovo vozilo je označeno kao vozilo bez tahografa.</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {isFormOpen ? (

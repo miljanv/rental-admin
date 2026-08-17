@@ -1,12 +1,13 @@
 'use client';
 
 import {
+  contractRouteLabel,
   PAYMENT_METHOD_LABELS,
   tripClientDisplayName,
   tripRouteLabel,
   type TripDto,
 } from '@rental-admin/shared';
-import { Pencil, Trash2 } from 'lucide-react';
+import { FileText, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -16,6 +17,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useGenerateContractDocument } from '@/features/contract-documents/hooks/use-generate-contract-document';
+import { TripBillingDocumentsSection } from '@/features/trip-billing-documents/components/trip-billing-documents-section';
 import { DeleteTripDialog } from '@/features/trips/components/delete-trip-dialog';
 import { TripSettlementSection } from '@/features/trips/components/trip-settlement-section';
 import { TripStatusBadge } from '@/features/trips/components/trip-status-badge';
@@ -41,6 +44,8 @@ function DetailItem({ label, value }: DetailItemProps) {
 }
 
 function TripOverview({ trip }: { trip: TripDto }) {
+  const generateContractDocument = useGenerateContractDocument(trip.contract?.id ?? '');
+
   return (
     <div className="space-y-6">
       <Card className="shadow-none">
@@ -71,14 +76,33 @@ function TripOverview({ trip }: { trip: TripDto }) {
             <DetailItem label="Naručilac" value={tripClientDisplayName(trip) || '—'} />
             <DetailItem
               label="Povezan ugovor"
-              value={trip.contract ? trip.contract.route : 'Nije povezano'}
+              value={trip.contract ? contractRouteLabel(trip.contract) : 'Nije povezano'}
             />
           </dl>
           {trip.contract ? (
-            <Button variant="link" size="sm" className="mt-2 h-auto px-0" asChild>
-              <Link href={`/contracts/${trip.contract.id}`}>Pogledaj ugovor</Link>
-            </Button>
-          ) : null}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/contracts/${trip.contract.id}`}>Pogledaj ugovor</Link>
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => generateContractDocument.mutate()}
+                disabled={generateContractDocument.isPending}
+              >
+                <FileText className="size-4" aria-hidden />
+                {generateContractDocument.isPending ? 'Generisanje…' : 'Generiši Ugovor o prevozu'}
+              </Button>
+            </div>
+          ) : (
+            <div className="mt-3">
+              <p className="text-muted-foreground text-sm">
+                Vožnja nije povezana ni sa jednim ugovorom.
+              </p>
+              <Button variant="link" size="sm" className="mt-1 h-auto px-0" asChild>
+                <Link href={`/trips/${trip.id}/edit`}>Poveži ugovor</Link>
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -132,6 +156,8 @@ function TripOverview({ trip }: { trip: TripDto }) {
           </dl>
         </CardContent>
       </Card>
+
+      <TripBillingDocumentsSection tripId={trip.id} />
 
       {trip.notes ? (
         <Card className="shadow-none">
