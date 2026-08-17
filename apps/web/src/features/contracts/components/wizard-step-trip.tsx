@@ -76,15 +76,12 @@ export function WizardStepTrip() {
             )}
           />
         </Field>
-        <div className="sm:col-span-2">
-          <Field id="route" label="Relacija" error={errors.route?.message}>
-            <Input
-              id="route"
-              placeholder="npr. Novi Sad - Zlatibor - Novi Sad"
-              {...form.register('route')}
-            />
-          </Field>
-        </div>
+        <Field id="origin" label="Polazište" error={errors.origin?.message}>
+          <Input id="origin" placeholder="npr. Novi Sad" {...form.register('origin')} />
+        </Field>
+        <Field id="destination" label="Odredište" error={errors.destination?.message}>
+          <Input id="destination" placeholder="npr. Zlatibor" {...form.register('destination')} />
+        </Field>
         <div className="flex items-start gap-2 sm:col-span-2">
           <Controller
             control={form.control}

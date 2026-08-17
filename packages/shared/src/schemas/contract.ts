@@ -54,7 +54,8 @@ export const contractWriteSchema = z
     vehicleId: optionalId,
     driverId: optionalId,
     conclusionDate: isoDateSchema,
-    route: requiredText('Relacija', 200),
+    origin: requiredText('Polazište', 150),
+    destination: requiredText('Odredište', 150),
     serviceStartDate: isoDateSchema,
     serviceEndDate: isoDateSchema,
     passengerCount: z

@@ -30,13 +30,16 @@ export interface DeleteTachographCalibrationResult {
   deleted: true;
 }
 
-const CALIBRATION_INTERVAL_DAYS: Record<TachographType, number> = {
+/** A vehicle with no tachograph has nothing to calibrate — excluded everywhere calibration applies. */
+export type CalibratedTachographType = Exclude<TachographType, 'NONE'>;
+
+const CALIBRATION_INTERVAL_DAYS: Record<CalibratedTachographType, number> = {
   ANALOG: 365,
   DIGITAL: 730,
 };
 
 /** Calibration validity depends on the vehicle's own tachograph type, not a per-record choice. */
 export const computeCalibrationExpiry = (
-  tachographType: TachographType,
+  tachographType: CalibratedTachographType,
   calibratedAt: string,
 ): string => addUtcDays(calibratedAt, CALIBRATION_INTERVAL_DAYS[tachographType]);

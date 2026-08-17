@@ -5,7 +5,8 @@ import { contractWriteSchema, listContractsQuerySchema } from './contract';
 const validContract = {
   partnerId: 'partner_1',
   conclusionDate: '2026-08-14',
-  route: 'Novi Sad - Beč',
+  origin: 'Novi Sad',
+  destination: 'Beč',
   serviceStartDate: '2026-09-01',
   serviceEndDate: '2026-09-03',
   passengerCount: 45,

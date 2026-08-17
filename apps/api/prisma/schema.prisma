@@ -39,6 +39,7 @@ model FileObject {
   contractDocument       ContractDocument?
   travelPermit           TravelPermit?
   tripExpense            TripExpense?
+  tripBillingDocument    TripBillingDocument?
 
   @@index([status])
   @@index([createdAt])
@@ -202,6 +203,7 @@ enum VehicleFuelType {
 enum TachographType {
   ANALOG
   DIGITAL
+  NONE
 }
 
 enum VehicleStatus {
@@ -482,7 +484,10 @@ model Contract {
   vehicleId                String?
   driverId                 String?
   conclusionDate           DateTime       @db.Date
-  route                    String
+  /// Split the same way as Trip — a dash-separated place name could be
+  /// misread as two legs of the route otherwise.
+  origin                   String
+  destination              String
   serviceStartDate         DateTime       @db.Date
   serviceEndDate           DateTime       @db.Date
   passengerCount           Int
@@ -492,7 +497,7 @@ model Contract {
   notes                    String?
   /// Drives the passenger-list-type suggestion and whether the travel-permit
   /// section (and its "IN_PROGRESS" gate) applies at all — set explicitly by
-  /// the user, since the free-text `route` can't be parsed reliably.
+  /// the user, since the free-text route can't be parsed reliably.
   isInternational          Boolean        @default(false)
   clientType               PartnerType
   clientCompanyName        String?
@@ -759,13 +764,14 @@ model Trip {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
-  partner  Partner?      @relation("TripClient", fields: [partnerId], references: [id], onDelete: SetNull)
-  carrier  Partner?      @relation("TripCarrier", fields: [carrierId], references: [id], onDelete: SetNull)
-  contract Contract?     @relation(fields: [contractId], references: [id], onDelete: SetNull)
-  series   TripSeries?   @relation(fields: [seriesId], references: [id], onDelete: SetNull)
-  vehicles TripVehicle[]
-  drivers  TripDriver[]
-  expenses TripExpense[]
+  partner          Partner?              @relation("TripClient", fields: [partnerId], references: [id], onDelete: SetNull)
+  carrier          Partner?              @relation("TripCarrier", fields: [carrierId], references: [id], onDelete: SetNull)
+  contract         Contract?             @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  series           TripSeries?           @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  vehicles         TripVehicle[]
+  drivers          TripDriver[]
+  expenses         TripExpense[]
+  billingDocuments TripBillingDocument[]
 
   @@index([status])
   @@index([departureDate])
@@ -845,4 +851,31 @@ model TripExpense {
 
   @@index([tripId])
   @@map("trip_expenses")
+}
+
+/// Internal record-keeping PDFs — not fiscal documents. If real fiscalization
+/// (SEF / fiskalna kasa) is ever needed, that's a separate integration.
+enum TripBillingDocumentType {
+  PREDRACUN
+  RACUN
+}
+
+/// One of each type per trip at most — regenerating replaces the file in
+/// place and keeps the same document number, same as driver documents.
+model TripBillingDocument {
+  id             String                  @id @default(cuid())
+  tripId         String
+  type           TripBillingDocumentType
+  documentNumber String
+  issuedAt       DateTime                @db.Date
+  fileId         String?                 @unique
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  trip Trip        @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  file FileObject? @relation(fields: [fileId], references: [id], onDelete: SetNull)
+
+  @@unique([tripId, type])
+  @@index([tripId])
+  @@map("trip_billing_documents")
 }

@@ -48,7 +48,8 @@ const STEPS: { id: string; label: string; fields: Path<ContractFormValues>[] }[]
     label: 'Period i relacija',
     fields: [
       'conclusionDate',
-      'route',
+      'origin',
+      'destination',
       'serviceStartDate',
       'serviceEndDate',
       'passengerCount',

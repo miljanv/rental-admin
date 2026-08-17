@@ -28,7 +28,7 @@ const toIsoDate = (value: Date): string => value.toISOString().slice(0, 10);
 export const tripInclude = {
   partner: { select: { id: true, type: true, companyName: true, firstName: true, lastName: true } },
   carrier: { select: { id: true, type: true, companyName: true, firstName: true, lastName: true } },
-  contract: { select: { id: true, route: true } },
+  contract: { select: { id: true, origin: true, destination: true } },
   vehicles: { include: { vehicle: { select: { id: true, make: true, model: true, licensePlate: true } } } },
   drivers: { include: { driver: { select: { id: true, firstName: true, lastName: true } } } },
 } as const;

@@ -30,7 +30,8 @@ export interface TripPartnerRecord {
 
 export interface TripContractRecord {
   id: string;
-  route: string;
+  origin: string;
+  destination: string;
 }
 
 export interface TripRecord {
@@ -105,7 +106,9 @@ export const toTripDto = (record: TripRecord): TripDto => ({
   paymentMethod: record.paymentMethod,
   status: record.status,
   contractId: record.contractId,
-  contract: record.contract ? { id: record.contract.id, route: record.contract.route } : null,
+  contract: record.contract
+    ? { id: record.contract.id, origin: record.contract.origin, destination: record.contract.destination }
+    : null,
   distanceKm: record.distanceKm,
   seriesId: record.seriesId,
   vehicles: record.vehicles.map(

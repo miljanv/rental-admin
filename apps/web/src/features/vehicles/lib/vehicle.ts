@@ -1,8 +1,24 @@
 import type { VehicleDto, VehicleWriteRequest } from '@rental-admin/shared';
+import { createElement, type ReactNode } from 'react';
 
 export const vehicleLabel = (
   vehicle: Pick<VehicleDto, 'make' | 'model' | 'licensePlate'>,
 ): string => `${vehicle.make} ${vehicle.model} (${vehicle.licensePlate})`;
+
+/**
+ * Reg. oznaka first and bolded, make/model as secondary detail — dispatchers
+ * recognize a vehicle by its plate, not its brand. Used in vehicle pickers on
+ * the trip forms.
+ */
+export const vehicleSelectLabel = (
+  vehicle: Pick<VehicleDto, 'make' | 'model' | 'licensePlate'>,
+): ReactNode =>
+  createElement(
+    'span',
+    null,
+    createElement('strong', null, vehicle.licensePlate),
+    ` — ${vehicle.make} ${vehicle.model}`,
+  );
 
 export const toVehicleFormValues = (vehicle: VehicleDto): VehicleWriteRequest => ({
   make: vehicle.make,

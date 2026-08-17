@@ -73,7 +73,8 @@ export interface TripPartnerDto {
 
 export interface TripContractDto {
   id: string;
-  route: string;
+  origin: string;
+  destination: string;
 }
 
 export interface TripSeriesDto {

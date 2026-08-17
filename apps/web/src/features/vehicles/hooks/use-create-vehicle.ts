@@ -18,7 +18,7 @@ export const useCreateVehicle = () => {
     onSuccess: async (vehicle) => {
       toast.success('Vozilo je dodato.', { description: vehicleLabel(vehicle) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
-      router.push(`/vehicles/${vehicle.id}`);
+      router.push('/vehicles');
     },
     onError: (error) => {
       toast.error('Vozilo nije sačuvano.', { description: getApiErrorMessage(error) });

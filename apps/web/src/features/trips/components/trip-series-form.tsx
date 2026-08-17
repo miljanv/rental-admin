@@ -3,6 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   CONTRACT_STATUS_LABELS,
+  contractRouteLabel,
   MAX_TRIP_DRIVERS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
@@ -44,6 +45,7 @@ import {
   type TripSeriesFormValues,
 } from '@/features/trips/schemas/trip-series-form-schema';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
+import { vehicleSelectLabel } from '@/features/vehicles/lib/vehicle';
 import { cn } from '@/lib/utils';
 
 interface FieldProps {
@@ -81,14 +83,14 @@ export function TripSeriesForm() {
   const vehicleIds = useWatch({ control: form.control, name: 'vehicleIds' }) ?? [];
   const driverIds = useWatch({ control: form.control, name: 'driverIds' }) ?? [];
 
-  const vehiclesQuery = useVehicles({ page: 1, limit: 100, sortBy: 'make', sortOrder: 'asc' });
+  const vehiclesQuery = useVehicles({ page: 1, limit: 100, sortBy: 'licensePlate', sortOrder: 'asc' });
   const driversQuery = useDrivers({ page: 1, limit: 100, sortBy: 'lastName', sortOrder: 'asc' });
   const partnersQuery = usePartners({ page: 1, limit: 100, sortBy: 'type', sortOrder: 'asc' });
   const contractsQuery = useContracts({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' });
 
   const vehicleOptions = (vehiclesQuery.data?.vehicles ?? []).map((vehicle) => ({
     value: vehicle.id,
-    label: `${vehicle.make} ${vehicle.model} (${vehicle.licensePlate})`,
+    label: vehicleSelectLabel(vehicle),
   }));
   const driverOptions = (driversQuery.data?.drivers ?? []).map((driver) => ({
     value: driver.id,
@@ -360,7 +362,7 @@ export function TripSeriesForm() {
                       <SelectItem value={NONE}>Nije povezano</SelectItem>
                       {contracts.map((contract) => (
                         <SelectItem key={contract.id} value={contract.id}>
-                          {contract.route} — {CONTRACT_STATUS_LABELS[contract.status]}
+                          {contractRouteLabel(contract)} — {CONTRACT_STATUS_LABELS[contract.status]}
                         </SelectItem>
                       ))}
                     </SelectContent>

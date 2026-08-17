@@ -22,13 +22,14 @@ export const VEHICLE_FUEL_TYPE_LABELS: Record<VehicleFuelType, string> = {
   HYBRID: 'Hibridni',
 };
 
-export const TACHOGRAPH_TYPES = ['ANALOG', 'DIGITAL'] as const;
+export const TACHOGRAPH_TYPES = ['ANALOG', 'DIGITAL', 'NONE'] as const;
 
 export type TachographType = (typeof TACHOGRAPH_TYPES)[number];
 
 export const TACHOGRAPH_TYPE_LABELS: Record<TachographType, string> = {
   ANALOG: 'Analogni',
   DIGITAL: 'Digitalni',
+  NONE: 'Bez tahografa',
 };
 
 export const VEHICLE_STATUSES = ['ACTIVE', 'IN_SERVICE', 'OUT_OF_SERVICE'] as const;

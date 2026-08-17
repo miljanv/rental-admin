@@ -83,7 +83,7 @@ export function TachographCalibrationForm({
   const errors = form.formState.errors;
 
   const previewExpiry =
-    calibratedAt?.length === ISO_DATE_LENGTH
+    calibratedAt?.length === ISO_DATE_LENGTH && tachographType !== 'NONE'
       ? computeCalibrationExpiry(tachographType, calibratedAt)
       : null;
 

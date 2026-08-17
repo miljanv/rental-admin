@@ -30,7 +30,8 @@ const toWriteData = (input: ContractWriteRequest) => ({
   vehicleId: input.vehicleId,
   driverId: input.driverId,
   conclusionDate: parseIsoDate(input.conclusionDate),
-  route: input.route,
+  origin: input.origin,
+  destination: input.destination,
   serviceStartDate: parseIsoDate(input.serviceStartDate),
   serviceEndDate: parseIsoDate(input.serviceEndDate),
   passengerCount: input.passengerCount,
@@ -87,7 +88,8 @@ export const listContracts = async (
     ...(query.search
       ? {
           OR: [
-            { route: { contains: query.search, mode: 'insensitive' as const } },
+            { origin: { contains: query.search, mode: 'insensitive' as const } },
+            { destination: { contains: query.search, mode: 'insensitive' as const } },
             { clientCompanyName: { contains: query.search, mode: 'insensitive' as const } },
             { clientFirstName: { contains: query.search, mode: 'insensitive' as const } },
             { clientLastName: { contains: query.search, mode: 'insensitive' as const } },
