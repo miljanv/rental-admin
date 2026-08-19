@@ -27,8 +27,8 @@ export function EditDriverScreen({ driverId }: EditDriverScreenProps) {
   if (query.isError || !query.data) {
     return (
       <ErrorState
-        error={query.error ?? new Error('Vozač nije pronađen.')}
-        title="Vozač nije učitan"
+        error={query.error ?? new Error('Zaposleni nije pronađen.')}
+        title="Zaposleni nije učitan"
         retryLabel="Pokušaj ponovo"
         retryingLabel="Učitavanje…"
         onRetry={() => void query.refetch()}

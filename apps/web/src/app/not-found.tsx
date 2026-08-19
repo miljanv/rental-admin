@@ -14,7 +14,7 @@ export default function NotFound() {
         description="Stranica koju tražite ne postoji."
         action={
           <Button asChild size="sm">
-            <Link href="/drivers">Nazad na vozače</Link>
+            <Link href="/drivers">Nazad na zaposlene</Link>
           </Button>
         }
       />

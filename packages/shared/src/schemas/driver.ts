@@ -1,7 +1,12 @@
 import { z } from 'zod';
 
 import { PAGINATION_DEFAULTS } from '../constants';
-import { DRIVER_STATUSES, EMPLOYMENT_TYPES, ID_CARD_NUMBER_LENGTH } from '../types/driver';
+import {
+  DRIVER_STATUSES,
+  EMPLOYMENT_TYPES,
+  ID_CARD_NUMBER_LENGTH,
+  JOB_TITLE_MAX_LENGTH,
+} from '../types/driver';
 import { SORT_ORDERS } from './file';
 
 export const driverStatusSchema = z.enum(DRIVER_STATUSES);
@@ -51,7 +56,10 @@ export const driverWriteSchema = z.object({
   idCardNumber: z
     .string()
     .trim()
-    .regex(new RegExp(`^\\d{${ID_CARD_NUMBER_LENGTH}}$`), `Broj lične karte mora imati tačno ${ID_CARD_NUMBER_LENGTH} cifara.`),
+    .regex(
+      new RegExp(`^\\d{${ID_CARD_NUMBER_LENGTH}}$`),
+      `Broj lične karte mora imati tačno ${ID_CARD_NUMBER_LENGTH} cifara.`,
+    ),
   // No strict format enforced — sources disagree on the exact pattern, so
   // this only guards against obviously-wrong input (empty or absurdly long).
   drivingLicenseNumber: requiredText('Broj vozačke dozvole', 15),
@@ -75,7 +83,8 @@ export const driverWriteSchema = z.object({
     ])
     .optional()
     .transform((value) => (value ? value : null)),
-  jobTitle: requiredText('Radno mesto', 80),
+  // Stored as one comma-separated string (e.g. two driver posts at once).
+  jobTitle: requiredText('Radno mesto', JOB_TITLE_MAX_LENGTH),
   status: driverStatusSchema,
   employmentType: employmentTypeSchema,
 });

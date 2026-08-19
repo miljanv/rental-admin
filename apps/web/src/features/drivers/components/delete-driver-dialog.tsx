@@ -49,7 +49,7 @@ export function DeleteDriverDialog({
     <AlertDialog open={driver !== null} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Obrisati ovog vozača?</AlertDialogTitle>
+          <AlertDialogTitle>Obrisati ovog zaposlenog?</AlertDialogTitle>
           <AlertDialogDescription>
             {driver
               ? `${driverFullName(driver)} će biti uklonjen iz evidencije. Ova radnja se ne može opozvati.`

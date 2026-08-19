@@ -44,7 +44,7 @@ export function AlarmTopList({ items, isLoading }: AlarmTopListProps) {
       <EmptyState
         icon={Radar}
         title="Nema aktivnih rokova"
-        description="Kad se unesu dokumenti vozača ili pregledi vozila, najhitniji će stati ovde."
+        description="Kad se unesu dokumenti zaposlenih ili pregledi vozila, najhitniji će stati ovde."
       />
     );
   }

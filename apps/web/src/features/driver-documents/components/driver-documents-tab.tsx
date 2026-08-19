@@ -49,7 +49,7 @@ export function DriverDocumentsTab({ driver }: DriverDocumentsTabProps) {
           <div>
             <CardTitle>Dokumenti</CardTitle>
             <CardDescription>
-              Svi dokumenti vozača sa rokovima važenja. Ugovor o radu i obrazac MA se generišu sa
+              Svi dokumenti zaposlenog sa rokovima važenja. Ugovor o radu i obrazac MA se generišu sa
               Osnovnih podataka — ovde se mogu i ručno doraditi.
             </CardDescription>
           </div>

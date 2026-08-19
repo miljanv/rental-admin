@@ -42,7 +42,7 @@ export function AlarmHero({ today, counts, isLoading }: AlarmHeroProps) {
               Alarm centar
             </h1>
             <p className="text-sidebar-foreground/70 max-w-xl text-sm">
-              Svi rokovi vozača i vozila na jednom mestu. Crveno i žuto prate pragove koje
+              Svi rokovi zaposlenih i vozila na jednom mestu. Crveno i žuto prate pragove koje
               definišete u podešavanjima.
             </p>
           </div>

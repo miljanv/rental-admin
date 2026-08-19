@@ -59,6 +59,16 @@ describe('driverWriteSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts several job titles at once', () => {
+    const result = driverWriteSchema.safeParse({
+      ...validDriver,
+      jobTitle:
+        'Vozač autobusa u zemlji i inostranstvu, Vozač putničkog vozila u zemlji i inostranstvu',
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it('accepts a driver without an email', () => {
     const { email: _email, ...rest } = validDriver;
     const result = driverWriteSchema.safeParse(rest);

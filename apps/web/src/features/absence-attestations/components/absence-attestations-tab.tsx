@@ -27,7 +27,7 @@ export function AbsenceAttestationsTab({ driver }: AbsenceAttestationsTabProps) 
         <CardHeader>
           <CardTitle>Istorija potvrda</CardTitle>
           <CardDescription>
-            Svaka generisana potvrda o odsustvu ostaje u evidenciji vozača.
+            Svaka generisana potvrda o odsustvu ostaje u evidenciji zaposlenog.
           </CardDescription>
         </CardHeader>
         <CardContent className="px-0">

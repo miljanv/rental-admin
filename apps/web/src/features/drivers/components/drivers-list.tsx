@@ -81,13 +81,13 @@ export function DriversList() {
   return (
     <>
       <PageHeader
-        title="Vozači"
-        description="Osnovni podaci, status i evidencija vozača."
+        title="Zaposleni"
+        description="Osnovni podaci, status i evidencija zaposlenih."
         actions={
           <Button asChild>
             <Link href="/drivers/new">
               <Plus className="size-4" aria-hidden />
-              Novi vozač
+              Novi zaposleni
             </Link>
           </Button>
         }
@@ -95,11 +95,11 @@ export function DriversList() {
 
       <Card className="shadow-none">
         <CardHeader>
-          <CardTitle>Svi vozači</CardTitle>
+          <CardTitle>Svi zaposleni</CardTitle>
           <CardDescription>
             {total === 0
-              ? 'Još nema unetih vozača.'
-              : `${total} ${total === 1 ? 'vozač' : 'vozača'} u evidenciji.`}
+              ? 'Još nema unetih zaposlenih.'
+              : `${total} ${total === 1 ? 'zaposleni' : 'zaposlenih'} u evidenciji.`}
           </CardDescription>
         </CardHeader>
 
@@ -177,7 +177,7 @@ export function DriversList() {
               variant="outline"
               onClick={() => void query.refetch()}
               disabled={query.isFetching}
-              aria-label="Osveži listu vozača"
+              aria-label="Osveži listu zaposlenih"
             >
               <RefreshCw className={cn('size-4', query.isFetching && 'animate-spin')} aria-hidden />
               Osveži
@@ -187,7 +187,7 @@ export function DriversList() {
           {query.isError ? (
             <ErrorState
               error={query.error}
-              title="Lista vozača nije učitana"
+              title="Lista zaposlenih nije učitana"
               retryLabel="Pokušaj ponovo"
               retryingLabel="Učitavanje…"
               onRetry={() => void query.refetch()}
@@ -201,7 +201,7 @@ export function DriversList() {
               onRequestDelete={setDriverToDelete}
               emptyAction={
                 <Button size="sm" asChild>
-                  <Link href="/drivers/new">Dodaj vozača</Link>
+                  <Link href="/drivers/new">Dodaj zaposlenog</Link>
                 </Button>
               }
             />

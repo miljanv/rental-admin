@@ -16,7 +16,7 @@ export const useDeleteDriver = () => {
     mutationFn: (variables: { id: string; name: string; redirectToList?: boolean }) =>
       deleteDriver(variables.id),
     onSuccess: async (_result, variables) => {
-      toast.success('Vozač je obrisan.', { description: variables.name });
+      toast.success('Zaposleni je obrisan.', { description: variables.name });
       await queryClient.invalidateQueries({ queryKey: queryKeys.drivers.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.alarms.all });
 
@@ -25,7 +25,7 @@ export const useDeleteDriver = () => {
       }
     },
     onError: (error) => {
-      toast.error('Vozač nije obrisan.', { description: getApiErrorMessage(error) });
+      toast.error('Zaposleni nije obrisan.', { description: getApiErrorMessage(error) });
     },
   });
 };

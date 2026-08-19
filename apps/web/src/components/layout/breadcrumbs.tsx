@@ -34,7 +34,7 @@ const SEGMENT_LABELS: Record<string, string> = {
 // what's being created, keyed by the segment right before "new" (matches
 // each section's own page.tsx <title> exactly).
 const NEW_LABELS: Record<string, string> = {
-  drivers: 'Novi vozač',
+  drivers: 'Novi zaposleni',
   vehicles: 'Novo vozilo',
   partners: 'Novi partner',
   trips: 'Nova vožnja',

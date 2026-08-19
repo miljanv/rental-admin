@@ -47,7 +47,7 @@ export function AlarmsTable({ items, isLoading, hasFilters }: AlarmsTableProps) 
       <EmptyState
         icon={Radar}
         title="Još nema rokova"
-        description="Unesite dokumente vozača, tehničke preglede, tahograf ili PP aparate da bi se rokovi pojavili ovde."
+        description="Unesite dokumente zaposlenih, tehničke preglede, tahograf ili PP aparate da bi se rokovi pojavili ovde."
       />
     );
   }

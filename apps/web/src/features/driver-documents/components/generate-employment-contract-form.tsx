@@ -81,7 +81,7 @@ export function GenerateEmploymentContractForm({
         <CardDescription>
           {isEdit
             ? 'Menja postojeći ugovor — generisani PDF zamenjuje prethodni, broj dokumenta ostaje isti.'
-            : `Popunjava se podacima vozača ${driver.firstName} ${driver.lastName}. Generisani PDF se čuva u dokumentima.`}
+            : `Popunjava se podacima zaposlenog ${driver.firstName} ${driver.lastName}. Generisani PDF se čuva u dokumentima.`}
         </CardDescription>
       </CardHeader>
       <CardContent>

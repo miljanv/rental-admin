@@ -23,7 +23,7 @@ const loadDriver = async (driverId: string) => {
   const driver = await prisma.driver.findUnique({ where: { id: driverId } });
 
   if (!driver) {
-    throw notFound('Vozač nije pronađen.');
+    throw notFound('Zaposleni nije pronađen.');
   }
 
   return driver;

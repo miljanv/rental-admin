@@ -27,7 +27,7 @@ const assertDriverExists = async (driverId: string): Promise<void> => {
   const driver = await prisma.driver.findUnique({ where: { id: driverId }, select: { id: true } });
 
   if (!driver) {
-    throw notFound('Vozač nije pronađen.');
+    throw notFound('Zaposleni nije pronađen.');
   }
 };
 

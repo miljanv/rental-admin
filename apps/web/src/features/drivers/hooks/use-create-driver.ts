@@ -16,12 +16,12 @@ export const useCreateDriver = () => {
   return useMutation({
     mutationFn: createDriver,
     onSuccess: async (driver) => {
-      toast.success('Vozač je dodat.', { description: driverFullName(driver) });
+      toast.success('Zaposleni je dodat.', { description: driverFullName(driver) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.drivers.all });
       router.push(`/drivers/${driver.id}`);
     },
     onError: (error) => {
-      toast.error('Vozač nije sačuvan.', { description: getApiErrorMessage(error) });
+      toast.error('Zaposleni nije sačuvan.', { description: getApiErrorMessage(error) });
     },
   });
 };

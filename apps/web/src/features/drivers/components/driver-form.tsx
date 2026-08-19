@@ -10,11 +10,15 @@ import {
   EMPLOYMENT_TYPE_LABELS,
   EMPLOYMENT_TYPES,
   ID_CARD_NUMBER_LENGTH,
+  JOB_TITLES,
   JMBG_LENGTH,
+  canonicalJobTitle,
   type DriverDto,
   type DriverWriteRequest,
   type DrivingLicenseCategory,
+  type JobTitle,
 } from '@rental-admin/shared';
+import { ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 
@@ -24,6 +28,12 @@ import { PageHeader } from '@/components/common/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -41,6 +51,7 @@ import {
   EMPTY_DRIVER_FORM,
   type DriverFormValues,
 } from '@/features/drivers/schemas/driver-form-schema';
+import { cn } from '@/lib/utils';
 
 interface DriverFormProps {
   driver?: DriverDto;
@@ -49,8 +60,8 @@ interface DriverFormProps {
 const isDrivingLicenseCategory = (value: string): value is DrivingLicenseCategory =>
   (DRIVING_LICENSE_CATEGORIES as readonly string[]).includes(value);
 
-/** `drivingLicenseCategory` is stored as one comma-separated string (e.g. "B, C, CE"). */
-const splitCategoryTokens = (value: string): string[] =>
+/** `drivingLicenseCategory` and `jobTitle` are stored as one comma-separated string. */
+const splitCommaTokens = (value: string): string[] =>
   value
     .split(',')
     .map((token) => token.trim())
@@ -113,11 +124,11 @@ export function DriverForm({ driver }: DriverFormProps) {
   return (
     <>
       <PageHeader
-        title={isEdit ? 'Izmena vozača' : 'Novi vozač'}
+        title={isEdit ? 'Izmena zaposlenog' : 'Novi zaposleni'}
         description={
           isEdit
-            ? 'Ažurirajte osnovne podatke i status vozača.'
-            : 'Unesite osnovne podatke vozača u evidenciju.'
+            ? 'Ažurirajte osnovne podatke i status zaposlenog.'
+            : 'Unesite osnovne podatke zaposlenog u evidenciju.'
         }
       />
 
@@ -266,7 +277,7 @@ export function DriverForm({ driver }: DriverFormProps) {
                 control={form.control}
                 name="drivingLicenseCategory"
                 render={({ field }) => {
-                  const tokens = splitCategoryTokens(field.value);
+                  const tokens = splitCommaTokens(field.value);
                   const selected = new Set(
                     tokens.map((token) => token.toUpperCase()).filter(isDrivingLicenseCategory),
                   );
@@ -275,6 +286,14 @@ export function DriverForm({ driver }: DriverFormProps) {
                   const unrecognized = tokens.filter(
                     (token) => !isDrivingLicenseCategory(token.toUpperCase()),
                   );
+                  const allSelected = DRIVING_LICENSE_CATEGORIES.every((code) =>
+                    selected.has(code),
+                  );
+
+                  const writeCategories = (next: Set<DrivingLicenseCategory>) => {
+                    const ordered = DRIVING_LICENSE_CATEGORIES.filter((code) => next.has(code));
+                    field.onChange([...ordered, ...unrecognized].join(', '));
+                  };
 
                   const toggle = (category: DrivingLicenseCategory) => {
                     const next = new Set(selected);
@@ -283,8 +302,16 @@ export function DriverForm({ driver }: DriverFormProps) {
                     } else {
                       next.add(category);
                     }
-                    const ordered = DRIVING_LICENSE_CATEGORIES.filter((code) => next.has(code));
-                    field.onChange([...ordered, ...unrecognized].join(', '));
+                    writeCategories(next);
+                  };
+
+                  const toggleAll = () => {
+                    if (allSelected) {
+                      field.onChange(unrecognized.join(', '));
+                      return;
+                    }
+
+                    writeCategories(new Set(DRIVING_LICENSE_CATEGORIES));
                   };
 
                   return (
@@ -293,26 +320,36 @@ export function DriverForm({ driver }: DriverFormProps) {
                       label="Kategorija"
                       error={errors.drivingLicenseCategory?.message}
                     >
-                      <div className="grid grid-cols-1 gap-x-4 gap-y-2 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-3">
-                        {DRIVING_LICENSE_CATEGORIES.map((category) => (
-                          <label
-                            key={category}
-                            className="flex cursor-pointer items-start gap-2 text-sm"
-                          >
-                            <Checkbox
-                              checked={selected.has(category)}
-                              onCheckedChange={() => toggle(category)}
-                              disabled={isPending}
-                              className="mt-0.5"
-                            />
-                            <span>
-                              <span className="font-medium">{category}</span>{' '}
-                              <span className="text-muted-foreground text-xs">
-                                {DRIVING_LICENSE_CATEGORY_LABELS[category]}
+                      <div className="rounded-lg border">
+                        <label className="flex cursor-pointer items-center gap-2 border-b px-3 py-2 text-sm font-medium">
+                          <Checkbox
+                            checked={allSelected}
+                            onCheckedChange={toggleAll}
+                            disabled={isPending}
+                          />
+                          Odaberi sve
+                        </label>
+                        <div className="grid grid-cols-1 gap-x-4 gap-y-2 p-3 sm:grid-cols-2 lg:grid-cols-3">
+                          {DRIVING_LICENSE_CATEGORIES.map((category) => (
+                            <label
+                              key={category}
+                              className="flex cursor-pointer items-start gap-2 text-sm"
+                            >
+                              <Checkbox
+                                checked={selected.has(category)}
+                                onCheckedChange={() => toggle(category)}
+                                disabled={isPending}
+                                className="mt-0.5"
+                              />
+                              <span>
+                                <span className="font-medium">{category}</span>{' '}
+                                <span className="text-muted-foreground text-xs">
+                                  {DRIVING_LICENSE_CATEGORY_LABELS[category]}
+                                </span>
                               </span>
-                            </span>
-                          </label>
-                        ))}
+                            </label>
+                          ))}
+                        </div>
                       </div>
                     </Field>
                   );
@@ -333,7 +370,7 @@ export function DriverForm({ driver }: DriverFormProps) {
         <Card className="shadow-none">
           <CardHeader>
             <CardTitle>Kontakt i radni status</CardTitle>
-            <CardDescription>Način kontakta, radno mesto i trenutni status.</CardDescription>
+            <CardDescription>Način kontakta, radna mesta i trenutni status.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <Field id="phone" label="Telefon" error={errors.phone?.message}>
@@ -356,14 +393,88 @@ export function DriverForm({ driver }: DriverFormProps) {
                 {...form.register('email')}
               />
             </Field>
-            <Field id="jobTitle" label="Radno mesto" error={errors.jobTitle?.message}>
-              <Input
-                id="jobTitle"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.jobTitle)}
-                {...form.register('jobTitle')}
-              />
-            </Field>
+            <Controller
+              control={form.control}
+              name="jobTitle"
+              render={({ field }) => {
+                const tokens = splitCommaTokens(field.value);
+                const selected = new Set<JobTitle>();
+                const unrecognized: string[] = [];
+
+                for (const token of tokens) {
+                  const canonical = canonicalJobTitle(token);
+                  if (canonical) {
+                    selected.add(canonical);
+                  } else {
+                    unrecognized.push(token);
+                  }
+                }
+
+                const writeTitles = (next: Set<JobTitle>) => {
+                  const ordered = JOB_TITLES.filter((title) => next.has(title));
+                  field.onChange(ordered.join(', '));
+                };
+
+                const toggle = (title: JobTitle) => {
+                  const next = new Set(selected);
+                  if (next.has(title)) {
+                    next.delete(title);
+                  } else {
+                    next.add(title);
+                  }
+                  writeTitles(next);
+                };
+
+                const summary = [
+                  ...JOB_TITLES.filter((title) => selected.has(title)),
+                  ...unrecognized,
+                ];
+
+                return (
+                  <div className="sm:col-span-2">
+                    <Field id="jobTitle" label="Radno mesto" error={errors.jobTitle?.message}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            id="jobTitle"
+                            type="button"
+                            variant="outline"
+                            disabled={isPending}
+                            aria-invalid={Boolean(errors.jobTitle)}
+                            className={cn(
+                              'h-auto min-h-8 w-full justify-between gap-2 px-2.5 py-1.5 font-normal whitespace-normal',
+                              summary.length === 0 && 'text-muted-foreground',
+                            )}
+                          >
+                            <span className="text-left">
+                              {summary.length === 0 ? 'Izaberite radno mesto' : summary.join(', ')}
+                            </span>
+                            <ChevronDown className="size-4 shrink-0 opacity-50" aria-hidden />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="start"
+                          className="max-w-[min(100vw-2rem,36rem)]"
+                        >
+                          {JOB_TITLES.map((title) => (
+                            <DropdownMenuCheckboxItem
+                              key={title}
+                              checked={selected.has(title)}
+                              onCheckedChange={() => toggle(title)}
+                              onSelect={(event) => event.preventDefault()}
+                              className="whitespace-normal"
+                            >
+                              {title}
+                            </DropdownMenuCheckboxItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <p className="text-muted-foreground text-xs">Može se izabrati više opcija.</p>
+                    </Field>
+                  </div>
+                );
+              }}
+            />
             <Controller
               control={form.control}
               name="status"
@@ -416,7 +527,7 @@ export function DriverForm({ driver }: DriverFormProps) {
             <Link href={cancelHref}>Otkaži</Link>
           </Button>
           <Button type="submit" disabled={isPending}>
-            {isPending ? 'Čuvanje…' : isEdit ? 'Sačuvaj izmene' : 'Dodaj vozača'}
+            {isPending ? 'Čuvanje…' : isEdit ? 'Sačuvaj izmene' : 'Dodaj zaposlenog'}
           </Button>
         </div>
       </form>

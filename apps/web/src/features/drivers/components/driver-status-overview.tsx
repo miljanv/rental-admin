@@ -226,7 +226,7 @@ export function DriverStatusOverview({ driver, onNavigateToDocuments }: DriverSt
           <div className="grid gap-4 sm:grid-cols-3">
             <QuickDocumentCard
               title="Ugovor o radu"
-              description="Popunjava se podacima vozača."
+              description="Popunjava se podacima zaposlenog."
               status={
                 contractItem?.document ? (
                   <div className="space-y-1.5">

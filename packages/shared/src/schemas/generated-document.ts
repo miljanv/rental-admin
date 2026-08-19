@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { COMPANY } from '../company';
+import { JOB_TITLE_MAX_LENGTH } from '../types/driver';
 import { GENDERS, MA_EMPLOYMENT_KINDS, MA_REGISTRATION_TYPE } from '../types/generated-document';
 import { isoDateTimeLocalSchema } from './absence-attestation';
 import { driverIdSchema, isoDateSchema } from './driver';
@@ -86,7 +87,7 @@ export const generateMaFormSchema = z.object({
   apartment: optionalText(40),
   citizenship: requiredText('Državljanstvo', 80).default(COMPANY.country),
   insuranceStartDate: isoDateSchema,
-  occupation: requiredText('Zanimanje', 120),
+  occupation: requiredText('Zanimanje', JOB_TITLE_MAX_LENGTH),
   qualification: requiredText('Kvalifikacija', 80),
   weeklyHours: z.coerce.number().int().min(1).max(48).default(40),
   insuranceBasis: requiredText('Osnov osiguranja', 80).default('101'),

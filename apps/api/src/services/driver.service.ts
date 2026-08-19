@@ -128,7 +128,7 @@ export const getDriver = async (id: string): Promise<DriverDto> => {
   const record = await prisma.driver.findUnique({ where: { id } });
 
   if (!record) {
-    throw notFound('Vozač nije pronađen.');
+    throw notFound('Zaposleni nije pronađen.');
   }
 
   return toDriverDto(record);
@@ -141,7 +141,7 @@ export const createDriver = async (input: DriverWriteRequest): Promise<DriverDto
     return toDriverDto(record);
   } catch (error) {
     if (isJmbgConflict(error)) {
-      throw conflict('Vozač sa ovim JMBG-om već postoji.');
+      throw conflict('Zaposleni sa ovim JMBG-om već postoji.');
     }
 
     throw error;
@@ -157,7 +157,7 @@ export const updateDriver = async (id: string, input: DriverWriteRequest): Promi
     return toDriverDto(record);
   } catch (error) {
     if (isJmbgConflict(error)) {
-      throw conflict('Vozač sa ovim JMBG-om već postoji.');
+      throw conflict('Zaposleni sa ovim JMBG-om već postoji.');
     }
 
     throw error;

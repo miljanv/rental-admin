@@ -78,6 +78,34 @@ export const DRIVING_LICENSE_CATEGORY_LABELS: Record<DrivingLicenseCategory, str
   M: 'Motokultivator',
 };
 
+/**
+ * Official job titles for the employees form. One person can hold several at
+ * once, so `jobTitle` stays one comma-separated string. Unrecognized
+ * already-saved values are kept on the record, not rejected.
+ */
+export const JOB_TITLES = [
+  'Vozač autobusa u zemlji i inostranstvu',
+  'Vozač autobusa na prevozu radnika u zemlji',
+  'Vozač putničkog vozila u zemlji i inostranstvu',
+  'Dispečer',
+  'Administrativni radnik',
+  'Direktor',
+] as const;
+
+export type JobTitle = (typeof JOB_TITLES)[number];
+
+/** Covers every known title selected at once, with room for custom values. */
+export const JOB_TITLE_MAX_LENGTH = 400;
+
+/** Case-insensitive match so older rows like "vozač autobusa…" still tick the pick-list. */
+export const canonicalJobTitle = (value: string): JobTitle | undefined => {
+  const trimmed = value.trim();
+
+  return JOB_TITLES.find(
+    (title) => title.localeCompare(trimmed, 'sr', { sensitivity: 'accent' }) === 0,
+  );
+};
+
 export const DRIVER_STATUSES = ['ACTIVE', 'SICK_LEAVE', 'VACATION', 'INACTIVE'] as const;
 
 export type DriverStatus = (typeof DRIVER_STATUSES)[number];

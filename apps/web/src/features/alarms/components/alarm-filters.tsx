@@ -64,7 +64,7 @@ export function AlarmFilters({ value, onChange, drivers, vehicles }: AlarmFilter
         value={value.category}
         onChange={(next) => set('category', next as AlarmFilterState['category'])}
       >
-        <SelectItem value={ALL}>Vozači i vozila</SelectItem>
+        <SelectItem value={ALL}>Zaposleni i vozila</SelectItem>
         {ALARM_CATEGORIES.map((category) => (
           <SelectItem key={category} value={category}>
             {ALARM_CATEGORY_LABELS[category]}
@@ -88,11 +88,11 @@ export function AlarmFilters({ value, onChange, drivers, vehicles }: AlarmFilter
 
       <FilterSelect
         id="alarm-driver"
-        label="Vozač"
+        label="Zaposleni"
         value={value.driverId}
         onChange={(next) => set('driverId', next)}
       >
-        <SelectItem value={ALL}>Svi vozači</SelectItem>
+        <SelectItem value={ALL}>Svi zaposleni</SelectItem>
         {drivers.map((driver) => (
           <SelectItem key={driver.id} value={driver.id}>
             {driver.label}

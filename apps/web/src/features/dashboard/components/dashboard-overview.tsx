@@ -8,7 +8,7 @@ export function DashboardOverview() {
     <>
       <PageHeader
         title="Dashboard"
-        description="Najhitniji rokovi vozača i vozila na jednom pregledu."
+        description="Najhitniji rokovi zaposlenih i vozila na jednom pregledu."
       />
       <AlarmWidget />
     </>

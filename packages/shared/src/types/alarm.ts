@@ -17,7 +17,7 @@ export const ALARM_CATEGORIES = ['DRIVER', 'VEHICLE'] as const;
 export type AlarmCategory = (typeof ALARM_CATEGORIES)[number];
 
 export const ALARM_CATEGORY_LABELS: Record<AlarmCategory, string> = {
-  DRIVER: 'Vozač',
+  DRIVER: 'Zaposleni',
   VEHICLE: 'Vozilo',
 };
 

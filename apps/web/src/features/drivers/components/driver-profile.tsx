@@ -56,7 +56,7 @@ function ComingSoon({ title }: { title: string }) {
     <EmptyState
       icon={Clock}
       title={`${title} — uskoro`}
-      description="Ovaj modul će biti dodat u narednom koraku. Osnovni podaci vozača su već dostupni."
+      description="Ovaj modul će biti dodat u narednom koraku. Osnovni podaci zaposlenog su već dostupni."
     />
   );
 }
@@ -142,8 +142,8 @@ export function DriverProfile({ driverId }: DriverProfileProps) {
   if (query.isError || !query.data) {
     return (
       <ErrorState
-        error={query.error ?? new Error('Vozač nije pronađen.')}
-        title="Profil vozača nije učitan"
+        error={query.error ?? new Error('Zaposleni nije pronađen.')}
+        title="Profil zaposlenog nije učitan"
         retryLabel="Pokušaj ponovo"
         retryingLabel="Učitavanje…"
         onRetry={() => void query.refetch()}
