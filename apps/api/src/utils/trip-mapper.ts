@@ -55,6 +55,7 @@ export interface TripRecord {
   seriesId: string | null;
   paidAt: Date | null;
   carrierId: string | null;
+  vehicleCount: number;
   createdAt: Date;
   updatedAt: Date;
   partner: TripPartnerRecord | null;
@@ -116,27 +117,28 @@ export const toTripDto = (record: TripRecord): TripDto => ({
   status: record.status,
   contractId: record.contractId,
   contract: record.contract
-    ? { id: record.contract.id, origin: record.contract.origin, destination: record.contract.destination }
+    ? {
+        id: record.contract.id,
+        origin: record.contract.origin,
+        destination: record.contract.destination,
+      }
     : null,
   distanceKm: record.distanceKm,
   seriesId: record.seriesId,
-  vehicles: record.vehicles.map(
-    (assignment): TripVehicleDto => ({
-      id: assignment.vehicle.id,
-      make: assignment.vehicle.make,
-      model: assignment.vehicle.model,
-      licensePlate: assignment.vehicle.licensePlate,
-    }),
-  ),
-  drivers: record.drivers.map(
-    (assignment): TripDriverDto => ({
-      id: assignment.driver.id,
-      firstName: assignment.driver.firstName,
-      lastName: assignment.driver.lastName,
-      perDiemAmount: assignment.perDiemAmount,
-      advanceAmount: assignment.advanceAmount,
-    }),
-  ),
+  vehicleCount: record.vehicleCount,
+  vehicles: record.vehicles.map((assignment): TripVehicleDto => ({
+    id: assignment.vehicle.id,
+    make: assignment.vehicle.make,
+    model: assignment.vehicle.model,
+    licensePlate: assignment.vehicle.licensePlate,
+  })),
+  drivers: record.drivers.map((assignment): TripDriverDto => ({
+    id: assignment.driver.id,
+    firstName: assignment.driver.firstName,
+    lastName: assignment.driver.lastName,
+    perDiemAmount: assignment.perDiemAmount,
+    advanceAmount: assignment.advanceAmount,
+  })),
   createdAt: record.createdAt.toISOString(),
   updatedAt: record.updatedAt.toISOString(),
 });

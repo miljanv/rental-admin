@@ -35,15 +35,16 @@ import { useTrips } from '@/features/trips/hooks/use-trips';
 import { useDrivers } from '@/features/drivers/hooks/use-drivers';
 import { usePartners } from '@/features/partners/hooks/use-partners';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
+import { localTodayIso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE_MS = 350;
 const ALL = 'all';
 
 const SORT_OPTIONS: { value: `${TripSortField}:${SortOrder}`; label: string }[] = [
+  { value: 'departureDate:asc', label: 'Po danu (danas prvo)' },
   { value: 'departureDate:desc', label: 'Datum polaska (noviji)' },
-  { value: 'departureDate:asc', label: 'Datum polaska (stariji)' },
   { value: 'createdAt:desc', label: 'Najnovije uneto' },
   { value: 'status:asc', label: 'Status' },
 ];
@@ -58,9 +59,9 @@ export function TripsList() {
   const [partnerFilter, setPartnerFilter] = useState<typeof ALL | string>(ALL);
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<typeof ALL | PaymentMethod>(ALL);
   const [country, setCountry] = useState('');
-  const [from, setFrom] = useState('');
+  const [from, setFrom] = useState(() => localTodayIso());
   const [to, setTo] = useState('');
-  const [sort, setSort] = useState<`${TripSortField}:${SortOrder}`>('departureDate:desc');
+  const [sort, setSort] = useState<`${TripSortField}:${SortOrder}`>('departureDate:asc');
   const [tripToDelete, setTripToDelete] = useState<TripDto | null>(null);
 
   const [sortBy, sortOrder] = sort.split(':') as [TripSortField, SortOrder];
@@ -102,10 +103,12 @@ export function TripsList() {
     ...(to ? { to } : {}),
   });
 
+  const todayIso = localTodayIso();
   const trips = query.data?.trips ?? [];
   const pagination = query.data?.pagination;
   const totalPages = pagination?.totalPages ?? 0;
   const total = pagination?.total ?? 0;
+  const isFromToday = from === todayIso;
   const hasFilters =
     search.length > 0 ||
     Boolean(status) ||
@@ -114,15 +117,20 @@ export function TripsList() {
     Boolean(partnerId) ||
     Boolean(paymentMethod) ||
     Boolean(country) ||
-    Boolean(from) ||
-    Boolean(to);
+    Boolean(to) ||
+    (Boolean(from) && !isFromToday);
+  const isDefaultTodayView = isFromToday && !hasFilters;
 
   return (
     <Card className="shadow-none">
       <CardHeader>
         <CardTitle>Sve vožnje</CardTitle>
         <CardDescription>
-          {total === 0 ? 'Još nema unetih vožnji.' : `${total} ${total === 1 ? 'vožnja' : 'vožnji'}.`}
+          {total === 0
+            ? isDefaultTodayView
+              ? 'Nema vožnji od danas.'
+              : 'Još nema unetih vožnji.'
+            : `${total} ${total === 1 ? 'vožnja' : 'vožnji'}${sortBy === 'departureDate' ? ', grupisano po danu' : ''}.`}
         </CardDescription>
       </CardHeader>
 
@@ -325,6 +333,16 @@ export function TripsList() {
 
           <Button
             variant="outline"
+            onClick={() => {
+              setFrom(isFromToday ? '' : todayIso);
+              setPage(1);
+            }}
+          >
+            {isFromToday ? 'Prikaži i ranije' : 'Od danas'}
+          </Button>
+
+          <Button
+            variant="outline"
             onClick={() => void query.refetch()}
             disabled={query.isFetching}
             aria-label="Osveži listu vožnji"
@@ -347,12 +365,37 @@ export function TripsList() {
           <TripsTable
             trips={trips}
             isLoading={query.isPending}
-            hasFilters={hasFilters}
+            hasFilters={hasFilters || isDefaultTodayView}
+            groupByDay={sortBy === 'departureDate'}
             onRequestDelete={setTripToDelete}
+            emptyTitle={isDefaultTodayView ? 'Nema vožnji od danas' : undefined}
+            emptyDescription={
+              isDefaultTodayView
+                ? 'Tabela počinje od današnjeg dana. Prikažite ranije vožnje ili unesite novu.'
+                : undefined
+            }
             emptyAction={
-              <Button size="sm" asChild>
-                <Link href="/trips/new">Kreiraj vožnju</Link>
-              </Button>
+              isDefaultTodayView ? (
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setFrom('');
+                      setPage(1);
+                    }}
+                  >
+                    Prikaži i ranije
+                  </Button>
+                  <Button size="sm" asChild>
+                    <Link href="/trips/new">Kreiraj vožnju</Link>
+                  </Button>
+                </div>
+              ) : (
+                <Button size="sm" asChild>
+                  <Link href="/trips/new">Kreiraj vožnju</Link>
+                </Button>
+              )
             }
           />
         )}

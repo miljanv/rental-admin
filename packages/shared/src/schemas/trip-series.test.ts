@@ -61,6 +61,12 @@ describe('generateTripSeriesSchema', () => {
     expect(result.data?.passengerCount).toBe(45);
   });
 
+  it('defaults vehicle count to 1', () => {
+    const result = generateTripSeriesSchema.parse(validSeries);
+
+    expect(result.vehicleCount).toBe(1);
+  });
+
   it('defaults to no pauses', () => {
     const result = generateTripSeriesSchema.safeParse(validSeries);
 
@@ -97,6 +103,15 @@ describe('bulkUpdateTripSeriesSchema', () => {
     const result = bulkUpdateTripSeriesSchema.safeParse({
       fromDate: '2026-09-15',
       vehicleIds: ['vehicle_2'],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts a payload that only changes the planned vehicle count', () => {
+    const result = bulkUpdateTripSeriesSchema.safeParse({
+      fromDate: '2026-09-15',
+      vehicleCount: 3,
     });
 
     expect(result.success).toBe(true);

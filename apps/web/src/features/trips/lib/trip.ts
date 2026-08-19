@@ -13,7 +13,7 @@ export const tripLabel = (trip: TripDto): string =>
 export const toTripFormValues = (trip: TripDto): TripWriteRequest => ({
   referenceNumber: trip.referenceNumber,
   departureDate: trip.departureDate,
-  returnDate: trip.returnDate,
+  returnDate: trip.returnDate ?? trip.departureDate,
   country: trip.country,
   origin: trip.origin,
   destination: trip.destination,
@@ -28,4 +28,5 @@ export const toTripFormValues = (trip: TripDto): TripWriteRequest => ({
   distanceKm: trip.distanceKm,
   vehicleIds: trip.vehicles.map((vehicle) => vehicle.id),
   driverIds: trip.drivers.map((driver) => driver.id),
+  vehicleCount: trip.vehicleCount,
 });

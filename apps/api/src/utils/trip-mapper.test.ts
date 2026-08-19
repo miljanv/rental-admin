@@ -22,6 +22,7 @@ const record: TripRecord = {
   seriesId: null,
   paidAt: new Date('2026-09-05T00:00:00.000Z'),
   carrierId: 'partner_carrier',
+  vehicleCount: 1,
   createdAt: new Date('2026-08-16T10:00:00.000Z'),
   updatedAt: new Date('2026-08-16T10:00:00.000Z'),
   partner: null,

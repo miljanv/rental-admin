@@ -32,7 +32,9 @@ export const tripInclude = {
   partner: { select: { id: true, type: true, companyName: true, firstName: true, lastName: true } },
   carrier: { select: { id: true, type: true, companyName: true, firstName: true, lastName: true } },
   contract: { select: { id: true, origin: true, destination: true } },
-  vehicles: { include: { vehicle: { select: { id: true, make: true, model: true, licensePlate: true } } } },
+  vehicles: {
+    include: { vehicle: { select: { id: true, make: true, model: true, licensePlate: true } } },
+  },
   drivers: { include: { driver: { select: { id: true, firstName: true, lastName: true } } } },
 } as const;
 
@@ -93,14 +95,20 @@ export const assertDriversExist = async (driverIds: string[]): Promise<void> => 
 
 const assertReferencesExist = async (input: TripWriteRequest): Promise<void> => {
   if (input.partnerId) {
-    const partner = await prisma.partner.findUnique({ where: { id: input.partnerId }, select: { id: true } });
+    const partner = await prisma.partner.findUnique({
+      where: { id: input.partnerId },
+      select: { id: true },
+    });
     if (!partner) {
       throw badRequest('Izabrani partner ne postoji.');
     }
   }
 
   if (input.contractId) {
-    const contract = await prisma.contract.findUnique({ where: { id: input.contractId }, select: { id: true } });
+    const contract = await prisma.contract.findUnique({
+      where: { id: input.contractId },
+      select: { id: true },
+    });
     if (!contract) {
       throw badRequest('Izabrani ugovor ne postoji.');
     }
@@ -157,7 +165,9 @@ export const syncTripRevenue = async (trip: TripDto): Promise<void> => {
     vehicleId: trip.vehicles[0]?.id ?? null,
     partner: tripClientDisplayName(trip) || null,
     route: tripRouteLabel(trip),
-    note: trip.referenceNumber ? `Vožnja ${trip.referenceNumber}` : `Vožnja ${tripRouteLabel(trip)}`,
+    note: trip.referenceNumber
+      ? `Vožnja ${trip.referenceNumber}`
+      : `Vožnja ${tripRouteLabel(trip)}`,
   });
 };
 
@@ -177,6 +187,7 @@ const toWriteData = (input: TripWriteRequest) => ({
   status: input.status,
   contractId: input.contractId,
   distanceKm: input.distanceKm,
+  vehicleCount: Math.max(input.vehicleCount, input.vehicleIds.length, 1),
 });
 
 export const listTrips = async (

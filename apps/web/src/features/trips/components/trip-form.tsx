@@ -5,6 +5,7 @@ import {
   CONTRACT_STATUS_LABELS,
   contractRouteLabel,
   MAX_TRIP_DRIVERS,
+  MAX_TRIP_VEHICLES,
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
   partnerSelectLabel,
@@ -74,7 +75,9 @@ export function TripForm({ trip }: TripFormProps) {
   const createMutation = useCreateTrip();
   const updateMutation = useUpdateTrip(trip?.id ?? '');
   const isPending = createMutation.isPending || updateMutation.isPending;
-  const [useFreeTextClient, setUseFreeTextClient] = useState(() => Boolean(trip && !trip.partnerId));
+  const [useFreeTextClient, setUseFreeTextClient] = useState(() =>
+    Boolean(trip && !trip.partnerId),
+  );
 
   const form = useForm<TripFormValues, unknown, TripWriteRequest>({
     resolver: zodResolver(tripFormSchema),
@@ -85,10 +88,20 @@ export function TripForm({ trip }: TripFormProps) {
   const vehicleIds = useWatch({ control: form.control, name: 'vehicleIds' }) ?? [];
   const driverIds = useWatch({ control: form.control, name: 'driverIds' }) ?? [];
 
-  const vehiclesQuery = useVehicles({ page: 1, limit: 100, sortBy: 'licensePlate', sortOrder: 'asc' });
+  const vehiclesQuery = useVehicles({
+    page: 1,
+    limit: 100,
+    sortBy: 'licensePlate',
+    sortOrder: 'asc',
+  });
   const driversQuery = useDrivers({ page: 1, limit: 100, sortBy: 'lastName', sortOrder: 'asc' });
   const partnersQuery = usePartners({ page: 1, limit: 100, sortBy: 'type', sortOrder: 'asc' });
-  const contractsQuery = useContracts({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' });
+  const contractsQuery = useContracts({
+    page: 1,
+    limit: 100,
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+  });
 
   const vehicleOptions = (vehiclesQuery.data?.vehicles ?? []).map((vehicle) => ({
     value: vehicle.id,
@@ -128,8 +141,8 @@ export function TripForm({ trip }: TripFormProps) {
           <CardHeader>
             <CardTitle>Naručilac</CardTitle>
             <CardDescription>
-              Registrovan partner ili slobodan unos imena — birajte prvo, ostala polja se popunjavaju na
-              osnovu izabranog ugovora.
+              Registrovan partner ili slobodan unos imena — birajte prvo, ostala polja se
+              popunjavaju na osnovu izabranog ugovora.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -161,7 +174,11 @@ export function TripForm({ trip }: TripFormProps) {
             </div>
 
             {useFreeTextClient ? (
-              <Field id="clientName" label="Naziv / ime naručioca" error={errors.clientName?.message}>
+              <Field
+                id="clientName"
+                label="Naziv / ime naručioca"
+                error={errors.clientName?.message}
+              >
                 <Input
                   id="clientName"
                   disabled={isPending}
@@ -201,7 +218,11 @@ export function TripForm({ trip }: TripFormProps) {
               control={form.control}
               name="contractId"
               render={({ field }) => (
-                <Field id="contractId" label="Povezan ugovor (opciono)" error={errors.contractId?.message}>
+                <Field
+                  id="contractId"
+                  label="Povezan ugovor (opciono)"
+                  error={errors.contractId?.message}
+                >
                   <Select
                     value={field.value || NONE}
                     onValueChange={(value) => {
@@ -219,7 +240,11 @@ export function TripForm({ trip }: TripFormProps) {
                       // shouldn't get copied onto every single leg blindly. Only fills
                       // fields the user hasn't already touched.
                       const currentPrice = form.getValues('price');
-                      if (currentPrice === '' || currentPrice == null || Number.isNaN(currentPrice)) {
+                      if (
+                        currentPrice === '' ||
+                        currentPrice == null ||
+                        Number.isNaN(currentPrice)
+                      ) {
                         form.setValue('price', contract.price, { shouldDirty: true });
                       }
 
@@ -229,7 +254,9 @@ export function TripForm({ trip }: TripFormProps) {
                         currentPassengerCount == null ||
                         Number.isNaN(currentPassengerCount)
                       ) {
-                        form.setValue('passengerCount', contract.passengerCount, { shouldDirty: true });
+                        form.setValue('passengerCount', contract.passengerCount, {
+                          shouldDirty: true,
+                        });
                       }
 
                       const currentPartnerId = form.getValues('partnerId');
@@ -258,7 +285,9 @@ export function TripForm({ trip }: TripFormProps) {
                       }
 
                       if (!form.getValues('departureDate')) {
-                        form.setValue('departureDate', contract.serviceStartDate, { shouldDirty: true });
+                        form.setValue('departureDate', contract.serviceStartDate, {
+                          shouldDirty: true,
+                        });
                       }
 
                       if (!form.getValues('returnDate')) {
@@ -288,7 +317,9 @@ export function TripForm({ trip }: TripFormProps) {
         <Card className="shadow-none">
           <CardHeader>
             <CardTitle>Osnovni podaci</CardTitle>
-            <CardDescription>Period, relacija i broj putnika. RN broj se dodeljuje naknadno.</CardDescription>
+            <CardDescription>
+              Period, relacija i broj putnika. RN broj se dodeljuje naknadno.
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <Field
@@ -321,28 +352,58 @@ export function TripForm({ trip }: TripFormProps) {
                   <DateField
                     id="departureDate"
                     value={field.value}
-                    onChange={field.onChange}
+                    onChange={(value) => {
+                      const previousDeparture = field.value;
+                      const currentReturn = form.getValues('returnDate');
+                      field.onChange(value);
+                      // Same-day return is the default; keep a later zaključni dan
+                      // if the user already moved it off the previous departure.
+                      if (!currentReturn || currentReturn === previousDeparture) {
+                        form.setValue('returnDate', value, { shouldDirty: true });
+                      }
+                    }}
                     disabled={isPending}
                     aria-invalid={Boolean(errors.departureDate)}
                   />
                 )}
               />
             </Field>
-            <Field id="returnDate" label="Datum povratka" error={errors.returnDate?.message}>
-              <Controller
-                control={form.control}
-                name="returnDate"
-                render={({ field }) => (
-                  <DateField
-                    id="returnDate"
-                    value={field.value ?? ''}
-                    onChange={field.onChange}
-                    disabled={isPending}
-                    aria-invalid={Boolean(errors.returnDate)}
-                  />
-                )}
-              />
-            </Field>
+            <div className="space-y-1.5">
+              <Field
+                id="returnDate"
+                label="Zaključni dan / povratak"
+                error={errors.returnDate?.message}
+              >
+                <Controller
+                  control={form.control}
+                  name="returnDate"
+                  render={({ field }) => (
+                    <DateField
+                      id="returnDate"
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      disabled={isPending}
+                      aria-invalid={Boolean(errors.returnDate)}
+                    />
+                  )}
+                />
+              </Field>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-auto px-0 text-xs"
+                disabled={isPending}
+                onClick={() => {
+                  const departure = form.getValues('departureDate');
+                  if (departure) {
+                    form.setValue('returnDate', departure, { shouldDirty: true });
+                  }
+                }}
+              >
+                Isti dan kao polazak
+              </Button>
+            </div>
             <Field
               id="passengerCount"
               label="Broj putnika (opciono)"
@@ -383,21 +444,56 @@ export function TripForm({ trip }: TripFormProps) {
           <CardHeader>
             <CardTitle>Vozila i vozači</CardTitle>
             <CardDescription>
-              Moguće je izabrati više vozila i do {MAX_TRIP_DRIVERS} vozača na istoj vožnji (npr. grupni
-              izlet ili smena).
+              Unesite koliko vozila radi na ovoj vožnji (npr. Expo — 3 autobusa na istoj relaciji),
+              pa po želji izaberite tablice. Do {MAX_TRIP_DRIVERS} vozača.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Field id="vehicleIds" label="Vozila" error={errors.vehicleIds?.message as string | undefined}>
+            <Field
+              id="vehicleCount"
+              label="Broj vozila"
+              error={errors.vehicleCount?.message as string | undefined}
+            >
+              <Input
+                id="vehicleCount"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={MAX_TRIP_VEHICLES}
+                disabled={isPending}
+                aria-invalid={Boolean(errors.vehicleCount)}
+                {...form.register('vehicleCount', { valueAsNumber: true })}
+              />
+            </Field>
+            <Field
+              id="vehicleIds"
+              label="Tablice (opciono)"
+              error={errors.vehicleIds?.message as string | undefined}
+            >
               <MultiSelectField
                 options={vehicleOptions}
                 selected={vehicleIds}
-                onChange={(next) => form.setValue('vehicleIds', next)}
+                onChange={(next) => {
+                  form.setValue('vehicleIds', next);
+                  const currentCount = form.getValues('vehicleCount');
+                  const numericCount =
+                    typeof currentCount === 'number' && !Number.isNaN(currentCount)
+                      ? currentCount
+                      : 1;
+                  if (numericCount < next.length) {
+                    form.setValue('vehicleCount', next.length, { shouldDirty: true });
+                  }
+                }}
                 disabled={isPending || vehiclesQuery.isPending}
                 emptyLabel="Nema unetih vozila."
+                maxSelected={MAX_TRIP_VEHICLES}
               />
             </Field>
-            <Field id="driverIds" label="Vozači" error={errors.driverIds?.message as string | undefined}>
+            <Field
+              id="driverIds"
+              label="Vozači"
+              error={errors.driverIds?.message as string | undefined}
+            >
               <MultiSelectField
                 options={driverOptions}
                 selected={driverIds}
@@ -415,7 +511,11 @@ export function TripForm({ trip }: TripFormProps) {
             <CardTitle>Cena, plaćanje i status</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            <Field id="price" label="Cena (RSD)" error={errors.price?.message as string | undefined}>
+            <Field
+              id="price"
+              label="Cena (RSD)"
+              error={errors.price?.message as string | undefined}
+            >
               <Input
                 id="price"
                 type="number"
@@ -429,7 +529,11 @@ export function TripForm({ trip }: TripFormProps) {
               control={form.control}
               name="paymentMethod"
               render={({ field }) => (
-                <Field id="paymentMethod" label="Način plaćanja" error={errors.paymentMethod?.message}>
+                <Field
+                  id="paymentMethod"
+                  label="Način plaćanja"
+                  error={errors.paymentMethod?.message}
+                >
                   <Select
                     value={field.value || NONE}
                     onValueChange={(value) => field.onChange(value === NONE ? '' : value)}
@@ -450,7 +554,11 @@ export function TripForm({ trip }: TripFormProps) {
                 </Field>
               )}
             />
-            <Field id="distanceKm" label="Pređeni km (opciono)" error={errors.distanceKm?.message as string | undefined}>
+            <Field
+              id="distanceKm"
+              label="Pređeni km (opciono)"
+              error={errors.distanceKm?.message as string | undefined}
+            >
               <Input
                 id="distanceKm"
                 type="number"
@@ -481,7 +589,11 @@ export function TripForm({ trip }: TripFormProps) {
               )}
             />
             <div className="sm:col-span-2">
-              <Field id="notes" label="Napomena" error={errors.notes?.message as string | undefined}>
+              <Field
+                id="notes"
+                label="Napomena"
+                error={errors.notes?.message as string | undefined}
+              >
                 <Textarea id="notes" rows={3} disabled={isPending} {...form.register('notes')} />
               </Field>
             </div>

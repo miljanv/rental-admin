@@ -5,6 +5,7 @@ import {
   CONTRACT_STATUS_LABELS,
   contractRouteLabel,
   MAX_TRIP_DRIVERS,
+  MAX_TRIP_VEHICLES,
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
   partnerSelectLabel,
@@ -85,10 +86,20 @@ export function TripSeriesForm() {
   const vehicleIds = useWatch({ control: form.control, name: 'vehicleIds' }) ?? [];
   const driverIds = useWatch({ control: form.control, name: 'driverIds' }) ?? [];
 
-  const vehiclesQuery = useVehicles({ page: 1, limit: 100, sortBy: 'licensePlate', sortOrder: 'asc' });
+  const vehiclesQuery = useVehicles({
+    page: 1,
+    limit: 100,
+    sortBy: 'licensePlate',
+    sortOrder: 'asc',
+  });
   const driversQuery = useDrivers({ page: 1, limit: 100, sortBy: 'lastName', sortOrder: 'asc' });
   const partnersQuery = usePartners({ page: 1, limit: 100, sortBy: 'type', sortOrder: 'asc' });
-  const contractsQuery = useContracts({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' });
+  const contractsQuery = useContracts({
+    page: 1,
+    limit: 100,
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+  });
 
   const vehicleOptions = (vehiclesQuery.data?.vehicles ?? []).map((vehicle) => ({
     value: vehicle.id,
@@ -128,7 +139,11 @@ export function TripSeriesForm() {
             <CardDescription>Period i učestalost generisanja.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            <Field id="name" label="Naziv serije (opciono)" error={errors.name?.message as string | undefined}>
+            <Field
+              id="name"
+              label="Naziv serije (opciono)"
+              error={errors.name?.message as string | undefined}
+            >
               <Input
                 id="name"
                 placeholder="npr. Čoka - OŠ Čoka"
@@ -228,7 +243,10 @@ export function TripSeriesForm() {
               <p className="text-muted-foreground text-sm">Nema dodatih pauza.</p>
             ) : (
               pauseFields.fields.map((field, index) => (
-                <div key={field.id} className="grid gap-4 rounded-lg border p-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
+                <div
+                  key={field.id}
+                  className="grid gap-4 rounded-lg border p-3 sm:grid-cols-[1fr_1fr_1fr_auto]"
+                >
                   <Field
                     id={`pauses.${index}.startDate`}
                     label="Od"
@@ -319,8 +337,17 @@ export function TripSeriesForm() {
                 {...form.register('referenceNumber')}
               />
             </Field>
-            <Field id="country" label="Država" error={errors.country?.message as string | undefined}>
-              <Input id="country" placeholder="npr. Srbija" disabled={isPending} {...form.register('country')} />
+            <Field
+              id="country"
+              label="Država"
+              error={errors.country?.message as string | undefined}
+            >
+              <Input
+                id="country"
+                placeholder="npr. Srbija"
+                disabled={isPending}
+                {...form.register('country')}
+              />
             </Field>
             <Field
               id="passengerCount"
@@ -336,7 +363,11 @@ export function TripSeriesForm() {
                 {...form.register('passengerCount', { valueAsNumber: true })}
               />
             </Field>
-            <Field id="origin" label="Polazište" error={errors.origin?.message as string | undefined}>
+            <Field
+              id="origin"
+              label="Polazište"
+              error={errors.origin?.message as string | undefined}
+            >
               <Input
                 id="origin"
                 placeholder="npr. Čoka"
@@ -405,7 +436,11 @@ export function TripSeriesForm() {
                 control={form.control}
                 name="partnerId"
                 render={({ field }) => (
-                  <Field id="partnerId" label="Partner" error={errors.partnerId?.message as string | undefined}>
+                  <Field
+                    id="partnerId"
+                    label="Partner"
+                    error={errors.partnerId?.message as string | undefined}
+                  >
                     <Select
                       value={field.value || NONE}
                       onValueChange={(value) => field.onChange(value === NONE ? '' : value)}
@@ -464,21 +499,55 @@ export function TripSeriesForm() {
           <CardHeader>
             <CardTitle>Vozila i vozači</CardTitle>
             <CardDescription>
-              Isti skup se dodeljuje svakoj generisanoj vožnji — kasnije se može promeniti pojedinačno ili
-              za sve buduće instance od izabranog datuma.
+              Broj vozila važi za svaku generisanu vožnju (npr. 3 autobusa na istoj relaciji).
+              Tablice su opcione — mogu se dodeliti kasnije.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Field id="vehicleIds" label="Vozila" error={errors.vehicleIds?.message as string | undefined}>
+            <Field
+              id="vehicleCount"
+              label="Broj vozila"
+              error={errors.vehicleCount?.message as string | undefined}
+            >
+              <Input
+                id="vehicleCount"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={MAX_TRIP_VEHICLES}
+                disabled={isPending}
+                {...form.register('vehicleCount', { valueAsNumber: true })}
+              />
+            </Field>
+            <Field
+              id="vehicleIds"
+              label="Tablice (opciono)"
+              error={errors.vehicleIds?.message as string | undefined}
+            >
               <MultiSelectField
                 options={vehicleOptions}
                 selected={vehicleIds}
-                onChange={(next) => form.setValue('vehicleIds', next)}
+                onChange={(next) => {
+                  form.setValue('vehicleIds', next);
+                  const currentCount = form.getValues('vehicleCount');
+                  const numericCount =
+                    typeof currentCount === 'number' && !Number.isNaN(currentCount)
+                      ? currentCount
+                      : 1;
+                  if (numericCount < next.length) {
+                    form.setValue('vehicleCount', next.length, { shouldDirty: true });
+                  }
+                }}
                 disabled={isPending || vehiclesQuery.isPending}
                 emptyLabel="Nema unetih vozila."
+                maxSelected={MAX_TRIP_VEHICLES}
               />
             </Field>
-            <Field id="driverIds" label="Vozači" error={errors.driverIds?.message as string | undefined}>
+            <Field
+              id="driverIds"
+              label="Vozači"
+              error={errors.driverIds?.message as string | undefined}
+            >
               <MultiSelectField
                 options={driverOptions}
                 selected={driverIds}
@@ -496,7 +565,11 @@ export function TripSeriesForm() {
             <CardTitle>Cena, plaćanje i status</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            <Field id="price" label="Cena (RSD)" error={errors.price?.message as string | undefined}>
+            <Field
+              id="price"
+              label="Cena (RSD)"
+              error={errors.price?.message as string | undefined}
+            >
               <Input
                 id="price"
                 type="number"
@@ -556,7 +629,11 @@ export function TripSeriesForm() {
               )}
             />
             <div className="sm:col-span-2">
-              <Field id="notes" label="Napomena" error={errors.notes?.message as string | undefined}>
+              <Field
+                id="notes"
+                label="Napomena"
+                error={errors.notes?.message as string | undefined}
+              >
                 <Textarea id="notes" rows={3} disabled={isPending} {...form.register('notes')} />
               </Field>
             </div>

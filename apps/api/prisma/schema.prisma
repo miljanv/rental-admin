@@ -783,6 +783,9 @@ model Trip {
   paidAt          DateTime?      @db.Date
   /// Actual carrier on this trip (subcontractor / another brand), distinct from the client `partnerId`.
   carrierId       String?
+  /// Planned number of buses on this job, even before specific plates are assigned
+  /// (e.g. Expo with 3 vehicles on the same route).
+  vehicleCount    Int            @default(1)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 

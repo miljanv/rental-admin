@@ -57,6 +57,20 @@ describe('tripWriteSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('defaults vehicle count to 1 and raises it to match assigned plates', () => {
+    expect(tripWriteSchema.parse(validTrip).vehicleCount).toBe(1);
+
+    const withCount = tripWriteSchema.parse({ ...validTrip, vehicleCount: 3, vehicleIds: [] });
+    expect(withCount.vehicleCount).toBe(3);
+
+    const withPlates = tripWriteSchema.parse({
+      ...validTrip,
+      vehicleCount: 1,
+      vehicleIds: ['vehicle_1', 'vehicle_2', 'vehicle_3'],
+    });
+    expect(withPlates.vehicleCount).toBe(3);
+  });
+
   it('rejects more than 3 drivers', () => {
     const result = tripWriteSchema.safeParse({
       ...validTrip,

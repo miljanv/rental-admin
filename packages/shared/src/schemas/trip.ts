@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { PAGINATION_DEFAULTS } from '../constants';
-import { MAX_TRIP_DRIVERS, TRIP_STATUSES } from '../types/trip';
+import { MAX_TRIP_DRIVERS, MAX_TRIP_VEHICLES, TRIP_STATUSES } from '../types/trip';
 import { driverIdSchema, isoDateSchema } from './driver';
 import { SORT_ORDERS } from './file';
 import { optionalPaymentMethodSchema, paymentMethodSchema } from './transaction';
@@ -39,30 +39,45 @@ export const optionalIsoDate = z
   .transform((value) => (value ? value : null));
 
 export const optionalNonNegative = (label: string, max: number) =>
-  z.preprocess((value) => {
-    if (value === '' || value === undefined || value === null) {
-      return null;
-    }
+  z.preprocess(
+    (value) => {
+      if (value === '' || value === undefined || value === null) {
+        return null;
+      }
 
-    if (typeof value === 'number' && Number.isNaN(value)) {
-      return null;
-    }
+      if (typeof value === 'number' && Number.isNaN(value)) {
+        return null;
+      }
 
-    return value;
-  }, z.number().min(0, `${label} ne može biti negativan.`).max(max, `${label} nije ispravan.`).nullable());
+      return value;
+    },
+    z
+      .number()
+      .min(0, `${label} ne može biti negativan.`)
+      .max(max, `${label} nije ispravan.`)
+      .nullable(),
+  );
 
 export const optionalPositiveInt = (label: string, max: number) =>
-  z.preprocess((value) => {
-    if (value === '' || value === undefined || value === null) {
-      return null;
-    }
+  z.preprocess(
+    (value) => {
+      if (value === '' || value === undefined || value === null) {
+        return null;
+      }
 
-    if (typeof value === 'number' && Number.isNaN(value)) {
-      return null;
-    }
+      if (typeof value === 'number' && Number.isNaN(value)) {
+        return null;
+      }
 
-    return value;
-  }, z.number().int(`${label} mora biti ceo broj.`).min(1, `${label} mora biti najmanje 1.`).max(max, `${label} nije ispravan.`).nullable());
+      return value;
+    },
+    z
+      .number()
+      .int(`${label} mora biti ceo broj.`)
+      .min(1, `${label} mora biti najmanje 1.`)
+      .max(max, `${label} nije ispravan.`)
+      .nullable(),
+  );
 
 export const tripWriteSchema = z
   .object({
@@ -82,7 +97,28 @@ export const tripWriteSchema = z
     status: tripStatusSchema,
     contractId: optionalId,
     distanceKm: optionalNonNegative('Kilometraža', 100_000),
-    vehicleIds: z.array(vehicleIdSchema).max(20, 'Najviše 20 vozila po vožnji.').default([]),
+    vehicleCount: z.preprocess(
+      (value) => {
+        if (value === '' || value === undefined || value === null) {
+          return 1;
+        }
+
+        if (typeof value === 'number' && Number.isNaN(value)) {
+          return 1;
+        }
+
+        return value;
+      },
+      z
+        .number()
+        .int('Broj vozila mora biti ceo broj.')
+        .min(1, 'Broj vozila mora biti najmanje 1.')
+        .max(MAX_TRIP_VEHICLES, `Najviše ${MAX_TRIP_VEHICLES} vozila po vožnji.`),
+    ),
+    vehicleIds: z
+      .array(vehicleIdSchema)
+      .max(MAX_TRIP_VEHICLES, `Najviše ${MAX_TRIP_VEHICLES} vozila po vožnji.`)
+      .default([]),
     driverIds: z
       .array(driverIdSchema)
       .max(MAX_TRIP_DRIVERS, `Najviše ${MAX_TRIP_DRIVERS} vozača po vožnji.`)
@@ -96,12 +132,21 @@ export const tripWriteSchema = z
         message: 'Datum povratka ne može biti pre datuma polaska.',
       });
     }
-  });
+  })
+  .transform((value) => ({
+    ...value,
+    vehicleCount: Math.max(value.vehicleCount, value.vehicleIds.length, 1),
+  }));
 
 export type TripWriteInput = z.input<typeof tripWriteSchema>;
 export type TripWriteRequest = z.output<typeof tripWriteSchema>;
 
-export const TRIP_SORT_FIELDS = ['departureDate', 'createdAt', 'status', 'referenceNumber'] as const;
+export const TRIP_SORT_FIELDS = [
+  'departureDate',
+  'createdAt',
+  'status',
+  'referenceNumber',
+] as const;
 
 export type TripSortField = (typeof TRIP_SORT_FIELDS)[number];
 

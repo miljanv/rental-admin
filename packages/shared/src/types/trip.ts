@@ -55,6 +55,9 @@ export interface TripVehicleDto {
 /** Hard cap on drivers assigned to one trip (and therefore on per-diem rows). */
 export const MAX_TRIP_DRIVERS = 3;
 
+/** Planned buses on one job, including Expo-style runs before plates are assigned. */
+export const MAX_TRIP_VEHICLES = 20;
+
 export interface TripDriverDto {
   id: string;
   firstName: string;
@@ -123,6 +126,8 @@ export interface TripDto {
   contract: TripContractDto | null;
   distanceKm: number | null;
   seriesId: string | null;
+  /** How many buses this job needs, even when specific plates are not assigned yet. */
+  vehicleCount: number;
   vehicles: TripVehicleDto[];
   drivers: TripDriverDto[];
   createdAt: string;
@@ -167,4 +172,42 @@ export const tripClientDisplayName = (trip: Pick<TripDto, 'partner' | 'clientNam
   }
 
   return trip.clientName ?? '';
+};
+
+export const tripVehicleCountLabel = (count: number): string =>
+  count === 1 ? '1 vozilo' : `${count} vozila`;
+
+/** Plates when known; otherwise the planned bus count (e.g. "3 vozila"). */
+export const tripVehicleDisplay = (trip: Pick<TripDto, 'vehicleCount' | 'vehicles'>): string => {
+  const plates = trip.vehicles.map((vehicle) => vehicle.licensePlate).filter(Boolean);
+  const count = Math.max(trip.vehicleCount, plates.length, 1);
+
+  if (plates.length === 0) {
+    return tripVehicleCountLabel(count);
+  }
+
+  if (count > plates.length) {
+    return `${plates.join(', ')} · ${tripVehicleCountLabel(count)}`;
+  }
+
+  return plates.join(', ');
+};
+
+/** Consecutive trips already ordered by departure date, bucketed for the day-grouped list. */
+export const groupTripsByDepartureDate = <T extends { departureDate: string }>(
+  trips: T[],
+): Array<{ date: string; trips: T[] }> => {
+  const groups: Array<{ date: string; trips: T[] }> = [];
+
+  for (const trip of trips) {
+    const last = groups.at(-1);
+
+    if (last && last.date === trip.departureDate) {
+      last.trips.push(trip);
+    } else {
+      groups.push({ date: trip.departureDate, trips: [trip] });
+    }
+  }
+
+  return groups;
 };

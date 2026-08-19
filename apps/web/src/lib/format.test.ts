@@ -8,6 +8,7 @@ import {
   formatKilometers,
   formatMimeType,
   formatMonthYear,
+  formatWeekdayDate,
   getFileExtension,
 } from './format';
 
@@ -64,6 +65,12 @@ describe('formatDate', () => {
   it('renders a dash for a missing or invalid date', () => {
     expect(formatDate(null)).toBe('—');
     expect(formatDate('not-a-date')).toBe('—');
+  });
+});
+
+describe('formatWeekdayDate', () => {
+  it('prefixes the Serbian weekday', () => {
+    expect(formatWeekdayDate('2026-08-19')).toBe('Sreda, 19.08.2026.');
   });
 });
 

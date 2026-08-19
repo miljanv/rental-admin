@@ -61,6 +61,32 @@ export const formatDate = (isoDate: string | null): string => {
   return `${day}.${month}.${year}.`;
 };
 
+/** Local calendar day as ISO `YYYY-MM-DD`. */
+export const localTodayIso = (): string => {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+
+  return `${now.getFullYear()}-${month}-${day}`;
+};
+
+/** "Sreda, 19.08.2026." — day-group headers on the trip list. */
+export const formatWeekdayDate = (isoDate: string): string => {
+  const date = new Date(`${isoDate}T00:00:00.000Z`);
+
+  if (Number.isNaN(date.getTime())) {
+    return formatDate(isoDate);
+  }
+
+  const weekday = new Intl.DateTimeFormat('sr-Latn', {
+    weekday: 'long',
+    timeZone: 'UTC',
+  }).format(date);
+  const capitalized = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+
+  return `${capitalized}, ${formatDate(isoDate)}`;
+};
+
 /** Wall-clock datetime stored as UTC, for example "17.06.2026. 19:30". */
 export const formatDateTimeSr = (isoDate: string | null): string => {
   if (!isoDate) {

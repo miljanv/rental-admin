@@ -2,6 +2,7 @@
 
 import {
   MAX_TRIP_DRIVERS,
+  MAX_TRIP_VEHICLES,
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
   TRIP_SERIES_FREQUENCY_LABELS,
@@ -51,12 +52,19 @@ interface TripSeriesManagerProps {
 
 function BulkUpdateCard({ seriesId }: { seriesId: string }) {
   const mutation = useBulkUpdateTripSeries(seriesId);
-  const vehiclesQuery = useVehicles({ page: 1, limit: 100, sortBy: 'licensePlate', sortOrder: 'asc' });
+  const vehiclesQuery = useVehicles({
+    page: 1,
+    limit: 100,
+    sortBy: 'licensePlate',
+    sortOrder: 'asc',
+  });
   const driversQuery = useDrivers({ page: 1, limit: 100, sortBy: 'lastName', sortOrder: 'asc' });
 
   const [fromDate, setFromDate] = useState('');
   const [includeVehicles, setIncludeVehicles] = useState(false);
   const [vehicleIds, setVehicleIds] = useState<string[]>([]);
+  const [includeVehicleCount, setIncludeVehicleCount] = useState(false);
+  const [vehicleCount, setVehicleCount] = useState('1');
   const [includeDrivers, setIncludeDrivers] = useState(false);
   const [driverIds, setDriverIds] = useState<string[]>([]);
   const [includeStatus, setIncludeStatus] = useState(false);
@@ -75,7 +83,13 @@ function BulkUpdateCard({ seriesId }: { seriesId: string }) {
     label: `${driver.firstName} ${driver.lastName}`,
   }));
 
-  const hasSelection = includeVehicles || includeDrivers || includeStatus || includePrice || includePaymentMethod;
+  const hasSelection =
+    includeVehicles ||
+    includeVehicleCount ||
+    includeDrivers ||
+    includeStatus ||
+    includePrice ||
+    includePaymentMethod;
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -88,6 +102,10 @@ function BulkUpdateCard({ seriesId }: { seriesId: string }) {
 
     if (includeVehicles) {
       body.vehicleIds = vehicleIds;
+    }
+    if (includeVehicleCount) {
+      const parsedCount = Number(vehicleCount);
+      body.vehicleCount = Number.isFinite(parsedCount) ? parsedCount : 1;
     }
     if (includeDrivers) {
       body.driverIds = driverIds;
@@ -110,8 +128,8 @@ function BulkUpdateCard({ seriesId }: { seriesId: string }) {
       <CardHeader>
         <CardTitle>Izmena budućih instanci</CardTitle>
         <CardDescription>
-          Menja samo vožnje iz ove serije čiji je datum polaska na ili posle izabranog datuma. Označite
-          samo polja koja želite da promenite — neoznačena polja ostaju nepromenjena.
+          Menja samo vožnje iz ove serije čiji je datum polaska na ili posle izabranog datuma.
+          Označite samo polja koja želite da promenite — neoznačena polja ostaju nepromenjena.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -145,7 +163,37 @@ function BulkUpdateCard({ seriesId }: { seriesId: string }) {
                 onChange={setVehicleIds}
                 disabled={mutation.isPending || vehiclesQuery.isPending}
                 emptyLabel="Nema unetih vozila."
+                maxSelected={MAX_TRIP_VEHICLES}
               />
+            ) : null}
+          </div>
+
+          <div className="space-y-3 rounded-lg border p-4">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="include-vehicle-count"
+                checked={includeVehicleCount}
+                onCheckedChange={(checked) => setIncludeVehicleCount(checked === true)}
+                disabled={mutation.isPending}
+              />
+              <Label htmlFor="include-vehicle-count" className="font-normal">
+                Promeni broj vozila
+              </Label>
+            </div>
+            {includeVehicleCount ? (
+              <div className="max-w-xs space-y-1.5">
+                <Label htmlFor="bulk-vehicle-count">Broj vozila</Label>
+                <Input
+                  id="bulk-vehicle-count"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={MAX_TRIP_VEHICLES}
+                  value={vehicleCount}
+                  onChange={(event) => setVehicleCount(event.target.value)}
+                  disabled={mutation.isPending}
+                />
+              </div>
             ) : null}
           </div>
 
@@ -187,7 +235,11 @@ function BulkUpdateCard({ seriesId }: { seriesId: string }) {
                 </Label>
               </div>
               {includeStatus ? (
-                <Select value={status} onValueChange={(value) => setStatus(value as TripStatus)} disabled={mutation.isPending}>
+                <Select
+                  value={status}
+                  onValueChange={(value) => setStatus(value as TripStatus)}
+                  disabled={mutation.isPending}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -241,7 +293,9 @@ function BulkUpdateCard({ seriesId }: { seriesId: string }) {
               {includePaymentMethod ? (
                 <Select
                   value={paymentMethod || NONE}
-                  onValueChange={(value) => setPaymentMethod(value === NONE ? '' : (value as PaymentMethod))}
+                  onValueChange={(value) =>
+                    setPaymentMethod(value === NONE ? '' : (value as PaymentMethod))
+                  }
                   disabled={mutation.isPending}
                 >
                   <SelectTrigger className="w-full">
@@ -294,8 +348,8 @@ function TerminateSeriesCard({ seriesId, isActive }: { seriesId: string; isActiv
       <CardHeader>
         <CardTitle>Prekid serije</CardTitle>
         <CardDescription>
-          Briše sve vožnje iz serije čiji je datum polaska na ili posle izabranog datuma i deaktivira
-          seriju. Prošle vožnje ostaju netaknute. Ova radnja se ne može opozvati.
+          Briše sve vožnje iz serije čiji je datum polaska na ili posle izabranog datuma i
+          deaktivira seriju. Prošle vožnje ostaju netaknute. Ova radnja se ne može opozvati.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -314,7 +368,9 @@ function TerminateSeriesCard({ seriesId, isActive }: { seriesId: string; isActiv
 
         {isConfirming ? (
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-destructive text-sm">Sigurno prekinuti seriju od {formatDate(fromDate)}?</p>
+            <p className="text-destructive text-sm">
+              Sigurno prekinuti seriju od {formatDate(fromDate)}?
+            </p>
             <Button
               type="button"
               variant="destructive"
@@ -324,7 +380,12 @@ function TerminateSeriesCard({ seriesId, isActive }: { seriesId: string; isActiv
             >
               {mutation.isPending ? 'Prekidanje…' : 'Da, prekini'}
             </Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsConfirming(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsConfirming(false)}
+            >
               Otkaži
             </Button>
           </div>
@@ -400,7 +461,9 @@ export function TripSeriesManager({ seriesId }: TripSeriesManagerProps) {
             <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-1">
                 <dt className="text-muted-foreground text-xs">Učestalost</dt>
-                <dd className="text-sm font-medium">{TRIP_SERIES_FREQUENCY_LABELS[series.frequency]}</dd>
+                <dd className="text-sm font-medium">
+                  {TRIP_SERIES_FREQUENCY_LABELS[series.frequency]}
+                </dd>
               </div>
               {series.frequency === 'WEEKLY' ? (
                 <div className="space-y-1">
@@ -426,7 +489,9 @@ export function TripSeriesManager({ seriesId }: TripSeriesManagerProps) {
           <Card className="shadow-none">
             <CardHeader>
               <CardTitle>Pauze</CardTitle>
-              <CardDescription>Dani u periodu serije koji su preskočeni pri generisanju.</CardDescription>
+              <CardDescription>
+                Dani u periodu serije koji su preskočeni pri generisanju.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               {series.pauses.map((pause) => (
@@ -434,7 +499,9 @@ export function TripSeriesManager({ seriesId }: TripSeriesManagerProps) {
                   <span className="font-medium">
                     {formatDate(pause.startDate)} – {formatDate(pause.endDate)}
                   </span>
-                  {pause.reason ? <span className="text-muted-foreground">{pause.reason}</span> : null}
+                  {pause.reason ? (
+                    <span className="text-muted-foreground">{pause.reason}</span>
+                  ) : null}
                 </div>
               ))}
             </CardContent>
@@ -453,6 +520,7 @@ export function TripSeriesManager({ seriesId }: TripSeriesManagerProps) {
               trips={trips}
               isLoading={false}
               hasFilters={false}
+              groupByDay
               onRequestDelete={setTripToDelete}
             />
           </CardContent>

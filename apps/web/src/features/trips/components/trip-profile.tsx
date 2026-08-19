@@ -5,6 +5,7 @@ import {
   PAYMENT_METHOD_LABELS,
   tripClientDisplayName,
   tripRouteLabel,
+  tripVehicleDisplay,
   type TripDto,
 } from '@rental-admin/shared';
 import { FileText, Pencil, Trash2 } from 'lucide-react';
@@ -60,9 +61,15 @@ function TripOverview({ trip }: { trip: TripDto }) {
             <DetailItem label="Odredište" value={trip.destination} />
             <DetailItem label="Država" value={trip.country ?? '—'} />
             <DetailItem label="Datum polaska" value={formatDate(trip.departureDate)} />
-            <DetailItem label="Datum povratka" value={formatDate(trip.returnDate)} />
-            <DetailItem label="Broj putnika" value={trip.passengerCount != null ? String(trip.passengerCount) : '—'} />
-            <DetailItem label="Kilometraža" value={trip.distanceKm != null ? formatKilometers(trip.distanceKm) : '—'} />
+            <DetailItem label="Zaključni dan / povratak" value={formatDate(trip.returnDate)} />
+            <DetailItem
+              label="Broj putnika"
+              value={trip.passengerCount != null ? String(trip.passengerCount) : '—'}
+            />
+            <DetailItem
+              label="Kilometraža"
+              value={trip.distanceKm != null ? formatKilometers(trip.distanceKm) : '—'}
+            />
           </dl>
         </CardContent>
       </Card>
@@ -114,14 +121,17 @@ function TripOverview({ trip }: { trip: TripDto }) {
           <div className="space-y-1.5">
             <p className="text-muted-foreground text-xs">Vozila</p>
             {trip.vehicles.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nema dodeljenih vozila.</p>
+              <p className="text-sm">{tripVehicleDisplay(trip)}</p>
             ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {trip.vehicles.map((vehicle) => (
-                  <Badge key={vehicle.id} variant="outline">
-                    {vehicle.make} {vehicle.model} ({vehicle.licensePlate})
-                  </Badge>
-                ))}
+              <div className="space-y-1.5">
+                <p className="text-sm">{tripVehicleDisplay(trip)}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {trip.vehicles.map((vehicle) => (
+                    <Badge key={vehicle.id} variant="outline">
+                      {vehicle.make} {vehicle.model} ({vehicle.licensePlate})
+                    </Badge>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -175,8 +185,8 @@ function TripOverview({ trip }: { trip: TripDto }) {
           <CardHeader>
             <CardTitle>Deo je ponavljajuće serije</CardTitle>
             <CardDescription>
-              Ova vožnja je jedna od instanci serije. Izmene za sve buduće instance ili prekid serije
-              rade se sa stranice serije.
+              Ova vožnja je jedna od instanci serije. Izmene za sve buduće instance ili prekid
+              serije rade se sa stranice serije.
             </CardDescription>
           </CardHeader>
           <CardContent>

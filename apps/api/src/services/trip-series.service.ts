@@ -18,10 +18,7 @@ import { assertDriversExist, assertVehiclesExist, parseDate, tripInclude } from 
 /** Safety cap on how many trips one generation call can create in a single transaction. */
 const MAX_SERIES_INSTANCES = 400;
 
-const isPaused = (
-  date: Date,
-  pauses: Array<{ startDate: string; endDate: string }>,
-): boolean =>
+const isPaused = (date: Date, pauses: Array<{ startDate: string; endDate: string }>): boolean =>
   pauses.some((pause) => {
     const from = new Date(`${pause.startDate}T00:00:00.000Z`);
     const to = new Date(`${pause.endDate}T00:00:00.000Z`);
@@ -55,14 +52,20 @@ const assertReferencesExist = async (
   input: Pick<GenerateTripSeriesRequest, 'partnerId' | 'contractId' | 'vehicleIds' | 'driverIds'>,
 ): Promise<void> => {
   if (input.partnerId) {
-    const partner = await prisma.partner.findUnique({ where: { id: input.partnerId }, select: { id: true } });
+    const partner = await prisma.partner.findUnique({
+      where: { id: input.partnerId },
+      select: { id: true },
+    });
     if (!partner) {
       throw badRequest('Izabrani partner ne postoji.');
     }
   }
 
   if (input.contractId) {
-    const contract = await prisma.contract.findUnique({ where: { id: input.contractId }, select: { id: true } });
+    const contract = await prisma.contract.findUnique({
+      where: { id: input.contractId },
+      select: { id: true },
+    });
     if (!contract) {
       throw badRequest('Izabrani ugovor ne postoji.');
     }
@@ -90,7 +93,9 @@ export const generateTripSeries = async (
   }
 
   if (dates.length > MAX_SERIES_INSTANCES) {
-    throw badRequest(`Serija bi generisala ${dates.length} vožnji — maksimum je ${MAX_SERIES_INSTANCES}.`);
+    throw badRequest(
+      `Serija bi generisala ${dates.length} vožnji — maksimum je ${MAX_SERIES_INSTANCES}.`,
+    );
   }
 
   const result = await prisma.$transaction(
@@ -117,6 +122,7 @@ export const generateTripSeries = async (
         data: dates.map((date) => ({
           referenceNumber: input.referenceNumber,
           departureDate: date,
+          returnDate: date,
           country: input.country,
           origin: input.origin,
           destination: input.destination,
@@ -129,6 +135,7 @@ export const generateTripSeries = async (
           status: input.status,
           contractId: input.contractId,
           seriesId: series.id,
+          vehicleCount: Math.max(input.vehicleCount, input.vehicleIds.length, 1),
         })),
       });
 
@@ -229,6 +236,9 @@ export const bulkUpdateTripSeries = async (
     if (input.paymentMethod !== undefined) {
       scalarUpdate.paymentMethod = input.paymentMethod;
     }
+    if (input.vehicleCount !== undefined) {
+      scalarUpdate.vehicleCount = Math.max(input.vehicleCount, input.vehicleIds?.length ?? 0, 1);
+    }
 
     if (Object.keys(scalarUpdate).length > 0) {
       await tx.trip.updateMany({ where: { id: { in: tripIds } }, data: scalarUpdate });
@@ -255,7 +265,11 @@ export const bulkUpdateTripSeries = async (
     }
   });
 
-  logger.info('Trip series bulk-updated', { seriesId, fromDate: input.fromDate, count: tripIds.length });
+  logger.info('Trip series bulk-updated', {
+    seriesId,
+    fromDate: input.fromDate,
+    count: tripIds.length,
+  });
 
   return { updatedCount: tripIds.length };
 };

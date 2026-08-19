@@ -22,4 +22,5 @@ export const EMPTY_TRIP_FORM: TripFormValues = {
   distanceKm: '',
   vehicleIds: [],
   driverIds: [],
+  vehicleCount: 1,
 };

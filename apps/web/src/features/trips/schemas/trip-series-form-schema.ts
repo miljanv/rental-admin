@@ -25,4 +25,5 @@ export const EMPTY_TRIP_SERIES_FORM: TripSeriesFormValues = {
   vehicleIds: [],
   driverIds: [],
   pauses: [],
+  vehicleCount: 1,
 };

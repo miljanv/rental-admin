@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { MAX_TRIP_DRIVERS, TRIP_SERIES_FREQUENCIES } from '../types/trip';
+import { MAX_TRIP_DRIVERS, MAX_TRIP_VEHICLES, TRIP_SERIES_FREQUENCIES } from '../types/trip';
 import { driverIdSchema, isoDateSchema } from './driver';
 import { optionalPaymentMethodSchema } from './transaction';
 import {
@@ -57,7 +57,21 @@ export const generateTripSeriesSchema = z
     paymentMethod: optionalPaymentMethodSchema,
     status: tripStatusSchema.default('PLANNED'),
     contractId: optionalId,
-    vehicleIds: z.array(vehicleIdSchema).max(20, 'Najviše 20 vozila po vožnji.').default([]),
+    vehicleCount: z.preprocess((value) => {
+      if (value === '' || value === undefined || value === null) {
+        return 1;
+      }
+
+      if (typeof value === 'number' && Number.isNaN(value)) {
+        return 1;
+      }
+
+      return value;
+    }, z.number().int().min(1).max(MAX_TRIP_VEHICLES)),
+    vehicleIds: z
+      .array(vehicleIdSchema)
+      .max(MAX_TRIP_VEHICLES, `Najviše ${MAX_TRIP_VEHICLES} vozila po vožnji.`)
+      .default([]),
     driverIds: z
       .array(driverIdSchema)
       .max(MAX_TRIP_DRIVERS, `Najviše ${MAX_TRIP_DRIVERS} vozača po vožnji.`)
@@ -92,7 +106,11 @@ export const generateTripSeriesSchema = z
         });
       }
     });
-  });
+  })
+  .transform((value) => ({
+    ...value,
+    vehicleCount: Math.max(value.vehicleCount, value.vehicleIds.length, 1),
+  }));
 
 export type GenerateTripSeriesInput = z.input<typeof generateTripSeriesSchema>;
 export type GenerateTripSeriesRequest = z.output<typeof generateTripSeriesSchema>;
@@ -105,7 +123,16 @@ export type GenerateTripSeriesRequest = z.output<typeof generateTripSeriesSchema
 export const bulkUpdateTripSeriesSchema = z
   .object({
     fromDate: isoDateSchema,
-    vehicleIds: z.array(vehicleIdSchema).max(20, 'Najviše 20 vozila po vožnji.').optional(),
+    vehicleIds: z
+      .array(vehicleIdSchema)
+      .max(MAX_TRIP_VEHICLES, `Najviše ${MAX_TRIP_VEHICLES} vozila po vožnji.`)
+      .optional(),
+    vehicleCount: z
+      .number()
+      .int('Broj vozila mora biti ceo broj.')
+      .min(1, 'Broj vozila mora biti najmanje 1.')
+      .max(MAX_TRIP_VEHICLES, `Najviše ${MAX_TRIP_VEHICLES} vozila po vožnji.`)
+      .optional(),
     driverIds: z
       .array(driverIdSchema)
       .max(MAX_TRIP_DRIVERS, `Najviše ${MAX_TRIP_DRIVERS} vozača po vožnji.`)
@@ -117,6 +144,7 @@ export const bulkUpdateTripSeriesSchema = z
   .superRefine((value, ctx) => {
     if (
       value.vehicleIds === undefined &&
+      value.vehicleCount === undefined &&
       value.driverIds === undefined &&
       value.status === undefined &&
       value.price === undefined &&
