@@ -102,6 +102,7 @@ describe('generated PDFs', () => {
         place: COMPANY.city,
         issuedAt: '2026-06-20',
         startedWorkAt: '2026-04-03',
+        contractSignedAt: '2026-04-01',
         passportNumber: null,
       },
     });

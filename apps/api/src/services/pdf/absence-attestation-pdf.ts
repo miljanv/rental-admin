@@ -1,4 +1,8 @@
-import { COMPANY, type AbsenceReason, type GenerateAbsenceAttestationRequest } from '@rental-admin/shared';
+import {
+  COMPANY,
+  type AbsenceReason,
+  type GenerateAbsenceAttestationRequest,
+} from '@rental-admin/shared';
 import { rgb, type PDFFont } from 'pdf-lib';
 
 import type { DriverRecord } from '../../utils/driver-mapper';
@@ -29,7 +33,10 @@ const BOX = '□';
 const REASONS: { reason: AbsenceReason | 'EXEMPT' | 'AVAILABLE'; text: string }[] = [
   { reason: 'SICK_LEAVE', text: 'was on sick leave* / bio na bolovanju*' },
   { reason: 'ANNUAL_LEAVE', text: 'was on annual leave* / koristio godišnji odmor*' },
-  { reason: 'LEAVE_OR_REST', text: 'was on leave or rest* / odsustvovao sa posla ili koristio slobodne dane*' },
+  {
+    reason: 'LEAVE_OR_REST',
+    text: 'was on leave or rest* / odsustvovao sa posla ili koristio slobodne dane*',
+  },
   {
     reason: 'EXEMPT',
     text: 'drove a vehicle exempted from the scope of the Regulation(EC) 561/2006 or the AETR*/ upravljao vozilom koje nije iz oblasti AETR-a*',
@@ -121,7 +128,13 @@ export const buildAbsenceAttestationPdf = async (
   text('*', titleX + titleWidth, 817, 8, boldItalic);
   text(titleRight, titleX + titleWidth + starWidth, 812, titleSize, boldItalic);
 
-  center('(REGULATION (EC) 561/2006 OR THE AETR)/( RČGLEMENT (CE) 561/2006 OU L’AETER)', 795, 10, italic, GRAY);
+  center(
+    '(REGULATION (EC) 561/2006 OR THE AETR)/( RČGLEMENT (CE) 561/2006 OU L’AETER)',
+    795,
+    10,
+    italic,
+    GRAY,
+  );
   center('POTVRDA O ODSUSTVOVANJU VOZAČA', 776, 12, boldItalic, GRAY);
 
   let headerY = 760;
@@ -163,7 +176,13 @@ export const buildAbsenceAttestationPdf = async (
     y -= step;
   };
 
-  const wrapped = (value: string, x: number, size: number, used: PDFFont, width = RIGHT - PAD - x): void => {
+  const wrapped = (
+    value: string,
+    x: number,
+    size: number,
+    used: PDFFont,
+    width = RIGHT - PAD - x,
+  ): void => {
     const lines = wrapLines(value, used, size, width);
     lines.forEach((entry, index) => {
       if (index > 0) {
@@ -211,7 +230,11 @@ export const buildAbsenceAttestationPdf = async (
   line();
   line(12);
 
-  field('3.', 'Telephone number (including international prefix) / Broj telefona:', COMPANY.phoneIntl);
+  field(
+    '3.',
+    'Telephone number (including international prefix) / Broj telefona:',
+    COMPANY.phoneIntl,
+  );
   field('4.', 'Fax number (including international prefix) / Broj faxa:', COMPANY.phoneIntl);
   field('5.', 'Adresse courier electronique / Adresa elektronske pošte:', COMPANY.email);
 
@@ -226,7 +249,13 @@ export const buildAbsenceAttestationPdf = async (
 
   field('8.', 'Name and first name / Ime i prezime vozača:', name);
 
-  text('Date of birth (day/month/year) / Datum rođenja (dan, mesec, godina):', TEXT_X, y, BODY, font);
+  text(
+    'Date of birth (day/month/year) / Datum rođenja (dan, mesec, godina):',
+    TEXT_X,
+    y,
+    BODY,
+    font,
+  );
   right(formatSerbianDate(driver.dateOfBirth.toISOString()), y);
   line();
 
@@ -245,7 +274,7 @@ export const buildAbsenceAttestationPdf = async (
 
   text('11.', NUM_X, y, BODY, font);
   wrapped(
-    `who has started to work at the undertaking on (day/month/year) / koji je počeo sa radom u preduzeću (dan, mesec, godina): Ugovor od ${formatSerbianDate(input.startedWorkAt)}`,
+    `who has started to work at the undertaking on (day/month/year) / koji je počeo sa radom u preduzeću (dan, mesec, godina): ${formatSerbianDate(input.startedWorkAt)} / Ugovor od ${formatSerbianDate(input.contractSignedAt)}`,
     TEXT_X,
     BODY,
     font,
@@ -255,8 +284,16 @@ export const buildAbsenceAttestationPdf = async (
   text('Au cours de la periode / za period', TEXT_X, y, BODY, bold);
   line();
 
-  field('12.', 'from (hour/day/month/year) / od (čas/dan/mesec/godina):', formatAetrDateTime(input.periodFrom));
-  field('13.', 'to (hour/day/month/year) / do (čas/dan/mesec/godina):', formatAetrDateTime(input.periodTo));
+  field(
+    '12.',
+    'from (hour/day/month/year) / od (čas/dan/mesec/godina):',
+    formatAetrDateTime(input.periodFrom),
+  );
+  field(
+    '13.',
+    'to (hour/day/month/year) / do (čas/dan/mesec/godina):',
+    formatAetrDateTime(input.periodTo),
+  );
 
   REASONS.forEach((item, index) => {
     const n = String(14 + index);

@@ -20,5 +20,6 @@ export const EMPTY_ABSENCE_FORM: AbsenceAttestationFormValues = {
   place: COMPANY.city,
   issuedAt: localTodayIso(),
   startedWorkAt: '',
+  contractSignedAt: '',
   passportNumber: '',
 };

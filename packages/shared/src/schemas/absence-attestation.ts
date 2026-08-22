@@ -50,6 +50,7 @@ export const generateAbsenceAttestationSchema = z
     place: requiredText('Mesto', 80).default(COMPANY.city),
     issuedAt: isoDateSchema,
     startedWorkAt: isoDateSchema,
+    contractSignedAt: isoDateSchema,
     passportNumber: optionalText(40),
   })
   .superRefine((value, ctx) => {

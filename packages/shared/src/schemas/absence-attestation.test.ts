@@ -8,6 +8,7 @@ const base = {
   reason: 'LEAVE_OR_REST',
   issuedAt: '2026-06-20',
   startedWorkAt: '2026-04-03',
+  contractSignedAt: '2026-04-01',
 } as const;
 
 describe('generateAbsenceAttestationSchema', () => {
