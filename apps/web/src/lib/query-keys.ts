@@ -260,6 +260,7 @@ export const queryKeys = {
       ['company-expenses', 'list', params] as const,
     summary: (params?: CompanyExpenseSummaryParams) =>
       ['company-expenses', 'summary', params] as const,
+    suppliers: () => ['company-expenses', 'suppliers'] as const,
     vehicleList: (vehicleId: string, params?: CompanyExpenseListQueryParams) =>
       ['company-expenses', 'vehicles', vehicleId, 'list', params] as const,
   },

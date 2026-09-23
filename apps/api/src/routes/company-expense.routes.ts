@@ -30,6 +30,8 @@ companyExpenseRouter.get(
   asyncHandler(companyExpenseController.getCompanyExpenseSummary),
 );
 
+companyExpenseRouter.get('/suppliers', asyncHandler(companyExpenseController.listCompanyExpenseSuppliers));
+
 companyExpenseRouter.get(
   '/:id',
   validateRequest({ params: companyExpenseIdParamsSchema }),

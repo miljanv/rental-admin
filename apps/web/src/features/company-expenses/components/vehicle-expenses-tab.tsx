@@ -42,19 +42,21 @@ export function VehicleExpensesTab({ vehicleId }: VehicleExpensesTabProps) {
           ) : (
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <p className="text-muted-foreground text-sm">Ukupno</p>
-                <p className="text-2xl font-semibold">{formatMoney(summaryQuery.data?.total ?? 0)}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground text-sm">Plaćeno</p>
+                <p className="text-muted-foreground text-sm">Bez PDV-a</p>
                 <p className="text-2xl font-semibold">
-                  {formatMoney(summaryQuery.data?.paidTotal ?? 0)}
+                  {formatMoney(summaryQuery.data?.totalWithoutVat ?? 0)}
                 </p>
               </div>
               <div>
-                <p className="text-muted-foreground text-sm">Nije plaćeno</p>
+                <p className="text-muted-foreground text-sm">PDV</p>
                 <p className="text-2xl font-semibold">
-                  {formatMoney(summaryQuery.data?.unpaidTotal ?? 0)}
+                  {formatMoney(summaryQuery.data?.totalVat ?? 0)}
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground text-sm">Ukupno</p>
+                <p className="text-2xl font-semibold">
+                  {formatMoney(summaryQuery.data?.total ?? 0)}
                 </p>
               </div>
             </div>

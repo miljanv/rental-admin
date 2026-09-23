@@ -14,9 +14,10 @@ export interface CompanyExpenseDto {
   supplier: string;
   description: string;
   amount: number;
-  amountWithVat: number | null;
-  amountWithoutVat: number | null;
-  paymentMethod: PaymentMethod | null;
+  amountWithoutVat: number;
+  vatAmount: number;
+  amountWithVat: number;
+  paymentMethod: PaymentMethod;
   vehicleId: string | null;
   vehicle: CompanyExpenseVehicleDto | null;
   odometerKm: number | null;
@@ -31,9 +32,15 @@ export interface DeleteCompanyExpenseResult {
 
 export interface CompanyExpenseSummaryDto {
   total: number;
+  totalWithoutVat: number;
+  totalVat: number;
   paidTotal: number;
   unpaidTotal: number;
   count: number;
   paidCount: number;
   unpaidCount: number;
+}
+
+export interface CompanyExpenseSuppliersDto {
+  suppliers: string[];
 }

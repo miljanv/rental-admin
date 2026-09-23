@@ -2,6 +2,7 @@ import type {
   ApiResponse,
   CompanyExpenseDto,
   CompanyExpenseSummaryDto,
+  CompanyExpenseSuppliersDto,
   CompanyExpenseWriteRequest,
   DeleteCompanyExpenseResult,
 } from '@rental-admin/shared';
@@ -47,6 +48,15 @@ export const fetchCompanyExpenseSummary = async (
   );
 
   return unwrap(response.data);
+};
+
+export const fetchCompanyExpenseSuppliers = async (signal?: AbortSignal): Promise<string[]> => {
+  const response = await apiClient.get<ApiResponse<CompanyExpenseSuppliersDto>>(
+    '/expenses/suppliers',
+    { signal },
+  );
+
+  return unwrap(response.data).suppliers;
 };
 
 export const createCompanyExpense = async (

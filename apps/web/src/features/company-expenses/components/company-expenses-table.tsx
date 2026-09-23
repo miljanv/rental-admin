@@ -47,7 +47,7 @@ export function CompanyExpensesTable({
   onRequestDelete,
   emptyAction,
 }: CompanyExpensesTableProps) {
-  const columnCount = (showVehicle ? 9 : 8) + (readOnly ? 0 : 1);
+  const columnCount = (showVehicle ? 10 : 9) + (readOnly ? 0 : 1);
 
   if (!isLoading && expenses.length === 0) {
     return (
@@ -70,8 +70,9 @@ export function CompanyExpensesTable({
           <TableHead>Dobavljač</TableHead>
           <TableHead>Opis</TableHead>
           <TableHead className="text-right">Km</TableHead>
-          <TableHead className="text-right">Sa PDV-om</TableHead>
           <TableHead className="text-right">Bez PDV-a</TableHead>
+          <TableHead className="text-right">PDV</TableHead>
+          <TableHead className="text-right">Ukupno</TableHead>
           <TableHead>Način</TableHead>
           {readOnly ? null : <TableHead className="w-[60px] text-right">Akcije</TableHead>}
         </TableRow>
@@ -103,14 +104,15 @@ export function CompanyExpensesTable({
                   : '—'}
               </TableCell>
               <TableCell className="text-right tabular-nums">
-                {formatMoney(expense.amountWithVat)}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
                 {formatMoney(expense.amountWithoutVat)}
               </TableCell>
-              <TableCell>
-                {expense.paymentMethod ? PAYMENT_METHOD_LABELS[expense.paymentMethod] : 'Nije plaćeno'}
+              <TableCell className="text-right tabular-nums">
+                {formatMoney(expense.vatAmount)}
               </TableCell>
+              <TableCell className="text-right tabular-nums">
+                {formatMoney(expense.amountWithVat)}
+              </TableCell>
+              <TableCell>{PAYMENT_METHOD_LABELS[expense.paymentMethod]}</TableCell>
               {readOnly || !onEdit || !onRequestDelete ? null : (
                 <TableCell className="text-right">
                   <DropdownMenu>

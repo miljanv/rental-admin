@@ -69,3 +69,9 @@ export const getCompanyExpenseSummary = async (req: Request, res: Response): Pro
 
   sendSuccess(res, summary);
 };
+
+export const listCompanyExpenseSuppliers = async (_req: Request, res: Response): Promise<void> => {
+  const suppliers = await companyExpenseService.listCompanyExpenseSuppliers();
+
+  sendSuccess(res, suppliers);
+};

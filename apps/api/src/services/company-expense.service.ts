@@ -2,6 +2,7 @@ import type {
   CompanyExpenseDto,
   CompanyExpenseSummaryDto,
   CompanyExpenseSummaryQuery,
+  CompanyExpenseSuppliersDto,
   CompanyExpenseWriteRequest,
   DeleteCompanyExpenseResult,
   ListCompanyExpensesQuery,
@@ -37,17 +38,15 @@ const assertVehicleExists = async (vehicleId: string | null): Promise<void> => {
   }
 };
 
-const effectiveAmount = (input: CompanyExpenseWriteRequest): number =>
-  input.amountWithVat ?? input.amountWithoutVat ?? 0;
-
 const toWriteData = (input: CompanyExpenseWriteRequest) => ({
   issuedAt: parseDate(input.issuedAt),
   paidAt: input.paidAt ? parseDate(input.paidAt) : null,
   supplier: input.supplier,
   description: input.description,
-  amount: effectiveAmount(input),
-  amountWithVat: input.amountWithVat,
+  amount: input.amountWithVat,
   amountWithoutVat: input.amountWithoutVat,
+  vatAmount: input.vatAmount,
+  amountWithVat: input.amountWithVat,
   paymentMethod: input.paymentMethod,
   vehicleId: input.vehicleId,
   odometerKm: input.odometerKm,
@@ -92,7 +91,7 @@ const syncFinanceExpense = async (
     sourceType: 'COMPANY_EXPENSE',
     sourceId,
     category: 'OTHER',
-    amount: input.paidAt ? effectiveAmount(input) : null,
+    amount: input.paidAt ? input.amountWithVat : null,
     paymentMethod: input.paymentMethod,
     occurredAt: input.paidAt ?? input.issuedAt,
     vehicleId: input.vehicleId,
@@ -207,12 +206,14 @@ export const getCompanyExpenseSummary = async (
 
   const records = await prisma.companyExpense.findMany({
     where: expenseListWhere(query),
-    select: { amount: true, paidAt: true },
+    select: { amount: true, amountWithoutVat: true, vatAmount: true, paidAt: true },
   });
 
   return records.reduce<CompanyExpenseSummaryDto>(
     (summary, record) => {
       summary.total += record.amount;
+      summary.totalWithoutVat += record.amountWithoutVat;
+      summary.totalVat += record.vatAmount;
       summary.count += 1;
 
       if (record.paidAt) {
@@ -225,6 +226,28 @@ export const getCompanyExpenseSummary = async (
 
       return summary;
     },
-    { total: 0, paidTotal: 0, unpaidTotal: 0, count: 0, paidCount: 0, unpaidCount: 0 },
+    {
+      total: 0,
+      totalWithoutVat: 0,
+      totalVat: 0,
+      paidTotal: 0,
+      unpaidTotal: 0,
+      count: 0,
+      paidCount: 0,
+      unpaidCount: 0,
+    },
   );
+};
+
+export const listCompanyExpenseSuppliers = async (): Promise<CompanyExpenseSuppliersDto> => {
+  const rows = await prisma.companyExpense.findMany({
+    where: { supplier: { not: '' } },
+    distinct: ['supplier'],
+    select: { supplier: true },
+    orderBy: { supplier: 'asc' },
+  });
+
+  return {
+    suppliers: rows.map((row) => row.supplier).sort((left, right) => left.localeCompare(right, 'sr')),
+  };
 };

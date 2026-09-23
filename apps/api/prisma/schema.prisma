@@ -408,9 +408,10 @@ model CompanyExpense {
   supplier      String
   description   String
   amount        Float
-  amountWithVat Float?
-  amountWithoutVat Float?
-  paymentMethod PaymentMethod?
+  amountWithoutVat Float
+  vatAmount     Float
+  amountWithVat Float
+  paymentMethod PaymentMethod
   vehicleId     String?
   odometerKm    Int?
   createdAt     DateTime       @default(now())

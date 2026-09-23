@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { isoDateSchema } from './driver';
 import { SORT_ORDERS } from './file';
 import type { PaymentMethod } from '../types/transaction';
-import { optionalPaymentMethodSchema, paymentMethodSchema } from './transaction';
+import { paymentMethodSchema } from './transaction';
 import { vehicleIdSchema } from './vehicle';
 
 export const companyExpenseIdSchema = z.string().trim().min(1).max(64);
@@ -58,15 +58,27 @@ const optionalOdometerKm = z.preprocess(
     .nullable(),
 );
 
-const optionalAmount = (label: string) =>
+const moneyAmount = (label: string, minimum: 'positive' | 'nonnegative') =>
   z.preprocess(
     toNullableNumber,
-    z
-      .number()
-      .positive(`${label} mora biti veći od nule.`)
-      .max(10_000_000, `${label} nije ispravan.`)
-      .nullable(),
+    (minimum === 'positive'
+      ? z.number().positive(`${label} mora biti veći od nule.`)
+      : z.number().min(0, `${label} ne može biti negativan.`)
+    ).max(10_000_000, `${label} nije ispravan.`),
   );
+
+const requiredPaymentMethod = z
+  .union([paymentMethodSchema, z.literal(''), z.null()])
+  .optional()
+  .superRefine((value, ctx) => {
+    if (!value) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Način plaćanja je obavezan.',
+      });
+    }
+  })
+  .transform((value): PaymentMethod => value as PaymentMethod);
 
 export const companyExpenseWriteSchema = z
   .object({
@@ -74,21 +86,14 @@ export const companyExpenseWriteSchema = z
     paidAt: optionalDate,
     supplier: requiredText('Dobavljač', 120),
     description: requiredText('Opis troška', 500),
-    amountWithVat: optionalAmount('Iznos sa PDV-om'),
-    amountWithoutVat: optionalAmount('Iznos bez PDV-a'),
-    paymentMethod: optionalPaymentMethodSchema,
+    amountWithoutVat: moneyAmount('Iznos bez PDV-a', 'positive'),
+    vatAmount: moneyAmount('PDV', 'nonnegative'),
+    amountWithVat: moneyAmount('Ukupno sa PDV-om', 'positive'),
+    paymentMethod: requiredPaymentMethod,
     vehicleId: optionalId,
     odometerKm: optionalOdometerKm,
   })
   .superRefine((value, ctx) => {
-    if (value.amountWithVat === null && value.amountWithoutVat === null) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['amountWithVat'],
-        message: 'Unesite iznos sa PDV-om ili iznos bez PDV-a.',
-      });
-    }
-
     if (value.vehicleId && value.odometerKm === null) {
       ctx.addIssue({
         code: 'custom',
@@ -140,21 +145,21 @@ const refineCompanyExpenseQuery = (
   value: z.output<typeof companyExpenseQueryBaseSchema>,
   ctx: z.RefinementCtx,
 ): void => {
-    if (value.vehicleId && value.commonOnly) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['commonOnly'],
-        message: 'Filter vozila i zajednički troškovi ne mogu zajedno.',
-      });
-    }
+  if (value.vehicleId && value.commonOnly) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['commonOnly'],
+      message: 'Filter vozila i zajednički troškovi ne mogu zajedno.',
+    });
+  }
 
-    if (value.from && value.to && value.from > value.to) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['to'],
-        message: 'Datum „do“ mora biti isti ili posle datuma „od“.',
-      });
-    }
+  if (value.from && value.to && value.from > value.to) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['to'],
+      message: 'Datum „do“ mora biti isti ili posle datuma „od“.',
+    });
+  }
 };
 
 export const listCompanyExpensesQuerySchema = companyExpenseQueryBaseSchema

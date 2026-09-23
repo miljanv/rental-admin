@@ -88,8 +88,10 @@ export function CompanyExpenseManager() {
       <div className="mb-6 grid gap-3 md:grid-cols-3">
         <Card className="shadow-none">
           <CardHeader className="pb-2">
-            <CardDescription>Ukupno</CardDescription>
-            <CardTitle className="text-2xl">{formatMoney(summaryQuery.data?.total ?? 0)}</CardTitle>
+            <CardDescription>Bez PDV-a</CardDescription>
+            <CardTitle className="text-2xl">
+              {formatMoney(summaryQuery.data?.totalWithoutVat ?? 0)}
+            </CardTitle>
           </CardHeader>
           <CardContent className="text-muted-foreground text-sm">
             {summaryQuery.data?.count ?? 0} zapisa
@@ -97,24 +99,21 @@ export function CompanyExpenseManager() {
         </Card>
         <Card className="shadow-none">
           <CardHeader className="pb-2">
-            <CardDescription>Plaćeno</CardDescription>
-            <CardTitle className="text-2xl">
-              {formatMoney(summaryQuery.data?.paidTotal ?? 0)}
-            </CardTitle>
+            <CardDescription>PDV</CardDescription>
+            <CardTitle className="text-2xl">{formatMoney(summaryQuery.data?.totalVat ?? 0)}</CardTitle>
           </CardHeader>
           <CardContent className="text-muted-foreground text-sm">
-            {summaryQuery.data?.paidCount ?? 0} zapisa
+            Ulazni PDV
           </CardContent>
         </Card>
         <Card className="shadow-none">
           <CardHeader className="pb-2">
-            <CardDescription>Nije plaćeno</CardDescription>
-            <CardTitle className="text-2xl">
-              {formatMoney(summaryQuery.data?.unpaidTotal ?? 0)}
-            </CardTitle>
+            <CardDescription>Ukupno sa PDV-om</CardDescription>
+            <CardTitle className="text-2xl">{formatMoney(summaryQuery.data?.total ?? 0)}</CardTitle>
           </CardHeader>
           <CardContent className="text-muted-foreground text-sm">
-            {summaryQuery.data?.unpaidCount ?? 0} zapisa
+            Plaćeno {formatMoney(summaryQuery.data?.paidTotal ?? 0)} · otvoreno{' '}
+            {formatMoney(summaryQuery.data?.unpaidTotal ?? 0)}
           </CardContent>
         </Card>
       </div>

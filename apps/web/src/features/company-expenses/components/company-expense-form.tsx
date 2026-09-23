@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useCreateCompanyExpense } from '@/features/company-expenses/hooks/use-create-company-expense';
+import { useCompanyExpenseSuppliers } from '@/features/company-expenses/hooks/use-company-expense-suppliers';
 import { useUpdateCompanyExpense } from '@/features/company-expenses/hooks/use-update-company-expense';
 import {
   companyExpenseFormSchema,
@@ -65,6 +66,7 @@ export function CompanyExpenseForm({
   const createMutation = useCreateCompanyExpense();
   const updateMutation = useUpdateCompanyExpense();
   const isPending = createMutation.isPending || updateMutation.isPending;
+  const suppliersQuery = useCompanyExpenseSuppliers();
 
   const vehiclesQuery = useVehicles({
     page: 1,
@@ -82,8 +84,9 @@ export function CompanyExpenseForm({
           paidAt: expense.paidAt ?? '',
           supplier: expense.supplier,
           description: expense.description,
-          amountWithVat: expense.amountWithVat,
           amountWithoutVat: expense.amountWithoutVat,
+          vatAmount: expense.vatAmount,
+          amountWithVat: expense.amountWithVat,
           paymentMethod: expense.paymentMethod ?? '',
           vehicleId: expense.vehicleId ?? '',
           odometerKm: expense.odometerKm,
@@ -151,10 +154,16 @@ export function CompanyExpenseForm({
             <Field id="supplier" label="Dobavljač" error={errors.supplier?.message}>
               <Input
                 id="supplier"
+                list="company-expense-suppliers"
                 disabled={isPending}
                 aria-invalid={Boolean(errors.supplier)}
                 {...form.register('supplier')}
               />
+              <datalist id="company-expense-suppliers">
+                {(suppliersQuery.data ?? []).map((supplier) => (
+                  <option key={supplier} value={supplier} />
+                ))}
+              </datalist>
             </Field>
 
             <Controller
@@ -190,24 +199,8 @@ export function CompanyExpenseForm({
             />
 
             <Field
-              id="amountWithVat"
-              label="Iznos sa PDV-om (RSD)"
-              error={errors.amountWithVat?.message}
-            >
-              <Input
-                id="amountWithVat"
-                type="number"
-                step="0.01"
-                inputMode="decimal"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.amountWithVat)}
-                {...form.register('amountWithVat', { valueAsNumber: true })}
-              />
-            </Field>
-
-            <Field
               id="amountWithoutVat"
-              label="Iznos bez PDV-a / keš (RSD)"
+              label="Bez PDV-a (RSD)"
               error={errors.amountWithoutVat?.message}
             >
               <Input
@@ -221,6 +214,34 @@ export function CompanyExpenseForm({
               />
             </Field>
 
+            <Field id="vatAmount" label="PDV (RSD)" error={errors.vatAmount?.message}>
+              <Input
+                id="vatAmount"
+                type="number"
+                step="0.01"
+                inputMode="decimal"
+                disabled={isPending}
+                aria-invalid={Boolean(errors.vatAmount)}
+                {...form.register('vatAmount', { valueAsNumber: true })}
+              />
+            </Field>
+
+            <Field
+              id="amountWithVat"
+              label="Ukupno / sa PDV-om (RSD)"
+              error={errors.amountWithVat?.message}
+            >
+              <Input
+                id="amountWithVat"
+                type="number"
+                step="0.01"
+                inputMode="decimal"
+                disabled={isPending}
+                aria-invalid={Boolean(errors.amountWithVat)}
+                {...form.register('amountWithVat', { valueAsNumber: true })}
+              />
+            </Field>
+
             <Controller
               control={form.control}
               name="paymentMethod"
@@ -231,8 +252,6 @@ export function CompanyExpenseForm({
                     value={field.value}
                     onChange={field.onChange}
                     disabled={isPending}
-                    allowEmpty
-                    emptyLabel="Nije plaćeno"
                   />
                 </Field>
               )}
