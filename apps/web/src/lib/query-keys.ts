@@ -1,5 +1,6 @@
 import type {
   ContractSortField,
+  CompanyExpenseSortField,
   ContractStatus,
   DriverSortField,
   DriverStatus,
@@ -61,6 +62,26 @@ export interface FuelConsumptionQueryParams {
   vehicleId: string;
   from?: string;
   to?: string;
+}
+
+export interface CompanyExpenseListQueryParams {
+  vehicleId?: string;
+  commonOnly?: boolean;
+  supplier?: string;
+  from?: string;
+  to?: string;
+  paymentMethod?: PaymentMethod;
+  sortBy?: CompanyExpenseSortField;
+  sortOrder?: SortOrder;
+}
+
+export interface CompanyExpenseSummaryParams {
+  vehicleId?: string;
+  commonOnly?: boolean;
+  supplier?: string;
+  from?: string;
+  to?: string;
+  paymentMethod?: PaymentMethod;
 }
 
 export interface DriverWorkRecordsQueryParams {
@@ -232,5 +253,14 @@ export const queryKeys = {
     suppliers: () => ['fuel-logs', 'suppliers'] as const,
     consumption: (params: FuelConsumptionQueryParams) =>
       ['fuel-logs', 'consumption', params] as const,
+  },
+  companyExpenses: {
+    all: ['company-expenses'] as const,
+    list: (params?: CompanyExpenseListQueryParams) =>
+      ['company-expenses', 'list', params] as const,
+    summary: (params?: CompanyExpenseSummaryParams) =>
+      ['company-expenses', 'summary', params] as const,
+    vehicleList: (vehicleId: string, params?: CompanyExpenseListQueryParams) =>
+      ['company-expenses', 'vehicles', vehicleId, 'list', params] as const,
   },
 } as const;

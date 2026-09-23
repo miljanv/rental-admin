@@ -246,6 +246,7 @@ model Vehicle {
   safetyEquipment VehicleSafetyEquipment[]
   fuelLogs        FuelLog[]
   maintenance     VehicleMaintenance[]
+  companyExpenses CompanyExpense[]
   documents       VehicleDocument[]
   contracts       Contract[]
   transactions    FinanceTransaction[]
@@ -396,6 +397,30 @@ model VehicleMaintenance {
   @@index([date])
   @@index([supplier])
   @@map("vehicle_maintenance")
+}
+
+/// A company-level expense entered from invoices or cash payments. It may be
+/// tied to a vehicle (with an odometer reading) or kept as a shared firm cost.
+model CompanyExpense {
+  id            String         @id @default(cuid())
+  issuedAt      DateTime       @db.Date
+  paidAt        DateTime?      @db.Date
+  supplier      String
+  description   String
+  amount        Float
+  paymentMethod PaymentMethod?
+  vehicleId     String?
+  odometerKm    Int?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  @@index([issuedAt])
+  @@index([paidAt])
+  @@index([supplier])
+  @@index([vehicleId])
+  @@map("company_expenses")
 }
 
 enum VehicleDocumentType {
@@ -637,6 +662,7 @@ enum TransactionSourceType {
   TRIP_REVENUE
   TRIP_DRIVER_PER_DIEM
   TRIP_DRIVER_ADVANCE
+  COMPANY_EXPENSE
 }
 
 /// A bookkeeping row. Field names are English; the admin UI presents Serbian

@@ -3,6 +3,7 @@ import {
   FileText,
   Fuel,
   LayoutDashboard,
+  ReceiptText,
   Route,
   Settings2,
   Truck,
@@ -52,6 +53,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: '/fuel',
     icon: Fuel,
     description: 'Sipanja za sva vozila, sa grupnih računa',
+  },
+  {
+    title: 'Troškovi',
+    href: '/expenses',
+    icon: ReceiptText,
+    description: 'Računi, keš i zajednički troškovi firme',
   },
   {
     title: 'Partneri',

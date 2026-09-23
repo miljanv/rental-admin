@@ -16,6 +16,7 @@ import { PageHeader } from '@/components/common/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { VehicleExpensesTab } from '@/features/company-expenses/components/vehicle-expenses-tab';
 import { FuelLogsTab } from '@/features/fuel-logs/components/fuel-logs-tab';
 import { TachographCalibrationsTab } from '@/features/tachograph-calibrations/components/tachograph-calibrations-tab';
 import { VehicleDocumentsTab } from '@/features/vehicle-documents/components/vehicle-documents-tab';
@@ -34,6 +35,7 @@ const PROFILE_TABS = [
   { id: 'safety-equipment', label: 'Sigurnosna oprema' },
   { id: 'fuel', label: 'Gorivo i potrošnja' },
   { id: 'maintenance', label: 'Održavanje' },
+  { id: 'expenses', label: 'Troškovi' },
   { id: 'documents', label: 'Dokumenti' },
   { id: 'deadlines', label: 'Pregled rokova' },
 ] as const;
@@ -229,6 +231,7 @@ export function VehicleProfile({ vehicleId }: VehicleProfileProps) {
       ) : null}
       {activeTab === 'fuel' ? <FuelLogsTab vehicleId={vehicle.id} /> : null}
       {activeTab === 'maintenance' ? <VehicleMaintenanceTab vehicleId={vehicle.id} /> : null}
+      {activeTab === 'expenses' ? <VehicleExpensesTab vehicleId={vehicle.id} /> : null}
       {activeTab === 'documents' ? <VehicleDocumentsTab vehicleId={vehicle.id} /> : null}
       {activeTab === 'deadlines' ? <ComingSoon title="Pregled rokova" /> : null}
 

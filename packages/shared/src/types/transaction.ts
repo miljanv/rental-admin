@@ -60,6 +60,7 @@ export const TRANSACTION_SOURCE_TYPES = [
   'TRIP_REVENUE',
   'TRIP_DRIVER_PER_DIEM',
   'TRIP_DRIVER_ADVANCE',
+  'COMPANY_EXPENSE',
 ] as const;
 
 export type TransactionSourceType = (typeof TRANSACTION_SOURCE_TYPES)[number];
@@ -75,6 +76,7 @@ export const TRANSACTION_SOURCE_TYPE_LABELS: Record<TransactionSourceType, strin
   TRIP_REVENUE: 'Prihod od vožnje',
   TRIP_DRIVER_PER_DIEM: 'Dnevnica vozača',
   TRIP_DRIVER_ADVANCE: 'Akontacija vozača',
+  COMPANY_EXPENSE: 'Trošak firme',
 };
 
 export const FINANCE_EXPORT_FORMATS = ['pdf', 'xlsx'] as const;

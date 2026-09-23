@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import * as companyExpenseController from '../controllers/company-expense.controller';
 import * as fuelLogController from '../controllers/fuel-log.controller';
 import * as tachographCalibrationController from '../controllers/tachograph-calibration.controller';
 import * as vehicleInspectionController from '../controllers/vehicle-inspection.controller';
@@ -8,6 +9,10 @@ import * as vehicleMaintenanceController from '../controllers/vehicle-maintenanc
 import * as vehicleSafetyEquipmentController from '../controllers/vehicle-safety-equipment.controller';
 import * as vehicleController from '../controllers/vehicle.controller';
 import { validateRequest } from '../middleware/validate-request';
+import {
+  companyExpenseParamsSchema,
+  listCompanyExpensesQuerySchema,
+} from '../schemas/company-expense.schema';
 import {
   fuelLogParamsSchema,
   fuelLogWriteSchema,
@@ -239,6 +244,18 @@ vehicleRouter.delete(
   '/:id/maintenance/:maintenanceId',
   validateRequest({ params: vehicleMaintenanceParamsSchema }),
   asyncHandler(vehicleMaintenanceController.deleteVehicleMaintenance),
+);
+
+vehicleRouter.get(
+  '/:id/expenses',
+  validateRequest({ params: vehicleIdParamsSchema, query: listCompanyExpensesQuerySchema }),
+  asyncHandler(companyExpenseController.listVehicleCompanyExpenses),
+);
+
+vehicleRouter.get(
+  '/:id/expenses/:expenseId',
+  validateRequest({ params: companyExpenseParamsSchema }),
+  asyncHandler(companyExpenseController.getVehicleCompanyExpense),
 );
 
 vehicleRouter.get(
