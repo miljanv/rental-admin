@@ -408,6 +408,8 @@ model CompanyExpense {
   supplier      String
   description   String
   amount        Float
+  amountWithVat Float?
+  amountWithoutVat Float?
   paymentMethod PaymentMethod?
   vehicleId     String?
   odometerKm    Int?

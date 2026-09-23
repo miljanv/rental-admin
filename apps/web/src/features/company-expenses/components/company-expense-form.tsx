@@ -82,7 +82,8 @@ export function CompanyExpenseForm({
           paidAt: expense.paidAt ?? '',
           supplier: expense.supplier,
           description: expense.description,
-          amount: expense.amount,
+          amountWithVat: expense.amountWithVat,
+          amountWithoutVat: expense.amountWithoutVat,
           paymentMethod: expense.paymentMethod ?? '',
           vehicleId: expense.vehicleId ?? '',
           odometerKm: expense.odometerKm,
@@ -188,15 +189,35 @@ export function CompanyExpenseForm({
               )}
             />
 
-            <Field id="amount" label="Iznos / cena (RSD)" error={errors.amount?.message}>
+            <Field
+              id="amountWithVat"
+              label="Iznos sa PDV-om (RSD)"
+              error={errors.amountWithVat?.message}
+            >
               <Input
-                id="amount"
+                id="amountWithVat"
                 type="number"
                 step="0.01"
                 inputMode="decimal"
                 disabled={isPending}
-                aria-invalid={Boolean(errors.amount)}
-                {...form.register('amount', { valueAsNumber: true })}
+                aria-invalid={Boolean(errors.amountWithVat)}
+                {...form.register('amountWithVat', { valueAsNumber: true })}
+              />
+            </Field>
+
+            <Field
+              id="amountWithoutVat"
+              label="Iznos bez PDV-a / keš (RSD)"
+              error={errors.amountWithoutVat?.message}
+            >
+              <Input
+                id="amountWithoutVat"
+                type="number"
+                step="0.01"
+                inputMode="decimal"
+                disabled={isPending}
+                aria-invalid={Boolean(errors.amountWithoutVat)}
+                {...form.register('amountWithoutVat', { valueAsNumber: true })}
               />
             </Field>
 

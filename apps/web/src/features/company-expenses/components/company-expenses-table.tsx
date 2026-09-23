@@ -47,7 +47,7 @@ export function CompanyExpensesTable({
   onRequestDelete,
   emptyAction,
 }: CompanyExpensesTableProps) {
-  const columnCount = (showVehicle ? 8 : 7) + (readOnly ? 0 : 1);
+  const columnCount = (showVehicle ? 9 : 8) + (readOnly ? 0 : 1);
 
   if (!isLoading && expenses.length === 0) {
     return (
@@ -70,7 +70,8 @@ export function CompanyExpensesTable({
           <TableHead>Dobavljač</TableHead>
           <TableHead>Opis</TableHead>
           <TableHead className="text-right">Km</TableHead>
-          <TableHead className="text-right">Iznos</TableHead>
+          <TableHead className="text-right">Sa PDV-om</TableHead>
+          <TableHead className="text-right">Bez PDV-a</TableHead>
           <TableHead>Način</TableHead>
           {readOnly ? null : <TableHead className="w-[60px] text-right">Akcije</TableHead>}
         </TableRow>
@@ -101,7 +102,12 @@ export function CompanyExpensesTable({
                   ? `${expense.odometerKm.toLocaleString('sr-RS')} km`
                   : '—'}
               </TableCell>
-              <TableCell className="text-right tabular-nums">{formatMoney(expense.amount)}</TableCell>
+              <TableCell className="text-right tabular-nums">
+                {formatMoney(expense.amountWithVat)}
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                {formatMoney(expense.amountWithoutVat)}
+              </TableCell>
               <TableCell>
                 {expense.paymentMethod ? PAYMENT_METHOD_LABELS[expense.paymentMethod] : 'Nije plaćeno'}
               </TableCell>

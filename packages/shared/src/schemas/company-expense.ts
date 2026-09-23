@@ -58,34 +58,34 @@ const optionalOdometerKm = z.preprocess(
     .nullable(),
 );
 
+const optionalAmount = (label: string) =>
+  z.preprocess(
+    toNullableNumber,
+    z
+      .number()
+      .positive(`${label} mora biti veći od nule.`)
+      .max(10_000_000, `${label} nije ispravan.`)
+      .nullable(),
+  );
+
 export const companyExpenseWriteSchema = z
   .object({
     issuedAt: isoDateSchema,
     paidAt: optionalDate,
     supplier: requiredText('Dobavljač', 120),
     description: requiredText('Opis troška', 500),
-    amount: z
-      .number()
-      .positive('Iznos mora biti veći od nule.')
-      .max(10_000_000, 'Iznos nije ispravan.'),
+    amountWithVat: optionalAmount('Iznos sa PDV-om'),
+    amountWithoutVat: optionalAmount('Iznos bez PDV-a'),
     paymentMethod: optionalPaymentMethodSchema,
     vehicleId: optionalId,
     odometerKm: optionalOdometerKm,
   })
   .superRefine((value, ctx) => {
-    if (value.paidAt && !value.paymentMethod) {
+    if (value.amountWithVat === null && value.amountWithoutVat === null) {
       ctx.addIssue({
         code: 'custom',
-        path: ['paymentMethod'],
-        message: 'Način plaćanja je obavezan kada je unet datum plaćanja.',
-      });
-    }
-
-    if (!value.paidAt && value.paymentMethod) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['paidAt'],
-        message: 'Datum plaćanja je obavezan kada je unet način plaćanja.',
+        path: ['amountWithVat'],
+        message: 'Unesite iznos sa PDV-om ili iznos bez PDV-a.',
       });
     }
 

@@ -14,6 +14,8 @@ export interface CompanyExpenseRecord {
   supplier: string;
   description: string;
   amount: number;
+  amountWithVat: number | null;
+  amountWithoutVat: number | null;
   paymentMethod: PaymentMethod | null;
   vehicleId: string | null;
   vehicle: CompanyExpenseVehicleRecord | null;
@@ -31,6 +33,8 @@ export const toCompanyExpenseDto = (record: CompanyExpenseRecord): CompanyExpens
   supplier: record.supplier,
   description: record.description,
   amount: record.amount,
+  amountWithVat: record.amountWithVat,
+  amountWithoutVat: record.amountWithoutVat,
   paymentMethod: record.paymentMethod,
   vehicleId: record.vehicleId,
   vehicle: record.vehicle

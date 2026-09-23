@@ -14,6 +14,8 @@ export interface CompanyExpenseDto {
   supplier: string;
   description: string;
   amount: number;
+  amountWithVat: number | null;
+  amountWithoutVat: number | null;
   paymentMethod: PaymentMethod | null;
   vehicleId: string | null;
   vehicle: CompanyExpenseVehicleDto | null;

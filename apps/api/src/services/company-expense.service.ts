@@ -37,12 +37,17 @@ const assertVehicleExists = async (vehicleId: string | null): Promise<void> => {
   }
 };
 
+const effectiveAmount = (input: CompanyExpenseWriteRequest): number =>
+  input.amountWithVat ?? input.amountWithoutVat ?? 0;
+
 const toWriteData = (input: CompanyExpenseWriteRequest) => ({
   issuedAt: parseDate(input.issuedAt),
   paidAt: input.paidAt ? parseDate(input.paidAt) : null,
   supplier: input.supplier,
   description: input.description,
-  amount: input.amount,
+  amount: effectiveAmount(input),
+  amountWithVat: input.amountWithVat,
+  amountWithoutVat: input.amountWithoutVat,
   paymentMethod: input.paymentMethod,
   vehicleId: input.vehicleId,
   odometerKm: input.odometerKm,
@@ -87,7 +92,7 @@ const syncFinanceExpense = async (
     sourceType: 'COMPANY_EXPENSE',
     sourceId,
     category: 'OTHER',
-    amount: input.paidAt ? input.amount : null,
+    amount: input.paidAt ? effectiveAmount(input) : null,
     paymentMethod: input.paymentMethod,
     occurredAt: input.paidAt ?? input.issuedAt,
     vehicleId: input.vehicleId,
