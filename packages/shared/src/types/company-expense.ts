@@ -10,7 +10,7 @@ export interface CompanyExpenseVehicleDto {
 export interface CompanyExpenseDto {
   id: string;
   issuedAt: string;
-  paidAt: string | null;
+  invoiceNumber: string | null;
   supplier: string;
   description: string;
   amount: number;
@@ -34,11 +34,7 @@ export interface CompanyExpenseSummaryDto {
   total: number;
   totalWithoutVat: number;
   totalVat: number;
-  paidTotal: number;
-  unpaidTotal: number;
   count: number;
-  paidCount: number;
-  unpaidCount: number;
 }
 
 export interface CompanyExpenseSuppliersDto {

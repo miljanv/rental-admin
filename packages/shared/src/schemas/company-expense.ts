@@ -31,10 +31,11 @@ const optionalId = z
   .optional()
   .transform((value) => (value ? value : null));
 
-const optionalDate = z
-  .union([isoDateSchema, z.literal(''), z.null()])
-  .optional()
-  .transform((value) => (value ? value : null));
+const optionalText = (max: number) =>
+  z
+    .union([z.string().trim().max(max), z.literal(''), z.null()])
+    .optional()
+    .transform((value) => (value ? value : null));
 
 const toNullableNumber = (value: unknown): unknown => {
   if (value === '' || value === undefined || value === null) {
@@ -83,7 +84,7 @@ const requiredPaymentMethod = z
 export const companyExpenseWriteSchema = z
   .object({
     issuedAt: isoDateSchema,
-    paidAt: optionalDate,
+    invoiceNumber: optionalText(80),
     supplier: requiredText('Dobavljač', 120),
     description: requiredText('Opis troška', 500),
     amountWithoutVat: moneyAmount('Iznos bez PDV-a', 'positive'),
@@ -114,7 +115,7 @@ export const companyExpenseWriteSchema = z
 export type CompanyExpenseWriteInput = z.input<typeof companyExpenseWriteSchema>;
 export type CompanyExpenseWriteRequest = z.output<typeof companyExpenseWriteSchema>;
 
-export const COMPANY_EXPENSE_SORT_FIELDS = ['issuedAt', 'paidAt', 'amount', 'createdAt'] as const;
+export const COMPANY_EXPENSE_SORT_FIELDS = ['issuedAt', 'amount', 'createdAt'] as const;
 
 export type CompanyExpenseSortField = (typeof COMPANY_EXPENSE_SORT_FIELDS)[number];
 

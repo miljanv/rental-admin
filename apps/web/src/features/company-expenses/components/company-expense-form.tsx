@@ -81,7 +81,7 @@ export function CompanyExpenseForm({
     defaultValues: expense
       ? {
           issuedAt: expense.issuedAt,
-          paidAt: expense.paidAt ?? '',
+          invoiceNumber: expense.invoiceNumber ?? '',
           supplier: expense.supplier,
           description: expense.description,
           amountWithoutVat: expense.amountWithoutVat,
@@ -135,19 +135,12 @@ export function CompanyExpenseForm({
               />
             </Field>
 
-            <Field id="paidAt" label="Datum plaćanja računa" error={errors.paidAt?.message}>
-              <Controller
-                control={form.control}
-                name="paidAt"
-                render={({ field }) => (
-                  <DateField
-                    id="paidAt"
-                    value={field.value ?? ''}
-                    onChange={field.onChange}
-                    disabled={isPending}
-                    aria-invalid={Boolean(errors.paidAt)}
-                  />
-                )}
+            <Field id="invoiceNumber" label="Broj računa" error={errors.invoiceNumber?.message}>
+              <Input
+                id="invoiceNumber"
+                disabled={isPending}
+                aria-invalid={Boolean(errors.invoiceNumber)}
+                {...form.register('invoiceNumber')}
               />
             </Field>
 

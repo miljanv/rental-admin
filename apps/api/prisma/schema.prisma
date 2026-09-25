@@ -405,6 +405,7 @@ model CompanyExpense {
   id            String         @id @default(cuid())
   issuedAt      DateTime       @db.Date
   paidAt        DateTime?      @db.Date
+  invoiceNumber String?
   supplier      String
   description   String
   amount        Float
@@ -421,6 +422,7 @@ model CompanyExpense {
 
   @@index([issuedAt])
   @@index([paidAt])
+  @@index([invoiceNumber])
   @@index([supplier])
   @@index([vehicleId])
   @@map("company_expenses")

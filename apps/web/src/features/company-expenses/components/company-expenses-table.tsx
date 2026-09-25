@@ -65,7 +65,7 @@ export function CompanyExpensesTable({
       <TableHeader>
         <TableRow>
           <TableHead>Datum računa</TableHead>
-          <TableHead>Datum plaćanja</TableHead>
+          <TableHead>Broj računa</TableHead>
           {showVehicle ? <TableHead>Mesto utroška</TableHead> : null}
           <TableHead>Dobavljač</TableHead>
           <TableHead>Opis</TableHead>
@@ -84,7 +84,9 @@ export function CompanyExpensesTable({
           expenses.map((expense) => (
             <TableRow key={expense.id}>
               <TableCell className="text-muted-foreground">{formatDate(expense.issuedAt)}</TableCell>
-              <TableCell className="text-muted-foreground">{formatDate(expense.paidAt)}</TableCell>
+              <TableCell className="text-muted-foreground">
+                {expense.invoiceNumber ?? '—'}
+              </TableCell>
               {showVehicle ? (
                 <TableCell>
                   {expense.vehicle ? (

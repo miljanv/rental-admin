@@ -112,8 +112,7 @@ export function CompanyExpenseManager() {
             <CardTitle className="text-2xl">{formatMoney(summaryQuery.data?.total ?? 0)}</CardTitle>
           </CardHeader>
           <CardContent className="text-muted-foreground text-sm">
-            Plaćeno {formatMoney(summaryQuery.data?.paidTotal ?? 0)} · otvoreno{' '}
-            {formatMoney(summaryQuery.data?.unpaidTotal ?? 0)}
+            Zaduženje prema dobavljačima
           </CardContent>
         </Card>
       </div>

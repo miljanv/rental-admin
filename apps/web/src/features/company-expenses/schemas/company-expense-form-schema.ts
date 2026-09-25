@@ -9,7 +9,7 @@ export type CompanyExpenseFormValues = CompanyExpenseWriteInput;
 
 export const EMPTY_COMPANY_EXPENSE_FORM: CompanyExpenseFormValues = {
   issuedAt: '',
-  paidAt: '',
+  invoiceNumber: '',
   supplier: '',
   description: '',
   amountWithoutVat: 0,

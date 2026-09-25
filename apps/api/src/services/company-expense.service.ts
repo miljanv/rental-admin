@@ -15,10 +15,7 @@ import {
   type CompanyExpenseRecord,
 } from '../utils/company-expense-mapper';
 import { logger } from '../utils/logger';
-import {
-  deleteOperationalTransaction,
-  upsertOperationalExpense,
-} from './transaction.service';
+import { deleteOperationalTransaction } from './transaction.service';
 
 const parseDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`);
 
@@ -40,7 +37,8 @@ const assertVehicleExists = async (vehicleId: string | null): Promise<void> => {
 
 const toWriteData = (input: CompanyExpenseWriteRequest) => ({
   issuedAt: parseDate(input.issuedAt),
-  paidAt: input.paidAt ? parseDate(input.paidAt) : null,
+  paidAt: null,
+  invoiceNumber: input.invoiceNumber,
   supplier: input.supplier,
   description: input.description,
   amount: input.amountWithVat,
@@ -80,23 +78,6 @@ const bumpVehicleMileage = async (
   await prisma.vehicle.updateMany({
     where: { id: vehicleId, currentMileage: { lt: odometerKm } },
     data: { currentMileage: odometerKm },
-  });
-};
-
-const syncFinanceExpense = async (
-  sourceId: string,
-  input: CompanyExpenseWriteRequest,
-): Promise<void> => {
-  await upsertOperationalExpense({
-    sourceType: 'COMPANY_EXPENSE',
-    sourceId,
-    category: 'OTHER',
-    amount: input.paidAt ? input.amountWithVat : null,
-    paymentMethod: input.paymentMethod,
-    occurredAt: input.paidAt ?? input.issuedAt,
-    vehicleId: input.vehicleId,
-    supplier: input.supplier,
-    note: input.description,
   });
 };
 
@@ -141,7 +122,6 @@ export const createCompanyExpense = async (
   });
 
   await bumpVehicleMileage(input.vehicleId, input.odometerKm);
-  await syncFinanceExpense(record.id, input);
 
   logger.info('Company expense created', { expenseId: record.id, vehicleId: record.vehicleId });
 
@@ -167,7 +147,7 @@ export const updateCompanyExpense = async (
   });
 
   await bumpVehicleMileage(input.vehicleId, input.odometerKm);
-  await syncFinanceExpense(record.id, input);
+  await deleteOperationalTransaction('COMPANY_EXPENSE', record.id);
 
   logger.info('Company expense updated', { expenseId, vehicleId: record.vehicleId });
 
@@ -206,7 +186,7 @@ export const getCompanyExpenseSummary = async (
 
   const records = await prisma.companyExpense.findMany({
     where: expenseListWhere(query),
-    select: { amount: true, amountWithoutVat: true, vatAmount: true, paidAt: true },
+    select: { amount: true, amountWithoutVat: true, vatAmount: true },
   });
 
   return records.reduce<CompanyExpenseSummaryDto>(
@@ -216,25 +196,13 @@ export const getCompanyExpenseSummary = async (
       summary.totalVat += record.vatAmount;
       summary.count += 1;
 
-      if (record.paidAt) {
-        summary.paidTotal += record.amount;
-        summary.paidCount += 1;
-      } else {
-        summary.unpaidTotal += record.amount;
-        summary.unpaidCount += 1;
-      }
-
       return summary;
     },
     {
       total: 0,
       totalWithoutVat: 0,
       totalVat: 0,
-      paidTotal: 0,
-      unpaidTotal: 0,
       count: 0,
-      paidCount: 0,
-      unpaidCount: 0,
     },
   );
 };
