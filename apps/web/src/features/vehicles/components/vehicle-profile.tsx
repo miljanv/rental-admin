@@ -34,8 +34,7 @@ const PROFILE_TABS = [
   { id: 'tachograph', label: 'Tahograf' },
   { id: 'safety-equipment', label: 'Sigurnosna oprema' },
   { id: 'fuel', label: 'Gorivo i potrošnja' },
-  { id: 'maintenance', label: 'Održavanje' },
-  { id: 'expenses', label: 'Troškovi' },
+  { id: 'expenses-maintenance', label: 'Troškovi - Održavanje' },
   { id: 'documents', label: 'Dokumenti' },
   { id: 'deadlines', label: 'Pregled rokova' },
 ] as const;
@@ -230,8 +229,12 @@ export function VehicleProfile({ vehicleId }: VehicleProfileProps) {
         <VehicleSafetyEquipmentTab vehicleId={vehicle.id} />
       ) : null}
       {activeTab === 'fuel' ? <FuelLogsTab vehicleId={vehicle.id} /> : null}
-      {activeTab === 'maintenance' ? <VehicleMaintenanceTab vehicleId={vehicle.id} /> : null}
-      {activeTab === 'expenses' ? <VehicleExpensesTab vehicleId={vehicle.id} /> : null}
+      {activeTab === 'expenses-maintenance' ? (
+        <div className="space-y-6">
+          <VehicleExpensesTab vehicleId={vehicle.id} />
+          <VehicleMaintenanceTab vehicleId={vehicle.id} />
+        </div>
+      ) : null}
       {activeTab === 'documents' ? <VehicleDocumentsTab vehicleId={vehicle.id} /> : null}
       {activeTab === 'deadlines' ? <ComingSoon title="Pregled rokova" /> : null}
 

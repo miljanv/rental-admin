@@ -1,11 +1,14 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import type {
-  CompanyExpenseDto,
-  CompanyExpenseWriteRequest,
+import {
+  COMPANY_EXPENSE_VAT_RATE_LABELS,
+  COMPANY_EXPENSE_VAT_RATES,
+  splitCompanyExpenseAmount,
+  type CompanyExpenseDto,
+  type CompanyExpenseVatRate,
 } from '@rental-admin/shared';
-import { Controller, useForm, useWatch } from 'react-hook-form';
+import { Controller, useForm, useWatch, type Resolver } from 'react-hook-form';
 
 import { DateField } from '@/components/common/date-field';
 import { Button } from '@/components/ui/button';
@@ -26,11 +29,14 @@ import { useUpdateCompanyExpense } from '@/features/company-expenses/hooks/use-u
 import {
   companyExpenseFormSchema,
   EMPTY_COMPANY_EXPENSE_FORM,
+  toCompanyExpenseFormValues,
+  toCompanyExpenseWriteRequest,
   type CompanyExpenseFormValues,
 } from '@/features/company-expenses/schemas/company-expense-form-schema';
 import { PaymentMethodSelect } from '@/features/transactions/components/payment-method-select';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
 import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
+import { formatMoney } from '@/lib/format';
 
 const COMMON_EXPENSE = 'common';
 
@@ -57,11 +63,7 @@ function Field({ id, label, error, children }: FieldProps) {
   );
 }
 
-export function CompanyExpenseForm({
-  expense,
-  defaultVehicleId,
-  onDone,
-}: CompanyExpenseFormProps) {
+export function CompanyExpenseForm({ expense, defaultVehicleId, onDone }: CompanyExpenseFormProps) {
   const isEdit = Boolean(expense);
   const createMutation = useCreateCompanyExpense();
   const updateMutation = useUpdateCompanyExpense();
@@ -76,33 +78,30 @@ export function CompanyExpenseForm({
   });
   const vehicles = vehiclesQuery.data?.vehicles ?? [];
 
-  const form = useForm<CompanyExpenseFormValues, unknown, CompanyExpenseWriteRequest>({
-    resolver: zodResolver(companyExpenseFormSchema),
+  const form = useForm<CompanyExpenseFormValues>({
+    resolver: zodResolver(companyExpenseFormSchema) as Resolver<CompanyExpenseFormValues>,
     defaultValues: expense
-      ? {
-          issuedAt: expense.issuedAt,
-          invoiceNumber: expense.invoiceNumber ?? '',
-          supplier: expense.supplier,
-          description: expense.description,
-          amountWithoutVat: expense.amountWithoutVat,
-          vatAmount: expense.vatAmount,
-          amountWithVat: expense.amountWithVat,
-          paymentMethod: expense.paymentMethod ?? '',
-          vehicleId: expense.vehicleId ?? '',
-          odometerKm: expense.odometerKm,
-        }
+      ? toCompanyExpenseFormValues(expense)
       : { ...EMPTY_COMPANY_EXPENSE_FORM, vehicleId: defaultVehicleId ?? '' },
   });
   const errors = form.formState.errors;
   const vehicleId = useWatch({ control: form.control, name: 'vehicleId' });
+  const amount = useWatch({ control: form.control, name: 'amount' });
+  const vatRate = useWatch({ control: form.control, name: 'vatRate' });
   const isVehicleExpense = Boolean(vehicleId);
+  const splitPreview =
+    typeof amount === 'number' && Number.isFinite(amount) && amount > 0
+      ? splitCompanyExpenseAmount(amount, vatRate)
+      : null;
 
   const onSubmit = form.handleSubmit(async (values) => {
     try {
+      const body = toCompanyExpenseWriteRequest(values);
+
       if (expense) {
-        await updateMutation.mutateAsync({ expenseId: expense.id, body: values });
+        await updateMutation.mutateAsync({ expenseId: expense.id, body });
       } else {
-        await createMutation.mutateAsync(values);
+        await createMutation.mutateAsync(body);
       }
 
       onDone();
@@ -191,55 +190,61 @@ export function CompanyExpenseForm({
               )}
             />
 
-            <Field
-              id="amountWithoutVat"
-              label="Bez PDV-a (RSD)"
-              error={errors.amountWithoutVat?.message}
-            >
+            <Field id="amount" label="Iznos sa PDV-om (RSD)" error={errors.amount?.message}>
               <Input
-                id="amountWithoutVat"
+                id="amount"
                 type="number"
                 step="0.01"
                 inputMode="decimal"
                 disabled={isPending}
-                aria-invalid={Boolean(errors.amountWithoutVat)}
-                {...form.register('amountWithoutVat', { valueAsNumber: true })}
-              />
-            </Field>
-
-            <Field id="vatAmount" label="PDV (RSD)" error={errors.vatAmount?.message}>
-              <Input
-                id="vatAmount"
-                type="number"
-                step="0.01"
-                inputMode="decimal"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.vatAmount)}
-                {...form.register('vatAmount', { valueAsNumber: true })}
-              />
-            </Field>
-
-            <Field
-              id="amountWithVat"
-              label="Ukupno / sa PDV-om (RSD)"
-              error={errors.amountWithVat?.message}
-            >
-              <Input
-                id="amountWithVat"
-                type="number"
-                step="0.01"
-                inputMode="decimal"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.amountWithVat)}
-                {...form.register('amountWithVat', { valueAsNumber: true })}
+                aria-invalid={Boolean(errors.amount)}
+                {...form.register('amount', { valueAsNumber: true })}
               />
             </Field>
 
             <Controller
               control={form.control}
+              name="vatRate"
+              render={({ field }) => (
+                <Field id="vatRate" label="PDV" error={errors.vatRate?.message}>
+                  <Select
+                    value={String(field.value)}
+                    onValueChange={(value) =>
+                      field.onChange(Number(value) as CompanyExpenseVatRate)
+                    }
+                    disabled={isPending}
+                  >
+                    <SelectTrigger id="vatRate" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COMPANY_EXPENSE_VAT_RATES.map((rate) => (
+                        <SelectItem key={rate} value={String(rate)}>
+                          {COMPANY_EXPENSE_VAT_RATE_LABELS[rate]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              )}
+            />
+
+            {splitPreview ? (
+              <p className="text-muted-foreground sm:col-span-2 text-sm">
+                Bez PDV-a {formatMoney(splitPreview.amountWithoutVat)} · PDV{' '}
+                {formatMoney(splitPreview.vatAmount)}
+              </p>
+            ) : null}
+
+            <Controller
+              control={form.control}
               name="paymentMethod"
               render={({ field }) => (
-                <Field id="paymentMethod" label="Način plaćanja" error={errors.paymentMethod?.message}>
+                <Field
+                  id="paymentMethod"
+                  label="Način plaćanja"
+                  error={errors.paymentMethod?.message}
+                >
                   <PaymentMethodSelect
                     id="paymentMethod"
                     value={field.value}
