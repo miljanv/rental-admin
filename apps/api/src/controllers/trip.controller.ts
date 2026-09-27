@@ -1,6 +1,7 @@
 import type {
   ListTripsQuery,
   TripIdParams,
+  TripInvoiceWriteRequest,
   TripStatsQueryRequest,
   TripWriteRequest,
 } from '@rental-admin/shared';
@@ -42,6 +43,14 @@ export const updateTrip = async (req: Request, res: Response): Promise<void> => 
   const { id } = validated<TripIdParams>(req, 'params');
   const body = validated<TripWriteRequest>(req, 'body');
   const trip = await tripService.updateTrip(id, body);
+
+  sendSuccess(res, trip);
+};
+
+export const invoiceTrip = async (req: Request, res: Response): Promise<void> => {
+  const { id } = validated<TripIdParams>(req, 'params');
+  const body = validated<TripInvoiceWriteRequest>(req, 'body');
+  const trip = await tripService.invoiceTrip(id, body);
 
   sendSuccess(res, trip);
 };

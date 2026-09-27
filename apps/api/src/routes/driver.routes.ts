@@ -4,6 +4,7 @@ import * as absenceAttestationController from '../controllers/absence-attestatio
 import * as driverDocumentController from '../controllers/driver-document.controller';
 import * as driverController from '../controllers/driver.controller';
 import * as driverWorkController from '../controllers/driver-work.controller';
+import * as driverPerDiemController from '../controllers/driver-per-diem.controller';
 import * as generatedDocumentController from '../controllers/generated-document.controller';
 import { uploadRateLimiter } from '../middleware/rate-limit';
 import { validateRequest } from '../middleware/validate-request';
@@ -22,6 +23,12 @@ import {
   listDriversQuerySchema,
 } from '../schemas/driver.schema';
 import { listDriverWorkRecordsQuerySchema } from '../schemas/driver-work.schema';
+import {
+  generateDriverMonthlyPayoutSchema,
+  generateDriverPerDiemDocumentSchema,
+  listDriverPerDiemsQuerySchema,
+  listDriverStatisticsQuerySchema,
+} from '../schemas/driver-per-diem.schema';
 import {
   generateEmploymentContractSchema,
   generateMaFormSchema,
@@ -96,6 +103,46 @@ driverRouter.get(
   '/:id/status-overview',
   validateRequest({ params: driverIdParamsSchema }),
   asyncHandler(driverController.getDriverStatusOverview),
+);
+
+driverRouter.get(
+  '/:id/per-diems',
+  validateRequest({ params: driverIdParamsSchema, query: listDriverPerDiemsQuerySchema }),
+  asyncHandler(driverPerDiemController.getDriverPerDiemLedger),
+);
+
+driverRouter.get(
+  '/:id/statistics',
+  validateRequest({ params: driverIdParamsSchema, query: listDriverStatisticsQuerySchema }),
+  asyncHandler(driverPerDiemController.getDriverStatistics),
+);
+
+driverRouter.post(
+  '/:id/per-diem-documents/decision',
+  uploadRateLimiter,
+  validateRequest({ params: driverIdParamsSchema, body: generateDriverPerDiemDocumentSchema }),
+  asyncHandler(driverPerDiemController.generateTravelDecision),
+);
+
+driverRouter.post(
+  '/:id/per-diem-documents/order',
+  uploadRateLimiter,
+  validateRequest({ params: driverIdParamsSchema, body: generateDriverPerDiemDocumentSchema }),
+  asyncHandler(driverPerDiemController.generateTravelOrder),
+);
+
+driverRouter.post(
+  '/:id/per-diem-documents/settlement',
+  uploadRateLimiter,
+  validateRequest({ params: driverIdParamsSchema, body: generateDriverPerDiemDocumentSchema }),
+  asyncHandler(driverPerDiemController.generateTravelSettlement),
+);
+
+driverRouter.post(
+  '/:id/per-diem-documents/monthly-payout',
+  uploadRateLimiter,
+  validateRequest({ params: driverIdParamsSchema, body: generateDriverMonthlyPayoutSchema }),
+  asyncHandler(driverPerDiemController.generateMonthlyPayout),
 );
 
 driverRouter.get(

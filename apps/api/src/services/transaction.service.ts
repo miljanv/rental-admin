@@ -359,6 +359,8 @@ export interface OperationalExpenseInput {
   partner?: string | null;
   route?: string | null;
   note?: string | null;
+  /** When set, the caller owns open/settled. Omitted calls leave a settled row untouched. */
+  status?: 'OPEN' | 'SETTLED';
 }
 
 const postedFields = (
@@ -416,13 +418,17 @@ const upsertOperationalTransaction = async (
     vehicleId: input.vehicleId ?? null,
     driverId: input.driverId ?? null,
     isAdvance: false,
-    status: 'OPEN' as const,
+    status: input.status ?? 'OPEN',
     sourceType: input.sourceType,
     sourceId: input.sourceId,
   };
 
   if (existing) {
-    if (existing.status === 'SETTLED' || existing.isAdvance) {
+    if (existing.isAdvance) {
+      return;
+    }
+
+    if (existing.status === 'SETTLED' && input.status === undefined) {
       return;
     }
 

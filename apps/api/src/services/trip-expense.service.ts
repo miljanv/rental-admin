@@ -24,7 +24,7 @@ import {
   deleteOperationalTransaction,
   upsertOperationalExpense,
 } from './transaction.service';
-import { parseDate, syncTripRevenue, tripInclude } from './trip.service';
+import { assertDriversExist, parseDate, syncTripDrivers, syncTripRevenue, tripInclude } from './trip.service';
 
 const expenseInclude = { file: true } as const;
 
@@ -257,6 +257,9 @@ export const getTripSettlement = async (tripId: string): Promise<TripSettlementD
   return {
     tripId,
     paidAt: trip.paidAt,
+    startKm: trip.startKm,
+    endKm: trip.endKm,
+    fuelLiters: trip.fuelLiters,
     carrierId: trip.carrierId,
     carrier: trip.carrier,
     revenue: totals.revenue,
@@ -277,35 +280,41 @@ export const updateTripSettlement = async (
   await loadTrip(tripId);
   await assertCarrierExists(input.carrierId);
 
-  if (input.drivers) {
-    if (input.drivers.length > 0) {
-      const assigned = await prisma.tripDriver.findMany({
-        where: { tripId },
-        select: { driverId: true },
-      });
-      const assignedIds = new Set(assigned.map((row) => row.driverId));
-      const unknown = input.drivers.find((driver) => !assignedIds.has(driver.driverId));
+  const drivers = input.drivers;
 
-      if (unknown) {
-        throw badRequest('Dnevnica se može uneti samo za vozača koji je na ovoj vožnji.');
-      }
+  if (drivers) {
+    await assertDriversExist(drivers.map((driver) => driver.driverId));
 
-      await prisma.$transaction(
-        input.drivers.map((driver) =>
-          prisma.tripDriver.update({
-            where: { tripId_driverId: { tripId, driverId: driver.driverId } },
-            data: { perDiemAmount: driver.perDiemAmount, advanceAmount: driver.advanceAmount },
-          }),
-        ),
+    await prisma.$transaction(async (tx) => {
+      await syncTripDrivers(
+        tx,
+        tripId,
+        drivers.map((driver) => driver.driverId),
       );
-    }
+
+      for (const driver of drivers) {
+        await tx.tripDriver.update({
+          where: { tripId_driverId: { tripId, driverId: driver.driverId } },
+          data: { perDiemAmount: driver.perDiemAmount, advanceAmount: driver.advanceAmount },
+        });
+      }
+    });
   }
+
+  const distanceKm =
+    input.startKm != null && input.endKm != null
+      ? Math.round((input.endKm - input.startKm) * 10) / 10
+      : undefined;
 
   const record = await prisma.trip.update({
     where: { id: tripId },
     data: {
       paidAt: input.paidAt ? parseDate(input.paidAt) : null,
       carrierId: input.carrierId,
+      startKm: input.startKm,
+      endKm: input.endKm,
+      fuelLiters: input.fuelLiters,
+      ...(distanceKm !== undefined ? { distanceKm } : {}),
     },
     include: tripInclude,
   });

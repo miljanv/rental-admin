@@ -16,6 +16,7 @@ export const useUpdateTripSettlement = (tripId: string) => {
     onSuccess: async () => {
       toast.success('Obračun je sačuvan.');
       await queryClient.invalidateQueries({ queryKey: queryKeys.trips.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
     },
     onError: (error) => {
       toast.error('Obračun nije sačuvan.', { description: getApiErrorMessage(error) });

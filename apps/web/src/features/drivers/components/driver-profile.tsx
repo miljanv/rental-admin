@@ -1,11 +1,10 @@
 'use client';
 
 import { EMPLOYMENT_TYPE_LABELS, type DriverDto } from '@rental-admin/shared';
-import { Clock, Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { EmptyState } from '@/components/common/empty-state';
 import { ErrorState } from '@/components/common/error-state';
 import { PageHeader } from '@/components/common/page-header';
 import { Button } from '@/components/ui/button';
@@ -13,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { AbsenceAttestationsTab } from '@/features/absence-attestations/components/absence-attestations-tab';
 import { DriverDocumentsTab } from '@/features/driver-documents/components/driver-documents-tab';
+import { DriverStatisticsTab } from '@/features/driver-work/components/driver-statistics-tab';
 import { DriverWorkTab } from '@/features/driver-work/components/driver-work-tab';
 import { DeleteDriverDialog } from '@/features/drivers/components/delete-driver-dialog';
 import { DriverStatusBadge } from '@/features/drivers/components/driver-status-badge';
@@ -24,11 +24,10 @@ import { cn } from '@/lib/utils';
 
 const PROFILE_TABS = [
   { id: 'overview', label: 'Osnovni podaci' },
-  { id: 'documents', label: 'Dokumenti' },
-  { id: 'work', label: 'Evidencija rada' },
+  { id: 'documents', label: 'Dokumenta' },
   { id: 'absences', label: 'Odsustva' },
-  { id: 'trainings', label: 'Obuke' },
-  { id: 'exams', label: 'Pregledi' },
+  { id: 'work', label: 'Evidencija rada — dnevnice' },
+  { id: 'statistics', label: 'Statistika' },
 ] as const;
 
 type ProfileTabId = (typeof PROFILE_TABS)[number]['id'];
@@ -48,16 +47,6 @@ function DetailItem({ label, value }: DetailItemProps) {
       <dt className="text-muted-foreground text-xs">{label}</dt>
       <dd className="text-sm font-medium wrap-break-word">{value}</dd>
     </div>
-  );
-}
-
-function ComingSoon({ title }: { title: string }) {
-  return (
-    <EmptyState
-      icon={Clock}
-      title={`${title} — uskoro`}
-      description="Ovaj modul će biti dodat u narednom koraku. Osnovni podaci zaposlenog su već dostupni."
-    />
   );
 }
 
@@ -200,10 +189,9 @@ export function DriverProfile({ driverId }: DriverProfileProps) {
         <DriverOverview driver={driver} onNavigateToDocuments={() => setActiveTab('documents')} />
       ) : null}
       {activeTab === 'documents' ? <DriverDocumentsTab driver={driver} /> : null}
-      {activeTab === 'work' ? <DriverWorkTab driverId={driver.id} /> : null}
       {activeTab === 'absences' ? <AbsenceAttestationsTab driver={driver} /> : null}
-      {activeTab === 'trainings' ? <ComingSoon title="Obuke" /> : null}
-      {activeTab === 'exams' ? <ComingSoon title="Pregledi" /> : null}
+      {activeTab === 'work' ? <DriverWorkTab driverId={driver.id} /> : null}
+      {activeTab === 'statistics' ? <DriverStatisticsTab driverId={driver.id} /> : null}
 
       <DeleteDriverDialog
         driver={driverToDelete}

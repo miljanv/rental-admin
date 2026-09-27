@@ -20,7 +20,7 @@ import { toDriverDto, type DriverRecord } from '../utils/driver-mapper';
 import { logger } from '../utils/logger';
 import { deleteAbsenceFilesForDriver } from './absence-attestation.service';
 import { deleteFilesForDriver } from './driver-document.service';
-import { summarizeDriverWork } from './driver-work.service';
+import { summarizeDriverTripKm } from './driver-per-diem.service';
 
 type DriverOrderBy = Partial<Record<DriverSortField, SortOrder>>;
 
@@ -95,7 +95,7 @@ export const getDriverStatusOverview = async (id: string): Promise<DriverStatusO
   await getDriver(id);
 
   const range = utcMonthRangeIso();
-  const [documentRecords, maNumbers, work] = await Promise.all([
+  const [documentRecords, maNumbers, tripKm] = await Promise.all([
     prisma.driverDocument.findMany({
       where: { driverId: id },
       include: { file: true },
@@ -105,7 +105,7 @@ export const getDriverStatusOverview = async (id: string): Promise<DriverStatusO
       where: { type: 'MA_FORM' },
       select: { documentNumber: true },
     }),
-    summarizeDriverWork(id, range.from, range.to),
+    summarizeDriverTripKm(id, range.from, range.to),
   ]);
 
   return {
@@ -116,9 +116,9 @@ export const getDriverStatusOverview = async (id: string): Promise<DriverStatusO
     monthlyActivity: {
       year: Number(range.from.slice(0, 4)),
       month: Number(range.from.slice(5, 7)),
-      kmDriven: work.kmDriven,
-      hoursWorked: work.hoursWorked,
-      fuelLogCount: work.driveCount,
+      kmDriven: tripKm.kmDriven,
+      hoursWorked: null,
+      fuelLogCount: tripKm.tripCount,
     },
     nextMaDocumentNumber: nextSequentialDocumentNumber(maNumbers.map((row) => row.documentNumber)),
   };

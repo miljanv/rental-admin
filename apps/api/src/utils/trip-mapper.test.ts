@@ -21,6 +21,10 @@ const record: TripRecord = {
   distanceKm: null,
   seriesId: null,
   paidAt: new Date('2026-09-05T00:00:00.000Z'),
+  invoicedAt: new Date('2026-09-02T00:00:00.000Z'),
+  startKm: 120_000,
+  endKm: 120_480,
+  fuelLiters: 85.5,
   carrierId: 'partner_carrier',
   vehicleCount: 1,
   createdAt: new Date('2026-08-16T10:00:00.000Z'),
@@ -48,6 +52,10 @@ describe('toTripDto', () => {
   it('exposes paidAt, carrier and per-driver allowances', () => {
     expect(toTripDto(record)).toMatchObject({
       paidAt: '2026-09-05',
+      invoicedAt: '2026-09-02',
+      startKm: 120_000,
+      endKm: 120_480,
+      fuelLiters: 85.5,
       carrierId: 'partner_carrier',
       carrier: { id: 'partner_carrier', companyName: 'Drugi prevoznik' },
       drivers: [{ id: 'drv_1', perDiemAmount: 8_000, advanceAmount: 2_000 }],

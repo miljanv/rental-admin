@@ -44,14 +44,37 @@ export const tripDriverAllowanceSchema = z.object({
   advanceAmount: optionalNonNegative('Akontacija', 10_000_000),
 });
 
-export const tripSettlementWriteSchema = z.object({
-  paidAt: optionalIsoDate,
-  carrierId: optionalId,
-  drivers: z
-    .array(tripDriverAllowanceSchema)
-    .max(MAX_TRIP_DRIVERS, `Najviše ${MAX_TRIP_DRIVERS} vozača po vožnji.`)
-    .optional(),
-});
+export const tripSettlementWriteSchema = z
+  .object({
+    paidAt: optionalIsoDate,
+    carrierId: optionalId,
+    startKm: optionalNonNegative('Početna kilometraža', 10_000_000),
+    endKm: optionalNonNegative('Završna kilometraža', 10_000_000),
+    fuelLiters: optionalNonNegative('Količina goriva', 10_000),
+    drivers: z
+      .array(tripDriverAllowanceSchema)
+      .max(MAX_TRIP_DRIVERS, `Najviše ${MAX_TRIP_DRIVERS} vozača po vožnji.`)
+      .optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.startKm != null && value.endKm != null && value.endKm < value.startKm) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['endKm'],
+        message: 'Završna kilometraža ne može biti manja od početne.',
+      });
+    }
+
+    const driverIds = value.drivers?.map((driver) => driver.driverId) ?? [];
+
+    if (new Set(driverIds).size !== driverIds.length) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['drivers'],
+        message: 'Isti vozač je unet više puta.',
+      });
+    }
+  });
 
 export type TripSettlementWriteInput = z.input<typeof tripSettlementWriteSchema>;
 export type TripSettlementWriteRequest = z.output<typeof tripSettlementWriteSchema>;

@@ -16,6 +16,7 @@ import {
   tripExpenseParamsSchema,
   tripExpenseWriteSchema,
   tripIdParamsSchema,
+  tripInvoiceWriteSchema,
   tripSettlementWriteSchema,
   tripStatsQuerySchema,
   tripWriteSchema,
@@ -68,6 +69,12 @@ tripRouter.get(
   '/:id/settlement',
   validateRequest({ params: tripIdParamsSchema }),
   asyncHandler(tripExpenseController.getTripSettlement),
+);
+
+tripRouter.patch(
+  '/:id/invoice',
+  validateRequest({ params: tripIdParamsSchema, body: tripInvoiceWriteSchema }),
+  asyncHandler(tripController.invoiceTrip),
 );
 
 tripRouter.patch(

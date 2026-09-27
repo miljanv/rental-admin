@@ -139,6 +139,9 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
       ? {
           paidAt: settlement.paidAt ?? '',
           carrierId: settlement.carrierId ?? '',
+          startKm: settlement.startKm ?? '',
+          endKm: settlement.endKm ?? '',
+          fuelLiters: settlement.fuelLiters ?? '',
           drivers: settlement.drivers.map((driver) => ({
             driverId: driver.id,
             perDiemAmount: driver.perDiemAmount,
@@ -148,6 +151,9 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
       : {
           paidAt: '',
           carrierId: '',
+          startKm: '',
+          endKm: '',
+          fuelLiters: '',
           drivers: [],
         },
   });
@@ -209,6 +215,48 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
         <CardContent>
           <form onSubmit={onSubmit} noValidate className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                id="startKm"
+                label="Početni km"
+                error={errors.startKm?.message as string | undefined}
+              >
+                <Input
+                  id="startKm"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.1"
+                  disabled={saveMutation.isPending}
+                  {...form.register('startKm', { valueAsNumber: true })}
+                />
+              </Field>
+              <Field
+                id="endKm"
+                label="Završni km"
+                error={errors.endKm?.message as string | undefined}
+              >
+                <Input
+                  id="endKm"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.1"
+                  disabled={saveMutation.isPending}
+                  {...form.register('endKm', { valueAsNumber: true })}
+                />
+              </Field>
+              <Field
+                id="fuelLiters"
+                label="Gorivo (l)"
+                error={errors.fuelLiters?.message as string | undefined}
+              >
+                <Input
+                  id="fuelLiters"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.1"
+                  disabled={saveMutation.isPending}
+                  {...form.register('fuelLiters', { valueAsNumber: true })}
+                />
+              </Field>
               <Field id="paidAt" label="Datum uplate" error={errors.paidAt?.message}>
                 <Controller
                   control={form.control}

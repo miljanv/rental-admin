@@ -3,12 +3,15 @@
 import {
   groupTripsByDepartureDate,
   PAYMENT_METHOD_LABELS,
+  TRIP_BILLING_STATUS_LABELS,
+  tripBillingStatus,
   tripVehicleCountLabel,
+  type TripBillingStatus,
   type TripDto,
 } from '@rental-admin/shared';
 import { MoreHorizontal, Pencil, Route, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 
 import { EmptyState } from '@/components/common/empty-state';
 import { TableSkeleton } from '@/components/common/table-skeleton';
@@ -29,12 +32,19 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { TripStatusBadge } from '@/features/trips/components/trip-status-badge';
+import { TripInvoiceSheet } from '@/features/trips/components/trip-invoice-sheet';
+import { TripSettlementSheet } from '@/features/trips/components/trip-settlement-sheet';
 import { tripClientDisplayName, tripLabel, tripRouteLabel } from '@/features/trips/lib/trip';
 import { formatDate, formatMoney, formatWeekdayDate, localTodayIso } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 const COLUMN_COUNT = 13;
+
+const BILLING_STATUS_CLASS: Record<TripBillingStatus, string> = {
+  UNINVOICED: 'bg-orange-500 text-white hover:bg-orange-600',
+  INVOICED: 'bg-red-600 text-white hover:bg-red-700',
+  PAID: 'bg-emerald-600 text-white hover:bg-emerald-700',
+};
 
 function TruncatedHint({
   items,
@@ -131,10 +141,16 @@ interface TripsTableProps {
 function TripRow({
   trip,
   onRequestDelete,
+  onInvoice,
+  onSettle,
 }: {
   trip: TripDto;
   onRequestDelete: (trip: TripDto) => void;
+  onInvoice: (trip: TripDto) => void;
+  onSettle: (trip: TripDto) => void;
 }) {
+  const billingStatus = tripBillingStatus(trip);
+
   return (
     <TableRow>
       <TableCell className="max-w-[140px]">
@@ -172,11 +188,31 @@ function TripRow({
       <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
         {trip.paymentMethod ? PAYMENT_METHOD_LABELS[trip.paymentMethod] : '—'}
       </TableCell>
-      <TableCell className="text-right text-sm whitespace-nowrap tabular-nums">
-        {trip.price != null ? formatMoney(trip.price) : '—'}
+      <TableCell className="text-right whitespace-nowrap">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={cn(
+            'h-7',
+            billingStatus === 'UNINVOICED' &&
+              'border-red-500 text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950',
+          )}
+          onClick={() => onInvoice(trip)}
+        >
+          {trip.price != null ? formatMoney(trip.price) : 'Fakturiši'}
+        </Button>
       </TableCell>
       <TableCell>
-        <TripStatusBadge status={trip.status} />
+        <Button
+          type="button"
+          size="sm"
+          className={cn('h-7 border-transparent', BILLING_STATUS_CLASS[billingStatus])}
+          aria-label={`Obračun, ${TRIP_BILLING_STATUS_LABELS[billingStatus]}`}
+          onClick={() => onSettle(trip)}
+        >
+          {TRIP_BILLING_STATUS_LABELS[billingStatus]}
+        </Button>
       </TableCell>
       <TableCell className="text-right">
         <DropdownMenu>
@@ -224,6 +260,8 @@ export function TripsTable({
   emptyAction,
 }: TripsTableProps) {
   const todayIso = localTodayIso();
+  const [invoiceTarget, setInvoiceTarget] = useState<TripDto | null>(null);
+  const [settlementTarget, setSettlementTarget] = useState<TripDto | null>(null);
 
   if (!isLoading && trips.length === 0) {
     return (
@@ -285,17 +323,45 @@ export function TripsTable({
                   </TableCell>
                 </TableRow>
                 {group.trips.map((trip) => (
-                  <TripRow key={trip.id} trip={trip} onRequestDelete={onRequestDelete} />
+                  <TripRow
+                    key={trip.id}
+                    trip={trip}
+                    onRequestDelete={onRequestDelete}
+                    onInvoice={setInvoiceTarget}
+                    onSettle={setSettlementTarget}
+                  />
                 ))}
               </Fragment>
             ))
           ) : (
             trips.map((trip) => (
-              <TripRow key={trip.id} trip={trip} onRequestDelete={onRequestDelete} />
+              <TripRow
+                key={trip.id}
+                trip={trip}
+                onRequestDelete={onRequestDelete}
+                onInvoice={setInvoiceTarget}
+                onSettle={setSettlementTarget}
+              />
             ))
           )}
         </TableBody>
       </Table>
+      <TripInvoiceSheet
+        trip={invoiceTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setInvoiceTarget(null);
+          }
+        }}
+      />
+      <TripSettlementSheet
+        trip={settlementTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSettlementTarget(null);
+          }
+        }}
+      />
     </TooltipProvider>
   );
 }

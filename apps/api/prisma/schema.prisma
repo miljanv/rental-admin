@@ -812,6 +812,16 @@ model Trip {
   seriesId        String?
   /// When the client actually paid for this trip. Null means completed but unpaid.
   paidAt          DateTime?      @db.Date
+  /// When an outgoing invoice was issued. Null means the trip is not invoiced yet.
+  invoicedAt      DateTime?      @db.Date
+  /// Odometer at the start of the job. Together with `endKm` it replaces a single distance guess.
+  startKm         Float?
+  endKm           Float?
+  /// Liters filled on this job. The money side stays on trip expenses.
+  fuelLiters      Float?
+  /// Departure / return datetimes and border crossings for the per-diem obračun.
+  /// Shape: { departureAt, returnAt, borderCrossings: [{ at, direction: OUT|IN }] }
+  travelTimeline  Json?
   /// Actual carrier on this trip (subcontractor / another brand), distinct from the client `partnerId`.
   carrierId       String?
   /// Planned number of buses on this job, even before specific plates are assigned

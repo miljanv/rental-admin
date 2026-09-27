@@ -150,10 +150,10 @@ function activityHint(activity: DriverMonthlyActivityDto | undefined): string {
   const monthLabel = formatMonthYear(activity.year, activity.month);
 
   if (activity.fuelLogCount === 0) {
-    return `${monthLabel} — nema točenja sa ovim vozačem`;
+    return `${monthLabel} — nema vožnji sa ovim vozačem`;
   }
 
-  return `${monthLabel} · ${activity.fuelLogCount} točenja`;
+  return `${monthLabel} · ${activity.fuelLogCount} vožnji`;
 }
 
 type QuickKind = 'contract' | 'ma' | 'absence';

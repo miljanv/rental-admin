@@ -141,6 +141,32 @@ export const tripWriteSchema = z
 export type TripWriteInput = z.input<typeof tripWriteSchema>;
 export type TripWriteRequest = z.output<typeof tripWriteSchema>;
 
+export const tripInvoiceWriteSchema = z.object({
+  referenceNumber: optionalText(60),
+  invoicedAt: isoDateSchema,
+  price: z.preprocess(
+    (value) => {
+      if (value === '' || value === undefined || value === null) {
+        return undefined;
+      }
+
+      if (typeof value === 'number' && Number.isNaN(value)) {
+        return undefined;
+      }
+
+      return value;
+    },
+    z
+      .number({ error: 'Cena je obavezna.' })
+      .positive('Cena mora biti veća od nule.')
+      .max(10_000_000, 'Cena nije ispravna.'),
+  ),
+  paymentMethod: paymentMethodSchema,
+});
+
+export type TripInvoiceWriteInput = z.input<typeof tripInvoiceWriteSchema>;
+export type TripInvoiceWriteRequest = z.output<typeof tripInvoiceWriteSchema>;
+
 export const TRIP_SORT_FIELDS = [
   'departureDate',
   'createdAt',

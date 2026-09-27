@@ -13,6 +13,32 @@ export const TRIP_STATUS_LABELS: Record<TripStatus, string> = {
   FREE: 'Gratis',
 };
 
+/** Customer billing state shown on the schedule. Operational `TripStatus` stays on the trip itself. */
+export const TRIP_BILLING_STATUSES = ['UNINVOICED', 'INVOICED', 'PAID'] as const;
+
+export type TripBillingStatus = (typeof TRIP_BILLING_STATUSES)[number];
+
+export const TRIP_BILLING_STATUS_LABELS: Record<TripBillingStatus, string> = {
+  UNINVOICED: 'Nije fakturisano',
+  INVOICED: 'Fakturisano',
+  PAID: 'Plaćeno',
+};
+
+export const tripBillingStatus = (trip: {
+  invoicedAt: string | null;
+  paidAt: string | null;
+}): TripBillingStatus => {
+  if (trip.paidAt) {
+    return 'PAID';
+  }
+
+  if (trip.invoicedAt) {
+    return 'INVOICED';
+  }
+
+  return 'UNINVOICED';
+};
+
 export const TRIP_SERIES_FREQUENCIES = ['DAILY', 'WEEKLY'] as const;
 
 export type TripSeriesFrequency = (typeof TRIP_SERIES_FREQUENCIES)[number];
@@ -117,6 +143,10 @@ export interface TripDto {
   carrierId: string | null;
   carrier: TripPartnerDto | null;
   paidAt: string | null;
+  invoicedAt: string | null;
+  startKm: number | null;
+  endKm: number | null;
+  fuelLiters: number | null;
   clientName: string | null;
   notes: string | null;
   price: number | null;

@@ -7,6 +7,7 @@ import type {
   TripDto,
   TripExpenseDto,
   TripExpenseWriteRequest,
+  TripInvoiceWriteRequest,
   TripSettlementDto,
   TripSettlementWriteRequest,
   TripStatsDto,
@@ -70,6 +71,12 @@ export const fetchTripSettlement = async (
   const response = await apiClient.get<ApiResponse<TripSettlementDto>>(`/trips/${tripId}/settlement`, {
     signal,
   });
+
+  return unwrap(response.data);
+};
+
+export const invoiceTrip = async (tripId: string, body: TripInvoiceWriteRequest): Promise<TripDto> => {
+  const response = await apiClient.patch<ApiResponse<TripDto>>(`/trips/${tripId}/invoice`, body);
 
   return unwrap(response.data);
 };

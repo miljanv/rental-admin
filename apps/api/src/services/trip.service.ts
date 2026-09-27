@@ -9,6 +9,7 @@ import {
   type TripDto,
   type TripSortField,
   type TripStatsDto,
+  type TripInvoiceWriteRequest,
   type TripStatsQueryRequest,
   type TripWriteRequest,
 } from '@rental-admin/shared';
@@ -118,7 +119,7 @@ const assertReferencesExist = async (input: TripWriteRequest): Promise<void> => 
   await assertDriversExist(input.driverIds);
 };
 
-const syncTripDrivers = async (
+export const syncTripDrivers = async (
   tx: Pick<typeof prisma, 'tripDriver'>,
   tripId: string,
   driverIds: string[],
@@ -150,24 +151,27 @@ const syncTripDrivers = async (
 };
 
 /**
- * Posts/updates/removes the trip's own INCOME row — only once it's actually
- * marked paid (`paidAt`), so Finance reflects real cash flow instead of every
- * planned-but-unpaid trip's full price.
+ * Posts the trip as an open customer receivable once it is invoiced.
+ * `paidAt` settles that row; until a bank-statement import exists, marking
+ * the trip paid is what closes it.
  */
 export const syncTripRevenue = async (trip: TripDto): Promise<void> => {
+  const isBooked = Boolean(trip.invoicedAt || trip.paidAt);
+
   await upsertOperationalIncome({
     sourceType: 'TRIP_REVENUE',
     sourceId: trip.id,
     category: 'CONTRACT',
-    amount: trip.paidAt ? trip.price : null,
+    amount: isBooked ? trip.price : null,
     paymentMethod: trip.paymentMethod,
-    occurredAt: trip.paidAt ?? trip.departureDate,
+    occurredAt: trip.paidAt ?? trip.invoicedAt ?? trip.departureDate,
     vehicleId: trip.vehicles[0]?.id ?? null,
     partner: tripClientDisplayName(trip) || null,
     route: tripRouteLabel(trip),
     note: trip.referenceNumber
       ? `Vožnja ${trip.referenceNumber}`
       : `Vožnja ${tripRouteLabel(trip)}`,
+    status: trip.paidAt ? 'SETTLED' : 'OPEN',
   });
 };
 
@@ -274,6 +278,27 @@ export const updateTrip = async (id: string, input: TripWriteRequest): Promise<T
   await syncTripRevenue(trip);
 
   logger.info('Trip updated', { tripId: id });
+
+  return trip;
+};
+
+export const invoiceTrip = async (id: string, input: TripInvoiceWriteRequest): Promise<TripDto> => {
+  await getTrip(id);
+
+  const record = await prisma.trip.update({
+    where: { id },
+    data: {
+      price: input.price,
+      paymentMethod: input.paymentMethod,
+      invoicedAt: parseDate(input.invoicedAt),
+      referenceNumber: input.referenceNumber,
+    },
+    include: tripInclude,
+  });
+
+  const trip = toTripDto(record);
+  await syncTripRevenue(trip);
+  logger.info('Trip invoiced', { tripId: id, referenceNumber: trip.referenceNumber });
 
   return trip;
 };

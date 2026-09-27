@@ -62,6 +62,9 @@ export interface TripExpenseCategoryTotal {
 export interface TripSettlementDto {
   tripId: string;
   paidAt: string | null;
+  startKm: number | null;
+  endKm: number | null;
+  fuelLiters: number | null;
   carrierId: string | null;
   carrier: TripPartnerDto | null;
   revenue: number;

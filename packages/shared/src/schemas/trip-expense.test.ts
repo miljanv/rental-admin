@@ -46,6 +46,24 @@ describe('tripSettlementWriteSchema', () => {
     expect(result.data?.carrierId).toBeNull();
   });
 
+  it('rejects an ending odometer below the start', () => {
+    const result = tripSettlementWriteSchema.safeParse({
+      startKm: 500,
+      endKm: 400,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('derives nothing and keeps empty odometer fields null', () => {
+    const result = tripSettlementWriteSchema.safeParse({ startKm: '', endKm: '', fuelLiters: '' });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.startKm).toBeNull();
+    expect(result.data?.endKm).toBeNull();
+    expect(result.data?.fuelLiters).toBeNull();
+  });
+
   it('accepts per-driver allowances', () => {
     const result = tripSettlementWriteSchema.safeParse({
       drivers: [{ driverId: 'drv_1', perDiemAmount: 8_000, advanceAmount: '' }],

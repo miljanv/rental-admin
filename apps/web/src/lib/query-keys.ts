@@ -89,6 +89,16 @@ export interface DriverWorkRecordsQueryParams {
   to?: string;
 }
 
+export interface DriverPerDiemsQueryParams {
+  from?: string;
+  to?: string;
+}
+
+export interface DriverStatisticsQueryParams {
+  from?: string;
+  to?: string;
+}
+
 export interface MaintenanceCostSummaryParams {
   vehicleId?: string;
   from?: string;
@@ -193,6 +203,10 @@ export const queryKeys = {
     statusOverview: (driverId: string) => ['drivers', driverId, 'status-overview'] as const,
     workRecords: (driverId: string, params?: DriverWorkRecordsQueryParams) =>
       ['drivers', driverId, 'work-records', params] as const,
+    perDiems: (driverId: string, params?: DriverPerDiemsQueryParams) =>
+      ['drivers', driverId, 'per-diems', params] as const,
+    statistics: (driverId: string, params?: DriverStatisticsQueryParams) =>
+      ['drivers', driverId, 'statistics', params] as const,
     expiring: (days: number) => ['drivers', 'expiring-documents', days] as const,
   },
   vehicles: {
