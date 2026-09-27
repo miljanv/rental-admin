@@ -185,13 +185,12 @@ function TripOverview({ trip }: { trip: TripDto }) {
           <CardHeader>
             <CardTitle>Deo je ponavljajuće serije</CardTitle>
             <CardDescription>
-              Ova vožnja je jedna od instanci serije. Izmene za sve buduće instance ili prekid
-              serije rade se sa stranice serije.
+              Relacija, vozila, vozači i cena menjaju se odjednom za sve dane.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button variant="outline" size="sm" asChild>
-              <Link href={`/trips/series/${trip.seriesId}`}>Upravljaj serijom</Link>
+              <Link href={`/trips/series/${trip.seriesId}`}>Izmeni celu seriju</Link>
             </Button>
           </CardContent>
         </Card>

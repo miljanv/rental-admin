@@ -161,6 +161,49 @@ export const bulkUpdateTripSeriesSchema = z
 export type BulkUpdateTripSeriesInput = z.input<typeof bulkUpdateTripSeriesSchema>;
 export type BulkUpdateTripSeriesRequest = z.output<typeof bulkUpdateTripSeriesSchema>;
 
+/** Overwrites the shared job details on every day of the series. Dates, invoices and settlement stay. */
+export const editTripSeriesSchema = z
+  .object({
+    name: optionalText(200),
+    origin: requiredText('Polazište', 150),
+    destination: requiredText('Odredište', 150),
+    country: optionalText(80),
+    passengerCount: optionalPositiveInt('Broj putnika', 500),
+    partnerId: optionalId,
+    clientName: optionalText(200),
+    notes: optionalText(2000),
+    price: optionalNonNegative('Cena', 10_000_000),
+    paymentMethod: optionalPaymentMethodSchema,
+    /** Same cash amount for each assigned driver, on every day. Null leaves existing amounts. */
+    driverPay: optionalNonNegative('Plaćeno vozaču', 1_000_000),
+    vehicleCount: z.preprocess((value) => {
+      if (value === '' || value === undefined || value === null) {
+        return 1;
+      }
+
+      if (typeof value === 'number' && Number.isNaN(value)) {
+        return 1;
+      }
+
+      return value;
+    }, z.number().int().min(1).max(MAX_TRIP_VEHICLES)),
+    vehicleIds: z
+      .array(vehicleIdSchema)
+      .max(MAX_TRIP_VEHICLES, `Najviše ${MAX_TRIP_VEHICLES} vozila po vožnji.`)
+      .default([]),
+    driverIds: z
+      .array(driverIdSchema)
+      .max(MAX_TRIP_DRIVERS, `Najviše ${MAX_TRIP_DRIVERS} vozača po vožnji.`)
+      .default([]),
+  })
+  .transform((value) => ({
+    ...value,
+    vehicleCount: Math.max(value.vehicleCount, value.vehicleIds.length, 1),
+  }));
+
+export type EditTripSeriesInput = z.input<typeof editTripSeriesSchema>;
+export type EditTripSeriesRequest = z.output<typeof editTripSeriesSchema>;
+
 /** Deletes every not-yet-happened trip in the series from `fromDate` onward and deactivates it. */
 export const terminateTripSeriesSchema = z.object({
   fromDate: isoDateSchema,

@@ -1,5 +1,6 @@
 import {
   bulkUpdateTripSeriesSchema,
+  editTripSeriesSchema,
   generateTripSeriesSchema,
   terminateTripSeriesSchema,
   tripSeriesIdParamsSchema,
@@ -7,6 +8,7 @@ import {
 
 export {
   bulkUpdateTripSeriesSchema,
+  editTripSeriesSchema,
   generateTripSeriesSchema,
   terminateTripSeriesSchema,
   tripSeriesIdParamsSchema,

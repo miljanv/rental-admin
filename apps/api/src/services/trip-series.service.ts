@@ -1,6 +1,8 @@
 import type {
   BulkUpdateTripSeriesRequest,
   BulkUpdateTripSeriesResult,
+  EditTripSeriesRequest,
+  EditTripSeriesResult,
   GenerateTripSeriesRequest,
   GenerateTripSeriesResult,
   TerminateTripSeriesRequest,
@@ -13,6 +15,7 @@ import { prisma } from '../config/prisma';
 import { badRequest, notFound } from '../utils/app-error';
 import { logger } from '../utils/logger';
 import { toTripDto, toTripSeriesDto, type TripRecord } from '../utils/trip-mapper';
+import { syncTripDriverPayouts } from './trip-expense.service';
 import { assertDriversExist, assertVehiclesExist, parseDate, tripInclude } from './trip.service';
 
 /** Safety cap on how many trips one generation call can create in a single transaction. */
@@ -272,6 +275,159 @@ export const bulkUpdateTripSeries = async (
   });
 
   return { updatedCount: tripIds.length };
+};
+
+const sameIds = (current: string[], next: string[]): boolean => {
+  if (current.length !== next.length) {
+    return false;
+  }
+
+  const left = [...current].sort();
+  const right = [...next].sort();
+
+  return left.every((id, index) => id === right[index]);
+};
+
+/** Writes the shared route, client, vehicles and drivers onto every day. Invoiced days keep their price. */
+export const editTripSeries = async (
+  seriesId: string,
+  input: EditTripSeriesRequest,
+): Promise<EditTripSeriesResult> => {
+  const series = await prisma.tripSeries.findUnique({ where: { id: seriesId } });
+
+  if (!series) {
+    throw notFound('Serija nije pronađena.');
+  }
+
+  if (input.partnerId) {
+    const partner = await prisma.partner.findUnique({
+      where: { id: input.partnerId },
+      select: { id: true },
+    });
+
+    if (!partner) {
+      throw badRequest('Izabrani partner ne postoji.');
+    }
+  }
+
+  await assertVehiclesExist(input.vehicleIds);
+  await assertDriversExist(input.driverIds);
+
+  const trips = await prisma.trip.findMany({
+    where: { seriesId },
+    select: {
+      id: true,
+      invoicedAt: true,
+      paidAt: true,
+      invoiceGroupId: true,
+      vehicles: { select: { vehicleId: true } },
+      drivers: { select: { driverId: true } },
+    },
+  });
+
+  if (trips.length === 0) {
+    throw badRequest('Serija nema vožnji za izmenu.');
+  }
+
+  const priceKeptIds = trips
+    .filter((trip) => trip.invoicedAt || trip.paidAt || trip.invoiceGroupId)
+    .map((trip) => trip.id);
+  const priceUpdateIds = trips
+    .filter((trip) => !priceKeptIds.includes(trip.id))
+    .map((trip) => trip.id);
+  let driversChanged = false;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.tripSeries.update({
+      where: { id: seriesId },
+      data: { name: input.name },
+    });
+
+    await tx.trip.updateMany({
+      where: { seriesId },
+      data: {
+        origin: input.origin,
+        destination: input.destination,
+        country: input.country,
+        passengerCount: input.passengerCount,
+        partnerId: input.partnerId,
+        clientName: input.clientName,
+        notes: input.notes,
+        vehicleCount: input.vehicleCount,
+      },
+    });
+
+    if (priceUpdateIds.length > 0) {
+      await tx.trip.updateMany({
+        where: { id: { in: priceUpdateIds } },
+        data: {
+          price: input.price,
+          paymentMethod: input.paymentMethod,
+        },
+      });
+    }
+
+    const vehicleTripIds = trips
+      .filter((trip) => !sameIds(trip.vehicles.map((row) => row.vehicleId), input.vehicleIds))
+      .map((trip) => trip.id);
+
+    if (vehicleTripIds.length > 0) {
+      await tx.tripVehicle.deleteMany({ where: { tripId: { in: vehicleTripIds } } });
+      const vehicleRows = vehicleTripIds.flatMap((tripId) =>
+        input.vehicleIds.map((vehicleId) => ({ tripId, vehicleId })),
+      );
+      if (vehicleRows.length > 0) {
+        await tx.tripVehicle.createMany({ data: vehicleRows });
+      }
+    }
+
+    const driverRemovals = trips.flatMap((trip) => {
+      const remove = trip.drivers
+        .map((row) => row.driverId)
+        .filter((driverId) => !input.driverIds.includes(driverId));
+
+      return remove.length > 0 ? [{ tripId: trip.id, driverId: { in: remove } }] : [];
+    });
+
+    if (driverRemovals.length > 0) {
+      await tx.tripDriver.deleteMany({ where: { OR: driverRemovals } });
+    }
+
+    const driverAdditions = trips.flatMap((trip) => {
+      const current = new Set(trip.drivers.map((row) => row.driverId));
+
+      return input.driverIds
+        .filter((driverId) => !current.has(driverId))
+        .map((driverId) => ({ tripId: trip.id, driverId }));
+    });
+
+    if (driverAdditions.length > 0) {
+      await tx.tripDriver.createMany({ data: driverAdditions });
+    }
+
+    if (input.driverPay != null) {
+      await tx.tripDriver.updateMany({
+        where: { tripId: { in: trips.map((trip) => trip.id) } },
+        data: { perDiemAmount: input.driverPay },
+      });
+    }
+
+    driversChanged = driverRemovals.length > 0 || driverAdditions.length > 0;
+  });
+
+  if (input.driverPay != null || driversChanged) {
+    for (const trip of trips) {
+      await syncTripDriverPayouts(trip.id);
+    }
+  }
+
+  logger.info('Trip series edited', {
+    seriesId,
+    count: trips.length,
+    priceKept: priceKeptIds.length,
+  });
+
+  return { updatedCount: trips.length, priceKeptCount: priceKeptIds.length };
 };
 
 export const terminateTripSeries = async (

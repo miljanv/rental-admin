@@ -7,6 +7,7 @@ import * as tripController from '../controllers/trip.controller';
 import { validateRequest } from '../middleware/validate-request';
 import {
   bulkUpdateTripSeriesSchema,
+  editTripSeriesSchema,
   generateTripSeriesSchema,
   terminateTripSeriesSchema,
   tripSeriesIdParamsSchema,
@@ -51,6 +52,12 @@ tripRouter.get(
   '/series/:id',
   validateRequest({ params: tripSeriesIdParamsSchema }),
   asyncHandler(tripSeriesController.getTripSeries),
+);
+
+tripRouter.patch(
+  '/series/:id',
+  validateRequest({ params: tripSeriesIdParamsSchema, body: editTripSeriesSchema }),
+  asyncHandler(tripSeriesController.editTripSeries),
 );
 
 tripRouter.patch(

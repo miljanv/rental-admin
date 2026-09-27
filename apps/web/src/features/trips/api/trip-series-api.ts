@@ -2,6 +2,8 @@ import type {
   ApiResponse,
   BulkUpdateTripSeriesRequest,
   BulkUpdateTripSeriesResult,
+  EditTripSeriesRequest,
+  EditTripSeriesResult,
   GenerateTripSeriesRequest,
   GenerateTripSeriesResult,
   TerminateTripSeriesRequest,
@@ -45,6 +47,18 @@ export const bulkUpdateTripSeries = async (
 ): Promise<BulkUpdateTripSeriesResult> => {
   const response = await apiClient.patch<ApiResponse<BulkUpdateTripSeriesResult>>(
     `/trips/series/${id}/bulk-update`,
+    body,
+  );
+
+  return unwrap(response.data);
+};
+
+export const editTripSeries = async (
+  id: string,
+  body: EditTripSeriesRequest,
+): Promise<EditTripSeriesResult> => {
+  const response = await apiClient.patch<ApiResponse<EditTripSeriesResult>>(
+    `/trips/series/${id}`,
     body,
   );
 

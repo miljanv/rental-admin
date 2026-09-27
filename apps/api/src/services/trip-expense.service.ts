@@ -112,7 +112,7 @@ const syncFinanceExpense = async (
  * Keyed by the TripDriver assignment's own id, not the driver's id, so two
  * trips with the same driver never collide.
  */
-const syncTripDriverPayouts = async (tripId: string): Promise<void> => {
+export const syncTripDriverPayouts = async (tripId: string): Promise<void> => {
   const trip = toTripDto(await loadTrip(tripId));
   const assignments = await prisma.tripDriver.findMany({
     where: { tripId },

@@ -195,6 +195,12 @@ export interface BulkUpdateTripSeriesResult {
   updatedCount: number;
 }
 
+export interface EditTripSeriesResult {
+  updatedCount: number;
+  /** Days that already have an invoice or a payment. Their price is left as recorded. */
+  priceKeptCount: number;
+}
+
 export interface TerminateTripSeriesResult {
   series: TripSeriesDto;
   deletedCount: number;

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { bulkUpdateTripSeriesSchema, generateTripSeriesSchema } from './trip-series';
+import {
+  bulkUpdateTripSeriesSchema,
+  editTripSeriesSchema,
+  generateTripSeriesSchema,
+} from './trip-series';
 
 const validSeries = {
   frequency: 'DAILY',
@@ -115,5 +119,59 @@ describe('bulkUpdateTripSeriesSchema', () => {
     });
 
     expect(result.success).toBe(true);
+  });
+});
+
+describe('editTripSeriesSchema', () => {
+  it('requires the route and applies the same vehicles to every day', () => {
+    const result = editTripSeriesSchema.safeParse({
+      origin: 'Čoka',
+      destination: 'OŠ Čoka',
+      country: 'Srbija',
+      price: 20000,
+      vehicleIds: ['vehicle_1'],
+      driverIds: [],
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.vehicleCount).toBe(1);
+      expect(result.data.country).toBe('Srbija');
+    }
+  });
+
+  it('keeps an empty driver payment as “do not change”', () => {
+    const result = editTripSeriesSchema.safeParse({
+      origin: 'Sakule',
+      destination: 'Baranda',
+      driverPay: '',
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.driverPay).toBeNull();
+    }
+  });
+
+  it('accepts one driver payment for every day', () => {
+    const result = editTripSeriesSchema.safeParse({
+      origin: 'Sakule',
+      destination: 'Baranda',
+      driverPay: 6000,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.driverPay).toBe(6000);
+    }
+  });
+
+  it('rejects a series edit without a destination', () => {
+    const result = editTripSeriesSchema.safeParse({
+      origin: 'Čoka',
+      destination: '',
+    });
+
+    expect(result.success).toBe(false);
   });
 });

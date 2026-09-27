@@ -9,7 +9,7 @@ import {
   type TripBillingStatus,
   type TripDto,
 } from '@rental-admin/shared';
-import { MoreHorizontal, Pencil, Route, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Pencil, Repeat, Route, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { Fragment, useState } from 'react';
 
@@ -152,12 +152,24 @@ function TripRow({
   const billingStatus = tripBillingStatus(trip);
 
   return (
-    <TableRow>
-      <TableCell className="max-w-[140px]">
-        <Link href={`/trips/${trip.id}`} className="hover:text-primary block truncate font-medium">
-          {trip.referenceNumber ?? 'Bez RN broja'}
-          {trip.seriesId ? <span className="text-muted-foreground text-xs"> · serija</span> : null}
-        </Link>
+    <TableRow className="group">
+      <TableCell className="sticky left-0 z-10 min-w-48 bg-background group-hover:bg-muted/50">
+        <div className="min-w-0">
+          <Link
+            href={`/trips/${trip.id}`}
+            className="hover:text-primary block truncate font-medium"
+          >
+            {trip.referenceNumber ?? 'Bez RN broja'}
+          </Link>
+          {trip.seriesId ? (
+            <Link
+              href={`/trips/series/${trip.seriesId}`}
+              className="text-primary block text-xs font-normal"
+            >
+              Izmeni seriju
+            </Link>
+          ) : null}
+        </div>
       </TableCell>
       <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
         {formatDate(trip.departureDate)}
@@ -214,24 +226,32 @@ function TripRow({
           {TRIP_BILLING_STATUS_LABELS[billingStatus]}
         </Button>
       </TableCell>
-      <TableCell className="text-right">
+      <TableCell className="sticky right-0 z-10 bg-background text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.35)] group-hover:bg-muted/50">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" aria-label={`Akcije za vožnju ${tripLabel(trip)}`}>
               <MoreHorizontal className="size-4" aria-hidden />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuItem asChild className="gap-2">
               <Link href={`/trips/${trip.id}`}>
                 <Route className="size-4" aria-hidden />
                 Detalji
               </Link>
             </DropdownMenuItem>
+            {trip.seriesId ? (
+              <DropdownMenuItem asChild className="gap-2">
+                <Link href={`/trips/series/${trip.seriesId}`}>
+                  <Repeat className="size-4" aria-hidden />
+                  Izmeni celu seriju
+                </Link>
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuItem asChild className="gap-2">
               <Link href={`/trips/${trip.id}/edit`}>
                 <Pencil className="size-4" aria-hidden />
-                Izmeni
+                {trip.seriesId ? 'Izmeni ovaj dan' : 'Izmeni'}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -286,7 +306,7 @@ export function TripsTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>RN broj</TableHead>
+            <TableHead className="sticky left-0 z-20 min-w-48 bg-background">RN broj</TableHead>
             <TableHead>Odlazak</TableHead>
             <TableHead>Zaključni dan</TableHead>
             <TableHead>Država</TableHead>
@@ -298,7 +318,9 @@ export function TripsTable({
             <TableHead>Način plaćanja</TableHead>
             <TableHead className="text-right">Cena</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead className="w-[60px] text-right">Akcije</TableHead>
+            <TableHead className="sticky right-0 z-20 w-16 bg-background text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.35)]">
+              Akcije
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

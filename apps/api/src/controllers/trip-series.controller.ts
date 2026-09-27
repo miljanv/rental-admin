@@ -1,5 +1,6 @@
 import type {
   BulkUpdateTripSeriesRequest,
+  EditTripSeriesRequest,
   GenerateTripSeriesRequest,
   TerminateTripSeriesRequest,
   TripSeriesIdParams,
@@ -28,6 +29,14 @@ export const bulkUpdateTripSeries = async (req: Request, res: Response): Promise
   const { id } = validated<TripSeriesIdParams>(req, 'params');
   const body = validated<BulkUpdateTripSeriesRequest>(req, 'body');
   const result = await tripSeriesService.bulkUpdateTripSeries(id, body);
+
+  sendSuccess(res, result);
+};
+
+export const editTripSeries = async (req: Request, res: Response): Promise<void> => {
+  const { id } = validated<TripSeriesIdParams>(req, 'params');
+  const body = validated<EditTripSeriesRequest>(req, 'body');
+  const result = await tripSeriesService.editTripSeries(id, body);
 
   sendSuccess(res, result);
 };

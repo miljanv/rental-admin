@@ -1,328 +1,29 @@
 'use client';
 
 import {
-  MAX_TRIP_DRIVERS,
-  MAX_TRIP_VEHICLES,
-  PAYMENT_METHOD_LABELS,
-  PAYMENT_METHODS,
   TRIP_SERIES_FREQUENCY_LABELS,
-  TRIP_STATUS_LABELS,
-  TRIP_STATUSES,
   WEEKDAY_LABELS,
-  type BulkUpdateTripSeriesRequest,
-  type PaymentMethod,
   type TripDto,
-  type TripStatus,
 } from '@rental-admin/shared';
 import { useState } from 'react';
 
 import { DateField } from '@/components/common/date-field';
 import { ErrorState } from '@/components/common/error-state';
-import { MultiSelectField } from '@/components/common/multi-select-field';
 import { PageHeader } from '@/components/common/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DeleteTripDialog } from '@/features/trips/components/delete-trip-dialog';
+import { TripSeriesEditForm } from '@/features/trips/components/trip-series-edit-form';
 import { TripsTable } from '@/features/trips/components/trips-table';
-import { useBulkUpdateTripSeries } from '@/features/trips/hooks/use-bulk-update-trip-series';
 import { useTerminateTripSeries } from '@/features/trips/hooks/use-terminate-trip-series';
 import { useTripSeries } from '@/features/trips/hooks/use-trip-series';
-import { useDrivers } from '@/features/drivers/hooks/use-drivers';
-import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
-import { vehicleSelectLabel } from '@/features/vehicles/lib/vehicle';
 import { formatDate } from '@/lib/format';
-
-const NONE = 'none';
 
 interface TripSeriesManagerProps {
   seriesId: string;
-}
-
-function BulkUpdateCard({ seriesId }: { seriesId: string }) {
-  const mutation = useBulkUpdateTripSeries(seriesId);
-  const vehiclesQuery = useVehicles({
-    page: 1,
-    limit: 100,
-    sortBy: 'licensePlate',
-    sortOrder: 'asc',
-  });
-  const driversQuery = useDrivers({ page: 1, limit: 100, sortBy: 'lastName', sortOrder: 'asc' });
-
-  const [fromDate, setFromDate] = useState('');
-  const [includeVehicles, setIncludeVehicles] = useState(false);
-  const [vehicleIds, setVehicleIds] = useState<string[]>([]);
-  const [includeVehicleCount, setIncludeVehicleCount] = useState(false);
-  const [vehicleCount, setVehicleCount] = useState('1');
-  const [includeDrivers, setIncludeDrivers] = useState(false);
-  const [driverIds, setDriverIds] = useState<string[]>([]);
-  const [includeStatus, setIncludeStatus] = useState(false);
-  const [status, setStatus] = useState<TripStatus>('PLANNED');
-  const [includePrice, setIncludePrice] = useState(false);
-  const [price, setPrice] = useState('');
-  const [includePaymentMethod, setIncludePaymentMethod] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | ''>('');
-
-  const vehicleOptions = (vehiclesQuery.data?.vehicles ?? []).map((vehicle) => ({
-    value: vehicle.id,
-    label: vehicleSelectLabel(vehicle),
-  }));
-  const driverOptions = (driversQuery.data?.drivers ?? []).map((driver) => ({
-    value: driver.id,
-    label: `${driver.firstName} ${driver.lastName}`,
-  }));
-
-  const hasSelection =
-    includeVehicles ||
-    includeVehicleCount ||
-    includeDrivers ||
-    includeStatus ||
-    includePrice ||
-    includePaymentMethod;
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-
-    if (!fromDate || !hasSelection) {
-      return;
-    }
-
-    const body: BulkUpdateTripSeriesRequest = { fromDate };
-
-    if (includeVehicles) {
-      body.vehicleIds = vehicleIds;
-    }
-    if (includeVehicleCount) {
-      const parsedCount = Number(vehicleCount);
-      body.vehicleCount = Number.isFinite(parsedCount) ? parsedCount : 1;
-    }
-    if (includeDrivers) {
-      body.driverIds = driverIds;
-    }
-    if (includeStatus) {
-      body.status = status;
-    }
-    if (includePrice) {
-      body.price = price === '' ? null : Number(price);
-    }
-    if (includePaymentMethod) {
-      body.paymentMethod = paymentMethod === '' ? null : paymentMethod;
-    }
-
-    await mutation.mutateAsync(body);
-  };
-
-  return (
-    <Card className="shadow-none">
-      <CardHeader>
-        <CardTitle>Izmena budućih instanci</CardTitle>
-        <CardDescription>
-          Menja samo vožnje iz ove serije čiji je datum polaska na ili posle izabranog datuma.
-          Označite samo polja koja želite da promenite — neoznačena polja ostaju nepromenjena.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={(event) => void handleSubmit(event)} className="space-y-4">
-          <div className="max-w-xs space-y-1.5">
-            <Label htmlFor="bulk-from-date">Od datuma</Label>
-            <DateField
-              id="bulk-from-date"
-              value={fromDate}
-              onChange={setFromDate}
-              disabled={mutation.isPending}
-            />
-          </div>
-
-          <div className="space-y-3 rounded-lg border p-4">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="include-vehicles"
-                checked={includeVehicles}
-                onCheckedChange={(checked) => setIncludeVehicles(checked === true)}
-                disabled={mutation.isPending}
-              />
-              <Label htmlFor="include-vehicles" className="font-normal">
-                Promeni vozila
-              </Label>
-            </div>
-            {includeVehicles ? (
-              <MultiSelectField
-                options={vehicleOptions}
-                selected={vehicleIds}
-                onChange={setVehicleIds}
-                disabled={mutation.isPending || vehiclesQuery.isPending}
-                emptyLabel="Nema unetih vozila."
-                maxSelected={MAX_TRIP_VEHICLES}
-              />
-            ) : null}
-          </div>
-
-          <div className="space-y-3 rounded-lg border p-4">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="include-vehicle-count"
-                checked={includeVehicleCount}
-                onCheckedChange={(checked) => setIncludeVehicleCount(checked === true)}
-                disabled={mutation.isPending}
-              />
-              <Label htmlFor="include-vehicle-count" className="font-normal">
-                Promeni broj vozila
-              </Label>
-            </div>
-            {includeVehicleCount ? (
-              <div className="max-w-xs space-y-1.5">
-                <Label htmlFor="bulk-vehicle-count">Broj vozila</Label>
-                <Input
-                  id="bulk-vehicle-count"
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={MAX_TRIP_VEHICLES}
-                  value={vehicleCount}
-                  onChange={(event) => setVehicleCount(event.target.value)}
-                  disabled={mutation.isPending}
-                />
-              </div>
-            ) : null}
-          </div>
-
-          <div className="space-y-3 rounded-lg border p-4">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="include-drivers"
-                checked={includeDrivers}
-                onCheckedChange={(checked) => setIncludeDrivers(checked === true)}
-                disabled={mutation.isPending}
-              />
-              <Label htmlFor="include-drivers" className="font-normal">
-                Promeni vozače
-              </Label>
-            </div>
-            {includeDrivers ? (
-              <MultiSelectField
-                options={driverOptions}
-                selected={driverIds}
-                onChange={setDriverIds}
-                disabled={mutation.isPending || driversQuery.isPending}
-                emptyLabel="Nema unetih vozača."
-                maxSelected={MAX_TRIP_DRIVERS}
-              />
-            ) : null}
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-3 rounded-lg border p-4">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="include-status"
-                  checked={includeStatus}
-                  onCheckedChange={(checked) => setIncludeStatus(checked === true)}
-                  disabled={mutation.isPending}
-                />
-                <Label htmlFor="include-status" className="font-normal">
-                  Status
-                </Label>
-              </div>
-              {includeStatus ? (
-                <Select
-                  value={status}
-                  onValueChange={(value) => setStatus(value as TripStatus)}
-                  disabled={mutation.isPending}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TRIP_STATUSES.map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {TRIP_STATUS_LABELS[value]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : null}
-            </div>
-
-            <div className="space-y-3 rounded-lg border p-4">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="include-price"
-                  checked={includePrice}
-                  onCheckedChange={(checked) => setIncludePrice(checked === true)}
-                  disabled={mutation.isPending}
-                />
-                <Label htmlFor="include-price" className="font-normal">
-                  Cena
-                </Label>
-              </div>
-              {includePrice ? (
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  value={price}
-                  onChange={(event) => setPrice(event.target.value)}
-                  disabled={mutation.isPending}
-                />
-              ) : null}
-            </div>
-
-            <div className="space-y-3 rounded-lg border p-4">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="include-payment-method"
-                  checked={includePaymentMethod}
-                  onCheckedChange={(checked) => setIncludePaymentMethod(checked === true)}
-                  disabled={mutation.isPending}
-                />
-                <Label htmlFor="include-payment-method" className="font-normal">
-                  Način plaćanja
-                </Label>
-              </div>
-              {includePaymentMethod ? (
-                <Select
-                  value={paymentMethod || NONE}
-                  onValueChange={(value) =>
-                    setPaymentMethod(value === NONE ? '' : (value as PaymentMethod))
-                  }
-                  disabled={mutation.isPending}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Nije uneto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>Nije uneto</SelectItem>
-                    {PAYMENT_METHODS.map((method) => (
-                      <SelectItem key={method} value={method}>
-                        {PAYMENT_METHOD_LABELS[method]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="flex justify-end">
-            <Button type="submit" disabled={mutation.isPending || !fromDate || !hasSelection}>
-              {mutation.isPending ? 'Izmena…' : 'Primeni izmenu'}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
-  );
 }
 
 function TerminateSeriesCard({ seriesId, isActive }: { seriesId: string; isActive: boolean }) {
@@ -453,6 +154,18 @@ export function TripSeriesManager({ seriesId }: TripSeriesManagerProps) {
       />
 
       <div className="space-y-6">
+        {trips[0] ? (
+          <TripSeriesEditForm
+            series={series}
+            trip={trips[trips.length - 1] ?? trips[0]}
+            dayCount={trips.length}
+            vehiclesDiffer={
+              new Set(trips.map((row) => row.vehicles.map((vehicle) => vehicle.id).join(',')))
+                .size > 1
+            }
+          />
+        ) : null}
+
         <Card className="shadow-none">
           <CardHeader>
             <CardTitle>Pravilo ponavljanja</CardTitle>
@@ -508,7 +221,6 @@ export function TripSeriesManager({ seriesId }: TripSeriesManagerProps) {
           </Card>
         ) : null}
 
-        {series.isActive ? <BulkUpdateCard seriesId={series.id} /> : null}
         <TerminateSeriesCard seriesId={series.id} isActive={series.isActive} />
 
         <Card className="shadow-none">
