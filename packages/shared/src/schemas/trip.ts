@@ -144,6 +144,8 @@ export type TripWriteRequest = z.output<typeof tripWriteSchema>;
 export const tripInvoiceWriteSchema = z.object({
   referenceNumber: optionalText(60),
   invoicedAt: isoDateSchema,
+  description: optionalText(2000),
+  /** Daily price when `billSeriesMonth` is set, otherwise the fare for this one trip. */
   price: z.preprocess(
     (value) => {
       if (value === '' || value === undefined || value === null) {
@@ -161,6 +163,11 @@ export const tripInvoiceWriteSchema = z.object({
       .positive('Cena mora biti veća od nule.')
       .max(10_000_000, 'Cena nije ispravna.'),
   ),
+  priceIncludesVat: z.boolean().default(false),
+  domesticKm: optionalNonNegative('Kilometri u Srbiji', 10_000_000),
+  totalKm: optionalNonNegative('Ukupni kilometri', 10_000_000),
+  /** Worker transport: price is per day, and every trip of this series in the departure month is one invoice. */
+  billSeriesMonth: z.boolean().default(false),
   paymentMethod: paymentMethodSchema,
 });
 

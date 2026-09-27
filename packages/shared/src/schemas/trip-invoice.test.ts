@@ -13,6 +13,9 @@ describe('tripInvoiceWriteSchema', () => {
 
     expect(result.success).toBe(true);
     expect(result.data?.referenceNumber).toBeNull();
+    expect(result.data?.priceIncludesVat).toBe(false);
+    expect(result.data?.billSeriesMonth).toBe(false);
+    expect(result.data?.description).toBeNull();
   });
 
   it('rejects an invoice without a price', () => {

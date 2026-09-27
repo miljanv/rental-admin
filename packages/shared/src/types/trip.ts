@@ -150,6 +150,17 @@ export interface TripDto {
   clientName: string | null;
   notes: string | null;
   price: number | null;
+  /** True when `price` was typed as a gross amount. Null on invoices saved before VAT existed. */
+  priceIncludesVat: boolean | null;
+  invoiceDescription: string | null;
+  invoiceDomesticKm: number | null;
+  invoiceTotalKm: number | null;
+  invoiceNetAmount: number | null;
+  invoiceVatAmount: number | null;
+  /** What the customer owes for this row. A series month posts one finance row for the sum. */
+  invoiceGrossAmount: number | null;
+  /** Set when this day belongs to one monthly series invoice. */
+  invoiceGroupId: string | null;
   paymentMethod: PaymentMethod | null;
   status: TripStatus;
   contractId: string | null;

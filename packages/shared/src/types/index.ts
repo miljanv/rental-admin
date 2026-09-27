@@ -21,6 +21,7 @@ export * from './tachograph-calibration';
 export * from './transaction';
 export * from './transaction-report';
 export * from './trip';
+export * from './trip-invoice-vat';
 export * from './trip-billing-document';
 export * from './trip-expense';
 export * from './trip-stats';

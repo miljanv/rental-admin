@@ -48,6 +48,14 @@ export interface TripRecord {
   clientName: string | null;
   notes: string | null;
   price: number | null;
+  priceIncludesVat: boolean | null;
+  invoiceDescription: string | null;
+  invoiceDomesticKm: number | null;
+  invoiceTotalKm: number | null;
+  invoiceNetAmount: number | null;
+  invoiceVatAmount: number | null;
+  invoiceGrossAmount: number | null;
+  invoiceGroupId: string | null;
   paymentMethod: PaymentMethod | null;
   status: TripStatus;
   contractId: string | null;
@@ -121,6 +129,14 @@ export const toTripDto = (record: TripRecord): TripDto => ({
   clientName: record.clientName,
   notes: record.notes,
   price: record.price,
+  priceIncludesVat: record.priceIncludesVat,
+  invoiceDescription: record.invoiceDescription,
+  invoiceDomesticKm: record.invoiceDomesticKm,
+  invoiceTotalKm: record.invoiceTotalKm,
+  invoiceNetAmount: record.invoiceNetAmount,
+  invoiceVatAmount: record.invoiceVatAmount,
+  invoiceGrossAmount: record.invoiceGrossAmount,
+  invoiceGroupId: record.invoiceGroupId,
   paymentMethod: record.paymentMethod,
   status: record.status,
   contractId: record.contractId,

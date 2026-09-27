@@ -1,15 +1,21 @@
 import {
   buildTripStats,
+  computeTransportVat,
   defaultTripStatsRange,
+  domesticKmShare,
+  invoiceMonthBounds,
+  isDomesticCountry,
+  seriesInvoiceGroupId,
   tripClientDisplayName,
   tripRouteLabel,
   type DeleteTripResult,
   type ListTripsQuery,
   type PaginationMeta,
+  type TransportVatResult,
   type TripDto,
+  type TripInvoiceWriteRequest,
   type TripSortField,
   type TripStatsDto,
-  type TripInvoiceWriteRequest,
   type TripStatsQueryRequest,
   type TripWriteRequest,
 } from '@rental-admin/shared';
@@ -155,25 +161,113 @@ export const syncTripDrivers = async (
  * `paidAt` settles that row; until a bank-statement import exists, marking
  * the trip paid is what closes it.
  */
+const invoiceNote = (trip: TripDto, extra?: string): string => {
+  const parts = [
+    trip.referenceNumber ? `Vožnja ${trip.referenceNumber}` : `Vožnja ${tripRouteLabel(trip)}`,
+    trip.invoiceDescription,
+    extra ?? null,
+  ].filter((part): part is string => Boolean(part));
+
+  return parts.join(' · ');
+};
+
 export const syncTripRevenue = async (trip: TripDto): Promise<void> => {
+  if (trip.invoiceGroupId) {
+    await deleteOperationalTransaction('TRIP_REVENUE', trip.id);
+    return;
+  }
+
   const isBooked = Boolean(trip.invoicedAt || trip.paidAt);
+  const amount = trip.invoiceGrossAmount ?? trip.price;
 
   await upsertOperationalIncome({
     sourceType: 'TRIP_REVENUE',
     sourceId: trip.id,
     category: 'CONTRACT',
-    amount: isBooked ? trip.price : null,
+    amount: isBooked ? amount : null,
     paymentMethod: trip.paymentMethod,
     occurredAt: trip.paidAt ?? trip.invoicedAt ?? trip.departureDate,
     vehicleId: trip.vehicles[0]?.id ?? null,
     partner: tripClientDisplayName(trip) || null,
     route: tripRouteLabel(trip),
-    note: trip.referenceNumber
-      ? `Vožnja ${trip.referenceNumber}`
-      : `Vožnja ${tripRouteLabel(trip)}`,
+    note: invoiceNote(trip),
     status: trip.paidAt ? 'SETTLED' : 'OPEN',
   });
 };
+
+const syncSeriesInvoiceRevenue = async (groupId: string): Promise<void> => {
+  const records = await prisma.trip.findMany({
+    where: { invoiceGroupId: groupId },
+    include: tripInclude,
+    orderBy: { departureDate: 'asc' },
+  });
+
+  if (records.length === 0) {
+    await deleteOperationalTransaction('TRIP_REVENUE', groupId);
+    return;
+  }
+
+  const trips = records.map((record: TripRecord) => toTripDto(record));
+  const head = trips[0];
+
+  if (!head) {
+    return;
+  }
+
+  const gross = Math.round(trips.reduce((sum, trip) => sum + (trip.invoiceGrossAmount ?? 0), 0) * 100) / 100;
+  const allPaid = trips.every((trip) => trip.paidAt);
+
+  await upsertOperationalIncome({
+    sourceType: 'TRIP_REVENUE',
+    sourceId: groupId,
+    category: 'CONTRACT',
+    amount: gross > 0 ? gross : null,
+    paymentMethod: head.paymentMethod,
+    occurredAt: head.paidAt ?? head.invoicedAt ?? head.departureDate,
+    vehicleId: head.vehicles[0]?.id ?? null,
+    partner: tripClientDisplayName(head) || null,
+    route: tripRouteLabel(head),
+    note: invoiceNote(head, `Serija, ${trips.length} dana`),
+    status: allPaid ? 'SETTLED' : 'OPEN',
+  });
+
+  await Promise.all(trips.map((trip) => deleteOperationalTransaction('TRIP_REVENUE', trip.id)));
+};
+
+const fareForInvoice = (
+  trip: TripDto,
+  input: TripInvoiceWriteRequest,
+): TransportVatResult => {
+  const domestic = isDomesticCountry(trip.country);
+  const share = domestic
+    ? 1
+    : domesticKmShare(input.domesticKm ?? Number.NaN, input.totalKm ?? Number.NaN);
+
+  if (share == null) {
+    throw badRequest('Za prevoz van Srbije unesite kilometre u Srbiji i ukupne kilometre. PDV ide samo na domaći deo.');
+  }
+
+  return computeTransportVat({
+    amount: input.price,
+    priceIncludesVat: input.priceIncludesVat,
+    domesticShare: share,
+  });
+};
+
+const invoiceColumns = (input: TripInvoiceWriteRequest, fare: TransportVatResult, groupId: string | null) => ({
+  price: fare.grossAmount,
+  paymentMethod: input.paymentMethod,
+  invoicedAt: parseDate(input.invoicedAt),
+  referenceNumber: input.referenceNumber,
+  invoiceDescription: input.description,
+  priceIncludesVat: input.priceIncludesVat,
+  invoiceDomesticKm: input.domesticKm,
+  invoiceTotalKm: input.totalKm,
+  invoiceNetAmount: fare.netAmount,
+  invoiceVatAmount: fare.vatAmount,
+  invoiceGrossAmount: fare.grossAmount,
+  invoiceGroupId: groupId,
+});
 
 const toWriteData = (input: TripWriteRequest) => ({
   referenceNumber: input.referenceNumber,
@@ -282,29 +376,94 @@ export const updateTrip = async (id: string, input: TripWriteRequest): Promise<T
   return trip;
 };
 
-export const invoiceTrip = async (id: string, input: TripInvoiceWriteRequest): Promise<TripDto> => {
-  await getTrip(id);
+const invoiceSeriesMonth = async (
+  trip: TripDto,
+  input: TripInvoiceWriteRequest,
+): Promise<TripDto> => {
+  if (!trip.seriesId) {
+    throw badRequest('Mesečna faktura važi samo za vožnju iz serije.');
+  }
 
-  const record = await prisma.trip.update({
-    where: { id },
-    data: {
-      price: input.price,
-      paymentMethod: input.paymentMethod,
-      invoicedAt: parseDate(input.invoicedAt),
-      referenceNumber: input.referenceNumber,
+  const bounds = invoiceMonthBounds(trip.departureDate);
+  const groupId = seriesInvoiceGroupId(trip.seriesId, trip.departureDate);
+  const dayFare = fareForInvoice(trip, input);
+  const records = await prisma.trip.findMany({
+    where: {
+      seriesId: trip.seriesId,
+      status: { notIn: ['CANCELLED', 'FREE'] },
+      paidAt: null,
+      departureDate: { gte: parseDate(bounds.from), lte: parseDate(bounds.to) },
     },
-    include: tripInclude,
+    select: { id: true },
   });
 
+  if (records.length === 0) {
+    throw badRequest('U tom mesecu nema neplaćenih vožnji ove serije.');
+  }
+
+  const monthFare = computeTransportVat({
+    amount: input.price * records.length,
+    priceIncludesVat: input.priceIncludesVat,
+    domesticShare: dayFare.domesticShare,
+  });
+
+  await prisma.trip.updateMany({
+    where: { id: { in: records.map((row) => row.id) } },
+    data: {
+      ...invoiceColumns(input, dayFare, groupId),
+      invoiceDescription: input.description
+        ? input.description
+        : `Prevoz radnika ${bounds.from} – ${bounds.to}, ${records.length} dana`,
+    },
+  });
+
+  await syncSeriesInvoiceRevenue(groupId);
+
+  const saved = await getTrip(trip.id);
+  logger.info('Series month invoiced', {
+    seriesId: trip.seriesId,
+    groupId,
+    days: records.length,
+    gross: monthFare.grossAmount,
+  });
+
+  return saved;
+};
+
+export const invoiceTrip = async (id: string, input: TripInvoiceWriteRequest): Promise<TripDto> => {
+  const current = await getTrip(id);
+  const previousGroupId = current.invoiceGroupId;
+
+  if (input.billSeriesMonth) {
+    const saved = await invoiceSeriesMonth(current, input);
+
+    if (previousGroupId && previousGroupId !== saved.invoiceGroupId) {
+      await syncSeriesInvoiceRevenue(previousGroupId);
+    }
+
+    return saved;
+  }
+
+  const fare = fareForInvoice(current, input);
+  const record = await prisma.trip.update({
+    where: { id },
+    data: invoiceColumns(input, fare, null),
+    include: tripInclude,
+  });
   const trip = toTripDto(record);
   await syncTripRevenue(trip);
-  logger.info('Trip invoiced', { tripId: id, referenceNumber: trip.referenceNumber });
+
+  if (previousGroupId) {
+    await syncSeriesInvoiceRevenue(previousGroupId);
+  }
+
+  logger.info('Trip invoiced', { tripId: id, referenceNumber: trip.referenceNumber, gross: fare.grossAmount });
 
   return trip;
 };
 
 export const deleteTrip = async (id: string): Promise<DeleteTripResult> => {
-  await getTrip(id);
+  const existing = await getTrip(id);
 
   const [expenses, tripDrivers] = await Promise.all([
     prisma.tripExpense.findMany({ where: { tripId: id }, select: { id: true, fileId: true } }),
@@ -325,6 +484,11 @@ export const deleteTrip = async (id: string): Promise<DeleteTripResult> => {
 
   // TripVehicle/TripDriver/TripExpense rows cascade automatically (onDelete: Cascade).
   await prisma.trip.delete({ where: { id } });
+
+  if (existing.invoiceGroupId) {
+    await syncSeriesInvoiceRevenue(existing.invoiceGroupId);
+  }
+
   logger.info('Trip deleted', { tripId: id });
 
   return { id, deleted: true };

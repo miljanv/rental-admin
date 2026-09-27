@@ -813,7 +813,19 @@ model Trip {
   /// When the client actually paid for this trip. Null means completed but unpaid.
   paidAt          DateTime?      @db.Date
   /// When an outgoing invoice was issued. Null means the trip is not invoiced yet.
-  invoicedAt      DateTime?      @db.Date
+  invoicedAt         DateTime? @db.Date
+  /// Free text printed with the invoice (route, period, what was carried).
+  invoiceDescription String?
+  /// Whether the typed fare already included 10% VAT on the domestic share.
+  priceIncludesVat   Boolean?
+  /// Kilometres driven in Serbia, used only to split VAT on a foreign job.
+  invoiceDomesticKm  Float?
+  invoiceTotalKm     Float?
+  invoiceNetAmount   Float?
+  invoiceVatAmount   Float?
+  invoiceGrossAmount Float?
+  /// Shared by every day of one monthly series invoice. Finance posts that id once.
+  invoiceGroupId     String?
   /// Odometer at the start of the job. Together with `endKm` it replaces a single distance guess.
   startKm         Float?
   endKm           Float?
@@ -846,6 +858,7 @@ model Trip {
   @@index([carrierId])
   @@index([contractId])
   @@index([seriesId])
+  @@index([invoiceGroupId])
   @@map("trips")
 }
 
