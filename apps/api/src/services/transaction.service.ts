@@ -449,9 +449,14 @@ export const upsertOperationalIncome = (input: OperationalExpenseInput): Promise
 export const deleteOperationalTransaction = async (
   sourceType: Exclude<TransactionSourceType, 'MANUAL'>,
   sourceId: string,
+  options?: { includeSettled?: boolean },
 ): Promise<void> => {
   await prisma.financeTransaction.deleteMany({
-    where: { sourceType, sourceId, status: { not: 'SETTLED' } },
+    where: {
+      sourceType,
+      sourceId,
+      ...(options?.includeSettled ? {} : { status: { not: 'SETTLED' as const } }),
+    },
   });
 };
 

@@ -1,11 +1,13 @@
-import type {
-  CompanyExpenseDto,
-  CompanyExpenseSummaryDto,
-  CompanyExpenseSummaryQuery,
-  CompanyExpenseSuppliersDto,
-  CompanyExpenseWriteRequest,
-  DeleteCompanyExpenseResult,
-  ListCompanyExpensesQuery,
+import {
+  companyExpenseFinanceCategory,
+  companyExpenseFinanceNote,
+  type CompanyExpenseDto,
+  type CompanyExpenseSummaryDto,
+  type CompanyExpenseSummaryQuery,
+  type CompanyExpenseSuppliersDto,
+  type CompanyExpenseWriteRequest,
+  type DeleteCompanyExpenseResult,
+  type ListCompanyExpensesQuery,
 } from '@rental-admin/shared';
 
 import { prisma } from '../config/prisma';
@@ -15,7 +17,7 @@ import {
   type CompanyExpenseRecord,
 } from '../utils/company-expense-mapper';
 import { logger } from '../utils/logger';
-import { deleteOperationalTransaction } from './transaction.service';
+import { deleteOperationalTransaction, upsertOperationalExpense } from './transaction.service';
 
 const parseDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`);
 
@@ -66,6 +68,23 @@ const expenseListWhere = (query: ListCompanyExpensesQuery | CompanyExpenseSummar
       }
     : {}),
 });
+
+const syncCompanyExpenseFinance = async (record: CompanyExpenseRecord): Promise<void> => {
+  const expense = toCompanyExpenseDto(record);
+
+  await upsertOperationalExpense({
+    sourceType: 'COMPANY_EXPENSE',
+    sourceId: expense.id,
+    category: companyExpenseFinanceCategory(expense.description),
+    amount: expense.amountWithVat,
+    paymentMethod: expense.paymentMethod,
+    occurredAt: expense.issuedAt,
+    vehicleId: expense.vehicleId,
+    supplier: expense.supplier,
+    note: companyExpenseFinanceNote(expense),
+    status: 'SETTLED',
+  });
+};
 
 const bumpVehicleMileage = async (
   vehicleId: string | null,
@@ -122,6 +141,7 @@ export const createCompanyExpense = async (
   });
 
   await bumpVehicleMileage(input.vehicleId, input.odometerKm);
+  await syncCompanyExpenseFinance(record);
 
   logger.info('Company expense created', { expenseId: record.id, vehicleId: record.vehicleId });
 
@@ -147,7 +167,7 @@ export const updateCompanyExpense = async (
   });
 
   await bumpVehicleMileage(input.vehicleId, input.odometerKm);
-  await deleteOperationalTransaction('COMPANY_EXPENSE', record.id);
+  await syncCompanyExpenseFinance(record);
 
   logger.info('Company expense updated', { expenseId, vehicleId: record.vehicleId });
 
@@ -163,7 +183,7 @@ export const deleteCompanyExpense = async (
     throw notFound('Trošak nije pronađen.');
   }
 
-  await deleteOperationalTransaction('COMPANY_EXPENSE', expenseId);
+  await deleteOperationalTransaction('COMPANY_EXPENSE', expenseId, { includeSettled: true });
   await prisma.companyExpense.delete({ where: { id: expenseId } });
   logger.info('Company expense deleted', { expenseId, vehicleId: existing.vehicleId });
 
@@ -205,6 +225,20 @@ export const getCompanyExpenseSummary = async (
       count: 0,
     },
   );
+};
+
+export const syncAllCompanyExpensesToFinance = async (): Promise<{ count: number; total: number }> => {
+  const records = await prisma.companyExpense.findMany({ include: companyExpenseInclude });
+  let total = 0;
+
+  for (const record of records) {
+    await syncCompanyExpenseFinance(record);
+    total += record.amountWithVat;
+  }
+
+  logger.info('Company expenses posted to finance', { count: records.length, total });
+
+  return { count: records.length, total: Math.round(total * 100) / 100 };
 };
 
 export const listCompanyExpenseSuppliers = async (): Promise<CompanyExpenseSuppliersDto> => {

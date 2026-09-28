@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { inferCompanyExpenseVatRate, splitCompanyExpenseAmount } from './company-expense';
+import {
+  companyExpenseFinanceCategory,
+  companyExpenseFinanceNote,
+  inferCompanyExpenseVatRate,
+  splitCompanyExpenseAmount,
+} from './company-expense';
 
 describe('splitCompanyExpenseAmount', () => {
   it('keeps the entered total and splits 20% VAT', () => {
@@ -25,6 +30,30 @@ describe('splitCompanyExpenseAmount', () => {
       vatAmount: 0,
       amountWithVat: 8_000,
     });
+  });
+});
+
+describe('companyExpenseFinanceCategory', () => {
+  it('sorts vehicle invoices into the finance categories', () => {
+    expect(companyExpenseFinanceCategory('SOFTVER ZA TAHOGRAF')).toBe('TACHOGRAPH');
+    expect(companyExpenseFinanceCategory('PP APARATI - servis')).toBe('FIRE_EXTINGUISHER');
+    expect(companyExpenseFinanceCategory('TEHNIČKI PREGLED MESEČNI')).toBe('TECHNICAL_INSPECTION');
+    expect(companyExpenseFinanceCategory('GUME KOMPLET, 4 x Michelin')).toBe('PARTS');
+    expect(companyExpenseFinanceCategory('USLUGA MONTAZE GUMA')).toBe('PARTS');
+    expect(companyExpenseFinanceCategory('PLOČICE, FILTERI, SENZOR')).toBe('PARTS');
+    expect(companyExpenseFinanceCategory('KAZNA NS 882-RT')).toBe('OTHER');
+  });
+});
+
+describe('companyExpenseFinanceNote', () => {
+  it('keeps the invoice number in front of the description', () => {
+    expect(
+      companyExpenseFinanceNote({
+        invoiceNumber: '12-2026',
+        description: 'Gume komplet',
+      }),
+    ).toBe('12-2026 — Gume komplet');
+    expect(companyExpenseFinanceNote({ invoiceNumber: null, description: ' Kazna ' })).toBe('Kazna');
   });
 });
 

@@ -1,4 +1,4 @@
-import type { PaymentMethod } from './transaction';
+import type { PaymentMethod, TransactionCategory } from './transaction';
 
 export interface CompanyExpenseVehicleDto {
   id: string;
@@ -70,6 +70,69 @@ export const splitCompanyExpenseAmount = (
   const vatAmount = roundMoney(amountWithVat - amountWithoutVat);
 
   return { amountWithoutVat, vatAmount, amountWithVat };
+};
+
+const includesAny = (text: string, needles: readonly string[]): boolean =>
+  needles.some((needle) => text.includes(needle));
+
+/**
+ * Finance category for an invoice already recorded under Troškovi.
+ * The description is what the operator typed; there is no separate category field.
+ */
+export const companyExpenseFinanceCategory = (description: string): TransactionCategory => {
+  const text = description.toLocaleLowerCase('sr-Latn');
+
+  if (includesAny(text, ['pp aparat', 'protivpožar', 'protivpozar'])) {
+    return 'FIRE_EXTINGUISHER';
+  }
+
+  if (includesAny(text, ['tahograf'])) {
+    return 'TACHOGRAPH';
+  }
+
+  if (includesAny(text, ['tehnički pregled', 'tehnicki pregled'])) {
+    return 'TECHNICAL_INSPECTION';
+  }
+
+  if (includesAny(text, ['gorivo', 'dizel', 'benzin', 'točenje', 'tocenje'])) {
+    return 'FUEL';
+  }
+
+  if (
+    includesAny(text, [
+      'guma',
+      'gum',
+      'koč',
+      'koc',
+      'kloc',
+      'pločic',
+      'plocic',
+      'filter',
+      'pumpa',
+      'crevo',
+      'prsluk',
+      'brezon',
+      'matic',
+      'osovin',
+      'senzor',
+      'čeljust',
+      'celjust',
+      'montaž',
+      'montaz',
+    ])
+  ) {
+    return 'PARTS';
+  }
+
+  return 'OTHER';
+};
+
+export const companyExpenseFinanceNote = (
+  expense: Pick<CompanyExpenseDto, 'invoiceNumber' | 'description'>,
+): string => {
+  const description = expense.description.trim();
+
+  return expense.invoiceNumber ? `${expense.invoiceNumber} — ${description}` : description;
 };
 
 export const inferCompanyExpenseVatRate = (
