@@ -137,7 +137,7 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
 
   return (
     <Sheet open={trip != null} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+      <SheetContent className="w-full overflow-y-auto data-[side=right]:sm:max-w-3xl">
         <SheetHeader>
           <SheetTitle>Fakturisanje</SheetTitle>
           <SheetDescription>
@@ -166,13 +166,13 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
           </Field>
           <Field
             id="invoice-description"
-            label="Opis"
+            label="Napomena"
             error={errors.description?.message}
           >
             <Textarea
               id="invoice-description"
               rows={3}
-              placeholder="Šta se fakturiše: relacija, period, putnici."
+              placeholder="Detalji fakture: relacija, kilometri, period, vozila."
               disabled={invoiceMutation.isPending}
               {...form.register('description')}
             />
@@ -199,68 +199,104 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
             />
           ) : null}
 
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium">
-              {billSeriesMonth ? 'Cena u zemlji, po danu' : 'Cena u zemlji'}
-            </legend>
-            <Controller
-              control={form.control}
-              name="priceIncludesVat"
-              render={({ field }) => (
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={field.value ? 'outline' : 'default'}
-                    onClick={() => field.onChange(false)}
-                  >
-                    Bez PDV-a
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={field.value ? 'default' : 'outline'}
-                    onClick={() => field.onChange(true)}
-                  >
-                    Sa PDV-om
-                  </Button>
-                </div>
-              )}
-            />
-            <Field
-              id="invoice-domestic-price"
-              label="Iznos (RSD)"
-              error={errors.domesticPrice?.message as string | undefined}
-            >
+          <div className="grid grid-cols-3 items-start gap-2">
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <Label htmlFor="invoice-domestic-price" className="leading-tight">
+                Cena u zemlji
+              </Label>
               <Input
                 id="invoice-domestic-price"
                 type="number"
                 inputMode="decimal"
                 step="0.01"
+                className="min-w-0"
                 disabled={invoiceMutation.isPending}
+                aria-invalid={Boolean(errors.domesticPrice)}
                 {...form.register('domesticPrice', { valueAsNumber: true })}
               />
-            </Field>
-          </fieldset>
+              <Controller
+                control={form.control}
+                name="priceIncludesVat"
+                render={({ field }) => (
+                  <div className="grid grid-cols-1 gap-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={field.value ? 'outline' : 'default'}
+                      className="h-7 w-full shrink px-1 text-xs"
+                      onClick={() => field.onChange(false)}
+                    >
+                      Bez PDV-a
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={field.value ? 'default' : 'outline'}
+                      className="h-7 w-full shrink px-1 text-xs"
+                      onClick={() => field.onChange(true)}
+                    >
+                      Sa PDV-om
+                    </Button>
+                  </div>
+                )}
+              />
+              {unitFare ? (
+                <p className="text-muted-foreground text-xs leading-tight">
+                  Sa PDV-om: {formatMoney(unitFare.domesticGross)}
+                </p>
+              ) : null}
+              {errors.domesticPrice?.message ? (
+                <p className="text-destructive text-xs">{errors.domesticPrice.message as string}</p>
+              ) : null}
+            </div>
 
-          <Field
-            id="invoice-foreign-price"
-            label={
-              billSeriesMonth
-                ? 'Cena u inostranstvu, po danu (RSD, bez PDV-a)'
-                : 'Cena u inostranstvu (RSD, bez PDV-a)'
-            }
-            error={errors.foreignPrice?.message as string | undefined}
-          >
-            <Input
-              id="invoice-foreign-price"
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              disabled={invoiceMutation.isPending}
-              {...form.register('foreignPrice', { valueAsNumber: true })}
-            />
-          </Field>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <Label htmlFor="invoice-foreign-price" className="leading-tight">
+                Cena u inostranstvu
+              </Label>
+              <Input
+                id="invoice-foreign-price"
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                className="min-w-0"
+                disabled={invoiceMutation.isPending}
+                aria-invalid={Boolean(errors.foreignPrice)}
+                {...form.register('foreignPrice', { valueAsNumber: true })}
+              />
+              <p className="text-muted-foreground text-xs leading-tight">Uvek bez PDV-a</p>
+              {errors.foreignPrice?.message ? (
+                <p className="text-destructive text-xs">{errors.foreignPrice.message as string}</p>
+              ) : null}
+            </div>
+
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <Label htmlFor="invoice-total" className="leading-tight">
+                Ukupno
+              </Label>
+              <div
+                id="invoice-total"
+                className="border-input bg-muted flex h-8 min-w-0 items-center rounded-lg border px-2 text-sm font-medium"
+              >
+                {unitFare ? formatMoney(unitFare.grossAmount) : '—'}
+              </div>
+              <p className="text-muted-foreground text-xs leading-tight">Zbir te dve cene</p>
+              {billSeriesMonth && dayCount > 0 ? (
+                <p className="text-muted-foreground text-xs">{dayCount} dana</p>
+              ) : null}
+            </div>
+          </div>
+
+          {unitFare ? (
+            <p className="text-muted-foreground text-xs">
+              PDV {TRANSPORT_VAT_RATE}% na zemlju: {formatMoney(unitFare.vatAmount)}. Ukupno je zemlja
+              sa PDV-om ({formatMoney(unitFare.domesticGross)}) + inostranstvo (
+              {formatMoney(unitFare.foreignNet)}).
+              {billSeriesMonth && preview && dayCount > 1
+                ? ` Za ${dayCount} dana: ${formatMoney(preview.grossAmount)}.`
+                : ''}
+            </p>
+          ) : null}
 
           <Controller
             control={form.control}
@@ -286,22 +322,10 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
           {billSeriesMonth && seriesQuery.isPending ? (
             <p className="text-muted-foreground text-sm">Brojanje vožnji u mesecu…</p>
           ) : null}
-
-          {preview ? (
-            <div className="bg-muted/50 space-y-1 rounded-lg px-3 py-2 text-sm">
-              {billSeriesMonth ? <p>{dayCount} dana</p> : null}
-              <p>Zemlja sa PDV-om: {formatMoney(preview.domesticGross)}</p>
-              <p>
-                PDV {TRANSPORT_VAT_RATE}%: {formatMoney(preview.vatAmount)}
-              </p>
-              <p>Inostranstvo bez PDV-a: {formatMoney(preview.foreignNet)}</p>
-              <p className="font-medium">Ukupno: {formatMoney(preview.grossAmount)}</p>
-              {billSeriesMonth ? (
-                <p className="text-muted-foreground text-xs">
-                  U finansijama je jedan račun za ceo mesec. Na rasporedu svaki dan pokazuje iznos tog dana.
-                </p>
-              ) : null}
-            </div>
+          {billSeriesMonth && !seriesQuery.isPending ? (
+            <p className="text-muted-foreground text-xs">
+              U finansijama je jedan račun za ceo mesec. Na rasporedu svaki dan pokazuje iznos tog dana.
+            </p>
           ) : null}
 
           <SheetFooter className="px-0">
