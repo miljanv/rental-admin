@@ -5,10 +5,9 @@ import {
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
   TRANSPORT_VAT_RATE,
-  computeTransportVat,
-  domesticKmShare,
+  computeSplitTransportFare,
   invoiceMonthBounds,
-  isDomesticCountry,
+  scaleTransportFare,
   tripInvoiceWriteSchema,
   tripRouteLabel,
   type TripDto,
@@ -64,7 +63,11 @@ function Field({ id, label, error, children }: FieldProps) {
   );
 }
 
-const enteredPrice = (trip: TripDto): number | '' => {
+const enteredDomestic = (trip: TripDto): number | '' => {
+  if (trip.invoiceDomesticAmount != null) {
+    return trip.invoiceDomesticAmount;
+  }
+
   if (trip.priceIncludesVat == null && trip.invoiceNetAmount == null) {
     return trip.price ?? '';
   }
@@ -74,7 +77,6 @@ const enteredPrice = (trip: TripDto): number | '' => {
 
 export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) {
   const invoiceMutation = useInvoiceTrip(trip?.id ?? '');
-  const domestic = trip ? isDomesticCountry(trip.country) : true;
   const month = trip ? invoiceMonthBounds(trip.departureDate) : null;
   const form = useForm<TripInvoiceWriteInput, unknown, TripInvoiceWriteRequest>({
     resolver: zodResolver(tripInvoiceWriteSchema),
@@ -82,10 +84,9 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
       referenceNumber: trip?.referenceNumber ?? '',
       invoicedAt: trip?.invoicedAt ?? localTodayIso(),
       description: trip?.invoiceDescription ?? '',
-      price: trip ? enteredPrice(trip) : '',
+      domesticPrice: trip ? enteredDomestic(trip) : '',
+      foreignPrice: trip?.invoiceForeignAmount ?? '',
       priceIncludesVat: trip?.priceIncludesVat ?? false,
-      domesticKm: trip?.invoiceDomesticKm ?? '',
-      totalKm: trip?.invoiceTotalKm ?? '',
       billSeriesMonth: Boolean(trip?.seriesId),
       paymentMethod: trip?.paymentMethod ?? 'ACCOUNT',
     },
@@ -93,9 +94,8 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
 
   const billSeriesMonth = useWatch({ control: form.control, name: 'billSeriesMonth' });
   const priceIncludesVat = useWatch({ control: form.control, name: 'priceIncludesVat' });
-  const price = useWatch({ control: form.control, name: 'price' });
-  const domesticKm = useWatch({ control: form.control, name: 'domesticKm' });
-  const totalKm = useWatch({ control: form.control, name: 'totalKm' });
+  const domesticPrice = useWatch({ control: form.control, name: 'domesticPrice' });
+  const foreignPrice = useWatch({ control: form.control, name: 'foreignPrice' });
   const seriesQuery = useTrips(
     {
       page: 1,
@@ -112,25 +112,18 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
     seriesQuery.data?.trips.filter((row) => row.status !== 'CANCELLED' && row.status !== 'FREE' && !row.paidAt)
       .length ?? 0;
   const dayCount = billSeriesMonth ? seriesDays : 1;
-  const typedAmount = typeof price === 'number' ? price : Number.NaN;
-  const share = domestic ? 1 : domesticKmShare(Number(domesticKm), Number(totalKm));
+  const typedDomestic = typeof domesticPrice === 'number' ? domesticPrice : 0;
+  const typedForeign = typeof foreignPrice === 'number' ? foreignPrice : 0;
   const unitFare =
-    share != null && Number.isFinite(typedAmount) && typedAmount > 0
-      ? computeTransportVat({
-          amount: typedAmount,
-          priceIncludesVat: Boolean(priceIncludesVat),
-          domesticShare: share,
+    (Number.isFinite(typedDomestic) && typedDomestic > 0) ||
+    (Number.isFinite(typedForeign) && typedForeign > 0)
+      ? computeSplitTransportFare({
+          domesticAmount: Number.isFinite(typedDomestic) ? typedDomestic : 0,
+          domesticIncludesVat: Boolean(priceIncludesVat),
+          foreignAmount: Number.isFinite(typedForeign) ? typedForeign : 0,
         })
       : null;
-  const preview =
-    unitFare && dayCount > 0
-      ? {
-          netAmount: Math.round(unitFare.netAmount * dayCount * 100) / 100,
-          vatBase: Math.round(unitFare.vatBase * dayCount * 100) / 100,
-          vatAmount: Math.round(unitFare.vatAmount * dayCount * 100) / 100,
-          grossAmount: Math.round(unitFare.grossAmount * dayCount * 100) / 100,
-        }
-      : null;
+  const preview = unitFare && dayCount > 0 ? scaleTransportFare(unitFare, dayCount) : null;
   const errors = form.formState.errors;
 
   const onSubmit = form.handleSubmit(async (values) => {
@@ -148,8 +141,8 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
         <SheetHeader>
           <SheetTitle>Fakturisanje</SheetTitle>
           <SheetDescription>
-            {trip ? tripRouteLabel(trip) : 'Vožnja'}. PDV je {TRANSPORT_VAT_RATE}% i ide samo na
-            kilometre u Srbiji. U finansije ide iznos za naplatu.
+            {trip ? tripRouteLabel(trip) : 'Vožnja'}. PDV {TRANSPORT_VAT_RATE}% ide samo na cenu u
+            zemlji. Cena u inostranstvu je uvek bez PDV-a. Ukupno je zbir ta dva.
           </SheetDescription>
         </SheetHeader>
 
@@ -198,8 +191,8 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
                   />
                   <span>
                     Prevoz radnika: fakturiši ceo mesec
-                    {month ? ` (${formatMonthYear(month.year, month.month)})` : ''}. Cena je iznos po
-                    danu, broj dana je broj vožnji serije u tom mesecu.
+                    {month ? ` (${formatMonthYear(month.year, month.month)})` : ''}. Obe cene su iznos
+                    po danu.
                   </span>
                 </label>
               )}
@@ -207,7 +200,9 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
           ) : null}
 
           <fieldset className="space-y-2">
-            <legend className="text-sm font-medium">Cena je</legend>
+            <legend className="text-sm font-medium">
+              {billSeriesMonth ? 'Cena u zemlji, po danu' : 'Cena u zemlji'}
+            </legend>
             <Controller
               control={form.control}
               name="priceIncludesVat"
@@ -232,64 +227,40 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
                 </div>
               )}
             />
+            <Field
+              id="invoice-domestic-price"
+              label="Iznos (RSD)"
+              error={errors.domesticPrice?.message as string | undefined}
+            >
+              <Input
+                id="invoice-domestic-price"
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                disabled={invoiceMutation.isPending}
+                {...form.register('domesticPrice', { valueAsNumber: true })}
+              />
+            </Field>
           </fieldset>
 
           <Field
-            id="invoice-price"
-            label={billSeriesMonth ? 'Cena po danu (RSD)' : 'Cena (RSD)'}
-            error={errors.price?.message as string | undefined}
+            id="invoice-foreign-price"
+            label={
+              billSeriesMonth
+                ? 'Cena u inostranstvu, po danu (RSD, bez PDV-a)'
+                : 'Cena u inostranstvu (RSD, bez PDV-a)'
+            }
+            error={errors.foreignPrice?.message as string | undefined}
           >
             <Input
-              id="invoice-price"
+              id="invoice-foreign-price"
               type="number"
               inputMode="decimal"
               step="0.01"
               disabled={invoiceMutation.isPending}
-              {...form.register('price', { valueAsNumber: true })}
+              {...form.register('foreignPrice', { valueAsNumber: true })}
             />
           </Field>
-
-          {domestic ? (
-            <p className="text-muted-foreground text-xs">
-              {trip?.country
-                ? 'Država je Srbija, pa se PDV računa na celu cenu.'
-                : 'Država nije uneta, pa se prevoz računa kao domaći i PDV ide na celu cenu.'}
-            </p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field
-                id="invoice-domestic-km"
-                label="Km u Srbiji"
-                error={errors.domesticKm?.message as string | undefined}
-              >
-                <Input
-                  id="invoice-domestic-km"
-                  type="number"
-                  inputMode="decimal"
-                  step="0.1"
-                  disabled={invoiceMutation.isPending}
-                  {...form.register('domesticKm', { valueAsNumber: true })}
-                />
-              </Field>
-              <Field
-                id="invoice-total-km"
-                label="Km ukupno"
-                error={errors.totalKm?.message as string | undefined}
-              >
-                <Input
-                  id="invoice-total-km"
-                  type="number"
-                  inputMode="decimal"
-                  step="0.1"
-                  disabled={invoiceMutation.isPending}
-                  {...form.register('totalKm', { valueAsNumber: true })}
-                />
-              </Field>
-              <p className="text-muted-foreground text-xs sm:col-span-2">
-                Inostrani kilometri ostaju bez PDV-a. Oporezuje se samo udeo kilometara u Srbiji.
-              </p>
-            </div>
-          )}
 
           <Controller
             control={form.control}
@@ -318,16 +289,13 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
 
           {preview ? (
             <div className="bg-muted/50 space-y-1 rounded-lg px-3 py-2 text-sm">
-              {billSeriesMonth ? (
-                <p>
-                  {dayCount} dana × {formatMoney(typedAmount)}
-                </p>
-              ) : null}
-              <p>Osnovica: {formatMoney(preview.netAmount)}</p>
+              {billSeriesMonth ? <p>{dayCount} dana</p> : null}
+              <p>Zemlja sa PDV-om: {formatMoney(preview.domesticGross)}</p>
               <p>
-                PDV {TRANSPORT_VAT_RATE}% na {formatMoney(preview.vatBase)}: {formatMoney(preview.vatAmount)}
+                PDV {TRANSPORT_VAT_RATE}%: {formatMoney(preview.vatAmount)}
               </p>
-              <p className="font-medium">Za naplatu: {formatMoney(preview.grossAmount)}</p>
+              <p>Inostranstvo bez PDV-a: {formatMoney(preview.foreignNet)}</p>
+              <p className="font-medium">Ukupno: {formatMoney(preview.grossAmount)}</p>
               {billSeriesMonth ? (
                 <p className="text-muted-foreground text-xs">
                   U finansijama je jedan račun za ceo mesec. Na rasporedu svaki dan pokazuje iznos tog dana.

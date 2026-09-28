@@ -816,9 +816,13 @@ model Trip {
   invoicedAt         DateTime? @db.Date
   /// Free text printed with the invoice (route, period, what was carried).
   invoiceDescription String?
-  /// Whether the typed fare already included 10% VAT on the domestic share.
+  /// Whether the typed domestic fare already included 10% VAT. The foreign fare is never taxed.
   priceIncludesVat   Boolean?
-  /// Kilometres driven in Serbia, used only to split VAT on a foreign job.
+  /// Domestic fare as typed on the invoice (net, or gross when priceIncludesVat is set).
+  invoiceDomesticAmount Float?
+  /// Foreign fare as typed. Always without VAT.
+  invoiceForeignAmount  Float?
+  /// Older invoices stored kilometres here. New invoices leave these empty.
   invoiceDomesticKm  Float?
   invoiceTotalKm     Float?
   invoiceNetAmount   Float?

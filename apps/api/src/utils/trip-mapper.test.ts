@@ -17,6 +17,8 @@ const record: TripRecord = {
   price: 80_000,
   priceIncludesVat: null,
   invoiceDescription: null,
+  invoiceDomesticAmount: null,
+  invoiceForeignAmount: null,
   invoiceDomesticKm: null,
   invoiceTotalKm: null,
   invoiceNetAmount: null,

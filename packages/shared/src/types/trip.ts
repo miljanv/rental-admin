@@ -150,9 +150,13 @@ export interface TripDto {
   clientName: string | null;
   notes: string | null;
   price: number | null;
-  /** True when `price` was typed as a gross amount. Null on invoices saved before VAT existed. */
+  /** True when the domestic fare was typed already including 10% VAT. */
   priceIncludesVat: boolean | null;
   invoiceDescription: string | null;
+  /** Domestic fare as typed on the invoice. */
+  invoiceDomesticAmount: number | null;
+  /** Foreign fare as typed. Always without VAT. */
+  invoiceForeignAmount: number | null;
   invoiceDomesticKm: number | null;
   invoiceTotalKm: number | null;
   invoiceNetAmount: number | null;

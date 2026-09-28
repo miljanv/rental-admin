@@ -1,10 +1,8 @@
 import {
   buildTripStats,
-  computeTransportVat,
+  computeSplitTransportFare,
   defaultTripStatsRange,
-  domesticKmShare,
   invoiceMonthBounds,
-  isDomesticCountry,
   seriesInvoiceGroupId,
   tripClientDisplayName,
   tripRouteLabel,
@@ -234,25 +232,12 @@ const syncSeriesInvoiceRevenue = async (groupId: string): Promise<void> => {
   await Promise.all(trips.map((trip) => deleteOperationalTransaction('TRIP_REVENUE', trip.id)));
 };
 
-const fareForInvoice = (
-  trip: TripDto,
-  input: TripInvoiceWriteRequest,
-): TransportVatResult => {
-  const domestic = isDomesticCountry(trip.country);
-  const share = domestic
-    ? 1
-    : domesticKmShare(input.domesticKm ?? Number.NaN, input.totalKm ?? Number.NaN);
-
-  if (share == null) {
-    throw badRequest('Za prevoz van Srbije unesite kilometre u Srbiji i ukupne kilometre. PDV ide samo na domaći deo.');
-  }
-
-  return computeTransportVat({
-    amount: input.price,
-    priceIncludesVat: input.priceIncludesVat,
-    domesticShare: share,
+const fareForInvoice = (input: TripInvoiceWriteRequest): TransportVatResult =>
+  computeSplitTransportFare({
+    domesticAmount: input.domesticPrice ?? 0,
+    domesticIncludesVat: input.priceIncludesVat,
+    foreignAmount: input.foreignPrice ?? 0,
   });
-};
 
 const invoiceColumns = (input: TripInvoiceWriteRequest, fare: TransportVatResult, groupId: string | null) => ({
   price: fare.grossAmount,
@@ -261,8 +246,10 @@ const invoiceColumns = (input: TripInvoiceWriteRequest, fare: TransportVatResult
   referenceNumber: input.referenceNumber,
   invoiceDescription: input.description,
   priceIncludesVat: input.priceIncludesVat,
-  invoiceDomesticKm: input.domesticKm,
-  invoiceTotalKm: input.totalKm,
+  invoiceDomesticAmount: input.domesticPrice,
+  invoiceForeignAmount: input.foreignPrice,
+  invoiceDomesticKm: null,
+  invoiceTotalKm: null,
   invoiceNetAmount: fare.netAmount,
   invoiceVatAmount: fare.vatAmount,
   invoiceGrossAmount: fare.grossAmount,
@@ -386,7 +373,7 @@ const invoiceSeriesMonth = async (
 
   const bounds = invoiceMonthBounds(trip.departureDate);
   const groupId = seriesInvoiceGroupId(trip.seriesId, trip.departureDate);
-  const dayFare = fareForInvoice(trip, input);
+  const dayFare = fareForInvoice(input);
   const records = await prisma.trip.findMany({
     where: {
       seriesId: trip.seriesId,
@@ -401,11 +388,7 @@ const invoiceSeriesMonth = async (
     throw badRequest('U tom mesecu nema neplaćenih vožnji ove serije.');
   }
 
-  const monthFare = computeTransportVat({
-    amount: input.price * records.length,
-    priceIncludesVat: input.priceIncludesVat,
-    domesticShare: dayFare.domesticShare,
-  });
+  const monthGross = Math.round(dayFare.grossAmount * records.length * 100) / 100;
 
   await prisma.trip.updateMany({
     where: { id: { in: records.map((row) => row.id) } },
@@ -424,7 +407,7 @@ const invoiceSeriesMonth = async (
     seriesId: trip.seriesId,
     groupId,
     days: records.length,
-    gross: monthFare.grossAmount,
+    gross: monthGross,
   });
 
   return saved;
@@ -444,7 +427,7 @@ export const invoiceTrip = async (id: string, input: TripInvoiceWriteRequest): P
     return saved;
   }
 
-  const fare = fareForInvoice(current, input);
+  const fare = fareForInvoice(input);
   const record = await prisma.trip.update({
     where: { id },
     data: invoiceColumns(input, fare, null),

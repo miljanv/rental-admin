@@ -141,35 +141,33 @@ export const tripWriteSchema = z
 export type TripWriteInput = z.input<typeof tripWriteSchema>;
 export type TripWriteRequest = z.output<typeof tripWriteSchema>;
 
-export const tripInvoiceWriteSchema = z.object({
-  referenceNumber: optionalText(60),
-  invoicedAt: isoDateSchema,
-  description: optionalText(2000),
-  /** Daily price when `billSeriesMonth` is set, otherwise the fare for this one trip. */
-  price: z.preprocess(
-    (value) => {
-      if (value === '' || value === undefined || value === null) {
-        return undefined;
-      }
-
-      if (typeof value === 'number' && Number.isNaN(value)) {
-        return undefined;
-      }
-
-      return value;
-    },
-    z
-      .number({ error: 'Cena je obavezna.' })
-      .positive('Cena mora biti veća od nule.')
-      .max(10_000_000, 'Cena nije ispravna.'),
-  ),
-  priceIncludesVat: z.boolean().default(false),
-  domesticKm: optionalNonNegative('Kilometri u Srbiji', 10_000_000),
-  totalKm: optionalNonNegative('Ukupni kilometri', 10_000_000),
-  /** Worker transport: price is per day, and every trip of this series in the departure month is one invoice. */
-  billSeriesMonth: z.boolean().default(false),
-  paymentMethod: paymentMethodSchema,
-});
+export const tripInvoiceWriteSchema = z
+  .object({
+    referenceNumber: optionalText(60),
+    invoicedAt: isoDateSchema,
+    description: optionalText(2000),
+    /**
+     * Domestic fare. Daily amount when `billSeriesMonth` is set.
+     * Net, unless `priceIncludesVat` says this figure already includes 10% VAT.
+     */
+    domesticPrice: optionalNonNegative('Cena u zemlji', 10_000_000),
+    /** Foreign fare, always without VAT. Daily amount when `billSeriesMonth` is set. */
+    foreignPrice: optionalNonNegative('Cena u inostranstvu', 10_000_000),
+    /** When true, `domesticPrice` was typed already including 10% VAT. */
+    priceIncludesVat: z.boolean().default(false),
+    /** Worker transport: both prices are per day, and every trip of this series in the departure month is one invoice. */
+    billSeriesMonth: z.boolean().default(false),
+    paymentMethod: paymentMethodSchema,
+  })
+  .superRefine((value, ctx) => {
+    if ((value.domesticPrice ?? 0) <= 0 && (value.foreignPrice ?? 0) <= 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['domesticPrice'],
+        message: 'Unesite cenu u zemlji ili cenu u inostranstvu.',
+      });
+    }
+  });
 
 export type TripInvoiceWriteInput = z.input<typeof tripInvoiceWriteSchema>;
 export type TripInvoiceWriteRequest = z.output<typeof tripInvoiceWriteSchema>;

@@ -1,66 +1,86 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  computeTransportVat,
-  domesticKmShare,
+  computeSplitTransportFare,
   invoiceMonthBounds,
+  scaleTransportFare,
   seriesInvoiceGroupId,
 } from './trip-invoice-vat';
 
-describe('computeTransportVat', () => {
-  it('adds 10% on the whole fare when the job is in Serbia and the price is net', () => {
-    expect(computeTransportVat({ amount: 20_000, priceIncludesVat: false, domesticShare: 1 })).toEqual({
-      netAmount: 20_000,
+describe('computeSplitTransportFare', () => {
+  it('adds 10% only to a net domestic fare and leaves the foreign fare untaxed', () => {
+    expect(
+      computeSplitTransportFare({
+        domesticAmount: 511_280,
+        domesticIncludesVat: false,
+        foreignAmount: 237_160,
+      }),
+    ).toEqual({
+      netAmount: 748_440,
+      domesticNet: 511_280,
+      foreignNet: 237_160,
+      domesticGross: 562_408,
+      vatBase: 511_280,
+      vatRate: 10,
+      vatAmount: 51_128,
+      grossAmount: 799_568,
+    });
+  });
+
+  it('backs VAT out of a domestic fare that was typed with VAT, then adds the foreign fare', () => {
+    expect(
+      computeSplitTransportFare({
+        domesticAmount: 562_408,
+        domesticIncludesVat: true,
+        foreignAmount: 237_160,
+      }),
+    ).toMatchObject({
+      domesticNet: 511_280,
+      vatAmount: 51_128,
+      domesticGross: 562_408,
+      grossAmount: 799_568,
+    });
+  });
+
+  it('taxes a Serbia-only fare and treats a missing foreign amount as zero', () => {
+    expect(
+      computeSplitTransportFare({
+        domesticAmount: 20_000,
+        domesticIncludesVat: false,
+        foreignAmount: 0,
+      }),
+    ).toMatchObject({
       domesticNet: 20_000,
       foreignNet: 0,
-      vatBase: 20_000,
-      vatRate: 10,
-      vatAmount: 2_000,
-      grossAmount: 22_000,
-      domesticShare: 1,
-    });
-  });
-
-  it('backs VAT out when the typed price already includes it', () => {
-    expect(
-      computeTransportVat({ amount: 22_000, priceIncludesVat: true, domesticShare: 1 }),
-    ).toMatchObject({
-      netAmount: 20_000,
       vatAmount: 2_000,
       grossAmount: 22_000,
     });
   });
 
-  it('taxes only the domestic kilometre share on a foreign job', () => {
-    const share = domesticKmShare(100, 500);
-
-    expect(share).toBe(0.2);
+  it('leaves an abroad-only fare without VAT', () => {
     expect(
-      computeTransportVat({ amount: 20_000, priceIncludesVat: false, domesticShare: share ?? 0 }),
+      computeSplitTransportFare({
+        domesticAmount: 0,
+        domesticIncludesVat: false,
+        foreignAmount: 237_160,
+      }),
     ).toMatchObject({
-      netAmount: 20_000,
-      domesticNet: 4_000,
-      foreignNet: 16_000,
-      vatAmount: 400,
-      grossAmount: 20_400,
+      vatAmount: 0,
+      grossAmount: 237_160,
     });
   });
 
-  it('bills a worker-transport month as days times the daily net price', () => {
-    const month = computeTransportVat({
-      amount: 30 * 20_000,
-      priceIncludesVat: false,
-      domesticShare: 1,
+  it('scales a daily fare across the days of a worker-transport month', () => {
+    const day = computeSplitTransportFare({
+      domesticAmount: 20_000,
+      domesticIncludesVat: false,
+      foreignAmount: 0,
     });
+    const month = scaleTransportFare(day, 30);
 
     expect(month.netAmount).toBe(600_000);
     expect(month.vatAmount).toBe(60_000);
     expect(month.grossAmount).toBe(660_000);
-  });
-
-  it('rejects a domestic kilometre figure above the total', () => {
-    expect(domesticKmShare(500, 100)).toBeNull();
-    expect(domesticKmShare(10, 0)).toBeNull();
   });
 });
 

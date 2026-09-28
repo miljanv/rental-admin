@@ -50,6 +50,8 @@ export interface TripRecord {
   price: number | null;
   priceIncludesVat: boolean | null;
   invoiceDescription: string | null;
+  invoiceDomesticAmount: number | null;
+  invoiceForeignAmount: number | null;
   invoiceDomesticKm: number | null;
   invoiceTotalKm: number | null;
   invoiceNetAmount: number | null;
@@ -131,6 +133,8 @@ export const toTripDto = (record: TripRecord): TripDto => ({
   price: record.price,
   priceIncludesVat: record.priceIncludesVat,
   invoiceDescription: record.invoiceDescription,
+  invoiceDomesticAmount: record.invoiceDomesticAmount,
+  invoiceForeignAmount: record.invoiceForeignAmount,
   invoiceDomesticKm: record.invoiceDomesticKm,
   invoiceTotalKm: record.invoiceTotalKm,
   invoiceNetAmount: record.invoiceNetAmount,

@@ -1,71 +1,73 @@
-/** Passenger transport VAT. Only the domestic share of the fare is taxed. */
+/** Passenger transport VAT. 10% applies only to the domestic fare. The foreign fare is never taxed. */
 export const TRANSPORT_VAT_RATE = 10;
 
-export interface TransportVatInput {
-  /** Amount the user typed: either net or gross, depending on `priceIncludesVat`. */
-  amount: number;
-  priceIncludesVat: boolean;
-  /**
-   * 1 when the whole job is in Serbia.
-   * For a foreign job, domestic kilometres divided by total kilometres.
-   */
-  domesticShare: number;
+export interface SplitTransportFareInput {
+  /** Domestic fare as typed: net, or already gross when `domesticIncludesVat` is set. */
+  domesticAmount: number;
+  domesticIncludesVat: boolean;
+  /** Foreign fare. Always net. VAT is never added. */
+  foreignAmount: number;
 }
 
 export interface TransportVatResult {
   netAmount: number;
   domesticNet: number;
   foreignNet: number;
+  /** Domestic amount the customer pays, including 10% VAT. */
+  domesticGross: number;
   vatBase: number;
   vatRate: number;
   vatAmount: number;
+  /** Domestic gross plus the untaxed foreign fare. */
   grossAmount: number;
-  domesticShare: number;
 }
 
 const roundMoney = (value: number): number => Math.round(value * 100) / 100;
 
-export const domesticKmShare = (
-  domesticKm: number,
-  totalKm: number,
-): number | null => {
-  if (!Number.isFinite(domesticKm) || !Number.isFinite(totalKm) || totalKm <= 0) {
-    return null;
-  }
-
-  if (domesticKm < 0 || domesticKm > totalKm) {
-    return null;
-  }
-
-  return domesticKm / totalKm;
-};
-
 /**
- * Split a transport fare into net, 10% VAT on the domestic share, and gross.
- * Foreign kilometres stay untaxed. Amounts are not converted between currencies.
+ * Domestic fare can be typed with or without 10% VAT. The foreign fare is added as-is.
+ * The amount due is those two figures added together.
  */
-export const computeTransportVat = (input: TransportVatInput): TransportVatResult => {
-  const share = Math.min(1, Math.max(0, input.domesticShare));
-  const amount = roundMoney(input.amount);
+export const computeSplitTransportFare = (input: SplitTransportFareInput): TransportVatResult => {
   const rate = TRANSPORT_VAT_RATE / 100;
+  const foreignNet = roundMoney(Math.max(0, input.foreignAmount));
+  const typedDomestic = roundMoney(Math.max(0, input.domesticAmount));
 
-  const netAmount = input.priceIncludesVat
-    ? roundMoney(amount / (1 + rate * share))
-    : amount;
-  const domesticNet = roundMoney(netAmount * share);
-  const foreignNet = roundMoney(netAmount - domesticNet);
-  const vatAmount = roundMoney(domesticNet * rate);
-  const grossAmount = input.priceIncludesVat ? amount : roundMoney(netAmount + vatAmount);
+  const domesticNet = input.domesticIncludesVat
+    ? roundMoney(typedDomestic / (1 + rate))
+    : typedDomestic;
+  const vatAmount = input.domesticIncludesVat
+    ? roundMoney(typedDomestic - domesticNet)
+    : roundMoney(domesticNet * rate);
+  const domesticGross = input.domesticIncludesVat
+    ? typedDomestic
+    : roundMoney(domesticNet + vatAmount);
 
   return {
-    netAmount,
+    netAmount: roundMoney(domesticNet + foreignNet),
     domesticNet,
     foreignNet,
+    domesticGross,
     vatBase: domesticNet,
     vatRate: TRANSPORT_VAT_RATE,
     vatAmount,
-    grossAmount,
-    domesticShare: share,
+    grossAmount: roundMoney(domesticGross + foreignNet),
+  };
+};
+
+export const scaleTransportFare = (fare: TransportVatResult, days: number): TransportVatResult => {
+  const count = Number.isFinite(days) && days > 0 ? days : 0;
+  const scale = (value: number): number => roundMoney(value * count);
+
+  return {
+    ...fare,
+    netAmount: scale(fare.netAmount),
+    domesticNet: scale(fare.domesticNet),
+    foreignNet: scale(fare.foreignNet),
+    domesticGross: scale(fare.domesticGross),
+    vatBase: scale(fare.vatBase),
+    vatAmount: scale(fare.vatAmount),
+    grossAmount: scale(fare.grossAmount),
   };
 };
 
