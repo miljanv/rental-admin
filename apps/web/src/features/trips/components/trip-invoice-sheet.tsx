@@ -14,6 +14,7 @@ import {
   type TripInvoiceWriteInput,
   type TripInvoiceWriteRequest,
 } from '@rental-admin/shared';
+import { useEffect, useRef } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 
 import { DateField } from '@/components/common/date-field';
@@ -75,22 +76,30 @@ const enteredDomestic = (trip: TripDto): number | '' => {
   return trip.priceIncludesVat ? (trip.invoiceGrossAmount ?? trip.price ?? '') : (trip.invoiceNetAmount ?? '');
 };
 
+const invoiceFormValues = (trip: TripDto | null): TripInvoiceWriteInput => ({
+  referenceNumber: trip?.referenceNumber ?? '',
+  invoicedAt: trip?.invoicedAt ?? localTodayIso(),
+  description: trip?.invoiceDescription ?? '',
+  domesticPrice: trip ? enteredDomestic(trip) : '',
+  foreignPrice: trip?.invoiceForeignAmount ?? '',
+  priceIncludesVat: trip?.priceIncludesVat ?? false,
+  billSeriesMonth: Boolean(trip?.seriesId),
+  paymentMethod: trip?.paymentMethod ?? 'ACCOUNT',
+});
+
 export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) {
   const invoiceMutation = useInvoiceTrip(trip?.id ?? '');
   const month = trip ? invoiceMonthBounds(trip.departureDate) : null;
+  const tripRef = useRef(trip);
+  tripRef.current = trip;
   const form = useForm<TripInvoiceWriteInput, unknown, TripInvoiceWriteRequest>({
     resolver: zodResolver(tripInvoiceWriteSchema),
-    values: {
-      referenceNumber: trip?.referenceNumber ?? '',
-      invoicedAt: trip?.invoicedAt ?? localTodayIso(),
-      description: trip?.invoiceDescription ?? '',
-      domesticPrice: trip ? enteredDomestic(trip) : '',
-      foreignPrice: trip?.invoiceForeignAmount ?? '',
-      priceIncludesVat: trip?.priceIncludesVat ?? false,
-      billSeriesMonth: Boolean(trip?.seriesId),
-      paymentMethod: trip?.paymentMethod ?? 'ACCOUNT',
-    },
+    defaultValues: invoiceFormValues(trip),
   });
+
+  useEffect(() => {
+    form.reset(invoiceFormValues(tripRef.current));
+  }, [form, trip?.id]);
 
   const billSeriesMonth = useWatch({ control: form.control, name: 'billSeriesMonth' });
   const priceIncludesVat = useWatch({ control: form.control, name: 'priceIncludesVat' });
