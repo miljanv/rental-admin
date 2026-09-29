@@ -52,8 +52,14 @@ export interface PartnerDto {
   pib: string | null;
   registrationNumber: string | null;
   personalId: string | null;
+  bankAccounts: PartnerBankAccountDto[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface PartnerBankAccountDto {
+  id: string;
+  accountNumber: string;
 }
 
 export interface DeletePartnerResult {

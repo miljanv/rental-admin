@@ -94,6 +94,7 @@ export function BankStatementEntryForm({ transaction, onDone }: BankStatementEnt
           note: transaction.note ?? '',
           supplier: transaction.supplier ?? '',
           partner: transaction.partner ?? '',
+          partnerId: transaction.partnerId ?? '',
           route: transaction.route ?? '',
           vehicleId: transaction.vehicle?.id ?? '',
           driverId: transaction.driver?.id ?? '',

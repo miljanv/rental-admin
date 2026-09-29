@@ -1,5 +1,7 @@
 import type {
   BankStatementEntryWriteRequest,
+  BankStatementImportResult,
+  BankStatementXmlImportRequest,
   DeleteTransactionResult,
   FinanceExportQueryRequest,
   FinanceReportDto,
@@ -18,6 +20,7 @@ import type {
   VatReportDto,
   TransactionCategory,
   TransactionDto,
+  TransactionType,
   TransactionSourceType,
   TransactionWriteRequest,
   UnsettledAdvanceGroupDto,
@@ -68,6 +71,7 @@ const transactionListWhere = (query: TransactionListFilters) => ({
   ...(query.supplier
     ? { supplier: { contains: query.supplier, mode: 'insensitive' as const } }
     : {}),
+  ...(query.partnerId ? { partnerId: query.partnerId } : {}),
   ...(query.vehicleId ? { vehicleId: query.vehicleId } : {}),
   ...(query.driverId ? { driverId: query.driverId } : {}),
   ...(query.from || query.to
@@ -96,6 +100,204 @@ const transactionInclude = {
   driver: { select: { id: true, firstName: true, lastName: true } },
   paymentAllocations: { select: { amount: true } },
 } as const;
+
+const decodeXmlText = (value: string): string =>
+  value
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&apos;', "'")
+    .replaceAll('&amp;', '&')
+    .trim();
+
+const tagText = (xml: string, tag: string): string | null => {
+  const match = new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tag}>`, 'i').exec(xml);
+  return match ? decodeXmlText(match[1] ?? '') : null;
+};
+
+const childText = (xml: string, parent: string, tag: string): string | null => {
+  const block = tagText(xml, parent);
+  return block ? tagText(block, tag) : null;
+};
+
+const normalizeMatchText = (value: string): string =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/Đ/g, 'DJ')
+    .replace(/đ/g, 'dj')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '');
+
+const acronymAlias = (value: string): string | null => {
+  const words = value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/Đ/g, 'DJ')
+    .replace(/đ/g, 'dj')
+    .toUpperCase()
+    .split(/[^A-Z0-9]+/)
+    .filter((word) => word.length > 1);
+
+  if (words.length < 2) {
+    return null;
+  }
+
+  return `${words.map((word) => word[0]).join('')}${words.at(-1)}`;
+};
+
+const findPartnerByStatementName = async (rawName: string | null) => {
+  const normalizedRaw = rawName ? normalizeMatchText(rawName) : '';
+
+  if (!normalizedRaw) {
+    return null;
+  }
+
+  const partners = await prisma.partner.findMany({
+    take: 500,
+    select: {
+      id: true,
+      type: true,
+      companyName: true,
+      firstName: true,
+      lastName: true,
+      nickname: true,
+    },
+  });
+
+  return (
+    partners.find((partner) => {
+      const names = [
+        partner.companyName,
+        partner.nickname,
+        `${partner.firstName ?? ''} ${partner.lastName ?? ''}`.trim(),
+      ].filter((value): value is string => Boolean(value));
+
+      return names.some((name) => {
+        const normalized = normalizeMatchText(name);
+        const acronym = acronymAlias(name);
+        return (
+          (normalized.length >= 5 && normalizedRaw.includes(normalized)) ||
+          (acronym !== null && acronym.length >= 4 && normalizedRaw.includes(acronym))
+        );
+      });
+    }) ?? null
+  );
+};
+
+const normalizeBankAccount = (value: string | null | undefined): string | null => {
+  const normalized = value?.replace(/\s+/g, '').trim() ?? '';
+  return normalized.length > 0 ? normalized : null;
+};
+
+const partnerDisplayName = (partner: {
+  type: string;
+  companyName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  nickname: string | null;
+}): string => {
+  const legalName =
+    partner.type === 'INDIVIDUAL'
+      ? `${partner.firstName ?? ''} ${partner.lastName ?? ''}`.trim()
+      : (partner.companyName ?? '');
+
+  return partner.nickname ? `${legalName} (${partner.nickname})` : legalName;
+};
+
+const findPartnerByBankAccount = async (accountNumber: string | null) => {
+  const normalized = normalizeBankAccount(accountNumber);
+
+  if (!normalized) {
+    return null;
+  }
+
+  const account = await prisma.partnerBankAccount.findUnique({
+    where: { accountNumber: normalized },
+    include: {
+      partner: {
+        select: {
+          id: true,
+          type: true,
+          companyName: true,
+          firstName: true,
+          lastName: true,
+          nickname: true,
+        },
+      },
+    },
+  });
+
+  return account?.partner ?? null;
+};
+
+const inferStatementCategory = (
+  type: TransactionType,
+  payeeName: string | null,
+  purpose: string | null,
+): TransactionCategory => {
+  if (type === 'INCOME') {
+    return 'CONTRACT';
+  }
+
+  const text = normalizeMatchText(`${payeeName ?? ''} ${purpose ?? ''}`);
+
+  if (text.includes('GORIVO') || text.includes('NIS') || text.includes('OMV')) {
+    return 'FUEL';
+  }
+
+  if (text.includes('TAHOGRAF')) {
+    return 'TACHOGRAPH';
+  }
+
+  return 'OTHER';
+};
+
+interface ParsedStatementEntry {
+  type: TransactionType;
+  amount: number;
+  occurredAt: string;
+  payeeName: string | null;
+  payeeAccountNumber: string | null;
+  purpose: string | null;
+  purposeCode: string | null;
+  payeeReferenceNumber: string | null;
+  fitId: string | null;
+}
+
+interface ParsedBankStatementXml {
+  accountNumber: string | null;
+  statementNumber: string | null;
+  entries: ParsedStatementEntry[];
+}
+
+const parseBankStatementXml = (xml: string): ParsedBankStatementXml => {
+  const entries = [...xml.matchAll(/<stmttrn>([\s\S]*?)<\/stmttrn>/gi)].map((match) => {
+    const block = match[1] ?? '';
+    const benefit = tagText(block, 'benefit')?.toLowerCase();
+    const type: TransactionType = benefit === 'credit' ? 'INCOME' : 'EXPENSE';
+    const amount = Number(tagText(block, 'trnamt') ?? '0');
+    const occurredAt = (tagText(block, 'dtposted') ?? tagText(block, 'dtavail') ?? '').slice(0, 10);
+
+    return {
+      type,
+      amount,
+      occurredAt,
+      payeeName: childText(block, 'payeeinfo', 'name'),
+      payeeAccountNumber: childText(block, 'payeeaccountinfo', 'acctid'),
+      purpose: tagText(block, 'purpose'),
+      purposeCode: tagText(block, 'purposecode'),
+      payeeReferenceNumber: tagText(block, 'payeerefnumber') || tagText(block, 'refnumber'),
+      fitId: tagText(block, 'fitid'),
+    };
+  });
+
+  return {
+    accountNumber: tagText(xml, 'acctid'),
+    statementNumber: tagText(xml, 'stmtnumber'),
+    entries,
+  };
+};
 
 const assertVehicleExists = async (vehicleId: string | null): Promise<void> => {
   if (!vehicleId) {
@@ -134,6 +336,7 @@ const toManualWriteData = async (input: TransactionWriteRequest) => ({
   supplier: input.supplier,
   supplierId: await findSupplierIdByName(input.supplier),
   partner: input.partner,
+  partnerId: input.partnerId,
   route: input.route,
   vehicleId: input.vehicleId,
   driverId: input.driverId,
@@ -157,6 +360,7 @@ const toBankStatementWriteData = async (input: BankStatementEntryWriteRequest) =
   supplier: input.supplier,
   supplierId: await findSupplierIdByName(input.supplier),
   partner: input.partner,
+  partnerId: input.partnerId,
   route: input.route,
   vehicleId: input.vehicleId,
   driverId: input.driverId,
@@ -240,6 +444,114 @@ export const createBankStatementEntry = async (
   });
 
   return toTransactionDto(record);
+};
+
+export const importBankStatementXml = async (
+  input: BankStatementXmlImportRequest,
+): Promise<BankStatementImportResult> => {
+  const parsed = parseBankStatementXml(input.xml);
+
+  if (parsed.entries.length === 0) {
+    throw badRequest('XML ne sadrži stavke izvoda.');
+  }
+
+  const imported: FinanceTransactionRecord[] = [];
+  let skipped = 0;
+  let matchedPartners = 0;
+
+  for (const entry of parsed.entries) {
+    if (!entry.fitId || !entry.occurredAt || !Number.isFinite(entry.amount) || entry.amount <= 0) {
+      skipped += 1;
+      continue;
+    }
+
+    const existing = await prisma.financeTransaction.findFirst({
+      where: {
+        sourceType: 'BANK_STATEMENT',
+        OR: [{ sourceId: entry.fitId }, { bankReference: entry.fitId }],
+      },
+      select: { id: true },
+    });
+
+    if (existing) {
+      skipped += 1;
+      continue;
+    }
+
+    const accountNumber = normalizeBankAccount(entry.payeeAccountNumber);
+    let matchedPartner = await findPartnerByBankAccount(accountNumber);
+    const matchedByAccount = Boolean(matchedPartner);
+
+    if (!matchedPartner) {
+      matchedPartner = await findPartnerByStatementName(entry.payeeName);
+
+      if (matchedPartner && input.rememberMatchedAccounts && accountNumber) {
+        await prisma.partnerBankAccount
+          .create({
+            data: { partnerId: matchedPartner.id, accountNumber },
+          })
+          .catch(() => null);
+      }
+    }
+
+    if (matchedPartner) {
+      matchedPartners += 1;
+    }
+
+    const partnerName = matchedPartner ? partnerDisplayName(matchedPartner) : entry.payeeName;
+    const isIncome = entry.type === 'INCOME';
+    const noteParts = [
+      entry.purpose,
+      entry.purposeCode ? `Šifra ${entry.purposeCode}` : null,
+      entry.payeeReferenceNumber ? `Poziv ${entry.payeeReferenceNumber}` : null,
+      accountNumber ? `Račun ${accountNumber}` : null,
+      !matchedByAccount && matchedPartner ? 'Partner povezan po nazivu' : null,
+    ].filter(Boolean);
+
+    const record = await prisma.financeTransaction.create({
+      data: {
+        type: entry.type,
+        category: inferStatementCategory(entry.type, entry.payeeName, entry.purpose),
+        amount: entry.amount,
+        occurredAt: parseDate(entry.occurredAt),
+        paymentMethod: 'ACCOUNT',
+        note: noteParts.join(' · ') || null,
+        supplier: isIncome ? null : (entry.payeeName ?? null),
+        supplierId: isIncome ? null : await findSupplierIdByName(entry.payeeName),
+        partner: isIncome ? (partnerName ?? null) : null,
+        partnerId: isIncome ? (matchedPartner?.id ?? null) : null,
+        route: null,
+        vehicleId: null,
+        driverId: null,
+        contractId: null,
+        isAdvance: false,
+        status: 'SETTLED',
+        sourceType: 'BANK_STATEMENT',
+        sourceId: entry.fitId,
+        statementNumber: parsed.statementNumber,
+        bankReference: entry.fitId,
+        linkedTransactionId: null,
+      },
+      include: transactionInclude,
+    });
+
+    imported.push(record);
+  }
+
+  logger.info('Bank statement XML imported', {
+    statementNumber: parsed.statementNumber,
+    imported: imported.length,
+    skipped,
+  });
+
+  return {
+    statementNumber: parsed.statementNumber,
+    accountNumber: normalizeBankAccount(parsed.accountNumber),
+    imported: imported.length,
+    skipped,
+    matchedPartners,
+    transactions: imported.map((record) => toTransactionDto(record)),
+  };
 };
 
 export const updateTransaction = async (

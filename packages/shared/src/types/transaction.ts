@@ -122,6 +122,7 @@ export interface TransactionDto {
   note: string | null;
   supplier: string | null;
   partner: string | null;
+  partnerId: string | null;
   route: string | null;
   vehicle: TransactionVehicleDto | null;
   driver: TransactionDriverDto | null;
@@ -138,6 +139,15 @@ export interface TransactionDto {
   allocationCount: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface BankStatementImportResult {
+  statementNumber: string | null;
+  accountNumber: string | null;
+  imported: number;
+  skipped: number;
+  matchedPartners: number;
+  transactions: TransactionDto[];
 }
 
 export interface DeleteTransactionResult {

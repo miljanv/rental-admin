@@ -1,5 +1,6 @@
 import {
   bankStatementEntryWriteSchema,
+  bankStatementXmlImportSchema,
   financeExportQuerySchema,
   financeReportQuerySchema,
   listTransactionsQuerySchema,
@@ -13,6 +14,7 @@ import {
 
 export {
   bankStatementEntryWriteSchema,
+  bankStatementXmlImportSchema,
   financeExportQuerySchema,
   financeReportQuerySchema,
   listTransactionsQuerySchema,

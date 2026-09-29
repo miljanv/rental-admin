@@ -19,6 +19,7 @@ export const EMPTY_BANK_STATEMENT_ENTRY_FORM: BankStatementEntryFormValues = {
   note: '',
   supplier: '',
   partner: '',
+  partnerId: '',
   route: '',
   vehicleId: '',
   driverId: '',

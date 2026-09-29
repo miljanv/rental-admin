@@ -13,6 +13,7 @@ import {
 } from '../types/transaction';
 import { driverIdSchema, isoDateSchema } from './driver';
 import { SORT_ORDERS } from './file';
+import { partnerIdSchema } from './partner';
 import { vehicleIdSchema } from './vehicle';
 
 export const transactionTypeSchema = z.enum(TRANSACTION_TYPES);
@@ -91,6 +92,7 @@ export const transactionWriteSchema = z
     note: optionalText(500),
     supplier: optionalSupplierSchema,
     partner: optionalSupplierSchema,
+    partnerId: optionalId,
     route: optionalSupplierSchema,
     vehicleId: optionalId,
     driverId: optionalId,
@@ -131,6 +133,7 @@ export const bankStatementEntryWriteSchema = z.object({
   note: optionalText(500),
   supplier: optionalSupplierSchema,
   partner: optionalSupplierSchema,
+  partnerId: optionalId,
   route: optionalSupplierSchema,
   vehicleId: optionalId,
   driverId: optionalId,
@@ -139,6 +142,14 @@ export const bankStatementEntryWriteSchema = z.object({
 
 export type BankStatementEntryWriteInput = z.input<typeof bankStatementEntryWriteSchema>;
 export type BankStatementEntryWriteRequest = z.output<typeof bankStatementEntryWriteSchema>;
+
+export const bankStatementXmlImportSchema = z.object({
+  xml: z.string().min(1, 'XML fajl je obavezan.').max(2_000_000, 'XML fajl je prevelik.'),
+  rememberMatchedAccounts: z.boolean().default(false),
+});
+
+export type BankStatementXmlImportInput = z.input<typeof bankStatementXmlImportSchema>;
+export type BankStatementXmlImportRequest = z.output<typeof bankStatementXmlImportSchema>;
 
 export const listTransactionsQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(PAGINATION_DEFAULTS.page),
@@ -175,6 +186,7 @@ export const listTransactionsQuerySchema = z.object({
     .max(120)
     .optional()
     .transform((value) => (value ? value : undefined)),
+  partnerId: partnerIdSchema.optional(),
   vehicleId: vehicleIdSchema.optional(),
   driverId: driverIdSchema.optional(),
   from: isoDateSchema.optional(),

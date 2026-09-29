@@ -1,7 +1,12 @@
 import { z } from 'zod';
 
 import { PAGINATION_DEFAULTS } from '../constants';
-import { JMBG_LENGTH, PARTNER_TYPES, PIB_LENGTH, REGISTRATION_NUMBER_LENGTH } from '../types/partner';
+import {
+  JMBG_LENGTH,
+  PARTNER_TYPES,
+  PIB_LENGTH,
+  REGISTRATION_NUMBER_LENGTH,
+} from '../types/partner';
 import { SORT_ORDERS } from './file';
 
 export const partnerTypeSchema = z.enum(PARTNER_TYPES);
@@ -11,6 +16,8 @@ export const partnerIdSchema = z.string().trim().min(1, 'Partner je obavezan.').
 export const partnerIdParamsSchema = z.object({ id: partnerIdSchema });
 
 export type PartnerIdParams = z.infer<typeof partnerIdParamsSchema>;
+
+const normalizeBankAccount = (value: string): string => value.replace(/\s+/g, '').trim();
 
 const requiredText = (label: string, max: number) =>
   z
@@ -68,19 +75,39 @@ export const superRefinePartyIdentity = (
 ): void => {
   if (value.type === 'INDIVIDUAL') {
     if (!value.firstName) {
-      ctx.addIssue({ code: 'custom', path: [fieldNames.firstName], message: 'Ime je obavezno za fizičko lice.' });
+      ctx.addIssue({
+        code: 'custom',
+        path: [fieldNames.firstName],
+        message: 'Ime je obavezno za fizičko lice.',
+      });
     }
     if (!value.lastName) {
-      ctx.addIssue({ code: 'custom', path: [fieldNames.lastName], message: 'Prezime je obavezno za fizičko lice.' });
+      ctx.addIssue({
+        code: 'custom',
+        path: [fieldNames.lastName],
+        message: 'Prezime je obavezno za fizičko lice.',
+      });
     }
     if (!value.personalId) {
-      ctx.addIssue({ code: 'custom', path: [fieldNames.personalId], message: 'JMBG je obavezan za fizičko lice.' });
+      ctx.addIssue({
+        code: 'custom',
+        path: [fieldNames.personalId],
+        message: 'JMBG je obavezan za fizičko lice.',
+      });
     }
     if (value.companyName) {
-      ctx.addIssue({ code: 'custom', path: [fieldNames.companyName], message: 'Naziv firme ne važi za fizičko lice.' });
+      ctx.addIssue({
+        code: 'custom',
+        path: [fieldNames.companyName],
+        message: 'Naziv firme ne važi za fizičko lice.',
+      });
     }
     if (value.pib) {
-      ctx.addIssue({ code: 'custom', path: [fieldNames.pib], message: 'PIB ne važi za fizičko lice.' });
+      ctx.addIssue({
+        code: 'custom',
+        path: [fieldNames.pib],
+        message: 'PIB ne važi za fizičko lice.',
+      });
     }
     if (value.registrationNumber) {
       ctx.addIssue({
@@ -99,16 +126,32 @@ export const superRefinePartyIdentity = (
     ctx.addIssue({ code: 'custom', path: [fieldNames.pib], message: 'PIB je obavezan.' });
   }
   if (!value.registrationNumber) {
-    ctx.addIssue({ code: 'custom', path: [fieldNames.registrationNumber], message: 'Matični broj je obavezan.' });
+    ctx.addIssue({
+      code: 'custom',
+      path: [fieldNames.registrationNumber],
+      message: 'Matični broj je obavezan.',
+    });
   }
   if (value.firstName) {
-    ctx.addIssue({ code: 'custom', path: [fieldNames.firstName], message: 'Ime važi samo za fizičko lice.' });
+    ctx.addIssue({
+      code: 'custom',
+      path: [fieldNames.firstName],
+      message: 'Ime važi samo za fizičko lice.',
+    });
   }
   if (value.lastName) {
-    ctx.addIssue({ code: 'custom', path: [fieldNames.lastName], message: 'Prezime važi samo za fizičko lice.' });
+    ctx.addIssue({
+      code: 'custom',
+      path: [fieldNames.lastName],
+      message: 'Prezime važi samo za fizičko lice.',
+    });
   }
   if (value.personalId) {
-    ctx.addIssue({ code: 'custom', path: [fieldNames.personalId], message: 'JMBG važi samo za fizičko lice.' });
+    ctx.addIssue({
+      code: 'custom',
+      path: [fieldNames.personalId],
+      message: 'JMBG važi samo za fizičko lice.',
+    });
   }
 };
 
@@ -120,6 +163,17 @@ const PARTY_FIELD_NAMES = {
   registrationNumber: 'registrationNumber',
   personalId: 'personalId',
 } as const;
+
+export const partnerBankAccountWriteSchema = z.object({
+  accountNumber: z
+    .string()
+    .trim()
+    .max(40, 'Broj računa sme imati najviše 40 karaktera.')
+    .transform(normalizeBankAccount)
+    .refine((value) => /^\d{3}-\d{1,13}-\d{2}$/.test(value), {
+      message: 'Broj računa mora biti u formatu 000-0000000000000-00.',
+    }),
+});
 
 export const partnerWriteSchema = z
   .object({
@@ -133,8 +187,26 @@ export const partnerWriteSchema = z
     pib: pibSchema,
     registrationNumber: registrationNumberSchema,
     personalId: jmbgSchema,
+    bankAccounts: z
+      .array(partnerBankAccountWriteSchema)
+      .max(20, 'Najviše 20 računa po partneru.')
+      .default([]),
   })
-  .superRefine((value, ctx) => superRefinePartyIdentity(value, ctx, PARTY_FIELD_NAMES));
+  .superRefine((value, ctx) => {
+    superRefinePartyIdentity(value, ctx, PARTY_FIELD_NAMES);
+
+    const seen = new Set<string>();
+    value.bankAccounts.forEach((account, index) => {
+      if (seen.has(account.accountNumber)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['bankAccounts', index, 'accountNumber'],
+          message: 'Broj računa je već dodat.',
+        });
+      }
+      seen.add(account.accountNumber);
+    });
+  });
 
 export type PartnerWriteInput = z.input<typeof partnerWriteSchema>;
 export type PartnerWriteRequest = z.output<typeof partnerWriteSchema>;

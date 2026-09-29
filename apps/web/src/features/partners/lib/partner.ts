@@ -1,4 +1,8 @@
-import { partnerDisplayName, type PartnerDto, type PartnerWriteRequest } from '@rental-admin/shared';
+import {
+  partnerDisplayName,
+  type PartnerDto,
+  type PartnerWriteRequest,
+} from '@rental-admin/shared';
 
 export const partnerLabel = (partner: PartnerDto): string => partnerDisplayName(partner);
 
@@ -13,4 +17,5 @@ export const toPartnerFormValues = (partner: PartnerDto): PartnerWriteRequest =>
   pib: partner.pib,
   registrationNumber: partner.registrationNumber,
   personalId: partner.personalId,
+  bankAccounts: partner.bankAccounts.map((account) => ({ accountNumber: account.accountNumber })),
 });

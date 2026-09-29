@@ -1,5 +1,6 @@
 import type {
   BankStatementEntryWriteRequest,
+  BankStatementXmlImportRequest,
   ListSettlementTargetsQuery,
   FinanceExportQueryRequest,
   FinanceReportQueryRequest,
@@ -97,6 +98,13 @@ export const createBankStatementEntry = async (req: Request, res: Response): Pro
   const transaction = await transactionService.createBankStatementEntry(body);
 
   sendSuccess(res, transaction, 201);
+};
+
+export const importBankStatementXml = async (req: Request, res: Response): Promise<void> => {
+  const body = validated<BankStatementXmlImportRequest>(req, 'body');
+  const result = await transactionService.importBankStatementXml(body);
+
+  sendSuccess(res, result, 201);
 };
 
 export const updateTransaction = async (req: Request, res: Response): Promise<void> => {

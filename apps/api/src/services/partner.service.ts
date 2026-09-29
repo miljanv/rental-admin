@@ -16,6 +16,13 @@ import { toPartnerDto, type PartnerRecord } from '../utils/partner-mapper';
 
 type PartnerOrderBy = Partial<Record<PartnerSortField, SortOrder>>;
 
+const partnerInclude = {
+  bankAccounts: {
+    select: { id: true, accountNumber: true },
+    orderBy: { accountNumber: 'asc' as const },
+  },
+} as const;
+
 const toWriteData = (input: PartnerWriteRequest) => ({
   type: input.type,
   companyName: input.companyName,
@@ -63,6 +70,7 @@ export const listPartners = async (
     prisma.partner.count({ where }),
     prisma.partner.findMany({
       where,
+      include: partnerInclude,
       orderBy,
       skip: (query.page - 1) * query.limit,
       take: query.limit,
@@ -76,7 +84,7 @@ export const listPartners = async (
 };
 
 export const getPartner = async (id: string): Promise<PartnerDto> => {
-  const record = await prisma.partner.findUnique({ where: { id } });
+  const record = await prisma.partner.findUnique({ where: { id }, include: partnerInclude });
 
   if (!record) {
     throw notFound('Partner nije pronađen.');
@@ -86,16 +94,44 @@ export const getPartner = async (id: string): Promise<PartnerDto> => {
 };
 
 export const createPartner = async (input: PartnerWriteRequest): Promise<PartnerDto> => {
-  const record = await prisma.partner.create({ data: toWriteData(input) });
+  const record = await prisma.partner.create({
+    data: {
+      ...toWriteData(input),
+      bankAccounts: {
+        create: input.bankAccounts.map((account) => ({
+          accountNumber: account.accountNumber,
+        })),
+      },
+    },
+    include: partnerInclude,
+  });
   logger.info('Partner created', { partnerId: record.id, type: record.type });
 
   return toPartnerDto(record);
 };
 
-export const updatePartner = async (id: string, input: PartnerWriteRequest): Promise<PartnerDto> => {
+export const updatePartner = async (
+  id: string,
+  input: PartnerWriteRequest,
+): Promise<PartnerDto> => {
   await getPartner(id);
 
-  const record = await prisma.partner.update({ where: { id }, data: toWriteData(input) });
+  const record = await prisma.$transaction(async (tx) => {
+    await tx.partnerBankAccount.deleteMany({ where: { partnerId: id } });
+
+    return tx.partner.update({
+      where: { id },
+      data: {
+        ...toWriteData(input),
+        bankAccounts: {
+          create: input.bankAccounts.map((account) => ({
+            accountNumber: account.accountNumber,
+          })),
+        },
+      },
+      include: partnerInclude,
+    });
+  });
   logger.info('Partner updated', { partnerId: record.id });
 
   return toPartnerDto(record);

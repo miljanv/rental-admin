@@ -6,7 +6,8 @@ import {
   TRANSACTION_SOURCE_TYPE_LABELS,
   type TransactionDto,
 } from '@rental-admin/shared';
-import { Link2, MoreHorizontal, Pencil, Printer, Trash2, Wallet } from 'lucide-react';
+import { Eye, Link2, MoreHorizontal, Pencil, Printer, Trash2, Wallet } from 'lucide-react';
+import { useState } from 'react';
 
 import { EmptyState } from '@/components/common/empty-state';
 import { TableSkeleton } from '@/components/common/table-skeleton';
@@ -18,6 +19,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import {
   Table,
   TableBody,
@@ -34,6 +42,98 @@ import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
 import { formatDate, formatMoney } from '@/lib/format';
 
 const COLUMN_COUNT = 10;
+
+const counterpartyLabel = (transaction: TransactionDto): string =>
+  transaction.supplier ??
+  transaction.partner ??
+  (transaction.vehicle ? vehicleLabel(transaction.vehicle) : '—');
+
+interface DetailItemProps {
+  label: string;
+  value: React.ReactNode;
+}
+
+function DetailItem({ label, value }: DetailItemProps) {
+  return (
+    <div className="space-y-1">
+      <dt className="text-muted-foreground text-xs">{label}</dt>
+      <dd className="break-words text-sm font-medium">{value || '—'}</dd>
+    </div>
+  );
+}
+
+function TransactionDetailsSheet({
+  transaction,
+  onOpenChange,
+}: {
+  transaction: TransactionDto | null;
+  onOpenChange: (isOpen: boolean) => void;
+}) {
+  const statementLabel = transaction
+    ? [transaction.statementNumber, transaction.bankReference].filter(Boolean).join(' · ')
+    : '';
+
+  return (
+    <Sheet open={Boolean(transaction)} onOpenChange={onOpenChange}>
+      <SheetContent className="sm:max-w-xl">
+        <SheetHeader>
+          <SheetTitle>Detalji transakcije</SheetTitle>
+          <SheetDescription>
+            {transaction
+              ? `${formatDate(transaction.occurredAt)} · ${formatMoney(transaction.amount)}`
+              : ''}
+          </SheetDescription>
+        </SheetHeader>
+        {transaction ? (
+          <dl className="grid gap-4 overflow-y-auto px-4 pb-4 sm:grid-cols-2">
+            <DetailItem label="Datum" value={formatDate(transaction.occurredAt)} />
+            <DetailItem label="Iznos" value={formatMoney(transaction.amount)} />
+            <DetailItem label="Tip" value={<TransactionTypeBadge type={transaction.type} />} />
+            <DetailItem
+              label="Kategorija"
+              value={TRANSACTION_CATEGORY_LABELS[transaction.category]}
+            />
+            <DetailItem label="Plaćanje" value={PAYMENT_METHOD_LABELS[transaction.paymentMethod]} />
+            <DetailItem label="Partner / dobavljač" value={counterpartyLabel(transaction)} />
+            <DetailItem label="Partner ID" value={transaction.partnerId} />
+            <DetailItem label="Dobavljač" value={transaction.supplier} />
+            <DetailItem label="Partner" value={transaction.partner} />
+            <DetailItem label="Relacija" value={transaction.route} />
+            <DetailItem
+              label="Vozilo"
+              value={transaction.vehicle ? vehicleLabel(transaction.vehicle) : null}
+            />
+            <DetailItem
+              label="Vozač"
+              value={
+                transaction.driver
+                  ? `${transaction.driver.firstName} ${transaction.driver.lastName}`
+                  : null
+              }
+            />
+            <DetailItem label="Broj izvoda / referenca" value={statementLabel} />
+            <DetailItem label="Broj izvoda" value={transaction.statementNumber} />
+            <DetailItem label="Bankarska referenca" value={transaction.bankReference} />
+            <DetailItem
+              label="Izvor"
+              value={TRANSACTION_SOURCE_TYPE_LABELS[transaction.sourceType]}
+            />
+            <DetailItem
+              label="Status avansa"
+              value={<AdvanceStatusBadge transaction={transaction} />}
+            />
+            <DetailItem label="Rasknjiženo" value={formatMoney(transaction.allocatedAmount)} />
+            <DetailItem label="Nerasknjiženo" value={formatMoney(transaction.unallocatedAmount)} />
+            <DetailItem label="Broj rasknjižavanja" value={String(transaction.allocationCount)} />
+            <DetailItem label="Ugovor" value={transaction.contractId} />
+            <DetailItem label="Interni ID" value={transaction.id} />
+            <DetailItem label="Opis" value={transaction.note} />
+          </dl>
+        ) : null}
+      </SheetContent>
+    </Sheet>
+  );
+}
 
 interface TransactionsTableProps {
   transactions: TransactionDto[];
@@ -56,6 +156,8 @@ export function TransactionsTable({
   onRequestDelete,
   emptyAction,
 }: TransactionsTableProps) {
+  const [transactionToView, setTransactionToView] = useState<TransactionDto | null>(null);
+
   if (!isLoading && transactions.length === 0) {
     return hasFilters ? (
       <EmptyState
@@ -74,70 +176,70 @@ export function TransactionsTable({
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Datum</TableHead>
-          <TableHead>Tip</TableHead>
-          <TableHead>Kategorija</TableHead>
-          <TableHead className="text-right">Iznos</TableHead>
-          <TableHead>Plaćanje</TableHead>
-          <TableHead>Dobavljač</TableHead>
-          <TableHead>Izvod</TableHead>
-          <TableHead>Avans</TableHead>
-          <TableHead>Izvor</TableHead>
-          <TableHead className="w-[60px] text-right">Akcije</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {isLoading ? (
-          <TableSkeleton rows={5} columns={COLUMN_COUNT} />
-        ) : (
-          transactions.map((transaction) => {
-            const isManual = transaction.sourceType === 'MANUAL';
-            const isBankStatement = transaction.sourceType === 'BANK_STATEMENT';
-            const canEdit = (isManual && transaction.status !== 'SETTLED') || isBankStatement;
-            const canAllocate =
-              (isManual || isBankStatement) && transaction.unallocatedAmount > 0.005;
-            const canPrintCashReceipt = transaction.paymentMethod === 'CASH';
-            const statementLabel = [transaction.statementNumber, transaction.bankReference]
-              .filter(Boolean)
-              .join(' · ');
+    <>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[92px]">Datum</TableHead>
+            <TableHead className="w-[92px]">Tip</TableHead>
+            <TableHead className="w-[112px]">Kategorija</TableHead>
+            <TableHead className="w-[120px] text-right">Iznos</TableHead>
+            <TableHead className="w-[88px]">Plaćanje</TableHead>
+            <TableHead className="min-w-[240px]">Partner / dobavljač</TableHead>
+            <TableHead className="min-w-[220px]">Izvod</TableHead>
+            <TableHead className="w-[110px]">Avans</TableHead>
+            <TableHead className="w-[120px]">Izvor</TableHead>
+            <TableHead className="w-[60px] text-right">Akcije</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {isLoading ? (
+            <TableSkeleton rows={5} columns={COLUMN_COUNT} />
+          ) : (
+            transactions.map((transaction) => {
+              const isManual = transaction.sourceType === 'MANUAL';
+              const isBankStatement = transaction.sourceType === 'BANK_STATEMENT';
+              const canEdit = (isManual && transaction.status !== 'SETTLED') || isBankStatement;
+              const canAllocate =
+                (isManual || isBankStatement) && transaction.unallocatedAmount > 0.005;
+              const canPrintCashReceipt = transaction.paymentMethod === 'CASH';
+              const statementLabel = [transaction.statementNumber, transaction.bankReference]
+                .filter(Boolean)
+                .join(' · ');
 
-            return (
-              <TableRow key={transaction.id}>
-                <TableCell className="text-muted-foreground">
-                  {formatDate(transaction.occurredAt)}
-                </TableCell>
-                <TableCell>
-                  <TransactionTypeBadge type={transaction.type} />
-                </TableCell>
-                <TableCell>{TRANSACTION_CATEGORY_LABELS[transaction.category]}</TableCell>
-                <TableCell className="text-right font-medium">
-                  {formatMoney(transaction.amount)}
-                </TableCell>
-                <TableCell>{PAYMENT_METHOD_LABELS[transaction.paymentMethod]}</TableCell>
-                <TableCell className="max-w-[140px] truncate">
-                  {transaction.supplier ??
-                    transaction.partner ??
-                    (transaction.vehicle ? vehicleLabel(transaction.vehicle) : '—')}
-                </TableCell>
-                <TableCell className="text-muted-foreground max-w-[160px] truncate">
-                  {statementLabel || '—'}
-                </TableCell>
-                <TableCell>
-                  <AdvanceStatusBadge transaction={transaction} />
-                  {!transaction.isAdvance && transaction.allocationCount > 0 ? (
-                    <span className="text-muted-foreground block text-xs">
-                      {formatMoney(transaction.allocatedAmount)}
-                    </span>
-                  ) : null}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {TRANSACTION_SOURCE_TYPE_LABELS[transaction.sourceType]}
-                </TableCell>
-                <TableCell className="text-right">
-                  {canEdit || canAllocate || canPrintCashReceipt ? (
+              return (
+                <TableRow key={transaction.id}>
+                  <TableCell className="text-muted-foreground whitespace-nowrap">
+                    {formatDate(transaction.occurredAt)}
+                  </TableCell>
+                  <TableCell>
+                    <TransactionTypeBadge type={transaction.type} />
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {TRANSACTION_CATEGORY_LABELS[transaction.category]}
+                  </TableCell>
+                  <TableCell className="text-right font-medium whitespace-nowrap">
+                    {formatMoney(transaction.amount)}
+                  </TableCell>
+                  <TableCell>{PAYMENT_METHOD_LABELS[transaction.paymentMethod]}</TableCell>
+                  <TableCell className="max-w-[320px] truncate">
+                    {counterpartyLabel(transaction)}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground max-w-[300px] truncate">
+                    {statementLabel || '—'}
+                  </TableCell>
+                  <TableCell>
+                    <AdvanceStatusBadge transaction={transaction} />
+                    {!transaction.isAdvance && transaction.allocationCount > 0 ? (
+                      <span className="text-muted-foreground block text-xs">
+                        {formatMoney(transaction.allocatedAmount)}
+                      </span>
+                    ) : null}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {TRANSACTION_SOURCE_TYPE_LABELS[transaction.sourceType]}
+                  </TableCell>
+                  <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon-sm" aria-label="Akcije">
@@ -145,6 +247,10 @@ export function TransactionsTable({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setTransactionToView(transaction)}>
+                          <Eye className="size-4" />
+                          Detalji
+                        </DropdownMenuItem>
                         {canAllocate ? (
                           <DropdownMenuItem onClick={() => onAllocate(transaction)}>
                             <Link2 className="size-4" />
@@ -175,15 +281,21 @@ export function TransactionsTable({
                         ) : null}
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  ) : (
-                    <span className="text-muted-foreground sr-only">Bez akcija</span>
-                  )}
-                </TableCell>
-              </TableRow>
-            );
-          })
-        )}
-      </TableBody>
-    </Table>
+                  </TableCell>
+                </TableRow>
+              );
+            })
+          )}
+        </TableBody>
+      </Table>
+      <TransactionDetailsSheet
+        transaction={transactionToView}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setTransactionToView(null);
+          }
+        }}
+      />
+    </>
   );
 }

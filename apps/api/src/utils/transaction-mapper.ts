@@ -31,6 +31,7 @@ export interface FinanceTransactionRecord {
   note: string | null;
   supplier: string | null;
   partner: string | null;
+  partnerId: string | null;
   route: string | null;
   vehicleId: string | null;
   driverId: string | null;
@@ -80,6 +81,7 @@ export const toTransactionDto = (record: FinanceTransactionRecord): TransactionD
     note: record.note,
     supplier: record.supplier,
     partner: record.partner,
+    partnerId: record.partnerId,
     route: record.route,
     vehicle: record.vehicle ? toVehicleDto(record.vehicle) : null,
     driver: record.driver ? toDriverDto(record.driver) : null,

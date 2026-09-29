@@ -1,6 +1,8 @@
 import type {
   ApiPaginatedResponse,
   ApiResponse,
+  BankStatementImportResult,
+  BankStatementXmlImportRequest,
   BankStatementEntryWriteRequest,
   CreatePaymentAllocationResult,
   DeleteTransactionResult,
@@ -88,6 +90,17 @@ export const createBankStatementEntry = async (
 ): Promise<TransactionDto> => {
   const response = await apiClient.post<ApiResponse<TransactionDto>>(
     '/transactions/bank-statements',
+    body,
+  );
+
+  return unwrap(response.data);
+};
+
+export const importBankStatementXml = async (
+  body: BankStatementXmlImportRequest,
+): Promise<BankStatementImportResult> => {
+  const response = await apiClient.post<ApiResponse<BankStatementImportResult>>(
+    '/transactions/bank-statements/import-xml',
     body,
   );
 

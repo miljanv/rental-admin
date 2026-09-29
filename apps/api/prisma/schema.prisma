@@ -365,8 +365,8 @@ model FuelLog {
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
 
-  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  driver  Driver? @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  vehicle     Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  driver      Driver?   @relation(fields: [driverId], references: [id], onDelete: SetNull)
   supplierRef Supplier? @relation("FuelLogSupplier", fields: [supplierId], references: [id], onDelete: SetNull)
 
   @@index([vehicleId])
@@ -395,7 +395,7 @@ model VehicleMaintenance {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  vehicle     Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   supplierRef Supplier? @relation("VehicleMaintenanceSupplier", fields: [supplierId], references: [id], onDelete: SetNull)
 
   @@index([vehicleId])
@@ -425,7 +425,7 @@ model CompanyExpense {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
-  vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  vehicle     Vehicle?  @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
   supplierRef Supplier? @relation("CompanyExpenseSupplier", fields: [supplierId], references: [id], onDelete: SetNull)
 
   @@index([issuedAt])
@@ -441,20 +441,20 @@ model CompanyExpense {
 /// text so historic fuel/expense rows remain valid even when this registry is
 /// cleaned up or a supplier is renamed.
 model Supplier {
-  id                 String   @id @default(cuid())
-  name               String   @unique
+  id                 String               @id @default(cuid())
+  name               String               @unique
   email              String?
   phone              String?
-  pib                String?  @unique
+  pib                String?              @unique
   registrationNumber String?
   address            String?
   city               String?
   contactPerson      String?
   note               String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  companyExpenses    CompanyExpense[] @relation("CompanyExpenseSupplier")
-  fuelLogs           FuelLog[] @relation("FuelLogSupplier")
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  companyExpenses    CompanyExpense[]     @relation("CompanyExpenseSupplier")
+  fuelLogs           FuelLog[]            @relation("FuelLogSupplier")
   maintenanceRecords VehicleMaintenance[] @relation("VehicleMaintenanceSupplier")
   transactions       FinanceTransaction[] @relation("FinanceTransactionSupplier")
 
@@ -524,11 +524,26 @@ model Partner {
   updatedAt          DateTime    @updatedAt
 
   contracts    Contract[]
-  trips        Trip[]     @relation("TripClient")
-  carrierTrips Trip[]     @relation("TripCarrier")
+  trips        Trip[]               @relation("TripClient")
+  carrierTrips Trip[]               @relation("TripCarrier")
+  bankAccounts PartnerBankAccount[]
+  transactions FinanceTransaction[] @relation("FinanceTransactionPartner")
 
   @@index([type])
   @@map("partners")
+}
+
+model PartnerBankAccount {
+  id            String   @id @default(cuid())
+  partnerId     String
+  accountNumber String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  partner Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId])
+  @@map("partner_bank_accounts")
 }
 
 enum ContractStatus {
@@ -727,6 +742,7 @@ model FinanceTransaction {
   supplier            String?
   supplierId          String?
   partner             String?
+  partnerId           String?
   route               String?
   vehicleId           String?
   driverId            String?
@@ -744,6 +760,7 @@ model FinanceTransaction {
   vehicle            Vehicle?             @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
   driver             Driver?              @relation(fields: [driverId], references: [id], onDelete: SetNull)
   supplierRef        Supplier?            @relation("FinanceTransactionSupplier", fields: [supplierId], references: [id], onDelete: SetNull)
+  partnerRef         Partner?             @relation("FinanceTransactionPartner", fields: [partnerId], references: [id], onDelete: SetNull)
   linkedTransaction  FinanceTransaction?  @relation("AdvanceSettlement", fields: [linkedTransactionId], references: [id], onDelete: SetNull)
   linkedAdvances     FinanceTransaction[] @relation("AdvanceSettlement")
   paymentAllocations PaymentAllocation[]
@@ -757,6 +774,7 @@ model FinanceTransaction {
   @@index([supplier, isAdvance, status])
   @@index([supplierId])
   @@index([partner])
+  @@index([partnerId])
   @@index([route])
   @@index([sourceType, sourceId])
   @@index([statementNumber])

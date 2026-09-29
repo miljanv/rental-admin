@@ -18,6 +18,7 @@ export const EMPTY_TRANSACTION_FORM: TransactionFormValues = {
   note: '',
   supplier: '',
   partner: '',
+  partnerId: '',
   route: '',
   vehicleId: '',
   driverId: '',

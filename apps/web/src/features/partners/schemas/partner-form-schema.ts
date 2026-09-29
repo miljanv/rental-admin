@@ -15,4 +15,5 @@ export const EMPTY_PARTNER_FORM: PartnerFormValues = {
   pib: '',
   registrationNumber: '',
   personalId: '',
+  bankAccounts: [],
 };

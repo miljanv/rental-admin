@@ -50,6 +50,7 @@ const document = buildFinanceExportDocument({
       note: null,
       supplier: null,
       partner: 'Agencija Dunav',
+      partnerId: null,
       route: 'NS–BG',
       vehicle: { id: 'v1', make: 'Setra', model: 'S 516', licensePlate: 'NS-001-AA' },
       driver: null,

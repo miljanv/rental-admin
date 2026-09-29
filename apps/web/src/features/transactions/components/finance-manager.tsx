@@ -31,6 +31,7 @@ import { DeleteTransactionDialog } from '@/features/transactions/components/dele
 import { FinanceExportMenu } from '@/features/transactions/components/finance-export-menu';
 import { FinanceOverview } from '@/features/transactions/components/finance-overview';
 import { BankStatementEntryForm } from '@/features/transactions/components/bank-statement-entry-form';
+import { BankStatementImportCard } from '@/features/transactions/components/bank-statement-import-card';
 import { PaymentAllocationPanel } from '@/features/transactions/components/payment-allocation-panel';
 import { SettleAdvancesDialog } from '@/features/transactions/components/settle-advances-dialog';
 import { TransactionForm } from '@/features/transactions/components/transaction-form';
@@ -257,6 +258,12 @@ export function FinanceManager() {
           {activeTab === 'ledger' ? (
             <div className="mb-6">
               <UnsettledAdvancesCard onSettle={setGroupToSettle} />
+            </div>
+          ) : null}
+
+          {activeTab === 'statements' ? (
+            <div className="mb-6">
+              <BankStatementImportCard />
             </div>
           ) : null}
 

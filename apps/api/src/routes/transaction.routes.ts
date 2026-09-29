@@ -4,6 +4,7 @@ import * as transactionController from '../controllers/transaction.controller';
 import { validateRequest } from '../middleware/validate-request';
 import {
   bankStatementEntryWriteSchema,
+  bankStatementXmlImportSchema,
   financeExportQuerySchema,
   financeReportQuerySchema,
   listSettlementTargetsQuerySchema,
@@ -34,6 +35,12 @@ transactionRouter.post(
   '/bank-statements',
   validateRequest({ body: bankStatementEntryWriteSchema }),
   asyncHandler(transactionController.createBankStatementEntry),
+);
+
+transactionRouter.post(
+  '/bank-statements/import-xml',
+  validateRequest({ body: bankStatementXmlImportSchema }),
+  asyncHandler(transactionController.importBankStatementXml),
 );
 
 transactionRouter.get(

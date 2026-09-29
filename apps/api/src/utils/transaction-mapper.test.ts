@@ -12,6 +12,7 @@ const record: FinanceTransactionRecord = {
   note: 'OMV avans',
   supplier: 'OMV',
   partner: null,
+  partnerId: null,
   route: null,
   vehicleId: 'veh_1',
   driverId: null,
