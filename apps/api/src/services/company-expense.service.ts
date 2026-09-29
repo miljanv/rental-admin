@@ -12,6 +12,7 @@ import { prisma } from '../config/prisma';
 import { badRequest, notFound } from '../utils/app-error';
 import { toCompanyExpenseDto, type CompanyExpenseRecord } from '../utils/company-expense-mapper';
 import { logger } from '../utils/logger';
+import { listSupplierNames, mergeSupplierNames } from './supplier.service';
 import { deleteOperationalTransaction } from './transaction.service';
 
 const parseDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`);
@@ -208,16 +209,17 @@ export const getCompanyExpenseSummary = async (
 };
 
 export const listCompanyExpenseSuppliers = async (): Promise<CompanyExpenseSuppliersDto> => {
-  const rows = await prisma.companyExpense.findMany({
-    where: { supplier: { not: '' } },
-    distinct: ['supplier'],
-    select: { supplier: true },
-    orderBy: { supplier: 'asc' },
-  });
+  const [registeredSuppliers, rows] = await Promise.all([
+    listSupplierNames(),
+    prisma.companyExpense.findMany({
+      where: { supplier: { not: '' } },
+      distinct: ['supplier'],
+      select: { supplier: true },
+      orderBy: { supplier: 'asc' },
+    }),
+  ]);
 
   return {
-    suppliers: rows
-      .map((row) => row.supplier)
-      .sort((left, right) => left.localeCompare(right, 'sr')),
+    suppliers: mergeSupplierNames([...registeredSuppliers, ...rows.map((row) => row.supplier)]),
   };
 };

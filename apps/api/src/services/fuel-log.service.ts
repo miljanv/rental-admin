@@ -20,10 +20,8 @@ import { prisma } from '../config/prisma';
 import { badRequest, notFound } from '../utils/app-error';
 import { toFuelLogDto, type FuelLogRecord } from '../utils/fuel-log-mapper';
 import { logger } from '../utils/logger';
-import {
-  deleteOperationalTransaction,
-  upsertOperationalExpense,
-} from './transaction.service';
+import { listSupplierNames } from './supplier.service';
+import { deleteOperationalTransaction, upsertOperationalExpense } from './transaction.service';
 
 const parseDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`);
 
@@ -32,7 +30,11 @@ const fuelLogInclude = {
   vehicle: { select: { id: true, make: true, model: true, licensePlate: true } },
 } as const;
 
-const expenseNote = (input: { note: string | null; location: string; supplier: string }): string => {
+const expenseNote = (input: {
+  note: string | null;
+  location: string;
+  supplier: string;
+}): string => {
   if (input.note) {
     return input.note;
   }
@@ -201,9 +203,7 @@ export const createFuelLog = async (
   return toFuelLogDto(record);
 };
 
-export const createFuelLogsBulk = async (
-  input: FuelLogBulkWriteRequest,
-): Promise<FuelLogDto[]> => {
+export const createFuelLogsBulk = async (input: FuelLogBulkWriteRequest): Promise<FuelLogDto[]> => {
   const vehicleIds = [...new Set(input.rows.map((row) => row.vehicleId))];
   const vehicles = await prisma.vehicle.findMany({
     where: { id: { in: vehicleIds } },
@@ -327,14 +327,19 @@ export const deleteFuelLog = async (fuelLogId: string): Promise<DeleteFuelLogRes
 };
 
 export const listFuelSuppliers = async (): Promise<FuelLogSuppliersDto> => {
-  const rows = await prisma.fuelLog.findMany({
-    where: { supplier: { not: '' } },
-    distinct: ['supplier'],
-    select: { supplier: true },
-    orderBy: { supplier: 'asc' },
-  });
+  const [registeredSuppliers, rows] = await Promise.all([
+    listSupplierNames(),
+    prisma.fuelLog.findMany({
+      where: { supplier: { not: '' } },
+      distinct: ['supplier'],
+      select: { supplier: true },
+      orderBy: { supplier: 'asc' },
+    }),
+  ]);
 
-  return { suppliers: mergeFuelSuppliers(rows.map((row) => row.supplier)) };
+  return {
+    suppliers: mergeFuelSuppliers([...registeredSuppliers, ...rows.map((row) => row.supplier)]),
+  };
 };
 
 export const getFuelConsumption = async (

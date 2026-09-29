@@ -11,6 +11,7 @@ export * from './absence-attestation';
 export * from './generated-document';
 export * from './file';
 export * from './partner';
+export * from './supplier';
 export * from './passenger-list';
 export * from './travel-permit';
 export * from './fuel-log';

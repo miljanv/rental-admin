@@ -24,7 +24,6 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useCreateCompanyExpense } from '@/features/company-expenses/hooks/use-create-company-expense';
-import { useCompanyExpenseSuppliers } from '@/features/company-expenses/hooks/use-company-expense-suppliers';
 import { useUpdateCompanyExpense } from '@/features/company-expenses/hooks/use-update-company-expense';
 import {
   companyExpenseFormSchema,
@@ -34,6 +33,7 @@ import {
   type CompanyExpenseFormValues,
 } from '@/features/company-expenses/schemas/company-expense-form-schema';
 import { PaymentMethodSelect } from '@/features/transactions/components/payment-method-select';
+import { SupplierNameInput } from '@/features/suppliers/components/supplier-name-input';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
 import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
 import { formatMoney } from '@/lib/format';
@@ -68,7 +68,6 @@ export function CompanyExpenseForm({ expense, defaultVehicleId, onDone }: Compan
   const createMutation = useCreateCompanyExpense();
   const updateMutation = useUpdateCompanyExpense();
   const isPending = createMutation.isPending || updateMutation.isPending;
-  const suppliersQuery = useCompanyExpenseSuppliers();
 
   const vehiclesQuery = useVehicles({
     page: 1,
@@ -144,18 +143,14 @@ export function CompanyExpenseForm({ expense, defaultVehicleId, onDone }: Compan
             </Field>
 
             <Field id="supplier" label="Dobavljač" error={errors.supplier?.message}>
-              <Input
+              <SupplierNameInput
                 id="supplier"
-                list="company-expense-suppliers"
                 disabled={isPending}
-                aria-invalid={Boolean(errors.supplier)}
-                {...form.register('supplier')}
+                ariaInvalid={Boolean(errors.supplier)}
+                value={form.watch('supplier')}
+                onChange={(value) => form.setValue('supplier', value, { shouldValidate: true })}
+                onBlur={() => form.trigger('supplier')}
               />
-              <datalist id="company-expense-suppliers">
-                {(suppliersQuery.data ?? []).map((supplier) => (
-                  <option key={supplier} value={supplier} />
-                ))}
-              </datalist>
             </Field>
 
             <Controller

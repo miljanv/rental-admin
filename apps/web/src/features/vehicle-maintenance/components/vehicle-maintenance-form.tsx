@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SupplierNameInput } from '@/features/suppliers/components/supplier-name-input';
+import { PaymentMethodSelect } from '@/features/transactions/components/payment-method-select';
 import { useCreateVehicleMaintenance } from '@/features/vehicle-maintenance/hooks/use-create-vehicle-maintenance';
 import { useUpdateVehicleMaintenance } from '@/features/vehicle-maintenance/hooks/use-update-vehicle-maintenance';
 import {
@@ -16,7 +18,6 @@ import {
   vehicleMaintenanceFormSchema,
   type VehicleMaintenanceFormValues,
 } from '@/features/vehicle-maintenance/schemas/vehicle-maintenance-form-schema';
-import { PaymentMethodSelect } from '@/features/transactions/components/payment-method-select';
 
 interface VehicleMaintenanceFormProps {
   vehicleId: string;
@@ -124,11 +125,15 @@ export function VehicleMaintenanceForm({ vehicleId, record, onDone }: VehicleMai
             </Field>
 
             <Field id="supplier" label="Dobavljač" error={errors.supplier?.message}>
-              <Input
+              <SupplierNameInput
                 id="supplier"
                 disabled={isPending}
-                aria-invalid={Boolean(errors.supplier)}
-                {...form.register('supplier')}
+                ariaInvalid={Boolean(errors.supplier)}
+                value={form.watch('supplier')}
+                onChange={(value) =>
+                  form.setValue('supplier', value, { shouldDirty: true, shouldValidate: true })
+                }
+                onBlur={() => void form.trigger('supplier')}
               />
             </Field>
 
@@ -148,7 +153,11 @@ export function VehicleMaintenanceForm({ vehicleId, record, onDone }: VehicleMai
               control={form.control}
               name="paymentMethod"
               render={({ field }) => (
-                <Field id="paymentMethod" label="Način plaćanja" error={errors.paymentMethod?.message}>
+                <Field
+                  id="paymentMethod"
+                  label="Način plaćanja"
+                  error={errors.paymentMethod?.message}
+                >
                   <PaymentMethodSelect
                     id="paymentMethod"
                     value={field.value}

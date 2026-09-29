@@ -6,6 +6,7 @@ import {
   ReceiptText,
   Route,
   Settings2,
+  Store,
   Truck,
   UserRound,
   Users,
@@ -65,6 +66,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: '/partners',
     icon: Users,
     description: 'Naručioci prevoza',
+  },
+  {
+    title: 'Dobavljači',
+    href: '/suppliers',
+    icon: Store,
+    description: 'Evidencija dobavljača',
   },
   {
     title: 'Ugovori',

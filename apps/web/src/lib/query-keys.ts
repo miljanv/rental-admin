@@ -10,6 +10,7 @@ import type {
   PartnerType,
   PaymentMethod,
   SortOrder,
+  SupplierSortField,
   TransactionCategory,
   TransactionSourceType,
   TransactionSortField,
@@ -115,6 +116,14 @@ export interface PartnerListQueryParams {
   sortBy: PartnerSortField;
   sortOrder: SortOrder;
   type?: PartnerType;
+}
+
+export interface SupplierListQueryParams {
+  page: number;
+  limit: number;
+  search?: string;
+  sortBy: SupplierSortField;
+  sortOrder: SortOrder;
 }
 
 export interface ContractListQueryParams {
@@ -244,6 +253,11 @@ export const queryKeys = {
     all: ['partners'] as const,
     list: (params: PartnerListQueryParams) => ['partners', 'list', params] as const,
     detail: (id: string) => ['partners', 'detail', id] as const,
+  },
+  suppliers: {
+    all: ['suppliers'] as const,
+    list: (params: SupplierListQueryParams) => ['suppliers', 'list', params] as const,
+    detail: (id: string) => ['suppliers', 'detail', id] as const,
   },
   contracts: {
     all: ['contracts'] as const,
