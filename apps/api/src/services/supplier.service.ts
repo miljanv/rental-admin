@@ -50,6 +50,15 @@ export const listSupplierNames = async (): Promise<string[]> => {
   return rows.map((row) => row.name);
 };
 
+const normalizeMatchText = (value: string): string =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/Đ/g, 'DJ')
+    .replace(/đ/g, 'dj')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '');
+
 export const findSupplierIdByName = async (
   name: string | null | undefined,
 ): Promise<string | null> => {
@@ -64,7 +73,22 @@ export const findSupplierIdByName = async (
     select: { id: true },
   });
 
-  return record?.id ?? null;
+  if (record) {
+    return record.id;
+  }
+
+  const normalizedInput = normalizeMatchText(normalized);
+  const suppliers = await prisma.supplier.findMany({ select: { id: true, name: true } });
+  const fuzzy = suppliers.find((supplier) => {
+    const normalizedSupplier = normalizeMatchText(supplier.name);
+
+    return (
+      normalizedSupplier.length >= 3 &&
+      (normalizedInput.includes(normalizedSupplier) || normalizedSupplier.includes(normalizedInput))
+    );
+  });
+
+  return fuzzy?.id ?? null;
 };
 
 export const listSuppliers = async (

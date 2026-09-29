@@ -48,6 +48,37 @@ const tripPartnerLabel = (trip: {
   return trip.partner.companyName?.trim() || 'Bez kupca';
 };
 
+const normalizeMatchText = (value: string): string =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/Đ/g, 'DJ')
+    .replace(/đ/g, 'dj')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '');
+
+const findSupplierMatch = (
+  supplierId: string | null,
+  supplier: string | null,
+  suppliers: Array<{ id: string; name: string }>,
+): { supplierId: string | null; supplier: string | null } => {
+  if (supplierId || !supplier?.trim()) {
+    return { supplierId, supplier };
+  }
+
+  const normalizedInput = normalizeMatchText(supplier);
+  const match = suppliers.find((candidate) => {
+    const normalizedSupplier = normalizeMatchText(candidate.name);
+
+    return (
+      normalizedSupplier.length >= 3 &&
+      (normalizedInput.includes(normalizedSupplier) || normalizedSupplier.includes(normalizedInput))
+    );
+  });
+
+  return match ? { supplierId: match.id, supplier: match.name } : { supplierId, supplier };
+};
+
 const addSupplier = (
   rows: Map<string, SupplierAnalyticsRowDto>,
   supplierId: string | null,
@@ -336,7 +367,8 @@ export const getBusinessAnalytics = async (
     );
     supplierDebt += expense.amountWithVat;
     supplierPaid += paid;
-    addSupplier(supplierRows, expense.supplierId, expense.supplier, {
+    const supplierMatch = findSupplierMatch(expense.supplierId, expense.supplier, suppliers);
+    addSupplier(supplierRows, supplierMatch.supplierId, supplierMatch.supplier, {
       invoiceTotal: expense.amountWithVat,
       paidTotal: paid,
       openTotal: expense.amountWithVat - paid,
@@ -355,7 +387,10 @@ export const getBusinessAnalytics = async (
   for (const log of fuelLogs) {
     const amount = log.cost ?? 0;
     fuelExpense += amount;
-    addSupplier(supplierRows, log.supplierId, log.supplier, { fuelExpense: amount });
+    const supplierMatch = findSupplierMatch(log.supplierId, log.supplier, suppliers);
+    addSupplier(supplierRows, supplierMatch.supplierId, supplierMatch.supplier, {
+      fuelExpense: amount,
+    });
 
     const row = vehicleRows.get(log.vehicleId);
 
@@ -367,7 +402,12 @@ export const getBusinessAnalytics = async (
   let maintenanceExpense = 0;
   for (const maintenance of maintenanceRecords) {
     maintenanceExpense += maintenance.cost;
-    addSupplier(supplierRows, maintenance.supplierId, maintenance.supplier, {
+    const supplierMatch = findSupplierMatch(
+      maintenance.supplierId,
+      maintenance.supplier,
+      suppliers,
+    );
+    addSupplier(supplierRows, supplierMatch.supplierId, supplierMatch.supplier, {
       maintenanceExpense: maintenance.cost,
     });
 
@@ -415,9 +455,10 @@ export const getBusinessAnalytics = async (
 
     if (expense.supplier) {
       const statementPayment = expense.sourceType === 'BANK_STATEMENT' ? unallocatedAmount : 0;
+      const supplierMatch = findSupplierMatch(expense.supplierId, expense.supplier, suppliers);
 
       supplierPaid += statementPayment;
-      addSupplier(supplierRows, expense.supplierId, expense.supplier, {
+      addSupplier(supplierRows, supplierMatch.supplierId, supplierMatch.supplier, {
         paidTotal: statementPayment,
         openTotal: -statementPayment,
         transactionExpense: expense.amount,
