@@ -456,12 +456,13 @@ export const importBankStatementXml = async (
   }
 
   const imported: FinanceTransactionRecord[] = [];
-  let skipped = 0;
+  let duplicateSkipped = 0;
+  let invalidSkipped = 0;
   let matchedPartners = 0;
 
   for (const entry of parsed.entries) {
     if (!entry.fitId || !entry.occurredAt || !Number.isFinite(entry.amount) || entry.amount <= 0) {
-      skipped += 1;
+      invalidSkipped += 1;
       continue;
     }
 
@@ -474,7 +475,7 @@ export const importBankStatementXml = async (
     });
 
     if (existing) {
-      skipped += 1;
+      duplicateSkipped += 1;
       continue;
     }
 
@@ -541,14 +542,17 @@ export const importBankStatementXml = async (
   logger.info('Bank statement XML imported', {
     statementNumber: parsed.statementNumber,
     imported: imported.length,
-    skipped,
+    duplicateSkipped,
+    invalidSkipped,
   });
 
   return {
     statementNumber: parsed.statementNumber,
     accountNumber: normalizeBankAccount(parsed.accountNumber),
     imported: imported.length,
-    skipped,
+    skipped: duplicateSkipped + invalidSkipped,
+    duplicateSkipped,
+    invalidSkipped,
     matchedPartners,
     transactions: imported.map((record) => toTransactionDto(record)),
   };

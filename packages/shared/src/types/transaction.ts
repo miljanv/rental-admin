@@ -146,6 +146,8 @@ export interface BankStatementImportResult {
   accountNumber: string | null;
   imported: number;
   skipped: number;
+  duplicateSkipped: number;
+  invalidSkipped: number;
   matchedPartners: number;
   transactions: TransactionDto[];
 }

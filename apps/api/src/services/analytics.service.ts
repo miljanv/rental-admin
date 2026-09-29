@@ -105,6 +105,7 @@ export const getBusinessAnalytics = async (
     fuelLogs,
     maintenanceRecords,
     financeExpenses,
+    financeIncome,
     driverAssignments,
   ] = await Promise.all([
     allocationMap(),
@@ -167,7 +168,27 @@ export const getBusinessAnalytics = async (
           ],
         },
       },
-      select: { amount: true, supplier: true, supplierId: true, sourceType: true, vehicleId: true },
+      select: {
+        amount: true,
+        supplier: true,
+        supplierId: true,
+        sourceType: true,
+        vehicleId: true,
+        paymentAllocations: { select: { amount: true } },
+      },
+    }),
+    prisma.financeTransaction.findMany({
+      where: {
+        type: 'INCOME',
+        occurredAt: { gte: fromDate, lte: toDate },
+        sourceType: { in: ['MANUAL', 'BANK_STATEMENT'] },
+      },
+      select: {
+        amount: true,
+        partner: true,
+        partnerId: true,
+        paymentAllocations: { select: { amount: true } },
+      },
     }),
     prisma.tripDriver.findMany({
       where: {
@@ -280,6 +301,31 @@ export const getBusinessAnalytics = async (
     }
   }
 
+  for (const income of financeIncome) {
+    const allocatedAmount = roundMoney(
+      income.paymentAllocations.reduce((sum, allocation) => sum + allocation.amount, 0),
+    );
+    const unallocatedAmount = Math.max(0, roundMoney(income.amount - allocatedAmount));
+
+    if (unallocatedAmount <= 0 || (!income.partnerId && !income.partner?.trim())) {
+      continue;
+    }
+
+    const key = partnerKey(income.partnerId, income.partner);
+    const partner = partnerRows.get(key) ?? {
+      partnerKey: key,
+      partnerLabel: income.partner?.trim() || 'Bez kupca',
+      tripCount: 0,
+      invoicedRevenue: 0,
+      collectedRevenue: 0,
+      openReceivables: 0,
+    };
+
+    collectedRevenue += unallocatedAmount;
+    partner.collectedRevenue += unallocatedAmount;
+    partnerRows.set(key, partner);
+  }
+
   let supplierDebt = 0;
   let supplierPaid = 0;
 
@@ -335,6 +381,11 @@ export const getBusinessAnalytics = async (
   let tripExpense = 0;
   let driverPayouts = 0;
   for (const expense of financeExpenses) {
+    const allocatedAmount = roundMoney(
+      expense.paymentAllocations.reduce((sum, allocation) => sum + allocation.amount, 0),
+    );
+    const unallocatedAmount = Math.max(0, roundMoney(expense.amount - allocatedAmount));
+
     if (expense.sourceType === 'TRIP_EXPENSE') {
       tripExpense += expense.amount;
 
@@ -363,7 +414,12 @@ export const getBusinessAnalytics = async (
     }
 
     if (expense.supplier) {
+      const statementPayment = expense.sourceType === 'BANK_STATEMENT' ? unallocatedAmount : 0;
+
+      supplierPaid += statementPayment;
       addSupplier(supplierRows, expense.supplierId, expense.supplier, {
+        paidTotal: statementPayment,
+        openTotal: -statementPayment,
         transactionExpense: expense.amount,
       });
     }
@@ -415,7 +471,7 @@ export const getBusinessAnalytics = async (
   for (const row of partnerRows.values()) {
     row.invoicedRevenue = roundMoney(row.invoicedRevenue);
     row.collectedRevenue = roundMoney(row.collectedRevenue);
-    row.openReceivables = roundMoney(row.openReceivables);
+    row.openReceivables = Math.max(0, roundMoney(row.invoicedRevenue - row.collectedRevenue));
   }
 
   for (const row of supplierRows.values()) {
@@ -425,7 +481,7 @@ export const getBusinessAnalytics = async (
 
     row.invoiceTotal = roundMoney(row.invoiceTotal);
     row.paidTotal = roundMoney(row.paidTotal);
-    row.openTotal = roundMoney(row.openTotal);
+    row.openTotal = Math.max(0, roundMoney(row.openTotal));
     row.fuelExpense = roundMoney(row.fuelExpense);
     row.maintenanceExpense = roundMoney(row.maintenanceExpense);
     row.transactionExpense = roundMoney(row.transactionExpense);
@@ -450,10 +506,10 @@ export const getBusinessAnalytics = async (
       tripDistanceKm: roundKm(tripDistanceKm),
       invoicedRevenue: roundMoney(invoicedRevenue),
       collectedRevenue: roundMoney(collectedRevenue),
-      openReceivables: roundMoney(invoicedRevenue - collectedRevenue),
+      openReceivables: Math.max(0, roundMoney(invoicedRevenue - collectedRevenue)),
       supplierDebt: roundMoney(supplierDebt),
       supplierPaid: roundMoney(supplierPaid),
-      openPayables: roundMoney(supplierDebt - supplierPaid),
+      openPayables: Math.max(0, roundMoney(supplierDebt - supplierPaid)),
       fuelExpense: roundMoney(fuelExpense),
       maintenanceExpense: roundMoney(maintenanceExpense + supplierDebt),
       tripExpense: roundMoney(tripExpense),
