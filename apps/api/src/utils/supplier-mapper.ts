@@ -11,6 +11,7 @@ export interface SupplierRecord {
   city: string | null;
   contactPerson: string | null;
   note: string | null;
+  bankAccounts: Array<{ id: string; accountNumber: string }>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -26,6 +27,10 @@ export const toSupplierDto = (record: SupplierRecord): SupplierDto => ({
   city: record.city,
   contactPerson: record.contactPerson,
   note: record.note,
+  bankAccounts: record.bankAccounts.map((account) => ({
+    id: account.id,
+    accountNumber: account.accountNumber,
+  })),
   createdAt: record.createdAt.toISOString(),
   updatedAt: record.updatedAt.toISOString(),
 });

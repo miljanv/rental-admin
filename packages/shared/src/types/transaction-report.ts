@@ -48,6 +48,12 @@ export interface FinancePartnerProfit extends FinanceMoneySplit {
   partner: string;
 }
 
+export interface FinanceSupplierExpense {
+  supplier: string;
+  expense: number;
+  count: number;
+}
+
 export interface FinanceRouteProfit extends FinanceMoneySplit {
   route: string;
 }
@@ -61,6 +67,7 @@ export interface FinanceReportDto {
   monthly: FinanceMonthlyPoint[];
   byVehicle: FinanceVehicleProfit[];
   byPartner: FinancePartnerProfit[];
+  bySupplier: FinanceSupplierExpense[];
   byRoute: FinanceRouteProfit[];
 }
 
@@ -91,6 +98,7 @@ export interface FinanceReportRow {
   paymentMethod: PaymentMethod;
   vehicle: TransactionVehicleDto | null;
   partner: string | null;
+  supplier: string | null;
   route: string | null;
 }
 
@@ -171,6 +179,7 @@ export const buildFinanceReport = (
   const byMonth = new Map<string, FinanceMonthlyPoint>();
   const byVehicle = new Map<string, FinanceVehicleProfit>();
   const byPartner = new Map<string, FinancePartnerProfit>();
+  const bySupplier = new Map<string, FinanceSupplierExpense>();
   const byRoute = new Map<string, FinanceRouteProfit>();
 
   for (const month of listMonthsInclusive(from, to)) {
@@ -233,10 +242,22 @@ export const buildFinanceReport = (
     addToSplit(vehicleRow, row.type, row.amount);
     byVehicle.set(vehicleKey, vehicleRow);
 
-    const partnerName = row.partner?.trim() || 'Bez partnera';
-    const partnerRow = byPartner.get(partnerName) ?? { partner: partnerName, ...emptySplit() };
-    addToSplit(partnerRow, row.type, row.amount);
-    byPartner.set(partnerName, partnerRow);
+    if (row.type === 'INCOME') {
+      const partnerName = row.partner?.trim() || 'Bez kupca';
+      const partnerRow = byPartner.get(partnerName) ?? { partner: partnerName, ...emptySplit() };
+      addToSplit(partnerRow, row.type, row.amount);
+      byPartner.set(partnerName, partnerRow);
+    } else {
+      const supplierName = row.supplier?.trim() || 'Bez dobavljača';
+      const supplierRow = bySupplier.get(supplierName) ?? {
+        supplier: supplierName,
+        expense: 0,
+        count: 0,
+      };
+      supplierRow.expense += row.amount;
+      supplierRow.count += 1;
+      bySupplier.set(supplierName, supplierRow);
+    }
 
     const routeName = row.route?.trim() || 'Bez relacije';
     const routeRow = byRoute.get(routeName) ?? { route: routeName, ...emptySplit() };
@@ -258,6 +279,9 @@ export const buildFinanceReport = (
     monthly: [...byMonth.values()],
     byVehicle: [...byVehicle.values()].sort(compareProfitDesc),
     byPartner: [...byPartner.values()].sort(compareProfitDesc),
+    bySupplier: [...bySupplier.values()].sort(
+      (left, right) => right.expense - left.expense || right.count - left.count,
+    ),
     byRoute: [...byRoute.values()].sort(compareProfitDesc),
   };
 };

@@ -178,7 +178,7 @@ export const buildFinanceExportDocument = (input: {
       ]),
     },
     {
-      title: 'Profit po partneru',
+      title: 'Prihod po kupcu',
       sheetName: 'Partneri',
       headers: ['Partner', 'Prihod', 'Rashod', 'Profit', 'Knjiženja'],
       rows: report.byPartner.map((item) => [
@@ -186,6 +186,16 @@ export const buildFinanceExportDocument = (input: {
         roundMoney(item.income),
         roundMoney(item.expense),
         roundMoney(item.profit),
+        item.count,
+      ]),
+    },
+    {
+      title: 'Rashod po dobavljaču',
+      sheetName: 'Dobavljaci',
+      headers: ['Dobavljač', 'Rashod', 'Knjiženja'],
+      rows: report.bySupplier.map((item) => [
+        item.supplier,
+        roundMoney(item.expense),
         item.count,
       ]),
     },
@@ -273,4 +283,3 @@ export const financeExportSheets = (document: FinanceExportDocument): XlsxSheet[
       ...table.rows,
     ],
   }));
-

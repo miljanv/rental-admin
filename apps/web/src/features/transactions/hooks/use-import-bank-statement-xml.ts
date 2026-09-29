@@ -15,7 +15,7 @@ export const useImportBankStatementXml = () => {
     mutationFn: (body: BankStatementXmlImportRequest) => importBankStatementXml(body),
     onSuccess: async (result) => {
       toast.success('Izvod je uvezen.', {
-        description: `Novo dodato: ${result.imported}. Već postoji: ${result.duplicateSkipped}. Neispravno: ${result.invalidSkipped}. Povezano sa kupcem: ${result.matchedPartners}.`,
+        description: `Novo dodato: ${result.imported}. Već postoji: ${result.duplicateSkipped}. Neispravno: ${result.invalidSkipped}. Kupci: ${result.matchedPartners}. Dobavljači: ${result.matchedSuppliers}.`,
       });
       await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
     },

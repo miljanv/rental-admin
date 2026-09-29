@@ -30,6 +30,7 @@ export interface FinanceTransactionRecord {
   paymentMethod: PaymentMethod;
   note: string | null;
   supplier: string | null;
+  supplierId: string | null;
   partner: string | null;
   partnerId: string | null;
   route: string | null;
@@ -80,6 +81,7 @@ export const toTransactionDto = (record: FinanceTransactionRecord): TransactionD
     paymentMethod: record.paymentMethod,
     note: record.note,
     supplier: record.supplier,
+    supplierId: record.supplierId,
     partner: record.partner,
     partnerId: record.partnerId,
     route: record.route,

@@ -50,7 +50,7 @@ export function BankStatementImportCard() {
             disabled={mutation.isPending}
           />
           <Label htmlFor="remember-matched-accounts" className="text-sm">
-            Zapamti račun ako je partner pronađen po nazivu
+            Zapamti račun ako je kupac ili dobavljač pronađen po nazivu
           </Label>
         </div>
         <div className="flex items-center gap-2">

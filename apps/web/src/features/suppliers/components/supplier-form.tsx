@@ -7,8 +7,9 @@ import {
   type SupplierDto,
   type SupplierWriteRequest,
 } from '@rental-admin/shared';
+import { Plus, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import { useForm, useWatch } from 'react-hook-form';
+import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
 import { CharacterCounter } from '@/components/common/character-counter';
@@ -62,6 +63,7 @@ export function SupplierForm({ supplier }: SupplierFormProps) {
     resolver: zodResolver(supplierFormSchema),
     defaultValues: supplier ? toSupplierFormValues(supplier) : EMPTY_SUPPLIER_FORM,
   });
+  const bankAccounts = useFieldArray({ control: form.control, name: 'bankAccounts' });
 
   const pib = useWatch({ control: form.control, name: 'pib' });
   const registrationNumber = useWatch({ control: form.control, name: 'registrationNumber' });
@@ -204,6 +206,57 @@ export function SupplierForm({ supplier }: SupplierFormProps) {
                 />
               </Field>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-none">
+          <CardHeader>
+            <CardTitle>Bankovni računi</CardTitle>
+            <CardDescription>
+              Koriste se za automatsko povezivanje isplata sa izvoda sa dobavljačem.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="max-w-2xl space-y-3">
+            {bankAccounts.fields.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nije dodat nijedan račun.</p>
+            ) : null}
+            {bankAccounts.fields.map((field, index) => (
+              <div key={field.id} className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                <Field
+                  id={`bankAccounts.${index}.accountNumber`}
+                  label={`Račun ${index + 1}`}
+                  error={errors.bankAccounts?.[index]?.accountNumber?.message}
+                >
+                  <Input
+                    id={`bankAccounts.${index}.accountNumber`}
+                    placeholder="160-0000001902222-87"
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.bankAccounts?.[index]?.accountNumber)}
+                    {...form.register(`bankAccounts.${index}.accountNumber`)}
+                  />
+                </Field>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="mt-0 sm:mt-7"
+                  disabled={isPending}
+                  onClick={() => bankAccounts.remove(index)}
+                  aria-label={`Obriši račun ${index + 1}`}
+                >
+                  <Trash2 className="size-4" aria-hidden />
+                </Button>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isPending}
+              onClick={() => bankAccounts.append({ accountNumber: '' })}
+            >
+              <Plus className="size-4" aria-hidden />
+              Dodaj račun
+            </Button>
           </CardContent>
         </Card>
 

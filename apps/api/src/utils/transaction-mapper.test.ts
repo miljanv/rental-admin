@@ -11,6 +11,7 @@ const record: FinanceTransactionRecord = {
   paymentMethod: 'ACCOUNT',
   note: 'OMV avans',
   supplier: 'OMV',
+  supplierId: 'sup_1',
   partner: null,
   partnerId: null,
   route: null,

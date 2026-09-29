@@ -16,6 +16,13 @@ import { toSupplierDto, type SupplierRecord } from '../utils/supplier-mapper';
 
 type SupplierOrderBy = Partial<Record<SupplierSortField, SortOrder>>;
 
+const supplierInclude = {
+  bankAccounts: {
+    select: { id: true, accountNumber: true },
+    orderBy: { accountNumber: 'asc' as const },
+  },
+} as const;
+
 const toWriteData = (input: SupplierWriteRequest) => ({
   name: input.name,
   email: input.email,
@@ -27,6 +34,11 @@ const toWriteData = (input: SupplierWriteRequest) => ({
   contactPerson: input.contactPerson,
   note: input.note,
 });
+
+const normalizeBankAccount = (value: string | null | undefined): string | null => {
+  const normalized = value?.replace(/\s+/g, '').trim() ?? '';
+  return normalized.length > 0 ? normalized : null;
+};
 
 const isUniqueConstraint = (error: unknown): boolean => {
   if (typeof error !== 'object' || error === null || !('code' in error)) {
@@ -91,6 +103,38 @@ export const findSupplierIdByName = async (
   return fuzzy?.id ?? null;
 };
 
+export const findSupplierByBankAccount = async (
+  accountNumber: string | null | undefined,
+): Promise<{ id: string; name: string } | null> => {
+  const normalized = normalizeBankAccount(accountNumber);
+
+  if (!normalized) {
+    return null;
+  }
+
+  const account = await prisma.supplierBankAccount.findUnique({
+    where: { accountNumber: normalized },
+    include: { supplier: { select: { id: true, name: true } } },
+  });
+
+  return account?.supplier ?? null;
+};
+
+export const rememberSupplierBankAccount = async (
+  supplierId: string,
+  accountNumber: string | null | undefined,
+): Promise<void> => {
+  const normalized = normalizeBankAccount(accountNumber);
+
+  if (!normalized) {
+    return;
+  }
+
+  await prisma.supplierBankAccount
+    .create({ data: { supplierId, accountNumber: normalized } })
+    .catch(() => null);
+};
+
 export const listSuppliers = async (
   query: ListSuppliersQuery,
 ): Promise<{ suppliers: SupplierDto[]; pagination: PaginationMeta }> => {
@@ -113,6 +157,7 @@ export const listSuppliers = async (
     prisma.supplier.count({ where }),
     prisma.supplier.findMany({
       where,
+      include: supplierInclude,
       orderBy,
       skip: (query.page - 1) * query.limit,
       take: query.limit,
@@ -126,7 +171,7 @@ export const listSuppliers = async (
 };
 
 export const getSupplier = async (id: string): Promise<SupplierDto> => {
-  const record = await prisma.supplier.findUnique({ where: { id } });
+  const record = await prisma.supplier.findUnique({ where: { id }, include: supplierInclude });
 
   if (!record) {
     throw notFound('Dobavljač nije pronađen.');
@@ -137,7 +182,17 @@ export const getSupplier = async (id: string): Promise<SupplierDto> => {
 
 export const createSupplier = async (input: SupplierWriteRequest): Promise<SupplierDto> => {
   try {
-    const record = await prisma.supplier.create({ data: toWriteData(input) });
+    const record = await prisma.supplier.create({
+      data: {
+        ...toWriteData(input),
+        bankAccounts: {
+          create: input.bankAccounts.map((account) => ({
+            accountNumber: account.accountNumber,
+          })),
+        },
+      },
+      include: supplierInclude,
+    });
     logger.info('Supplier created', { supplierId: record.id });
 
     return toSupplierDto(record);
@@ -157,7 +212,22 @@ export const updateSupplier = async (
   await getSupplier(id);
 
   try {
-    const record = await prisma.supplier.update({ where: { id }, data: toWriteData(input) });
+    const record = await prisma.$transaction(async (tx) => {
+      await tx.supplierBankAccount.deleteMany({ where: { supplierId: id } });
+
+      return tx.supplier.update({
+        where: { id },
+        data: {
+          ...toWriteData(input),
+          bankAccounts: {
+            create: input.bankAccounts.map((account) => ({
+              accountNumber: account.accountNumber,
+            })),
+          },
+        },
+        include: supplierInclude,
+      });
+    });
     logger.info('Supplier updated', { supplierId: record.id });
 
     return toSupplierDto(record);

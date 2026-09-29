@@ -2,6 +2,11 @@ export const SUPPLIER_SORT_FIELDS = ['createdAt', 'name'] as const;
 
 export type SupplierSortField = (typeof SUPPLIER_SORT_FIELDS)[number];
 
+export interface SupplierBankAccountDto {
+  id: string;
+  accountNumber: string;
+}
+
 export interface SupplierDto {
   id: string;
   name: string;
@@ -13,6 +18,7 @@ export interface SupplierDto {
   city: string | null;
   contactPerson: string | null;
   note: string | null;
+  bankAccounts: SupplierBankAccountDto[];
   createdAt: string;
   updatedAt: string;
 }

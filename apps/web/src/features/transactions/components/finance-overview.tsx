@@ -1,14 +1,23 @@
 'use client';
 
 import { defaultFinanceReportRange } from '@rental-admin/shared';
-import { Building2, MapPin, RefreshCw, Truck } from 'lucide-react';
+import { Building2, MapPin, RefreshCw, Store, Truck } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { DateField } from '@/components/common/date-field';
+import { EmptyState } from '@/components/common/empty-state';
 import { ErrorState } from '@/components/common/error-state';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { ExpenseCategoryPie } from '@/features/transactions/components/expense-category-pie';
 import { FinanceExportMenu } from '@/features/transactions/components/finance-export-menu';
 import { MonthlyIncomeExpenseChart } from '@/features/transactions/components/monthly-income-expense-chart';
@@ -171,8 +180,8 @@ export function FinanceOverview({ onSettleAdvance }: FinanceOverviewProps) {
           <div className="grid gap-6 lg:grid-cols-2">
             <Card className="shadow-none">
               <CardHeader>
-                <CardTitle>Profit po partneru</CardTitle>
-                <CardDescription>Naručilac / agencija sa ručnog unosa prihoda.</CardDescription>
+                <CardTitle>Prihod po kupcu</CardTitle>
+                <CardDescription>Uplate i naplate povezane sa kupcem / partnerom.</CardDescription>
               </CardHeader>
               <CardContent className="px-0">
                 {query.isPending ? (
@@ -181,8 +190,8 @@ export function FinanceOverview({ onSettleAdvance }: FinanceOverviewProps) {
                   <ProfitTable
                     labelHeader="Partner"
                     emptyIcon={Building2}
-                    emptyTitle="Nema partnera"
-                    emptyDescription="Unesite partnera na prihodu da biste poredili profitabilnost."
+                    emptyTitle="Nema kupaca"
+                    emptyDescription="Povežite prihod iz izvoda ili ručnog unosa sa kupcem."
                     rows={(report?.byPartner ?? []).map((item) => ({
                       id: item.partner,
                       label: item.partner,
@@ -196,6 +205,22 @@ export function FinanceOverview({ onSettleAdvance }: FinanceOverviewProps) {
               </CardContent>
             </Card>
 
+            <Card className="shadow-none">
+              <CardHeader>
+                <CardTitle>Rashod po dobavljaču</CardTitle>
+                <CardDescription>Isplate sa izvoda, ručni rashodi i povezani troškovi.</CardDescription>
+              </CardHeader>
+              <CardContent className="px-0">
+                {query.isPending ? (
+                  <p className="text-muted-foreground px-6 text-sm">Učitavanje…</p>
+                ) : (
+                  <SupplierExpenseTable rows={report?.bySupplier ?? []} />
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
             <Card className="shadow-none">
               <CardHeader>
                 <CardTitle>Profit po relaciji</CardTitle>
@@ -228,6 +253,43 @@ export function FinanceOverview({ onSettleAdvance }: FinanceOverviewProps) {
         </>
       )}
     </div>
+  );
+}
+
+interface SupplierExpenseTableProps {
+  rows: Array<{ supplier: string; expense: number; count: number }>;
+}
+
+function SupplierExpenseTable({ rows }: SupplierExpenseTableProps) {
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        icon={Store}
+        title="Nema dobavljača"
+        description="Povežite rashode sa dobavljačem da biste videli plaćanja po dobavljaču."
+      />
+    );
+  }
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Dobavljač</TableHead>
+          <TableHead className="text-right">Rashod</TableHead>
+          <TableHead className="w-[110px] text-right">Knjiženja</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((row) => (
+          <TableRow key={row.supplier}>
+            <TableCell className="max-w-[260px] truncate font-medium">{row.supplier}</TableCell>
+            <TableCell className="text-right">{formatMoney(row.expense)}</TableCell>
+            <TableCell className="text-right">{row.count}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 

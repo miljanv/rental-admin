@@ -41,7 +41,11 @@ import {
   financeExportSheets,
 } from './finance-export-document';
 import { buildFinanceReportPdf } from './pdf/finance-report-pdf';
-import { findSupplierIdByName } from './supplier.service';
+import {
+  findSupplierByBankAccount,
+  findSupplierIdByName,
+  rememberSupplierBankAccount,
+} from './supplier.service';
 
 type TransactionSortField = ListTransactionsQuery['sortBy'];
 type SortOrder = ListTransactionsQuery['sortOrder'];
@@ -98,8 +102,32 @@ const transactionListWhere = (query: TransactionListFilters) => ({
 const transactionInclude = {
   vehicle: { select: { id: true, make: true, model: true, licensePlate: true } },
   driver: { select: { id: true, firstName: true, lastName: true } },
+  partnerRef: {
+    select: {
+      id: true,
+      type: true,
+      companyName: true,
+      firstName: true,
+      lastName: true,
+      nickname: true,
+    },
+  },
   paymentAllocations: { select: { amount: true } },
 } as const;
+
+interface MatchableSupplier {
+  id: string;
+  name: string;
+}
+
+interface MatchablePartner {
+  id: string;
+  type: string;
+  companyName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  nickname: string | null;
+}
 
 const decodeXmlText = (value: string): string =>
   value
@@ -185,6 +213,93 @@ const findPartnerByStatementName = async (rawName: string | null) => {
   );
 };
 
+const resolveFinancePartnerLabel = (
+  record: {
+    partner: string | null;
+    partnerId?: string | null;
+    partnerRef?: {
+      id: string;
+      type: string;
+      companyName: string | null;
+      firstName: string | null;
+      lastName: string | null;
+      nickname: string | null;
+    } | null;
+  },
+  partners: Array<{
+    id: string;
+    type: string;
+    companyName: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    nickname: string | null;
+  }>,
+): string | null => {
+  if (record.partnerRef) {
+    return partnerDisplayName(record.partnerRef);
+  }
+
+  if (record.partnerId) {
+    const partner = partners.find((candidate) => candidate.id === record.partnerId);
+    return partner ? partnerDisplayName(partner) : record.partner;
+  }
+
+  const rawPartner = record.partner?.trim();
+
+  if (!rawPartner) {
+    return null;
+  }
+
+  const normalizedRaw = normalizeMatchText(rawPartner);
+  const match = partners.find((partner) => {
+    const names = [
+      partner.companyName,
+      partner.nickname,
+      `${partner.firstName ?? ''} ${partner.lastName ?? ''}`.trim(),
+    ].filter((value): value is string => Boolean(value));
+
+    return names.some((name) => {
+      const normalized = normalizeMatchText(name);
+      const acronym = acronymAlias(name);
+
+      return (
+        (normalized.length >= 5 && normalizedRaw.includes(normalized)) ||
+        (acronym !== null && acronym.length >= 4 && normalizedRaw.includes(acronym))
+      );
+    });
+  });
+
+  return match ? partnerDisplayName(match) : rawPartner;
+};
+
+const resolveFinanceSupplierLabel = (
+  record: { supplier: string | null; supplierId?: string | null },
+  suppliers: MatchableSupplier[],
+): string | null => {
+  if (record.supplierId) {
+    const supplier = suppliers.find((candidate) => candidate.id === record.supplierId);
+    return supplier?.name ?? record.supplier;
+  }
+
+  const rawSupplier = record.supplier?.trim();
+
+  if (!rawSupplier) {
+    return null;
+  }
+
+  const normalizedRaw = normalizeMatchText(rawSupplier);
+  const match = suppliers.find((supplier) => {
+    const normalizedSupplier = normalizeMatchText(supplier.name);
+
+    return (
+      normalizedSupplier.length >= 3 &&
+      (normalizedRaw.includes(normalizedSupplier) || normalizedSupplier.includes(normalizedRaw))
+    );
+  });
+
+  return match?.name ?? rawSupplier;
+};
+
 const normalizeBankAccount = (value: string | null | undefined): string | null => {
   const normalized = value?.replace(/\s+/g, '').trim() ?? '';
   return normalized.length > 0 ? normalized : null;
@@ -229,6 +344,30 @@ const findPartnerByBankAccount = async (accountNumber: string | null) => {
   });
 
   return account?.partner ?? null;
+};
+
+const findSupplierForStatementEntry = async (
+  payeeName: string | null,
+  accountNumber: string | null,
+): Promise<{ id: string; name: string; matchedByAccount: boolean } | null> => {
+  const accountMatch = await findSupplierByBankAccount(accountNumber);
+
+  if (accountMatch) {
+    return { ...accountMatch, matchedByAccount: true };
+  }
+
+  const supplierId = await findSupplierIdByName(payeeName);
+
+  if (!supplierId) {
+    return null;
+  }
+
+  const supplier = await prisma.supplier.findUnique({
+    where: { id: supplierId },
+    select: { id: true, name: true },
+  });
+
+  return supplier ? { ...supplier, matchedByAccount: false } : null;
 };
 
 const inferStatementCategory = (
@@ -459,6 +598,7 @@ export const importBankStatementXml = async (
   let duplicateSkipped = 0;
   let invalidSkipped = 0;
   let matchedPartners = 0;
+  let matchedSuppliers = 0;
 
   for (const entry of parsed.entries) {
     if (!entry.fitId || !entry.occurredAt || !Number.isFinite(entry.amount) || entry.amount <= 0) {
@@ -466,48 +606,87 @@ export const importBankStatementXml = async (
       continue;
     }
 
-    const existing = await prisma.financeTransaction.findFirst({
-      where: {
-        sourceType: 'BANK_STATEMENT',
-        OR: [{ sourceId: entry.fitId }, { bankReference: entry.fitId }],
-      },
-      select: { id: true },
-    });
-
-    if (existing) {
-      duplicateSkipped += 1;
-      continue;
-    }
-
     const accountNumber = normalizeBankAccount(entry.payeeAccountNumber);
-    let matchedPartner = await findPartnerByBankAccount(accountNumber);
-    const matchedByAccount = Boolean(matchedPartner);
+    const isIncome = entry.type === 'INCOME';
+    let matchedPartner: MatchablePartner | null = null;
+    let matchedSupplier: { id: string; name: string; matchedByAccount: boolean } | null = null;
+    let matchedByAccount = false;
 
-    if (!matchedPartner) {
-      matchedPartner = await findPartnerByStatementName(entry.payeeName);
+    if (isIncome) {
+      matchedPartner = await findPartnerByBankAccount(accountNumber);
+      matchedByAccount = Boolean(matchedPartner);
 
-      if (matchedPartner && input.rememberMatchedAccounts && accountNumber) {
-        await prisma.partnerBankAccount
-          .create({
-            data: { partnerId: matchedPartner.id, accountNumber },
-          })
-          .catch(() => null);
+      if (!matchedPartner) {
+        matchedPartner = await findPartnerByStatementName(entry.payeeName);
+
+        if (matchedPartner && input.rememberMatchedAccounts && accountNumber) {
+          await prisma.partnerBankAccount
+            .create({
+              data: { partnerId: matchedPartner.id, accountNumber },
+            })
+            .catch(() => null);
+        }
+      }
+
+      if (matchedPartner) {
+        matchedPartners += 1;
+      }
+    } else {
+      matchedSupplier = await findSupplierForStatementEntry(entry.payeeName, accountNumber);
+      matchedByAccount = Boolean(matchedSupplier?.matchedByAccount);
+
+      if (matchedSupplier) {
+        matchedSuppliers += 1;
+
+        if (!matchedSupplier.matchedByAccount && input.rememberMatchedAccounts && accountNumber) {
+          await rememberSupplierBankAccount(matchedSupplier.id, accountNumber);
+        }
       }
     }
 
-    if (matchedPartner) {
-      matchedPartners += 1;
-    }
-
     const partnerName = matchedPartner ? partnerDisplayName(matchedPartner) : entry.payeeName;
-    const isIncome = entry.type === 'INCOME';
+    const supplierName = matchedSupplier?.name ?? entry.payeeName;
     const noteParts = [
       entry.purpose,
       entry.purposeCode ? `Šifra ${entry.purposeCode}` : null,
       entry.payeeReferenceNumber ? `Poziv ${entry.payeeReferenceNumber}` : null,
       accountNumber ? `Račun ${accountNumber}` : null,
-      !matchedByAccount && matchedPartner ? 'Partner povezan po nazivu' : null,
+      !matchedByAccount && matchedPartner ? 'Kupac povezan po nazivu' : null,
+      !matchedByAccount && matchedSupplier ? 'Dobavljač povezan po nazivu' : null,
     ].filter(Boolean);
+
+    const existing = await prisma.financeTransaction.findFirst({
+      where: {
+        sourceType: 'BANK_STATEMENT',
+        OR: [{ sourceId: entry.fitId }, { bankReference: entry.fitId }],
+      },
+      select: { id: true, partnerId: true, supplierId: true },
+    });
+
+    if (existing) {
+      if (isIncome && matchedPartner && !existing.partnerId) {
+        await prisma.financeTransaction.update({
+          where: { id: existing.id },
+          data: {
+            partner: partnerName ?? null,
+            partnerId: matchedPartner.id,
+          },
+        });
+      }
+
+      if (!isIncome && matchedSupplier && !existing.supplierId) {
+        await prisma.financeTransaction.update({
+          where: { id: existing.id },
+          data: {
+            supplier: supplierName ?? null,
+            supplierId: matchedSupplier.id,
+          },
+        });
+      }
+
+      duplicateSkipped += 1;
+      continue;
+    }
 
     const record = await prisma.financeTransaction.create({
       data: {
@@ -517,8 +696,8 @@ export const importBankStatementXml = async (
         occurredAt: parseDate(entry.occurredAt),
         paymentMethod: 'ACCOUNT',
         note: noteParts.join(' · ') || null,
-        supplier: isIncome ? null : (entry.payeeName ?? null),
-        supplierId: isIncome ? null : await findSupplierIdByName(entry.payeeName),
+        supplier: isIncome ? null : (supplierName ?? null),
+        supplierId: isIncome ? null : (matchedSupplier?.id ?? null),
         partner: isIncome ? (partnerName ?? null) : null,
         partnerId: isIncome ? (matchedPartner?.id ?? null) : null,
         route: null,
@@ -544,6 +723,7 @@ export const importBankStatementXml = async (
     imported: imported.length,
     duplicateSkipped,
     invalidSkipped,
+    matchedSuppliers,
   });
 
   return {
@@ -554,6 +734,7 @@ export const importBankStatementXml = async (
     duplicateSkipped,
     invalidSkipped,
     matchedPartners,
+    matchedSuppliers,
     transactions: imported.map((record) => toTransactionDto(record)),
   };
 };
@@ -1359,24 +1540,55 @@ export const getFinanceReport = async (
   const from = query.from ?? defaults.from;
   const to = query.to ?? defaults.to;
 
-  const records = await prisma.financeTransaction.findMany({
-    where: {
-      occurredAt: { gte: parseDate(from), lte: parseDate(to) },
-      ...(query.paymentMethod ? { paymentMethod: query.paymentMethod } : {}),
-      sourceType: { notIn: retiredFinanceSourceTypes },
-      NOT: { isAdvance: true, status: 'SETTLED' },
-    },
-    select: {
-      type: true,
-      category: true,
-      amount: true,
-      occurredAt: true,
-      paymentMethod: true,
-      partner: true,
-      route: true,
-      vehicle: { select: { id: true, make: true, model: true, licensePlate: true } },
-    },
-  });
+  const [records, partners, suppliers] = await Promise.all([
+    prisma.financeTransaction.findMany({
+      where: {
+        occurredAt: { gte: parseDate(from), lte: parseDate(to) },
+        ...(query.paymentMethod ? { paymentMethod: query.paymentMethod } : {}),
+        sourceType: { notIn: retiredFinanceSourceTypes },
+        NOT: { isAdvance: true, status: 'SETTLED' },
+      },
+      select: {
+        type: true,
+        category: true,
+        amount: true,
+        occurredAt: true,
+        paymentMethod: true,
+        supplier: true,
+        supplierId: true,
+        partner: true,
+        partnerId: true,
+        partnerRef: {
+          select: {
+            id: true,
+            type: true,
+            companyName: true,
+            firstName: true,
+            lastName: true,
+            nickname: true,
+          },
+        },
+        route: true,
+        vehicle: { select: { id: true, make: true, model: true, licensePlate: true } },
+      },
+    }),
+    prisma.partner.findMany({
+      select: {
+        id: true,
+        type: true,
+        companyName: true,
+        firstName: true,
+        lastName: true,
+        nickname: true,
+      },
+    }),
+    prisma.supplier.findMany({
+      select: {
+        id: true,
+        name: true,
+      },
+    }),
+  ]);
 
   return buildFinanceReport(
     records.map((record) => ({
@@ -1386,7 +1598,8 @@ export const getFinanceReport = async (
       occurredAt: toIsoDate(record.occurredAt),
       paymentMethod: record.paymentMethod,
       vehicle: record.vehicle,
-      partner: record.partner,
+      partner: resolveFinancePartnerLabel(record, partners),
+      supplier: resolveFinanceSupplierLabel(record, suppliers),
       route: record.route,
     })),
     from,
@@ -1503,6 +1716,24 @@ export const exportFinanceReport = async (
   const defaults = defaultFinanceReportRange();
   const from = filters.from ?? (oldest ? toIsoDate(oldest.occurredAt) : defaults.from);
   const to = filters.to ?? (newest ? toIsoDate(newest.occurredAt) : defaults.to);
+  const [partners, suppliers] = await Promise.all([
+    prisma.partner.findMany({
+      select: {
+        id: true,
+        type: true,
+        companyName: true,
+        firstName: true,
+        lastName: true,
+        nickname: true,
+      },
+    }),
+    prisma.supplier.findMany({
+      select: {
+        id: true,
+        name: true,
+      },
+    }),
+  ]);
 
   const report = buildFinanceReport(
     ledgerRecords
@@ -1514,7 +1745,8 @@ export const exportFinanceReport = async (
         occurredAt: toIsoDate(record.occurredAt),
         paymentMethod: record.paymentMethod,
         vehicle: record.vehicle,
-        partner: record.partner,
+        partner: resolveFinancePartnerLabel(record, partners),
+        supplier: resolveFinanceSupplierLabel(record, suppliers),
         route: record.route,
       })),
     from,

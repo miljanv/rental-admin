@@ -38,6 +38,19 @@ const optionalDigits = (label: string, length: number) =>
       message: `${label} mora imati tačno ${length} cifara.`,
     });
 
+const normalizeBankAccount = (value: string): string => value.replace(/\s+/g, '').trim();
+
+export const supplierBankAccountWriteSchema = z.object({
+  accountNumber: z
+    .string()
+    .trim()
+    .max(40, 'Broj računa sme imati najviše 40 karaktera.')
+    .transform(normalizeBankAccount)
+    .refine((value) => /^\d{3}-\d{1,13}-\d{2}$/.test(value), {
+      message: 'Broj računa mora biti u formatu 000-0000000000000-00.',
+    }),
+});
+
 export const supplierWriteSchema = z.object({
   name: requiredText('Naziv dobavljača', 200),
   email: optionalEmail,
@@ -48,6 +61,24 @@ export const supplierWriteSchema = z.object({
   city: optionalText(120),
   contactPerson: optionalText(120),
   note: optionalText(500),
+  bankAccounts: z
+    .array(supplierBankAccountWriteSchema)
+    .max(20, 'Najviše 20 računa po dobavljaču.')
+    .default([]),
+}).superRefine((value, ctx) => {
+  const seen = new Set<string>();
+
+  value.bankAccounts.forEach((account, index) => {
+    if (seen.has(account.accountNumber)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['bankAccounts', index, 'accountNumber'],
+        message: 'Broj računa je već dodat.',
+      });
+    }
+
+    seen.add(account.accountNumber);
+  });
 });
 
 export type SupplierWriteInput = z.input<typeof supplierWriteSchema>;

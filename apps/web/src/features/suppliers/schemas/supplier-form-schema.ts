@@ -18,6 +18,7 @@ export const EMPTY_SUPPLIER_FORM: SupplierFormValues = {
   city: '',
   contactPerson: '',
   note: '',
+  bankAccounts: [],
 };
 
 export const toSupplierFormValues = (supplier: SupplierDto): SupplierFormValues => ({
@@ -30,4 +31,7 @@ export const toSupplierFormValues = (supplier: SupplierDto): SupplierFormValues 
   city: supplier.city ?? '',
   contactPerson: supplier.contactPerson ?? '',
   note: supplier.note ?? '',
+  bankAccounts: supplier.bankAccounts.map((account) => ({
+    accountNumber: account.accountNumber,
+  })),
 });

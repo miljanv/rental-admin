@@ -9,6 +9,7 @@ const row = (
   paymentMethod: 'ACCOUNT',
   vehicle: null,
   partner: null,
+  supplier: null,
   route: null,
   ...overrides,
 });
@@ -41,6 +42,7 @@ describe('buildFinanceReport', () => {
           amount: 40_000,
           occurredAt: '2026-08-12',
           paymentMethod: 'ACCOUNT',
+          supplier: 'NIS',
         }),
       ],
       '2026-08-01',
@@ -57,6 +59,11 @@ describe('buildFinanceReport', () => {
       partner: 'Turist d.o.o.',
       income: 100_000,
       profit: 100_000,
+    });
+    expect(report.bySupplier[0]).toMatchObject({
+      supplier: 'NIS',
+      expense: 40_000,
+      count: 1,
     });
     expect(report.byRoute[0]).toMatchObject({ route: 'NS–BG', income: 100_000, profit: 100_000 });
   });
@@ -77,14 +84,15 @@ describe('buildFinanceReport', () => {
     expect(report.monthly[0]?.income).toBe(0);
   });
 
-  it('groups untagged rows as Bez partnera / Bez relacije', () => {
+  it('groups untagged expenses as Bez dobavljača / Bez relacije', () => {
     const report = buildFinanceReport(
       [row({ type: 'EXPENSE', amount: 500, occurredAt: '2026-08-01' })],
       '2026-08-01',
       '2026-08-01',
     );
 
-    expect(report.byPartner[0]?.partner).toBe('Bez partnera');
+    expect(report.byPartner).toEqual([]);
+    expect(report.bySupplier[0]?.supplier).toBe('Bez dobavljača');
     expect(report.byRoute[0]?.route).toBe('Bez relacije');
     expect(report.byVehicle[0]?.vehicle).toBeNull();
   });

@@ -453,6 +453,7 @@ model Supplier {
   note               String?
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
+  bankAccounts       SupplierBankAccount[]
   companyExpenses    CompanyExpense[]     @relation("CompanyExpenseSupplier")
   fuelLogs           FuelLog[]            @relation("FuelLogSupplier")
   maintenanceRecords VehicleMaintenance[] @relation("VehicleMaintenanceSupplier")
@@ -461,6 +462,19 @@ model Supplier {
   @@index([name])
   @@index([pib])
   @@map("suppliers")
+}
+
+model SupplierBankAccount {
+  id            String   @id @default(cuid())
+  supplierId    String
+  accountNumber String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId])
+  @@map("supplier_bank_accounts")
 }
 
 enum VehicleDocumentType {

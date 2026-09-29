@@ -121,6 +121,7 @@ export interface TransactionDto {
   paymentMethod: PaymentMethod;
   note: string | null;
   supplier: string | null;
+  supplierId: string | null;
   partner: string | null;
   partnerId: string | null;
   route: string | null;
@@ -149,6 +150,7 @@ export interface BankStatementImportResult {
   duplicateSkipped: number;
   invalidSkipped: number;
   matchedPartners: number;
+  matchedSuppliers: number;
   transactions: TransactionDto[];
 }
 

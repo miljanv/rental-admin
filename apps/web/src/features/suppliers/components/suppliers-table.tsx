@@ -22,7 +22,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-const COLUMN_COUNT = 5;
+const COLUMN_COUNT = 6;
 
 interface SuppliersTableProps {
   suppliers: SupplierDto[];
@@ -66,6 +66,7 @@ export function SuppliersTable({
           <TableHead>Dobavljač</TableHead>
           <TableHead>Kontakt</TableHead>
           <TableHead>PIB</TableHead>
+          <TableHead>Računi</TableHead>
           <TableHead>Adresa</TableHead>
           <TableHead className="w-[60px] text-right">Akcije</TableHead>
         </TableRow>
@@ -93,6 +94,18 @@ export function SuppliersTable({
                 ) : null}
               </TableCell>
               <TableCell>{supplier.pib ?? '—'}</TableCell>
+              <TableCell className="text-muted-foreground max-w-[220px]">
+                {supplier.bankAccounts.length > 0 ? (
+                  <>
+                    <span className="block truncate">{supplier.bankAccounts[0]?.accountNumber}</span>
+                    {supplier.bankAccounts.length > 1 ? (
+                      <span className="block text-xs">+{supplier.bankAccounts.length - 1}</span>
+                    ) : null}
+                  </>
+                ) : (
+                  '—'
+                )}
+              </TableCell>
               <TableCell className="text-muted-foreground max-w-[240px] truncate">
                 {fullAddress(supplier) || '—'}
               </TableCell>
