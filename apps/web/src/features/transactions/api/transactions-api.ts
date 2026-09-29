@@ -14,6 +14,7 @@ import type {
   TransactionDto,
   TransactionWriteRequest,
   UnsettledAdvancesDto,
+  VatReportDto,
 } from '@rental-admin/shared';
 
 import { apiClient, unwrap } from '@/lib/api-client';
@@ -150,6 +151,18 @@ export const fetchFinanceReport = async (
   signal?: AbortSignal,
 ): Promise<FinanceReportDto> => {
   const response = await apiClient.get<ApiResponse<FinanceReportDto>>('/transactions/reports', {
+    params,
+    signal,
+  });
+
+  return unwrap(response.data);
+};
+
+export const fetchVatReport = async (
+  params: { from?: string; to?: string },
+  signal?: AbortSignal,
+): Promise<VatReportDto> => {
+  const response = await apiClient.get<ApiResponse<VatReportDto>>('/transactions/reports/vat', {
     params,
     signal,
   });

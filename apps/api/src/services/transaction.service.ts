@@ -15,6 +15,7 @@ import type {
   SettlementTargetDto,
   SettlementTargetsDto,
   SettlementTargetType,
+  VatReportDto,
   TransactionCategory,
   TransactionDto,
   TransactionSourceType,
@@ -1069,6 +1070,92 @@ export const getFinanceReport = async (
     from,
     to,
   );
+};
+
+const monthKey = (value: Date): string => value.toISOString().slice(0, 7);
+
+const listVatMonthsInclusive = (
+  from: string,
+  to: string,
+): Array<{ key: string; year: number; month: number }> => {
+  const start = new Date(`${from.slice(0, 7)}-01T00:00:00.000Z`);
+  const end = new Date(`${to.slice(0, 7)}-01T00:00:00.000Z`);
+  const months: Array<{ key: string; year: number; month: number }> = [];
+  const cursor = new Date(start);
+
+  while (cursor.getTime() <= end.getTime()) {
+    const year = cursor.getUTCFullYear();
+    const month = cursor.getUTCMonth() + 1;
+    months.push({ key: `${year}-${String(month).padStart(2, '0')}`, year, month });
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+
+  return months;
+};
+
+export const getVatReport = async (query: FinanceReportQueryRequest): Promise<VatReportDto> => {
+  const defaults = defaultFinanceReportRange();
+  const from = query.from ?? defaults.from;
+  const to = query.to ?? defaults.to;
+  const [expenses, trips] = await Promise.all([
+    prisma.companyExpense.findMany({
+      where: { issuedAt: { gte: parseDate(from), lte: parseDate(to) } },
+      select: { issuedAt: true, vatAmount: true },
+    }),
+    prisma.trip.findMany({
+      where: {
+        invoicedAt: { gte: parseDate(from), lte: parseDate(to) },
+        invoiceVatAmount: { not: null },
+      },
+      select: { invoicedAt: true, invoiceVatAmount: true },
+    }),
+  ]);
+  const byMonth = new Map<
+    string,
+    { year: number; month: number; inputVat: number; outputVat: number }
+  >(
+    listVatMonthsInclusive(from, to).map((month) => [
+      month.key,
+      { year: month.year, month: month.month, inputVat: 0, outputVat: 0 },
+    ]),
+  );
+
+  for (const expense of expenses) {
+    const bucket = byMonth.get(monthKey(expense.issuedAt));
+
+    if (bucket) {
+      bucket.inputVat += expense.vatAmount;
+    }
+  }
+
+  for (const trip of trips) {
+    if (!trip.invoicedAt) {
+      continue;
+    }
+
+    const bucket = byMonth.get(monthKey(trip.invoicedAt));
+
+    if (bucket) {
+      bucket.outputVat += trip.invoiceVatAmount ?? 0;
+    }
+  }
+
+  const monthly = [...byMonth.values()].map((row) => ({
+    ...row,
+    inputVat: roundMoney(row.inputVat),
+    outputVat: roundMoney(row.outputVat),
+    balance: roundMoney(row.outputVat - row.inputVat),
+  }));
+  const totals = monthly.reduce(
+    (sum, row) => ({
+      inputVat: roundMoney(sum.inputVat + row.inputVat),
+      outputVat: roundMoney(sum.outputVat + row.outputVat),
+      balance: roundMoney(sum.balance + row.balance),
+    }),
+    { inputVat: 0, outputVat: 0, balance: 0 },
+  );
+
+  return { from, to, totals, monthly };
 };
 
 export interface FinanceExportFile {

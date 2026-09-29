@@ -64,6 +64,25 @@ export interface FinanceReportDto {
   byRoute: FinanceRouteProfit[];
 }
 
+export interface VatMonthlyPoint {
+  year: number;
+  month: number;
+  inputVat: number;
+  outputVat: number;
+  balance: number;
+}
+
+export interface VatReportDto {
+  from: string;
+  to: string;
+  totals: {
+    inputVat: number;
+    outputVat: number;
+    balance: number;
+  };
+  monthly: VatMonthlyPoint[];
+}
+
 export interface FinanceReportRow {
   type: TransactionType;
   category: TransactionCategory;
@@ -107,7 +126,10 @@ const addToSplit = (split: FinanceMoneySplit, type: TransactionType, amount: num
 
 const monthKey = (occurredAt: string): string => occurredAt.slice(0, 7);
 
-const listMonthsInclusive = (from: string, to: string): Array<{ year: number; month: number; key: string }> => {
+const listMonthsInclusive = (
+  from: string,
+  to: string,
+): Array<{ year: number; month: number; key: string }> => {
   const start = new Date(`${from.slice(0, 7)}-01T00:00:00.000Z`);
   const end = new Date(`${to.slice(0, 7)}-01T00:00:00.000Z`);
   const months: Array<{ year: number; month: number; key: string }> = [];

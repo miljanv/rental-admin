@@ -39,6 +39,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useContracts } from '@/features/contracts/hooks/use-contracts';
 import { useDrivers } from '@/features/drivers/hooks/use-drivers';
+import { PartnerNameInput } from '@/features/partners/components/partner-name-input';
 import { usePartners } from '@/features/partners/hooks/use-partners';
 import { useGenerateTripSeries } from '@/features/trips/hooks/use-generate-trip-series';
 import {
@@ -429,7 +430,19 @@ export function TripSeriesForm() {
                 label="Naziv / ime naručioca"
                 error={errors.clientName?.message as string | undefined}
               >
-                <Input id="clientName" disabled={isPending} {...form.register('clientName')} />
+                <Controller
+                  control={form.control}
+                  name="clientName"
+                  render={({ field }) => (
+                    <PartnerNameInput
+                      id="clientName"
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      disabled={isPending}
+                    />
+                  )}
+                />
               </Field>
             ) : (
               <Controller

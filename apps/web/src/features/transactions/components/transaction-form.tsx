@@ -26,7 +26,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useDrivers } from '@/features/drivers/hooks/use-drivers';
+import { PartnerNameInput } from '@/features/partners/components/partner-name-input';
 import { PaymentMethodSelect } from '@/features/transactions/components/payment-method-select';
+import { SupplierNameInput } from '@/features/transactions/components/supplier-name-input';
 import { useCreateTransaction } from '@/features/transactions/hooks/use-create-transaction';
 import { useUpdateTransaction } from '@/features/transactions/hooks/use-update-transaction';
 import {
@@ -263,25 +265,41 @@ export function TransactionForm({
               />
             )}
 
-            <Field id="supplier" label="Dobavljač" error={errors.supplier?.message}>
-              <Input
-                id="supplier"
-                placeholder="NIS, OMV…"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.supplier)}
-                {...form.register('supplier')}
-              />
-            </Field>
+            <Controller
+              control={form.control}
+              name="supplier"
+              render={({ field }) => (
+                <Field id="supplier" label="Dobavljač" error={errors.supplier?.message}>
+                  <SupplierNameInput
+                    id="supplier"
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    placeholder="NIS, OMV…"
+                    disabled={isPending}
+                    ariaInvalid={Boolean(errors.supplier)}
+                  />
+                </Field>
+              )}
+            />
 
-            <Field id="partner" label="Partner" error={errors.partner?.message}>
-              <Input
-                id="partner"
-                placeholder="Agencija, naručilac…"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.partner)}
-                {...form.register('partner')}
-              />
-            </Field>
+            <Controller
+              control={form.control}
+              name="partner"
+              render={({ field }) => (
+                <Field id="partner" label="Partner" error={errors.partner?.message}>
+                  <PartnerNameInput
+                    id="partner"
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    placeholder="Agencija, naručilac…"
+                    disabled={isPending}
+                    ariaInvalid={Boolean(errors.partner)}
+                  />
+                </Field>
+              )}
+            />
 
             <Field id="route" label="Relacija" error={errors.route?.message}>
               <Input

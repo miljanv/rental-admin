@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useDrivers } from '@/features/drivers/hooks/use-drivers';
+import { PartnerNameInput } from '@/features/partners/components/partner-name-input';
 import { usePartners } from '@/features/partners/hooks/use-partners';
 import { useEditTripSeries } from '@/features/trips/hooks/use-edit-trip-series';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
@@ -151,7 +152,11 @@ export function TripSeriesEditForm({
       <CardContent>
         <form onSubmit={(event) => void onSubmit(event)} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field id="series-name" label="Naziv" error={errors.name?.message as string | undefined}>
+            <Field
+              id="series-name"
+              label="Naziv"
+              error={errors.name?.message as string | undefined}
+            >
               <Input id="series-name" disabled={isPending} {...form.register('name')} />
             </Field>
             <Field
@@ -198,7 +203,11 @@ export function TripSeriesEditForm({
                 {...form.register('passengerCount', { valueAsNumber: true })}
               />
             </Field>
-            <Field id="series-price" label="Cena" error={errors.price?.message as string | undefined}>
+            <Field
+              id="series-price"
+              label="Cena"
+              error={errors.price?.message as string | undefined}
+            >
               <Input
                 id="series-price"
                 type="number"
@@ -275,7 +284,19 @@ export function TripSeriesEditForm({
                 label="Naziv / ime naručioca"
                 error={errors.clientName?.message as string | undefined}
               >
-                <Input id="series-client" disabled={isPending} {...form.register('clientName')} />
+                <Controller
+                  control={form.control}
+                  name="clientName"
+                  render={({ field }) => (
+                    <PartnerNameInput
+                      id="series-client"
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      disabled={isPending}
+                    />
+                  )}
+                />
               </Field>
             ) : (
               <Controller
@@ -337,7 +358,9 @@ export function TripSeriesEditForm({
                 form.setValue('vehicleIds', next);
                 const currentCount = form.getValues('vehicleCount');
                 const numericCount =
-                  typeof currentCount === 'number' && !Number.isNaN(currentCount) ? currentCount : 1;
+                  typeof currentCount === 'number' && !Number.isNaN(currentCount)
+                    ? currentCount
+                    : 1;
                 if (numericCount < next.length) {
                   form.setValue('vehicleCount', next.length);
                 }
@@ -379,7 +402,11 @@ export function TripSeriesEditForm({
               Isti iznos ide svakom vozaču, na svaki dan. Prazno polje ne menja već upisane iznose.
             </p>
           </Field>
-          <Field id="series-notes" label="Napomena" error={errors.notes?.message as string | undefined}>
+          <Field
+            id="series-notes"
+            label="Napomena"
+            error={errors.notes?.message as string | undefined}
+          >
             <Textarea id="series-notes" rows={3} disabled={isPending} {...form.register('notes')} />
           </Field>
 

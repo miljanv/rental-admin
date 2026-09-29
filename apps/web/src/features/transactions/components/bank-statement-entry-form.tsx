@@ -31,6 +31,8 @@ import {
   bankStatementEntryFormSchema,
   type BankStatementEntryFormValues,
 } from '@/features/transactions/schemas/bank-statement-entry-form-schema';
+import { PartnerNameInput } from '@/features/partners/components/partner-name-input';
+import { SupplierNameInput } from '@/features/transactions/components/supplier-name-input';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
 import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
 
@@ -225,25 +227,41 @@ export function BankStatementEntryForm({ transaction, onDone }: BankStatementEnt
               />
             </Field>
 
-            <Field id="supplier" label="Dobavljač" error={errors.supplier?.message}>
-              <Input
-                id="supplier"
-                placeholder="Za isplate"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.supplier)}
-                {...form.register('supplier')}
-              />
-            </Field>
+            <Controller
+              control={form.control}
+              name="supplier"
+              render={({ field }) => (
+                <Field id="supplier" label="Dobavljač" error={errors.supplier?.message}>
+                  <SupplierNameInput
+                    id="supplier"
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    placeholder="Za isplate"
+                    disabled={isPending}
+                    ariaInvalid={Boolean(errors.supplier)}
+                  />
+                </Field>
+              )}
+            />
 
-            <Field id="partner" label="Kupac / partner" error={errors.partner?.message}>
-              <Input
-                id="partner"
-                placeholder="Za uplate"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.partner)}
-                {...form.register('partner')}
-              />
-            </Field>
+            <Controller
+              control={form.control}
+              name="partner"
+              render={({ field }) => (
+                <Field id="partner" label="Kupac / partner" error={errors.partner?.message}>
+                  <PartnerNameInput
+                    id="partner"
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    placeholder="Za uplate"
+                    disabled={isPending}
+                    ariaInvalid={Boolean(errors.partner)}
+                  />
+                </Field>
+              )}
+            />
 
             <Field id="route" label="Relacija / opis posla" error={errors.route?.message}>
               <Input

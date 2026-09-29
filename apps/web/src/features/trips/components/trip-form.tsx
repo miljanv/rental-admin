@@ -36,6 +36,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useContracts } from '@/features/contracts/hooks/use-contracts';
 import { useDrivers } from '@/features/drivers/hooks/use-drivers';
 import { usePartners } from '@/features/partners/hooks/use-partners';
+import { PartnerNameInput } from '@/features/partners/components/partner-name-input';
 import { useCreateTrip } from '@/features/trips/hooks/use-create-trip';
 import { useUpdateTrip } from '@/features/trips/hooks/use-update-trip';
 import { toTripFormValues } from '@/features/trips/lib/trip';
@@ -179,11 +180,19 @@ export function TripForm({ trip }: TripFormProps) {
                 label="Naziv / ime naručioca"
                 error={errors.clientName?.message}
               >
-                <Input
-                  id="clientName"
-                  disabled={isPending}
-                  aria-invalid={Boolean(errors.clientName)}
-                  {...form.register('clientName')}
+                <Controller
+                  control={form.control}
+                  name="clientName"
+                  render={({ field }) => (
+                    <PartnerNameInput
+                      id="clientName"
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      disabled={isPending}
+                      ariaInvalid={Boolean(errors.clientName)}
+                    />
+                  )}
                 />
               </Field>
             ) : (

@@ -55,6 +55,12 @@ transactionRouter.get(
 );
 
 transactionRouter.get(
+  '/reports/vat',
+  validateRequest({ query: financeReportQuerySchema }),
+  asyncHandler(transactionController.getVatReport),
+);
+
+transactionRouter.get(
   '/reports/export',
   validateRequest({ query: financeExportQuerySchema }),
   asyncHandler(transactionController.exportFinanceReport),

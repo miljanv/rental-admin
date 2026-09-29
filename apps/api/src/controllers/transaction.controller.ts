@@ -45,6 +45,13 @@ export const getFinanceReport = async (req: Request, res: Response): Promise<voi
   sendSuccess(res, report);
 };
 
+export const getVatReport = async (req: Request, res: Response): Promise<void> => {
+  const query = validated<FinanceReportQueryRequest>(req, 'query');
+  const report = await transactionService.getVatReport(query);
+
+  sendSuccess(res, report);
+};
+
 export const exportFinanceReport = async (req: Request, res: Response): Promise<void> => {
   const query = validated<FinanceExportQueryRequest>(req, 'query');
   const file = await transactionService.exportFinanceReport(query);

@@ -265,6 +265,7 @@ export const queryKeys = {
       ['transactions', 'settlement-targets', params] as const,
     reports: (from?: string, to?: string, paymentMethod?: PaymentMethod) =>
       ['transactions', 'reports', from, to, paymentMethod] as const,
+    vatReport: (from?: string, to?: string) => ['transactions', 'vat-report', from, to] as const,
   },
   trips: {
     all: ['trips'] as const,
