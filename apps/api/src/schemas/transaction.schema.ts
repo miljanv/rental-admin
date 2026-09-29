@@ -1,4 +1,5 @@
 import {
+  bankStatementEntryWriteSchema,
   financeExportQuerySchema,
   financeReportQuerySchema,
   listTransactionsQuerySchema,
@@ -9,6 +10,7 @@ import {
 } from '@rental-admin/shared';
 
 export {
+  bankStatementEntryWriteSchema,
   financeExportQuerySchema,
   financeReportQuerySchema,
   listTransactionsQuerySchema,

@@ -1,6 +1,7 @@
 import type {
   ApiPaginatedResponse,
   ApiResponse,
+  BankStatementEntryWriteRequest,
   DeleteTransactionResult,
   FinanceReportDto,
   PaginationMeta,
@@ -60,11 +61,34 @@ export const createTransaction = async (body: TransactionWriteRequest): Promise<
   return unwrap(response.data);
 };
 
+export const createBankStatementEntry = async (
+  body: BankStatementEntryWriteRequest,
+): Promise<TransactionDto> => {
+  const response = await apiClient.post<ApiResponse<TransactionDto>>(
+    '/transactions/bank-statements',
+    body,
+  );
+
+  return unwrap(response.data);
+};
+
 export const updateTransaction = async (
   id: string,
   body: TransactionWriteRequest,
 ): Promise<TransactionDto> => {
   const response = await apiClient.patch<ApiResponse<TransactionDto>>(`/transactions/${id}`, body);
+
+  return unwrap(response.data);
+};
+
+export const updateBankStatementEntry = async (
+  id: string,
+  body: BankStatementEntryWriteRequest,
+): Promise<TransactionDto> => {
+  const response = await apiClient.patch<ApiResponse<TransactionDto>>(
+    `/transactions/bank-statements/${id}`,
+    body,
+  );
 
   return unwrap(response.data);
 };

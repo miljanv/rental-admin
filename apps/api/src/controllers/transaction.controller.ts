@@ -1,4 +1,5 @@
 import type {
+  BankStatementEntryWriteRequest,
   FinanceExportQueryRequest,
   FinanceReportQueryRequest,
   ListTransactionsQuery,
@@ -67,10 +68,25 @@ export const createTransaction = async (req: Request, res: Response): Promise<vo
   sendSuccess(res, transaction, 201);
 };
 
+export const createBankStatementEntry = async (req: Request, res: Response): Promise<void> => {
+  const body = validated<BankStatementEntryWriteRequest>(req, 'body');
+  const transaction = await transactionService.createBankStatementEntry(body);
+
+  sendSuccess(res, transaction, 201);
+};
+
 export const updateTransaction = async (req: Request, res: Response): Promise<void> => {
   const { id } = validated<TransactionIdParams>(req, 'params');
   const body = validated<TransactionWriteRequest>(req, 'body');
   const transaction = await transactionService.updateTransaction(id, body);
+
+  sendSuccess(res, transaction);
+};
+
+export const updateBankStatementEntry = async (req: Request, res: Response): Promise<void> => {
+  const { id } = validated<TransactionIdParams>(req, 'params');
+  const body = validated<BankStatementEntryWriteRequest>(req, 'body');
+  const transaction = await transactionService.updateBankStatementEntry(id, body);
 
   sendSuccess(res, transaction);
 };

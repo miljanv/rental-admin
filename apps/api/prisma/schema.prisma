@@ -402,21 +402,21 @@ model VehicleMaintenance {
 /// A company-level expense entered from invoices or cash payments. It may be
 /// tied to a vehicle (with an odometer reading) or kept as a shared firm cost.
 model CompanyExpense {
-  id            String         @id @default(cuid())
-  issuedAt      DateTime       @db.Date
-  paidAt        DateTime?      @db.Date
-  invoiceNumber String?
-  supplier      String
-  description   String
-  amount        Float
+  id               String        @id @default(cuid())
+  issuedAt         DateTime      @db.Date
+  paidAt           DateTime?     @db.Date
+  invoiceNumber    String?
+  supplier         String
+  description      String
+  amount           Float
   amountWithoutVat Float
-  vatAmount     Float
-  amountWithVat Float
-  paymentMethod PaymentMethod
-  vehicleId     String?
-  odometerKm    Int?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  vatAmount        Float
+  amountWithVat    Float
+  paymentMethod    PaymentMethod
+  vehicleId        String?
+  odometerKm       Int?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
   vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
 
@@ -658,6 +658,7 @@ enum TransactionStatus {
 
 enum TransactionSourceType {
   MANUAL
+  BANK_STATEMENT
   FUEL_LOG
   MAINTENANCE
   INSPECTION
@@ -693,6 +694,8 @@ model FinanceTransaction {
   linkedTransactionId String?
   sourceType          TransactionSourceType @default(MANUAL)
   sourceId            String?
+  statementNumber     String?
+  bankReference       String?
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
 
@@ -711,6 +714,8 @@ model FinanceTransaction {
   @@index([partner])
   @@index([route])
   @@index([sourceType, sourceId])
+  @@index([statementNumber])
+  @@index([bankReference])
   @@map("transactions")
 }
 
@@ -784,67 +789,67 @@ model TripSeriesPause {
 /// many-to-many (one trip regularly runs several buses/drivers, or one driver
 /// covers a shift change) via TripVehicle/TripDriver — never a single FK.
 model Trip {
-  id              String         @id @default(cuid())
+  id                    String         @id @default(cuid())
   /// "RN broj" — the operator's own trip reference/registration number.
   /// Assigned once invoicing happens, so it's null on most newly-created trips.
-  referenceNumber String?
-  departureDate   DateTime       @db.Date
-  returnDate      DateTime?      @db.Date
-  country         String?
+  referenceNumber       String?
+  departureDate         DateTime       @db.Date
+  returnDate            DateTime?      @db.Date
+  country               String?
   /// Split from a single "Relacija" text field so a dash-separated place
   /// name (e.g. "Novi Sad") can't be misread as two legs of the route.
-  origin          String
-  destination     String
-  passengerCount  Int?
-  partnerId       String?
+  origin                String
+  destination           String
+  passengerCount        Int?
+  partnerId             String?
   /// Free-text client name, used when the client isn't a registered Partner.
-  clientName      String?
-  notes           String?
-  price           Float?
-  paymentMethod   PaymentMethod?
-  status          TripStatus     @default(PLANNED)
-  contractId      String?
+  clientName            String?
+  notes                 String?
+  price                 Float?
+  paymentMethod         PaymentMethod?
+  status                TripStatus     @default(PLANNED)
+  contractId            String?
   /// Distance covered, filled in after the trip — feeds the statistics
   /// endpoint's total-km figure. Not part of the original field list; added
   /// to support Task 3's reporting requirement.
-  distanceKm      Float?
+  distanceKm            Float?
   /// Set only on instances generated from a TripSeries.
-  seriesId        String?
+  seriesId              String?
   /// When the client actually paid for this trip. Null means completed but unpaid.
-  paidAt          DateTime?      @db.Date
+  paidAt                DateTime?      @db.Date
   /// When an outgoing invoice was issued. Null means the trip is not invoiced yet.
-  invoicedAt         DateTime? @db.Date
+  invoicedAt            DateTime?      @db.Date
   /// Free text printed with the invoice (route, period, what was carried).
-  invoiceDescription String?
+  invoiceDescription    String?
   /// Whether the typed domestic fare already included 10% VAT. The foreign fare is never taxed.
-  priceIncludesVat   Boolean?
+  priceIncludesVat      Boolean?
   /// Domestic fare as typed on the invoice (net, or gross when priceIncludesVat is set).
   invoiceDomesticAmount Float?
   /// Foreign fare as typed. Always without VAT.
   invoiceForeignAmount  Float?
   /// Older invoices stored kilometres here. New invoices leave these empty.
-  invoiceDomesticKm  Float?
-  invoiceTotalKm     Float?
-  invoiceNetAmount   Float?
-  invoiceVatAmount   Float?
-  invoiceGrossAmount Float?
-  /// Shared by every day of one monthly series invoice. Finance posts that id once.
-  invoiceGroupId     String?
+  invoiceDomesticKm     Float?
+  invoiceTotalKm        Float?
+  invoiceNetAmount      Float?
+  invoiceVatAmount      Float?
+  invoiceGrossAmount    Float?
+  /// Shared by every day of one monthly series invoice.
+  invoiceGroupId        String?
   /// Odometer at the start of the job. Together with `endKm` it replaces a single distance guess.
-  startKm         Float?
-  endKm           Float?
+  startKm               Float?
+  endKm                 Float?
   /// Liters filled on this job. The money side stays on trip expenses.
-  fuelLiters      Float?
+  fuelLiters            Float?
   /// Departure / return datetimes and border crossings for the per-diem obračun.
   /// Shape: { departureAt, returnAt, borderCrossings: [{ at, direction: OUT|IN }] }
-  travelTimeline  Json?
+  travelTimeline        Json?
   /// Actual carrier on this trip (subcontractor / another brand), distinct from the client `partnerId`.
-  carrierId       String?
+  carrierId             String?
   /// Planned number of buses on this job, even before specific plates are assigned
   /// (e.g. Expo with 3 vehicles on the same route).
-  vehicleCount    Int            @default(1)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  vehicleCount          Int            @default(1)
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
 
   partner          Partner?              @relation("TripClient", fields: [partnerId], references: [id], onDelete: SetNull)
   carrier          Partner?              @relation("TripCarrier", fields: [carrierId], references: [id], onDelete: SetNull)

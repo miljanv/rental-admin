@@ -1,10 +1,7 @@
 import { buildFinanceReport } from '@rental-admin/shared';
 import { describe, expect, it } from 'vitest';
 
-import {
-  buildFinanceExportDocument,
-  financeExportSheets,
-} from './finance-export-document';
+import { buildFinanceExportDocument, financeExportSheets } from './finance-export-document';
 import { buildFinanceReportPdf } from './pdf/finance-report-pdf';
 import { buildXlsx } from '../utils/xlsx';
 
@@ -62,6 +59,8 @@ const document = buildFinanceExportDocument({
       linkedTransactionId: null,
       sourceType: 'MANUAL',
       sourceId: null,
+      statementNumber: null,
+      bankReference: null,
       createdAt: '2026-08-10T10:00:00.000Z',
       updatedAt: '2026-08-10T10:00:00.000Z',
     },

@@ -51,6 +51,7 @@ export const TRANSACTION_STATUS_LABELS: Record<TransactionStatus, string> = {
 
 export const TRANSACTION_SOURCE_TYPES = [
   'MANUAL',
+  'BANK_STATEMENT',
   'FUEL_LOG',
   'MAINTENANCE',
   'INSPECTION',
@@ -67,6 +68,7 @@ export type TransactionSourceType = (typeof TRANSACTION_SOURCE_TYPES)[number];
 
 export const TRANSACTION_SOURCE_TYPE_LABELS: Record<TransactionSourceType, string> = {
   MANUAL: 'Ručno',
+  BANK_STATEMENT: 'Izvod banke',
   FUEL_LOG: 'Točenje',
   MAINTENANCE: 'Zamena dela',
   INSPECTION: 'Tehnički pregled',
@@ -115,6 +117,8 @@ export interface TransactionDto {
   linkedTransactionId: string | null;
   sourceType: TransactionSourceType;
   sourceId: string | null;
+  statementNumber: string | null;
+  bankReference: string | null;
   createdAt: string;
   updatedAt: string;
 }

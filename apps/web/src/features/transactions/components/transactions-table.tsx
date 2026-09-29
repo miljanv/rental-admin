@@ -33,7 +33,7 @@ import {
 import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
 import { formatDate, formatMoney } from '@/lib/format';
 
-const COLUMN_COUNT = 9;
+const COLUMN_COUNT = 10;
 
 interface TransactionsTableProps {
   transactions: TransactionDto[];
@@ -79,6 +79,7 @@ export function TransactionsTable({
           <TableHead className="text-right">Iznos</TableHead>
           <TableHead>Plaćanje</TableHead>
           <TableHead>Dobavljač</TableHead>
+          <TableHead>Izvod</TableHead>
           <TableHead>Avans</TableHead>
           <TableHead>Izvor</TableHead>
           <TableHead className="w-[60px] text-right">Akcije</TableHead>
@@ -90,7 +91,11 @@ export function TransactionsTable({
         ) : (
           transactions.map((transaction) => {
             const isManual = transaction.sourceType === 'MANUAL';
-            const canEdit = isManual && transaction.status !== 'SETTLED';
+            const isBankStatement = transaction.sourceType === 'BANK_STATEMENT';
+            const canEdit = (isManual && transaction.status !== 'SETTLED') || isBankStatement;
+            const statementLabel = [transaction.statementNumber, transaction.bankReference]
+              .filter(Boolean)
+              .join(' · ');
 
             return (
               <TableRow key={transaction.id}>
@@ -106,7 +111,12 @@ export function TransactionsTable({
                 </TableCell>
                 <TableCell>{PAYMENT_METHOD_LABELS[transaction.paymentMethod]}</TableCell>
                 <TableCell className="max-w-[140px] truncate">
-                  {transaction.supplier ?? (transaction.vehicle ? vehicleLabel(transaction.vehicle) : '—')}
+                  {transaction.supplier ??
+                    transaction.partner ??
+                    (transaction.vehicle ? vehicleLabel(transaction.vehicle) : '—')}
+                </TableCell>
+                <TableCell className="text-muted-foreground max-w-[160px] truncate">
+                  {statementLabel || '—'}
                 </TableCell>
                 <TableCell>
                   <AdvanceStatusBadge transaction={transaction} />

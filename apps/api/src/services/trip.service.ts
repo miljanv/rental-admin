@@ -4,8 +4,6 @@ import {
   defaultTripStatsRange,
   invoiceMonthBounds,
   seriesInvoiceGroupId,
-  tripClientDisplayName,
-  tripRouteLabel,
   type DeleteTripResult,
   type ListTripsQuery,
   type PaginationMeta,
@@ -24,7 +22,7 @@ import { buildPaginationMeta } from '../utils/api-response';
 import { toTripDto, type TripRecord } from '../utils/trip-mapper';
 import { logger } from '../utils/logger';
 import { deleteAttachedFile } from './file-attachment.service';
-import { deleteOperationalTransaction, upsertOperationalIncome } from './transaction.service';
+import { deleteOperationalTransaction } from './transaction.service';
 
 type SortOrder = ListTripsQuery['sortOrder'];
 type TripOrderBy = Partial<Record<TripSortField, SortOrder>>;
@@ -154,43 +152,8 @@ export const syncTripDrivers = async (
   }
 };
 
-/**
- * Posts the trip as an open customer receivable once it is invoiced.
- * `paidAt` settles that row; until a bank-statement import exists, marking
- * the trip paid is what closes it.
- */
-const invoiceNote = (trip: TripDto, extra?: string): string => {
-  const parts = [
-    trip.referenceNumber ? `Vožnja ${trip.referenceNumber}` : `Vožnja ${tripRouteLabel(trip)}`,
-    trip.invoiceDescription,
-    extra ?? null,
-  ].filter((part): part is string => Boolean(part));
-
-  return parts.join(' · ');
-};
-
 export const syncTripRevenue = async (trip: TripDto): Promise<void> => {
-  if (trip.invoiceGroupId) {
-    await deleteOperationalTransaction('TRIP_REVENUE', trip.id);
-    return;
-  }
-
-  const isBooked = Boolean(trip.invoicedAt || trip.paidAt);
-  const amount = trip.invoiceGrossAmount ?? trip.price;
-
-  await upsertOperationalIncome({
-    sourceType: 'TRIP_REVENUE',
-    sourceId: trip.id,
-    category: 'CONTRACT',
-    amount: isBooked ? amount : null,
-    paymentMethod: trip.paymentMethod,
-    occurredAt: trip.paidAt ?? trip.invoicedAt ?? trip.departureDate,
-    vehicleId: trip.vehicles[0]?.id ?? null,
-    partner: tripClientDisplayName(trip) || null,
-    route: tripRouteLabel(trip),
-    note: invoiceNote(trip),
-    status: trip.paidAt ? 'SETTLED' : 'OPEN',
-  });
+  await deleteOperationalTransaction('TRIP_REVENUE', trip.id, { includeSettled: true });
 };
 
 const syncSeriesInvoiceRevenue = async (groupId: string): Promise<void> => {
@@ -205,31 +168,12 @@ const syncSeriesInvoiceRevenue = async (groupId: string): Promise<void> => {
     return;
   }
 
-  const trips = records.map((record: TripRecord) => toTripDto(record));
-  const head = trips[0];
-
-  if (!head) {
-    return;
-  }
-
-  const gross = Math.round(trips.reduce((sum, trip) => sum + (trip.invoiceGrossAmount ?? 0), 0) * 100) / 100;
-  const allPaid = trips.every((trip) => trip.paidAt);
-
-  await upsertOperationalIncome({
-    sourceType: 'TRIP_REVENUE',
-    sourceId: groupId,
-    category: 'CONTRACT',
-    amount: gross > 0 ? gross : null,
-    paymentMethod: head.paymentMethod,
-    occurredAt: head.paidAt ?? head.invoicedAt ?? head.departureDate,
-    vehicleId: head.vehicles[0]?.id ?? null,
-    partner: tripClientDisplayName(head) || null,
-    route: tripRouteLabel(head),
-    note: invoiceNote(head, `Serija, ${trips.length} dana`),
-    status: allPaid ? 'SETTLED' : 'OPEN',
-  });
-
-  await Promise.all(trips.map((trip) => deleteOperationalTransaction('TRIP_REVENUE', trip.id)));
+  await deleteOperationalTransaction('TRIP_REVENUE', groupId, { includeSettled: true });
+  await Promise.all(
+    records.map((trip) =>
+      deleteOperationalTransaction('TRIP_REVENUE', trip.id, { includeSettled: true }),
+    ),
+  );
 };
 
 const fareForInvoice = (input: TripInvoiceWriteRequest): TransportVatResult =>
@@ -239,7 +183,11 @@ const fareForInvoice = (input: TripInvoiceWriteRequest): TransportVatResult =>
     foreignAmount: input.foreignPrice ?? 0,
   });
 
-const invoiceColumns = (input: TripInvoiceWriteRequest, fare: TransportVatResult, groupId: string | null) => ({
+const invoiceColumns = (
+  input: TripInvoiceWriteRequest,
+  fare: TransportVatResult,
+  groupId: string | null,
+) => ({
   price: fare.grossAmount,
   paymentMethod: input.paymentMethod,
   invoicedAt: parseDate(input.invoicedAt),
@@ -440,7 +388,11 @@ export const invoiceTrip = async (id: string, input: TripInvoiceWriteRequest): P
     await syncSeriesInvoiceRevenue(previousGroupId);
   }
 
-  logger.info('Trip invoiced', { tripId: id, referenceNumber: trip.referenceNumber, gross: fare.grossAmount });
+  logger.info('Trip invoiced', {
+    tripId: id,
+    referenceNumber: trip.referenceNumber,
+    gross: fare.grossAmount,
+  });
 
   return trip;
 };

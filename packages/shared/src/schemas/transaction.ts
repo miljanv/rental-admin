@@ -116,6 +116,28 @@ export const transactionWriteSchema = z
 export type TransactionWriteInput = z.input<typeof transactionWriteSchema>;
 export type TransactionWriteRequest = z.output<typeof transactionWriteSchema>;
 
+export const bankStatementEntryWriteSchema = z.object({
+  type: transactionTypeSchema,
+  category: transactionCategorySchema,
+  amount: z
+    .number()
+    .positive('Iznos mora biti veći od nule.')
+    .max(100_000_000, 'Iznos nije ispravan.'),
+  occurredAt: isoDateSchema,
+  statementNumber: optionalText(80),
+  bankReference: optionalText(120),
+  note: optionalText(500),
+  supplier: optionalSupplierSchema,
+  partner: optionalSupplierSchema,
+  route: optionalSupplierSchema,
+  vehicleId: optionalId,
+  driverId: optionalId,
+  contractId: optionalId,
+});
+
+export type BankStatementEntryWriteInput = z.input<typeof bankStatementEntryWriteSchema>;
+export type BankStatementEntryWriteRequest = z.output<typeof bankStatementEntryWriteSchema>;
+
 export const listTransactionsQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(PAGINATION_DEFAULTS.page),
   limit: z.coerce
@@ -133,6 +155,7 @@ export const listTransactionsQuerySchema = z.object({
   type: transactionTypeSchema.optional(),
   category: transactionCategorySchema.optional(),
   paymentMethod: paymentMethodSchema.optional(),
+  sourceType: transactionSourceTypeSchema.optional(),
   status: transactionStatusSchema.optional(),
   isAdvance: z
     .union([z.literal('true'), z.literal('false'), z.boolean()])

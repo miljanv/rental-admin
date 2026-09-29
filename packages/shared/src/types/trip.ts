@@ -161,7 +161,7 @@ export interface TripDto {
   invoiceTotalKm: number | null;
   invoiceNetAmount: number | null;
   invoiceVatAmount: number | null;
-  /** What the customer owes for this row. A series month posts one finance row for the sum. */
+  /** What the customer owes for this row. Bank statement entries settle the payment later. */
   invoiceGrossAmount: number | null;
   /** Set when this day belongs to one monthly series invoice. */
   invoiceGroupId: string | null;

@@ -40,6 +40,8 @@ export interface FinanceTransactionRecord {
   linkedTransactionId: string | null;
   sourceType: TransactionSourceType;
   sourceId: string | null;
+  statementNumber: string | null;
+  bankReference: string | null;
   createdAt: Date;
   updatedAt: Date;
   vehicle: TransactionVehicleRecord | null;
@@ -80,6 +82,8 @@ export const toTransactionDto = (record: FinanceTransactionRecord): TransactionD
   linkedTransactionId: record.linkedTransactionId,
   sourceType: record.sourceType,
   sourceId: record.sourceId,
+  statementNumber: record.statementNumber,
+  bankReference: record.bankReference,
   createdAt: record.createdAt.toISOString(),
   updatedAt: record.updatedAt.toISOString(),
 });

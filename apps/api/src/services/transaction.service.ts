@@ -1,4 +1,5 @@
 import type {
+  BankStatementEntryWriteRequest,
   DeleteTransactionResult,
   FinanceExportQueryRequest,
   FinanceReportDto,
@@ -23,10 +24,7 @@ import { buildPaginationMeta } from '../utils/api-response';
 import { badRequest, conflict, notFound } from '../utils/app-error';
 import { logger } from '../utils/logger';
 import { buildXlsx } from '../utils/xlsx';
-import {
-  toTransactionDto,
-  type FinanceTransactionRecord,
-} from '../utils/transaction-mapper';
+import { toTransactionDto, type FinanceTransactionRecord } from '../utils/transaction-mapper';
 import {
   FINANCE_EXPORT_LEDGER_LIMIT,
   buildFinanceExportDocument,
@@ -42,12 +40,20 @@ const parseDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`
 
 const toIsoDate = (value: Date): string => value.toISOString().slice(0, 10);
 
-type TransactionListFilters = Omit<ListTransactionsQuery, 'page' | 'limit' | 'sortBy' | 'sortOrder'>;
+const retiredFinanceSourceTypes: TransactionSourceType[] = ['COMPANY_EXPENSE', 'TRIP_REVENUE'];
+
+type TransactionListFilters = Omit<
+  ListTransactionsQuery,
+  'page' | 'limit' | 'sortBy' | 'sortOrder'
+>;
 
 const transactionListWhere = (query: TransactionListFilters) => ({
   ...(query.type ? { type: query.type } : {}),
   ...(query.category ? { category: query.category } : {}),
   ...(query.paymentMethod ? { paymentMethod: query.paymentMethod } : {}),
+  ...(query.sourceType
+    ? { sourceType: query.sourceType }
+    : { sourceType: { notIn: retiredFinanceSourceTypes } }),
   ...(query.status ? { status: query.status } : {}),
   ...(query.isAdvance !== undefined ? { isAdvance: query.isAdvance } : {}),
   ...(query.supplier
@@ -86,7 +92,10 @@ const assertVehicleExists = async (vehicleId: string | null): Promise<void> => {
     return;
   }
 
-  const vehicle = await prisma.vehicle.findUnique({ where: { id: vehicleId }, select: { id: true } });
+  const vehicle = await prisma.vehicle.findUnique({
+    where: { id: vehicleId },
+    select: { id: true },
+  });
 
   if (!vehicle) {
     throw badRequest('Izabrano vozilo ne postoji.');
@@ -122,6 +131,30 @@ const toManualWriteData = (input: TransactionWriteRequest) => ({
   status: input.isAdvance ? ('OPEN' as const) : ('OPEN' as const),
   sourceType: 'MANUAL' as const,
   sourceId: null,
+  statementNumber: null,
+  bankReference: null,
+  linkedTransactionId: null,
+});
+
+const toBankStatementWriteData = (input: BankStatementEntryWriteRequest) => ({
+  type: input.type,
+  category: input.category,
+  amount: input.amount,
+  occurredAt: parseDate(input.occurredAt),
+  paymentMethod: 'ACCOUNT' as const,
+  note: input.note,
+  supplier: input.supplier,
+  partner: input.partner,
+  route: input.route,
+  vehicleId: input.vehicleId,
+  driverId: input.driverId,
+  contractId: input.contractId,
+  isAdvance: false,
+  status: 'SETTLED' as const,
+  sourceType: 'BANK_STATEMENT' as const,
+  sourceId: null,
+  statementNumber: input.statementNumber,
+  bankReference: input.bankReference,
   linkedTransactionId: null,
 });
 
@@ -162,7 +195,9 @@ export const getTransaction = async (id: string): Promise<TransactionDto> => {
   return toTransactionDto(record);
 };
 
-export const createTransaction = async (input: TransactionWriteRequest): Promise<TransactionDto> => {
+export const createTransaction = async (
+  input: TransactionWriteRequest,
+): Promise<TransactionDto> => {
   await assertVehicleExists(input.vehicleId);
   await assertDriverExists(input.driverId);
 
@@ -172,6 +207,25 @@ export const createTransaction = async (input: TransactionWriteRequest): Promise
   });
 
   logger.info('Transaction created', { transactionId: record.id, isAdvance: record.isAdvance });
+
+  return toTransactionDto(record);
+};
+
+export const createBankStatementEntry = async (
+  input: BankStatementEntryWriteRequest,
+): Promise<TransactionDto> => {
+  await assertVehicleExists(input.vehicleId);
+  await assertDriverExists(input.driverId);
+
+  const record = await prisma.financeTransaction.create({
+    data: toBankStatementWriteData(input),
+    include: transactionInclude,
+  });
+
+  logger.info('Bank statement entry created', {
+    transactionId: record.id,
+    statementNumber: record.statementNumber,
+  });
 
   return toTransactionDto(record);
 };
@@ -208,6 +262,34 @@ export const updateTransaction = async (
   return toTransactionDto(record);
 };
 
+export const updateBankStatementEntry = async (
+  id: string,
+  input: BankStatementEntryWriteRequest,
+): Promise<TransactionDto> => {
+  const existing = await prisma.financeTransaction.findUnique({ where: { id } });
+
+  if (!existing) {
+    throw notFound('Stavka izvoda nije pronađena.');
+  }
+
+  if (existing.sourceType !== 'BANK_STATEMENT') {
+    throw conflict('Samo stavke izvoda se menjaju iz ovog dela finansija.');
+  }
+
+  await assertVehicleExists(input.vehicleId);
+  await assertDriverExists(input.driverId);
+
+  const record = await prisma.financeTransaction.update({
+    where: { id },
+    data: toBankStatementWriteData(input),
+    include: transactionInclude,
+  });
+
+  logger.info('Bank statement entry updated', { transactionId: id });
+
+  return toTransactionDto(record);
+};
+
 export const deleteTransaction = async (id: string): Promise<DeleteTransactionResult> => {
   const existing = await prisma.financeTransaction.findUnique({
     where: { id },
@@ -218,7 +300,7 @@ export const deleteTransaction = async (id: string): Promise<DeleteTransactionRe
     throw notFound('Transakcija nije pronađena.');
   }
 
-  if (existing.sourceType !== 'MANUAL') {
+  if (existing.sourceType !== 'MANUAL' && existing.sourceType !== 'BANK_STATEMENT') {
     throw conflict('Automatska transakcija se briše brisanjem izvornog zapisa.');
   }
 
@@ -263,17 +345,21 @@ export const listUnsettledAdvances = async (
     bySupplier.set(key, group);
   }
 
-  const groups: UnsettledAdvanceGroupDto[] = [...bySupplier.entries()].map(([supplier, advances]) => ({
-    supplier,
-    total: advances.reduce((sum, row) => sum + row.amount, 0),
-    count: advances.length,
-    advances: advances.map((row) => toTransactionDto(row)),
-  }));
+  const groups: UnsettledAdvanceGroupDto[] = [...bySupplier.entries()].map(
+    ([supplier, advances]) => ({
+      supplier,
+      total: advances.reduce((sum, row) => sum + row.amount, 0),
+      count: advances.length,
+      advances: advances.map((row) => toTransactionDto(row)),
+    }),
+  );
 
   return { groups };
 };
 
-export const settleAdvances = async (input: SettleAdvancesRequest): Promise<SettleAdvancesResult> => {
+export const settleAdvances = async (
+  input: SettleAdvancesRequest,
+): Promise<SettleAdvancesResult> => {
   const where = {
     isAdvance: true,
     status: 'OPEN' as const,
@@ -347,7 +433,7 @@ export const settleAdvances = async (input: SettleAdvancesRequest): Promise<Sett
 };
 
 export interface OperationalExpenseInput {
-  sourceType: Exclude<TransactionSourceType, 'MANUAL'>;
+  sourceType: Exclude<TransactionSourceType, 'MANUAL' | 'BANK_STATEMENT'>;
   sourceId: string;
   category: TransactionCategory;
   amount: number | null | undefined;
@@ -447,7 +533,7 @@ export const upsertOperationalIncome = (input: OperationalExpenseInput): Promise
   upsertOperationalTransaction('INCOME', input);
 
 export const deleteOperationalTransaction = async (
-  sourceType: Exclude<TransactionSourceType, 'MANUAL'>,
+  sourceType: Exclude<TransactionSourceType, 'MANUAL' | 'BANK_STATEMENT'>,
   sourceId: string,
   options?: { includeSettled?: boolean },
 ): Promise<void> => {
@@ -470,6 +556,7 @@ export const getFinanceReport = async (
   const records = await prisma.financeTransaction.findMany({
     where: {
       occurredAt: { gte: parseDate(from), lte: parseDate(to) },
+      sourceType: { notIn: retiredFinanceSourceTypes },
       NOT: { isAdvance: true, status: 'SETTLED' },
     },
     select: {
@@ -563,4 +650,3 @@ export const exportFinanceReport = async (
     mimeType: 'application/pdf',
   };
 };
-

@@ -3,6 +3,7 @@ import { Router } from 'express';
 import * as transactionController from '../controllers/transaction.controller';
 import { validateRequest } from '../middleware/validate-request';
 import {
+  bankStatementEntryWriteSchema,
   financeExportQuerySchema,
   financeReportQuerySchema,
   listTransactionsQuerySchema,
@@ -27,6 +28,12 @@ transactionRouter.post(
   asyncHandler(transactionController.createTransaction),
 );
 
+transactionRouter.post(
+  '/bank-statements',
+  validateRequest({ body: bankStatementEntryWriteSchema }),
+  asyncHandler(transactionController.createBankStatementEntry),
+);
+
 transactionRouter.get(
   '/unsettled-advances',
   validateRequest({ query: unsettledAdvancesQuerySchema }),
@@ -49,6 +56,12 @@ transactionRouter.post(
   '/settle-advances',
   validateRequest({ body: settleAdvancesSchema }),
   asyncHandler(transactionController.settleAdvances),
+);
+
+transactionRouter.patch(
+  '/bank-statements/:id',
+  validateRequest({ params: transactionIdParamsSchema, body: bankStatementEntryWriteSchema }),
+  asyncHandler(transactionController.updateBankStatementEntry),
 );
 
 transactionRouter.get(

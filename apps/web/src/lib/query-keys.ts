@@ -11,6 +11,7 @@ import type {
   PaymentMethod,
   SortOrder,
   TransactionCategory,
+  TransactionSourceType,
   TransactionSortField,
   TransactionStatus,
   TransactionType,
@@ -144,6 +145,7 @@ export interface TransactionListQueryParams {
   type?: TransactionType;
   category?: TransactionCategory;
   paymentMethod?: PaymentMethod;
+  sourceType?: TransactionSourceType;
   status?: TransactionStatus;
   isAdvance?: boolean;
   supplier?: string;
@@ -270,8 +272,7 @@ export const queryKeys = {
   },
   companyExpenses: {
     all: ['company-expenses'] as const,
-    list: (params?: CompanyExpenseListQueryParams) =>
-      ['company-expenses', 'list', params] as const,
+    list: (params?: CompanyExpenseListQueryParams) => ['company-expenses', 'list', params] as const,
     summary: (params?: CompanyExpenseSummaryParams) =>
       ['company-expenses', 'summary', params] as const,
     suppliers: () => ['company-expenses', 'suppliers'] as const,

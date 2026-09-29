@@ -21,6 +21,8 @@ const record: FinanceTransactionRecord = {
   linkedTransactionId: null,
   sourceType: 'MANUAL',
   sourceId: null,
+  statementNumber: null,
+  bankReference: null,
   createdAt: new Date('2026-08-15T10:00:00.000Z'),
   updatedAt: new Date('2026-08-15T10:00:00.000Z'),
   vehicle: { id: 'veh_1', make: 'Mercedes', model: 'Sprinter', licensePlate: 'NS-123-AB' },
