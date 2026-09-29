@@ -14,10 +14,8 @@ import {
   toVehicleMaintenanceDto,
   type VehicleMaintenanceRecord,
 } from '../utils/vehicle-maintenance-mapper';
-import {
-  deleteOperationalTransaction,
-  upsertOperationalExpense,
-} from './transaction.service';
+import { findSupplierIdByName } from './supplier.service';
+import { deleteOperationalTransaction, upsertOperationalExpense } from './transaction.service';
 
 const parseDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`);
 
@@ -32,11 +30,12 @@ const assertVehicleExists = async (vehicleId: string): Promise<void> => {
   }
 };
 
-const toWriteData = (input: VehicleMaintenanceWriteRequest) => ({
+const toWriteData = async (input: VehicleMaintenanceWriteRequest) => ({
   date: parseDate(input.date),
   odometerKm: input.odometerKm,
   partName: input.partName,
   supplier: input.supplier,
+  supplierId: await findSupplierIdByName(input.supplier),
   cost: input.cost,
   paymentMethod: input.paymentMethod,
   mechanic: input.mechanic,
@@ -50,7 +49,9 @@ export const listVehicleMaintenance = async (
 
   const where = {
     vehicleId,
-    ...(query.supplier ? { supplier: { contains: query.supplier, mode: 'insensitive' as const } } : {}),
+    ...(query.supplier
+      ? { supplier: { contains: query.supplier, mode: 'insensitive' as const } }
+      : {}),
     ...(query.from || query.to
       ? {
           date: {
@@ -91,7 +92,7 @@ export const createVehicleMaintenance = async (
   await assertVehicleExists(vehicleId);
 
   const record = await prisma.vehicleMaintenance.create({
-    data: { vehicleId, ...toWriteData(input) },
+    data: { vehicleId, ...(await toWriteData(input)) },
   });
 
   await upsertOperationalExpense({
@@ -126,7 +127,7 @@ export const updateVehicleMaintenance = async (
 
   const record = await prisma.vehicleMaintenance.update({
     where: { id: maintenanceId },
-    data: toWriteData(input),
+    data: await toWriteData(input),
   });
 
   await upsertOperationalExpense({
@@ -175,7 +176,9 @@ export const getMaintenanceCostSummary = async (
 ): Promise<MaintenanceCostSummaryDto> => {
   const where = {
     ...(query.vehicleId ? { vehicleId: query.vehicleId } : {}),
-    ...(query.supplier ? { supplier: { contains: query.supplier, mode: 'insensitive' as const } } : {}),
+    ...(query.supplier
+      ? { supplier: { contains: query.supplier, mode: 'insensitive' as const } }
+      : {}),
     ...(query.from || query.to
       ? {
           date: {

@@ -126,6 +126,11 @@ export interface SupplierListQueryParams {
   sortOrder: SortOrder;
 }
 
+export interface BusinessAnalyticsParams {
+  from?: string;
+  to?: string;
+}
+
 export interface ContractListQueryParams {
   page: number;
   limit: number;
@@ -212,6 +217,10 @@ export const queryKeys = {
     all: ['alarms'] as const,
     list: () => ['alarms', 'list'] as const,
     thresholds: () => ['alarms', 'thresholds'] as const,
+  },
+  analytics: {
+    all: ['analytics'] as const,
+    business: (params: BusinessAnalyticsParams) => ['analytics', 'business', params] as const,
   },
   drivers: {
     all: ['drivers'] as const,

@@ -38,6 +38,7 @@ import {
   financeExportSheets,
 } from './finance-export-document';
 import { buildFinanceReportPdf } from './pdf/finance-report-pdf';
+import { findSupplierIdByName } from './supplier.service';
 
 type TransactionSortField = ListTransactionsQuery['sortBy'];
 type SortOrder = ListTransactionsQuery['sortOrder'];
@@ -123,7 +124,7 @@ const assertDriverExists = async (driverId: string | null): Promise<void> => {
   }
 };
 
-const toManualWriteData = (input: TransactionWriteRequest) => ({
+const toManualWriteData = async (input: TransactionWriteRequest) => ({
   type: input.type,
   category: input.category,
   amount: input.amount,
@@ -131,6 +132,7 @@ const toManualWriteData = (input: TransactionWriteRequest) => ({
   paymentMethod: input.paymentMethod,
   note: input.note,
   supplier: input.supplier,
+  supplierId: await findSupplierIdByName(input.supplier),
   partner: input.partner,
   route: input.route,
   vehicleId: input.vehicleId,
@@ -145,7 +147,7 @@ const toManualWriteData = (input: TransactionWriteRequest) => ({
   linkedTransactionId: null,
 });
 
-const toBankStatementWriteData = (input: BankStatementEntryWriteRequest) => ({
+const toBankStatementWriteData = async (input: BankStatementEntryWriteRequest) => ({
   type: input.type,
   category: input.category,
   amount: input.amount,
@@ -153,6 +155,7 @@ const toBankStatementWriteData = (input: BankStatementEntryWriteRequest) => ({
   paymentMethod: 'ACCOUNT' as const,
   note: input.note,
   supplier: input.supplier,
+  supplierId: await findSupplierIdByName(input.supplier),
   partner: input.partner,
   route: input.route,
   vehicleId: input.vehicleId,
@@ -211,7 +214,7 @@ export const createTransaction = async (
   await assertDriverExists(input.driverId);
 
   const record = await prisma.financeTransaction.create({
-    data: toManualWriteData(input),
+    data: await toManualWriteData(input),
     include: transactionInclude,
   });
 
@@ -227,7 +230,7 @@ export const createBankStatementEntry = async (
   await assertDriverExists(input.driverId);
 
   const record = await prisma.financeTransaction.create({
-    data: toBankStatementWriteData(input),
+    data: await toBankStatementWriteData(input),
     include: transactionInclude,
   });
 
@@ -262,7 +265,7 @@ export const updateTransaction = async (
 
   const record = await prisma.financeTransaction.update({
     where: { id },
-    data: toManualWriteData(input),
+    data: await toManualWriteData(input),
     include: transactionInclude,
   });
 
@@ -290,7 +293,7 @@ export const updateBankStatementEntry = async (
 
   const record = await prisma.financeTransaction.update({
     where: { id },
-    data: toBankStatementWriteData(input),
+    data: await toBankStatementWriteData(input),
     include: transactionInclude,
   });
 
@@ -400,6 +403,7 @@ export const settleAdvances = async (
   const settledTotal = advances.reduce((sum, row) => sum + row.amount, 0);
   const amount = input.amount ?? settledTotal;
   const note = input.note ?? `${input.supplier.toUpperCase()} ISPLAĆENO`;
+  const supplierId = await findSupplierIdByName(input.supplier);
 
   const settlement = await prisma.$transaction(async (tx) => {
     const created = await tx.financeTransaction.create({
@@ -411,6 +415,7 @@ export const settleAdvances = async (
         paymentMethod: input.paymentMethod,
         note,
         supplier: input.supplier,
+        supplierId,
         isAdvance: false,
         status: 'SETTLED',
         sourceType: 'MANUAL',
@@ -983,6 +988,7 @@ const upsertOperationalTransaction = async (
     paymentMethod: posted.paymentMethod,
     note: input.note ?? null,
     supplier: input.supplier ?? null,
+    supplierId: await findSupplierIdByName(input.supplier),
     partner: input.partner ?? null,
     route: input.route ?? null,
     vehicleId: input.vehicleId ?? null,

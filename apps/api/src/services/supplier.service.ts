@@ -50,6 +50,23 @@ export const listSupplierNames = async (): Promise<string[]> => {
   return rows.map((row) => row.name);
 };
 
+export const findSupplierIdByName = async (
+  name: string | null | undefined,
+): Promise<string | null> => {
+  const normalized = name?.trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  const record = await prisma.supplier.findFirst({
+    where: { name: { equals: normalized, mode: 'insensitive' } },
+    select: { id: true },
+  });
+
+  return record?.id ?? null;
+};
+
 export const listSuppliers = async (
   query: ListSuppliersQuery,
 ): Promise<{ suppliers: SupplierDto[]; pagination: PaginationMeta }> => {

@@ -12,7 +12,7 @@ import { prisma } from '../config/prisma';
 import { badRequest, notFound } from '../utils/app-error';
 import { toCompanyExpenseDto, type CompanyExpenseRecord } from '../utils/company-expense-mapper';
 import { logger } from '../utils/logger';
-import { listSupplierNames, mergeSupplierNames } from './supplier.service';
+import { findSupplierIdByName, listSupplierNames, mergeSupplierNames } from './supplier.service';
 import { deleteOperationalTransaction } from './transaction.service';
 
 const parseDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`);
@@ -36,11 +36,12 @@ const assertVehicleExists = async (vehicleId: string | null): Promise<void> => {
   }
 };
 
-const toWriteData = (input: CompanyExpenseWriteRequest) => ({
+const toWriteData = async (input: CompanyExpenseWriteRequest) => ({
   issuedAt: parseDate(input.issuedAt),
   paidAt: null,
   invoiceNumber: input.invoiceNumber,
   supplier: input.supplier,
+  supplierId: await findSupplierIdByName(input.supplier),
   description: input.description,
   amount: input.amountWithVat,
   amountWithoutVat: input.amountWithoutVat,
@@ -118,7 +119,7 @@ export const createCompanyExpense = async (
   await assertVehicleExists(input.vehicleId);
 
   const record = await prisma.companyExpense.create({
-    data: toWriteData(input),
+    data: await toWriteData(input),
     include: companyExpenseInclude,
   });
 
@@ -143,7 +144,7 @@ export const updateCompanyExpense = async (
 
   const record = await prisma.companyExpense.update({
     where: { id: expenseId },
-    data: toWriteData(input),
+    data: await toWriteData(input),
     include: companyExpenseInclude,
   });
 

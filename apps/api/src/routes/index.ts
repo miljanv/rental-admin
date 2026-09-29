@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import { requireAuth } from '../middleware/require-auth';
 import { alarmRouter } from './alarm.routes';
+import { analyticsRouter } from './analytics.routes';
 import { authRouter } from './auth.routes';
 import { companyExpenseRouter } from './company-expense.routes';
 import { contractRouter } from './contract.routes';
@@ -22,6 +23,7 @@ export const apiRouter = Router();
 apiRouter.use('/health', healthRouter);
 apiRouter.use('/auth', authRouter);
 apiRouter.use('/alarms', requireAuth, alarmRouter);
+apiRouter.use('/analytics', requireAuth, analyticsRouter);
 apiRouter.use('/expenses', requireAuth, companyExpenseRouter);
 apiRouter.use('/contracts', requireAuth, contractRouter);
 apiRouter.use('/dashboard', requireAuth, dashboardRouter);

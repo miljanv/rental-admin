@@ -1,5 +1,6 @@
 import {
   Bell,
+  ChartNoAxesCombined,
   FileText,
   Fuel,
   LayoutDashboard,
@@ -36,6 +37,12 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Bell,
     description: 'Svi rokovi zaposlenih i vozila',
     emphasis: 'alert',
+  },
+  {
+    title: 'Analitika',
+    href: '/analytics',
+    icon: ChartNoAxesCombined,
+    description: 'Pregled poslovanja',
   },
   {
     title: 'Zaposleni',

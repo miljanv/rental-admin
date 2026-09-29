@@ -20,7 +20,7 @@ import { prisma } from '../config/prisma';
 import { badRequest, notFound } from '../utils/app-error';
 import { toFuelLogDto, type FuelLogRecord } from '../utils/fuel-log-mapper';
 import { logger } from '../utils/logger';
-import { listSupplierNames } from './supplier.service';
+import { findSupplierIdByName, listSupplierNames } from './supplier.service';
 import { deleteOperationalTransaction, upsertOperationalExpense } from './transaction.service';
 
 const parseDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`);
@@ -173,6 +173,7 @@ export const createFuelLog = async (
       cost: input.cost,
       paymentMethod: input.paymentMethod,
       supplier: input.supplier,
+      supplierId: await findSupplierIdByName(input.supplier),
       note: input.note,
       kmDriven,
       consumptionPer100Km,
@@ -286,6 +287,7 @@ export const updateFuelLog = async (
       cost: input.cost,
       paymentMethod: input.paymentMethod,
       supplier: input.supplier,
+      supplierId: await findSupplierIdByName(input.supplier),
       note: input.note,
       kmDriven,
       consumptionPer100Km,

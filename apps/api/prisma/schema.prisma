@@ -358,6 +358,7 @@ model FuelLog {
   cost                Float?
   paymentMethod       PaymentMethod?
   supplier            String
+  supplierId          String?
   note                String?
   kmDriven            Int?
   consumptionPer100Km Float?
@@ -366,6 +367,7 @@ model FuelLog {
 
   vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   driver  Driver? @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  supplierRef Supplier? @relation("FuelLogSupplier", fields: [supplierId], references: [id], onDelete: SetNull)
 
   @@index([vehicleId])
   @@index([vehicleId, odometerKm])
@@ -373,6 +375,7 @@ model FuelLog {
   @@index([fueledAt])
   @@index([fuelType])
   @@index([supplier])
+  @@index([supplierId])
   @@index([driverId, fueledAt])
   @@map("fuel_logs")
 }
@@ -385,6 +388,7 @@ model VehicleMaintenance {
   odometerKm    Int
   partName      String
   supplier      String
+  supplierId    String?
   cost          Float
   paymentMethod PaymentMethod @default(ACCOUNT)
   mechanic      String
@@ -392,10 +396,12 @@ model VehicleMaintenance {
   updatedAt     DateTime      @updatedAt
 
   vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  supplierRef Supplier? @relation("VehicleMaintenanceSupplier", fields: [supplierId], references: [id], onDelete: SetNull)
 
   @@index([vehicleId])
   @@index([date])
   @@index([supplier])
+  @@index([supplierId])
   @@map("vehicle_maintenance")
 }
 
@@ -407,6 +413,7 @@ model CompanyExpense {
   paidAt           DateTime?     @db.Date
   invoiceNumber    String?
   supplier         String
+  supplierId       String?
   description      String
   amount           Float
   amountWithoutVat Float
@@ -419,11 +426,13 @@ model CompanyExpense {
   updatedAt        DateTime      @updatedAt
 
   vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  supplierRef Supplier? @relation("CompanyExpenseSupplier", fields: [supplierId], references: [id], onDelete: SetNull)
 
   @@index([issuedAt])
   @@index([paidAt])
   @@index([invoiceNumber])
   @@index([supplier])
+  @@index([supplierId])
   @@index([vehicleId])
   @@map("company_expenses")
 }
@@ -444,6 +453,10 @@ model Supplier {
   note               String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+  companyExpenses    CompanyExpense[] @relation("CompanyExpenseSupplier")
+  fuelLogs           FuelLog[] @relation("FuelLogSupplier")
+  maintenanceRecords VehicleMaintenance[] @relation("VehicleMaintenanceSupplier")
+  transactions       FinanceTransaction[] @relation("FinanceTransactionSupplier")
 
   @@index([name])
   @@index([pib])
@@ -712,6 +725,7 @@ model FinanceTransaction {
   paymentMethod       PaymentMethod
   note                String?
   supplier            String?
+  supplierId          String?
   partner             String?
   route               String?
   vehicleId           String?
@@ -729,6 +743,7 @@ model FinanceTransaction {
 
   vehicle            Vehicle?             @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
   driver             Driver?              @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  supplierRef        Supplier?            @relation("FinanceTransactionSupplier", fields: [supplierId], references: [id], onDelete: SetNull)
   linkedTransaction  FinanceTransaction?  @relation("AdvanceSettlement", fields: [linkedTransactionId], references: [id], onDelete: SetNull)
   linkedAdvances     FinanceTransaction[] @relation("AdvanceSettlement")
   paymentAllocations PaymentAllocation[]
@@ -740,6 +755,7 @@ model FinanceTransaction {
   @@index([vehicleId])
   @@index([driverId])
   @@index([supplier, isAdvance, status])
+  @@index([supplierId])
   @@index([partner])
   @@index([route])
   @@index([sourceType, sourceId])

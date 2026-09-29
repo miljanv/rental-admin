@@ -1,5 +1,6 @@
 export * from './auth';
 export * from './alarm';
+export * from './business-analytics';
 export * from './company-expense';
 export * from './contract';
 export * from './contract-document';
