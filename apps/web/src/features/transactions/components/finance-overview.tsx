@@ -28,7 +28,7 @@ export function FinanceOverview({ onSettleAdvance }: FinanceOverviewProps) {
   const defaults = useMemo(() => defaultFinanceReportRange(), []);
   const [from, setFrom] = useState(defaults.from);
   const [to, setTo] = useState(defaults.to);
-  const query = useFinanceReport(from, to);
+  const query = useFinanceReport(from, to, 'ACCOUNT');
   const report = query.data;
 
   return (
@@ -55,7 +55,7 @@ export function FinanceOverview({ onSettleAdvance }: FinanceOverviewProps) {
           <RefreshCw className={cn('size-4', query.isFetching && 'animate-spin')} aria-hidden />
           Osveži
         </Button>
-        <FinanceExportMenu params={{ from, to }} />
+        <FinanceExportMenu params={{ from, to, paymentMethod: 'ACCOUNT' }} />
       </div>
 
       {query.isError ? (
@@ -83,7 +83,9 @@ export function FinanceOverview({ onSettleAdvance }: FinanceOverviewProps) {
           <Card className="shadow-none">
             <CardHeader>
               <CardTitle>Prihod i rashod po mesecima</CardTitle>
-              <CardDescription>Keš i račun su sabrani; raspodelu plaćanja vidi ispod.</CardDescription>
+              <CardDescription>
+                Pregled bankarskog prometa; keš je izdvojen u poseban tab.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {query.isPending ? (
@@ -98,7 +100,9 @@ export function FinanceOverview({ onSettleAdvance }: FinanceOverviewProps) {
             <Card className="shadow-none">
               <CardHeader>
                 <CardTitle>Rashodi po kategoriji</CardTitle>
-                <CardDescription>Gorivo, delovi, pregledi i ostalo u izabranom periodu.</CardDescription>
+                <CardDescription>
+                  Gorivo, delovi, pregledi i ostalo u izabranom periodu.
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {query.isPending ? (
@@ -113,8 +117,8 @@ export function FinanceOverview({ onSettleAdvance }: FinanceOverviewProps) {
               <CardHeader>
                 <CardTitle>Račun vs. keš</CardTitle>
                 <CardDescription>
-                  Lokalne vožnje često idu kešom, fakture agencijama preko računa — izveštaj drži ova
-                  dva toka odvojeno.
+                  Ovaj pregled je filtriran na račun. Keš se vodi posebno da ne ulazi u bankarski
+                  promet.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -132,7 +136,9 @@ export function FinanceOverview({ onSettleAdvance }: FinanceOverviewProps) {
           <Card className="shadow-none">
             <CardHeader>
               <CardTitle>Profit po vozilu</CardTitle>
-              <CardDescription>Sortirajte kolone. Red bez vozila skuplja knjiženja koja nisu vezana.</CardDescription>
+              <CardDescription>
+                Sortirajte kolone. Red bez vozila skuplja knjiženja koja nisu vezana.
+              </CardDescription>
             </CardHeader>
             <CardContent className="px-0">
               {query.isPending ? (
@@ -187,7 +193,9 @@ export function FinanceOverview({ onSettleAdvance }: FinanceOverviewProps) {
             <Card className="shadow-none">
               <CardHeader>
                 <CardTitle>Profit po relaciji</CardTitle>
-                <CardDescription>Ruta ili lokalni prevoz, ako je uneta na transakciji.</CardDescription>
+                <CardDescription>
+                  Ruta ili lokalni prevoz, ako je uneta na transakciji.
+                </CardDescription>
               </CardHeader>
               <CardContent className="px-0">
                 {query.isPending ? (

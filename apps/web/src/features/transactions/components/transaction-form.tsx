@@ -6,6 +6,8 @@ import {
   TRANSACTION_CATEGORY_LABELS,
   TRANSACTION_TYPE_LABELS,
   TRANSACTION_TYPES,
+  PAYMENT_METHOD_LABELS,
+  type PaymentMethod,
   type TransactionDto,
   type TransactionWriteRequest,
 } from '@rental-admin/shared';
@@ -39,6 +41,9 @@ import { cn } from '@/lib/utils';
 interface TransactionFormProps {
   transaction?: TransactionDto;
   onDone: () => void;
+  fixedPaymentMethod?: PaymentMethod;
+  title?: string;
+  description?: string;
 }
 
 interface FieldProps {
@@ -60,7 +65,13 @@ function Field({ id, label, error, children }: FieldProps) {
 
 const NONE = 'none';
 
-export function TransactionForm({ transaction, onDone }: TransactionFormProps) {
+export function TransactionForm({
+  transaction,
+  onDone,
+  fixedPaymentMethod,
+  title,
+  description,
+}: TransactionFormProps) {
   const isEdit = Boolean(transaction);
   const createMutation = useCreateTransaction();
   const updateMutation = useUpdateTransaction();
@@ -89,7 +100,7 @@ export function TransactionForm({ transaction, onDone }: TransactionFormProps) {
           category: transaction.category,
           amount: transaction.amount,
           occurredAt: transaction.occurredAt,
-          paymentMethod: transaction.paymentMethod,
+          paymentMethod: fixedPaymentMethod ?? transaction.paymentMethod,
           note: transaction.note ?? '',
           supplier: transaction.supplier ?? '',
           partner: transaction.partner ?? '',
@@ -99,14 +110,22 @@ export function TransactionForm({ transaction, onDone }: TransactionFormProps) {
           contractId: transaction.contractId ?? '',
           isAdvance: transaction.isAdvance,
         }
-      : EMPTY_TRANSACTION_FORM,
+      : {
+          ...EMPTY_TRANSACTION_FORM,
+          paymentMethod: fixedPaymentMethod ?? EMPTY_TRANSACTION_FORM.paymentMethod,
+        },
   });
 
   const isAdvance = useWatch({ control: form.control, name: 'isAdvance' });
   const errors = form.formState.errors;
 
   const onSubmit = form.handleSubmit(async (values) => {
-    const payload: TransactionWriteRequest = isAdvance ? { ...values, type: 'EXPENSE' } : values;
+    const withPaymentMethod = fixedPaymentMethod
+      ? { ...values, paymentMethod: fixedPaymentMethod }
+      : values;
+    const payload: TransactionWriteRequest = isAdvance
+      ? { ...withPaymentMethod, type: 'EXPENSE' }
+      : withPaymentMethod;
 
     try {
       if (transaction) {
@@ -124,9 +143,10 @@ export function TransactionForm({ transaction, onDone }: TransactionFormProps) {
   return (
     <Card className="shadow-none">
       <CardHeader>
-        <CardTitle>{isEdit ? 'Izmena transakcije' : 'Nova transakcija'}</CardTitle>
+        <CardTitle>{title ?? (isEdit ? 'Izmena transakcije' : 'Nova transakcija')}</CardTitle>
         <CardDescription>
-          Ručni unos van automatskih knjiženja. Avans dobavljaču (NIS, OMV) označite posebno.
+          {description ??
+            'Ručni unos van automatskih knjiženja. Avans dobavljaču (NIS, OMV) označite posebno.'}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -170,11 +190,7 @@ export function TransactionForm({ transaction, onDone }: TransactionFormProps) {
               name="category"
               render={({ field }) => (
                 <Field id="category" label="Kategorija" error={errors.category?.message}>
-                  <Select
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    disabled={isPending}
-                  >
+                  <Select value={field.value} onValueChange={field.onChange} disabled={isPending}>
                     <SelectTrigger id="category" className="w-full">
                       <SelectValue />
                     </SelectTrigger>
@@ -218,20 +234,34 @@ export function TransactionForm({ transaction, onDone }: TransactionFormProps) {
               />
             </Field>
 
-            <Controller
-              control={form.control}
-              name="paymentMethod"
-              render={({ field }) => (
-                <Field id="paymentMethod" label="Način plaćanja" error={errors.paymentMethod?.message}>
-                  <PaymentMethodSelect
+            {fixedPaymentMethod ? (
+              <Field id="paymentMethod" label="Način plaćanja">
+                <Input
+                  id="paymentMethod"
+                  value={PAYMENT_METHOD_LABELS[fixedPaymentMethod]}
+                  disabled
+                />
+              </Field>
+            ) : (
+              <Controller
+                control={form.control}
+                name="paymentMethod"
+                render={({ field }) => (
+                  <Field
                     id="paymentMethod"
-                    value={field.value}
-                    onChange={field.onChange}
-                    disabled={isPending}
-                  />
-                </Field>
-              )}
-            />
+                    label="Način plaćanja"
+                    error={errors.paymentMethod?.message}
+                  >
+                    <PaymentMethodSelect
+                      id="paymentMethod"
+                      value={field.value}
+                      onChange={field.onChange}
+                      disabled={isPending}
+                    />
+                  </Field>
+                )}
+              />
+            )}
 
             <Field id="supplier" label="Dobavljač" error={errors.supplier?.message}>
               <Input

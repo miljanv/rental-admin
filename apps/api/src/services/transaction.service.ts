@@ -5,10 +5,16 @@ import type {
   FinanceReportDto,
   FinanceReportQueryRequest,
   ListTransactionsQuery,
+  ListSettlementTargetsQuery,
   PaginationMeta,
   PaymentMethod,
+  PaymentAllocationDto,
+  PaymentAllocationWriteRequest,
   SettleAdvancesRequest,
   SettleAdvancesResult,
+  SettlementTargetDto,
+  SettlementTargetsDto,
+  SettlementTargetType,
   TransactionCategory,
   TransactionDto,
   TransactionSourceType,
@@ -41,6 +47,7 @@ const parseDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`
 const toIsoDate = (value: Date): string => value.toISOString().slice(0, 10);
 
 const retiredFinanceSourceTypes: TransactionSourceType[] = ['COMPANY_EXPENSE', 'TRIP_REVENUE'];
+const MONEY_EPSILON = 0.005;
 
 type TransactionListFilters = Omit<
   ListTransactionsQuery,
@@ -85,6 +92,7 @@ const transactionListWhere = (query: TransactionListFilters) => ({
 const transactionInclude = {
   vehicle: { select: { id: true, make: true, model: true, licensePlate: true } },
   driver: { select: { id: true, firstName: true, lastName: true } },
+  paymentAllocations: { select: { amount: true } },
 } as const;
 
 const assertVehicleExists = async (vehicleId: string | null): Promise<void> => {
@@ -432,6 +440,481 @@ export const settleAdvances = async (
   };
 };
 
+const roundMoney = (value: number): number => Math.round(value * 100) / 100;
+
+const toPaymentAllocationDto = (record: {
+  id: string;
+  transactionId: string;
+  targetType: SettlementTargetType;
+  targetId: string;
+  amount: number;
+  note: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): PaymentAllocationDto => ({
+  id: record.id,
+  transactionId: record.transactionId,
+  targetType: record.targetType,
+  targetId: record.targetId,
+  amount: record.amount,
+  note: record.note,
+  createdAt: record.createdAt.toISOString(),
+  updatedAt: record.updatedAt.toISOString(),
+});
+
+const targetTypeForTransactionType = (type: 'INCOME' | 'EXPENSE'): SettlementTargetType[] =>
+  type === 'EXPENSE' ? ['COMPANY_EXPENSE'] : ['TRIP_INVOICE', 'TRIP_SERIES_INVOICE'];
+
+const allocatedByTarget = async (
+  targetType: SettlementTargetType,
+  targetIds: string[],
+): Promise<Map<string, number>> => {
+  if (targetIds.length === 0) {
+    return new Map();
+  }
+
+  const rows = await prisma.paymentAllocation.groupBy({
+    by: ['targetId'],
+    where: { targetType, targetId: { in: targetIds } },
+    _sum: { amount: true },
+  });
+
+  return new Map(rows.map((row) => [row.targetId, row._sum.amount ?? 0]));
+};
+
+const settlementTargetSearch = (query: string | undefined): string | undefined =>
+  query?.trim() ? query.trim() : undefined;
+
+const listCompanyExpenseSettlementTargets = async (
+  query: ListSettlementTargetsQuery,
+): Promise<SettlementTargetDto[]> => {
+  const search = settlementTargetSearch(query.search);
+  const records = await prisma.companyExpense.findMany({
+    where: search
+      ? {
+          OR: [
+            { supplier: { contains: search, mode: 'insensitive' } },
+            { description: { contains: search, mode: 'insensitive' } },
+            { invoiceNumber: { contains: search, mode: 'insensitive' } },
+          ],
+        }
+      : undefined,
+    orderBy: [{ issuedAt: 'desc' }, { createdAt: 'desc' }],
+    take: Math.max(query.limit * 4, query.limit),
+  });
+  const allocated = await allocatedByTarget(
+    'COMPANY_EXPENSE',
+    records.map((record) => record.id),
+  );
+
+  return records
+    .map((record): SettlementTargetDto => {
+      const allocatedAmount = roundMoney(allocated.get(record.id) ?? 0);
+      const remainingAmount = roundMoney(record.amountWithVat - allocatedAmount);
+
+      return {
+        targetType: 'COMPANY_EXPENSE',
+        targetId: record.id,
+        label: [record.invoiceNumber ? `Račun ${record.invoiceNumber}` : null, record.description]
+          .filter(Boolean)
+          .join(' · '),
+        counterparty: record.supplier,
+        issuedAt: toIsoDate(record.issuedAt),
+        totalAmount: record.amountWithVat,
+        allocatedAmount,
+        remainingAmount,
+      };
+    })
+    .filter((target) => target.remainingAmount > MONEY_EPSILON)
+    .slice(0, query.limit);
+};
+
+const tripCounterparty = (record: {
+  clientName: string | null;
+  partner: {
+    type: string;
+    companyName: string | null;
+    firstName: string | null;
+    lastName: string | null;
+  } | null;
+}): string => {
+  if (record.clientName?.trim()) {
+    return record.clientName.trim();
+  }
+
+  if (!record.partner) {
+    return 'Bez kupca';
+  }
+
+  if (record.partner.type === 'INDIVIDUAL') {
+    return (
+      `${record.partner.firstName ?? ''} ${record.partner.lastName ?? ''}`.trim() || 'Bez kupca'
+    );
+  }
+
+  return record.partner.companyName?.trim() || 'Bez kupca';
+};
+
+const tripLabel = (record: {
+  referenceNumber: string | null;
+  origin: string;
+  destination: string;
+  invoiceDescription: string | null;
+}): string => {
+  const route = `${record.origin} – ${record.destination}`;
+
+  return [
+    record.referenceNumber ? `RN ${record.referenceNumber}` : null,
+    record.invoiceDescription?.trim() || route,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+};
+
+const listTripInvoiceSettlementTargets = async (
+  query: ListSettlementTargetsQuery,
+): Promise<SettlementTargetDto[]> => {
+  const search = settlementTargetSearch(query.search);
+  const trips = await prisma.trip.findMany({
+    where: {
+      invoicedAt: { not: null },
+      ...(search
+        ? {
+            OR: [
+              { referenceNumber: { contains: search, mode: 'insensitive' } },
+              { origin: { contains: search, mode: 'insensitive' } },
+              { destination: { contains: search, mode: 'insensitive' } },
+              { clientName: { contains: search, mode: 'insensitive' } },
+              { invoiceDescription: { contains: search, mode: 'insensitive' } },
+              { partner: { companyName: { contains: search, mode: 'insensitive' } } },
+            ],
+          }
+        : {}),
+    },
+    include: {
+      partner: { select: { type: true, companyName: true, firstName: true, lastName: true } },
+    },
+    orderBy: [{ invoicedAt: 'desc' }, { departureDate: 'desc' }],
+    take: Math.max(query.limit * 8, query.limit),
+  });
+
+  const standalone = trips.filter((trip) => !trip.invoiceGroupId);
+  const seriesGroups = new Map<string, typeof trips>();
+
+  for (const trip of trips) {
+    if (!trip.invoiceGroupId) {
+      continue;
+    }
+
+    const group = seriesGroups.get(trip.invoiceGroupId) ?? [];
+    group.push(trip);
+    seriesGroups.set(trip.invoiceGroupId, group);
+  }
+
+  const standaloneAllocated = await allocatedByTarget(
+    'TRIP_INVOICE',
+    standalone.map((trip) => trip.id),
+  );
+  const seriesAllocated = await allocatedByTarget('TRIP_SERIES_INVOICE', [...seriesGroups.keys()]);
+
+  const tripTargets = standalone.map((trip): SettlementTargetDto => {
+    const totalAmount = trip.invoiceGrossAmount ?? trip.price ?? 0;
+    const allocatedAmount = roundMoney(standaloneAllocated.get(trip.id) ?? 0);
+
+    return {
+      targetType: 'TRIP_INVOICE',
+      targetId: trip.id,
+      label: tripLabel(trip),
+      counterparty: tripCounterparty(trip),
+      issuedAt: toIsoDate(trip.invoicedAt ?? trip.departureDate),
+      totalAmount,
+      allocatedAmount,
+      remainingAmount: roundMoney(totalAmount - allocatedAmount),
+    };
+  });
+
+  const seriesTargets = [...seriesGroups.entries()].map(([groupId, group]): SettlementTargetDto => {
+    const first = group[0];
+    const totalAmount = roundMoney(
+      group.reduce((sum, trip) => sum + (trip.invoiceGrossAmount ?? trip.price ?? 0), 0),
+    );
+    const allocatedAmount = roundMoney(seriesAllocated.get(groupId) ?? 0);
+
+    return {
+      targetType: 'TRIP_SERIES_INVOICE',
+      targetId: groupId,
+      label: first
+        ? `${tripLabel(first)} · serija ${group.length} dana`
+        : `Serijska faktura ${groupId}`,
+      counterparty: first ? tripCounterparty(first) : 'Bez kupca',
+      issuedAt: first ? toIsoDate(first.invoicedAt ?? first.departureDate) : '',
+      totalAmount,
+      allocatedAmount,
+      remainingAmount: roundMoney(totalAmount - allocatedAmount),
+    };
+  });
+
+  return [...tripTargets, ...seriesTargets]
+    .filter((target) => target.totalAmount > MONEY_EPSILON)
+    .filter((target) => target.remainingAmount > MONEY_EPSILON)
+    .sort((left, right) => right.issuedAt.localeCompare(left.issuedAt))
+    .slice(0, query.limit);
+};
+
+export const listSettlementTargets = async (
+  query: ListSettlementTargetsQuery,
+): Promise<SettlementTargetsDto> => {
+  let type = query.type;
+
+  if (query.transactionId) {
+    const transaction = await prisma.financeTransaction.findUnique({
+      where: { id: query.transactionId },
+      select: { type: true },
+    });
+
+    if (!transaction) {
+      throw notFound('Transakcija nije pronađena.');
+    }
+
+    type = transaction.type;
+  }
+
+  if (type === 'EXPENSE') {
+    return { targets: await listCompanyExpenseSettlementTargets(query) };
+  }
+
+  if (type === 'INCOME') {
+    return { targets: await listTripInvoiceSettlementTargets(query) };
+  }
+
+  return { targets: [] };
+};
+
+const getSettlementTarget = async (
+  targetType: SettlementTargetType,
+  targetId: string,
+): Promise<SettlementTargetDto> => {
+  const allocated = await allocatedByTarget(targetType, [targetId]);
+  const allocatedAmount = roundMoney(allocated.get(targetId) ?? 0);
+
+  if (targetType === 'COMPANY_EXPENSE') {
+    const record = await prisma.companyExpense.findUnique({ where: { id: targetId } });
+
+    if (!record) {
+      throw notFound('Račun dobavljača nije pronađen.');
+    }
+
+    return {
+      targetType,
+      targetId,
+      label: [record.invoiceNumber ? `Račun ${record.invoiceNumber}` : null, record.description]
+        .filter(Boolean)
+        .join(' · '),
+      counterparty: record.supplier,
+      issuedAt: toIsoDate(record.issuedAt),
+      totalAmount: record.amountWithVat,
+      allocatedAmount,
+      remainingAmount: roundMoney(record.amountWithVat - allocatedAmount),
+    };
+  }
+
+  if (targetType === 'TRIP_INVOICE') {
+    const record = await prisma.trip.findUnique({
+      where: { id: targetId },
+      include: {
+        partner: { select: { type: true, companyName: true, firstName: true, lastName: true } },
+      },
+    });
+
+    if (!record || !record.invoicedAt) {
+      throw notFound('Faktura vožnje nije pronađena.');
+    }
+
+    const totalAmount = record.invoiceGrossAmount ?? record.price ?? 0;
+
+    return {
+      targetType,
+      targetId,
+      label: tripLabel(record),
+      counterparty: tripCounterparty(record),
+      issuedAt: toIsoDate(record.invoicedAt),
+      totalAmount,
+      allocatedAmount,
+      remainingAmount: roundMoney(totalAmount - allocatedAmount),
+    };
+  }
+
+  const rows = await prisma.trip.findMany({
+    where: { invoiceGroupId: targetId, invoicedAt: { not: null } },
+    include: {
+      partner: { select: { type: true, companyName: true, firstName: true, lastName: true } },
+    },
+    orderBy: { departureDate: 'asc' },
+  });
+  const first = rows[0];
+
+  if (!first) {
+    throw notFound('Mesečna faktura serije nije pronađena.');
+  }
+
+  const totalAmount = roundMoney(
+    rows.reduce((sum, row) => sum + (row.invoiceGrossAmount ?? row.price ?? 0), 0),
+  );
+
+  return {
+    targetType,
+    targetId,
+    label: `${tripLabel(first)} · serija ${rows.length} dana`,
+    counterparty: tripCounterparty(first),
+    issuedAt: toIsoDate(first.invoicedAt ?? first.departureDate),
+    totalAmount,
+    allocatedAmount,
+    remainingAmount: roundMoney(totalAmount - allocatedAmount),
+  };
+};
+
+const refreshTargetPaidAt = async (
+  targetType: SettlementTargetType,
+  targetId: string,
+  paidAt: Date,
+): Promise<void> => {
+  const allocated = await allocatedByTarget(targetType, [targetId]);
+  const allocatedAmount = allocated.get(targetId) ?? 0;
+
+  if (targetType === 'COMPANY_EXPENSE') {
+    const record = await prisma.companyExpense.findUnique({
+      where: { id: targetId },
+      select: { amountWithVat: true },
+    });
+    const isPaid = record ? allocatedAmount + MONEY_EPSILON >= record.amountWithVat : false;
+
+    await prisma.companyExpense.updateMany({
+      where: { id: targetId },
+      data: { paidAt: isPaid ? paidAt : null },
+    });
+    return;
+  }
+
+  if (targetType === 'TRIP_INVOICE') {
+    const record = await prisma.trip.findUnique({
+      where: { id: targetId },
+      select: { invoiceGrossAmount: true, price: true },
+    });
+    const totalAmount = record ? (record.invoiceGrossAmount ?? record.price ?? 0) : 0;
+    const isPaid = allocatedAmount + MONEY_EPSILON >= totalAmount;
+
+    await prisma.trip.updateMany({
+      where: { id: targetId },
+      data: { paidAt: isPaid ? paidAt : null },
+    });
+    return;
+  }
+
+  const rows = await prisma.trip.findMany({
+    where: { invoiceGroupId: targetId },
+    select: { invoiceGrossAmount: true, price: true },
+  });
+  const totalAmount = rows.reduce(
+    (sum, row) => sum + (row.invoiceGrossAmount ?? row.price ?? 0),
+    0,
+  );
+  const isPaid = allocatedAmount + MONEY_EPSILON >= totalAmount;
+
+  await prisma.trip.updateMany({
+    where: { invoiceGroupId: targetId },
+    data: { paidAt: isPaid ? paidAt : null },
+  });
+};
+
+export const createPaymentAllocation = async (
+  transactionId: string,
+  input: PaymentAllocationWriteRequest,
+): Promise<{ allocation: PaymentAllocationDto; transaction: TransactionDto }> => {
+  const transaction = await prisma.financeTransaction.findUnique({
+    where: { id: transactionId },
+    include: transactionInclude,
+  });
+
+  if (!transaction) {
+    throw notFound('Transakcija nije pronađena.');
+  }
+
+  if (transaction.sourceType !== 'MANUAL' && transaction.sourceType !== 'BANK_STATEMENT') {
+    throw conflict('Rasknjižavanje je dozvoljeno samo za ručne, keš i stavke izvoda.');
+  }
+
+  if (!targetTypeForTransactionType(transaction.type).includes(input.targetType)) {
+    throw badRequest('Izabrano zaduženje ne odgovara smeru transakcije.');
+  }
+
+  const existing = await prisma.paymentAllocation.findUnique({
+    where: {
+      transactionId_targetType_targetId: {
+        transactionId,
+        targetType: input.targetType,
+        targetId: input.targetId,
+      },
+    },
+  });
+  const allocatedOnTransaction = transaction.paymentAllocations.reduce(
+    (sum, allocation) => sum + allocation.amount,
+    0,
+  );
+  const availableOnTransaction = roundMoney(
+    transaction.amount - allocatedOnTransaction + (existing?.amount ?? 0),
+  );
+  const target = await getSettlementTarget(input.targetType, input.targetId);
+  const availableOnTarget = roundMoney(target.remainingAmount + (existing?.amount ?? 0));
+
+  if (input.amount > availableOnTransaction + MONEY_EPSILON) {
+    throw badRequest('Iznos je veći od nerasknjiženog dela transakcije.');
+  }
+
+  if (input.amount > availableOnTarget + MONEY_EPSILON) {
+    throw badRequest('Iznos je veći od otvorenog zaduženja.');
+  }
+
+  const allocation = await prisma.paymentAllocation.upsert({
+    where: {
+      transactionId_targetType_targetId: {
+        transactionId,
+        targetType: input.targetType,
+        targetId: input.targetId,
+      },
+    },
+    create: {
+      transactionId,
+      targetType: input.targetType,
+      targetId: input.targetId,
+      amount: input.amount,
+      note: input.note,
+    },
+    update: {
+      amount: input.amount,
+      note: input.note,
+    },
+  });
+
+  await refreshTargetPaidAt(input.targetType, input.targetId, transaction.occurredAt);
+
+  const updated = await prisma.financeTransaction.findUniqueOrThrow({
+    where: { id: transactionId },
+    include: transactionInclude,
+  });
+
+  logger.info('Payment allocation saved', {
+    transactionId,
+    allocationId: allocation.id,
+    targetType: input.targetType,
+    targetId: input.targetId,
+  });
+
+  return {
+    allocation: toPaymentAllocationDto(allocation),
+    transaction: toTransactionDto(updated),
+  };
+};
+
 export interface OperationalExpenseInput {
   sourceType: Exclude<TransactionSourceType, 'MANUAL' | 'BANK_STATEMENT'>;
   sourceId: string;
@@ -556,6 +1039,7 @@ export const getFinanceReport = async (
   const records = await prisma.financeTransaction.findMany({
     where: {
       occurredAt: { gte: parseDate(from), lte: parseDate(to) },
+      ...(query.paymentMethod ? { paymentMethod: query.paymentMethod } : {}),
       sourceType: { notIn: retiredFinanceSourceTypes },
       NOT: { isAdvance: true, status: 'SETTLED' },
     },

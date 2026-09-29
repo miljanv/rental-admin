@@ -42,6 +42,7 @@ export interface FinanceTransactionRecord {
   sourceId: string | null;
   statementNumber: string | null;
   bankReference: string | null;
+  paymentAllocations: Array<{ amount: number }>;
   createdAt: Date;
   updatedAt: Date;
   vehicle: TransactionVehicleRecord | null;
@@ -63,27 +64,37 @@ const toDriverDto = (driver: TransactionDriverRecord): TransactionDriverDto => (
   lastName: driver.lastName,
 });
 
-export const toTransactionDto = (record: FinanceTransactionRecord): TransactionDto => ({
-  id: record.id,
-  type: record.type,
-  category: record.category,
-  amount: record.amount,
-  occurredAt: toIsoDate(record.occurredAt),
-  paymentMethod: record.paymentMethod,
-  note: record.note,
-  supplier: record.supplier,
-  partner: record.partner,
-  route: record.route,
-  vehicle: record.vehicle ? toVehicleDto(record.vehicle) : null,
-  driver: record.driver ? toDriverDto(record.driver) : null,
-  contractId: record.contractId,
-  isAdvance: record.isAdvance,
-  status: record.status,
-  linkedTransactionId: record.linkedTransactionId,
-  sourceType: record.sourceType,
-  sourceId: record.sourceId,
-  statementNumber: record.statementNumber,
-  bankReference: record.bankReference,
-  createdAt: record.createdAt.toISOString(),
-  updatedAt: record.updatedAt.toISOString(),
-});
+export const toTransactionDto = (record: FinanceTransactionRecord): TransactionDto => {
+  const allocatedAmount =
+    Math.round(
+      record.paymentAllocations.reduce((sum, allocation) => sum + allocation.amount, 0) * 100,
+    ) / 100;
+
+  return {
+    id: record.id,
+    type: record.type,
+    category: record.category,
+    amount: record.amount,
+    occurredAt: toIsoDate(record.occurredAt),
+    paymentMethod: record.paymentMethod,
+    note: record.note,
+    supplier: record.supplier,
+    partner: record.partner,
+    route: record.route,
+    vehicle: record.vehicle ? toVehicleDto(record.vehicle) : null,
+    driver: record.driver ? toDriverDto(record.driver) : null,
+    contractId: record.contractId,
+    isAdvance: record.isAdvance,
+    status: record.status,
+    linkedTransactionId: record.linkedTransactionId,
+    sourceType: record.sourceType,
+    sourceId: record.sourceId,
+    statementNumber: record.statementNumber,
+    bankReference: record.bankReference,
+    allocatedAmount,
+    unallocatedAmount: Math.max(0, Math.round((record.amount - allocatedAmount) * 100) / 100),
+    allocationCount: record.paymentAllocations.length,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString(),
+  };
+};

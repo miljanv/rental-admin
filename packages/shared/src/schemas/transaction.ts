@@ -4,6 +4,7 @@ import { PAGINATION_DEFAULTS } from '../constants';
 import {
   FINANCE_EXPORT_FORMATS,
   PAYMENT_METHODS,
+  SETTLEMENT_TARGET_TYPES,
   TRANSACTION_CATEGORIES,
   TRANSACTION_SOURCE_TYPES,
   TRANSACTION_STATUSES,
@@ -19,6 +20,7 @@ export const transactionCategorySchema = z.enum(TRANSACTION_CATEGORIES);
 export const paymentMethodSchema = z.enum(PAYMENT_METHODS);
 export const transactionStatusSchema = z.enum(TRANSACTION_STATUSES);
 export const transactionSourceTypeSchema = z.enum(TRANSACTION_SOURCE_TYPES);
+export const settlementTargetTypeSchema = z.enum(SETTLEMENT_TARGET_TYPES);
 
 export const transactionIdSchema = z.string().trim().min(1).max(64);
 
@@ -232,6 +234,7 @@ export const financeReportQuerySchema = z
   .object({
     from: isoDateSchema.optional(),
     to: isoDateSchema.optional(),
+    paymentMethod: paymentMethodSchema.optional(),
   })
   .superRefine((value, ctx) => {
     if (value.from && value.to && value.from > value.to) {
@@ -245,6 +248,34 @@ export const financeReportQuerySchema = z
 
 export type FinanceReportQueryInput = z.input<typeof financeReportQuerySchema>;
 export type FinanceReportQueryRequest = z.output<typeof financeReportQuerySchema>;
+
+export const listSettlementTargetsQuerySchema = z.object({
+  transactionId: transactionIdSchema.optional(),
+  type: transactionTypeSchema.optional(),
+  search: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .transform((value) => (value ? value : undefined)),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+export type ListSettlementTargetsQueryInput = z.input<typeof listSettlementTargetsQuerySchema>;
+export type ListSettlementTargetsQuery = z.output<typeof listSettlementTargetsQuerySchema>;
+
+export const paymentAllocationWriteSchema = z.object({
+  targetType: settlementTargetTypeSchema,
+  targetId: z.string().trim().min(1).max(120),
+  amount: z
+    .number()
+    .positive('Iznos mora biti veći od nule.')
+    .max(100_000_000, 'Iznos nije ispravan.'),
+  note: optionalText(500),
+});
+
+export type PaymentAllocationWriteInput = z.input<typeof paymentAllocationWriteSchema>;
+export type PaymentAllocationWriteRequest = z.output<typeof paymentAllocationWriteSchema>;
 
 export const financeExportQuerySchema = listTransactionsQuerySchema
   .omit({ page: true, limit: true, sortBy: true, sortOrder: true })

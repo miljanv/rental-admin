@@ -1,8 +1,10 @@
 import type {
   BankStatementEntryWriteRequest,
+  ListSettlementTargetsQuery,
   FinanceExportQueryRequest,
   FinanceReportQueryRequest,
   ListTransactionsQuery,
+  PaymentAllocationWriteRequest,
   SettleAdvancesRequest,
   TransactionIdParams,
   TransactionWriteRequest,
@@ -29,6 +31,13 @@ export const listUnsettledAdvances = async (req: Request, res: Response): Promis
   sendSuccess(res, result);
 };
 
+export const listSettlementTargets = async (req: Request, res: Response): Promise<void> => {
+  const query = validated<ListSettlementTargetsQuery>(req, 'query');
+  const result = await transactionService.listSettlementTargets(query);
+
+  sendSuccess(res, result);
+};
+
 export const getFinanceReport = async (req: Request, res: Response): Promise<void> => {
   const query = validated<FinanceReportQueryRequest>(req, 'query');
   const report = await transactionService.getFinanceReport(query);
@@ -50,6 +59,14 @@ export const exportFinanceReport = async (req: Request, res: Response): Promise<
 export const settleAdvances = async (req: Request, res: Response): Promise<void> => {
   const body = validated<SettleAdvancesRequest>(req, 'body');
   const result = await transactionService.settleAdvances(body);
+
+  sendSuccess(res, result, 201);
+};
+
+export const createPaymentAllocation = async (req: Request, res: Response): Promise<void> => {
+  const { id } = validated<TransactionIdParams>(req, 'params');
+  const body = validated<PaymentAllocationWriteRequest>(req, 'body');
+  const result = await transactionService.createPaymentAllocation(id, body);
 
   sendSuccess(res, result, 201);
 };

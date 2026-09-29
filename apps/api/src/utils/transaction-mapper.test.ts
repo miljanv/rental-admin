@@ -23,6 +23,7 @@ const record: FinanceTransactionRecord = {
   sourceId: null,
   statementNumber: null,
   bankReference: null,
+  paymentAllocations: [],
   createdAt: new Date('2026-08-15T10:00:00.000Z'),
   updatedAt: new Date('2026-08-15T10:00:00.000Z'),
   vehicle: { id: 'veh_1', make: 'Mercedes', model: 'Sprinter', licensePlate: 'NS-123-AB' },
@@ -41,8 +42,25 @@ describe('toTransactionDto', () => {
       supplier: 'OMV',
       isAdvance: true,
       status: 'OPEN',
+      allocatedAmount: 0,
+      unallocatedAmount: 50_000,
+      allocationCount: 0,
       vehicle: { id: 'veh_1', licensePlate: 'NS-123-AB' },
       driver: null,
+    });
+  });
+
+  it('sums payment allocations', () => {
+    expect(
+      toTransactionDto({
+        ...record,
+        amount: 100_000,
+        paymentAllocations: [{ amount: 30_000 }, { amount: 20_000 }],
+      }),
+    ).toMatchObject({
+      allocatedAmount: 50_000,
+      unallocatedAmount: 50_000,
+      allocationCount: 2,
     });
   });
 

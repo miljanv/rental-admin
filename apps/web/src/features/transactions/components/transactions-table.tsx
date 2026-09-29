@@ -6,7 +6,7 @@ import {
   TRANSACTION_SOURCE_TYPE_LABELS,
   type TransactionDto,
 } from '@rental-admin/shared';
-import { MoreHorizontal, Pencil, Trash2, Wallet } from 'lucide-react';
+import { Link2, MoreHorizontal, Pencil, Printer, Trash2, Wallet } from 'lucide-react';
 
 import { EmptyState } from '@/components/common/empty-state';
 import { TableSkeleton } from '@/components/common/table-skeleton';
@@ -40,6 +40,8 @@ interface TransactionsTableProps {
   isLoading: boolean;
   hasFilters: boolean;
   onEdit: (transaction: TransactionDto) => void;
+  onAllocate: (transaction: TransactionDto) => void;
+  onPrintCashReceipt: (transaction: TransactionDto) => void;
   onRequestDelete: (transaction: TransactionDto) => void;
   emptyAction?: React.ReactNode;
 }
@@ -49,6 +51,8 @@ export function TransactionsTable({
   isLoading,
   hasFilters,
   onEdit,
+  onAllocate,
+  onPrintCashReceipt,
   onRequestDelete,
   emptyAction,
 }: TransactionsTableProps) {
@@ -93,6 +97,9 @@ export function TransactionsTable({
             const isManual = transaction.sourceType === 'MANUAL';
             const isBankStatement = transaction.sourceType === 'BANK_STATEMENT';
             const canEdit = (isManual && transaction.status !== 'SETTLED') || isBankStatement;
+            const canAllocate =
+              (isManual || isBankStatement) && transaction.unallocatedAmount > 0.005;
+            const canPrintCashReceipt = transaction.paymentMethod === 'CASH';
             const statementLabel = [transaction.statementNumber, transaction.bankReference]
               .filter(Boolean)
               .join(' · ');
@@ -120,12 +127,17 @@ export function TransactionsTable({
                 </TableCell>
                 <TableCell>
                   <AdvanceStatusBadge transaction={transaction} />
+                  {!transaction.isAdvance && transaction.allocationCount > 0 ? (
+                    <span className="text-muted-foreground block text-xs">
+                      {formatMoney(transaction.allocatedAmount)}
+                    </span>
+                  ) : null}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {TRANSACTION_SOURCE_TYPE_LABELS[transaction.sourceType]}
                 </TableCell>
                 <TableCell className="text-right">
-                  {canEdit ? (
+                  {canEdit || canAllocate || canPrintCashReceipt ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon-sm" aria-label="Akcije">
@@ -133,18 +145,34 @@ export function TransactionsTable({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onEdit(transaction)}>
-                          <Pencil className="size-4" />
-                          Izmeni
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => onRequestDelete(transaction)}
-                        >
-                          <Trash2 className="size-4" />
-                          Obriši
-                        </DropdownMenuItem>
+                        {canAllocate ? (
+                          <DropdownMenuItem onClick={() => onAllocate(transaction)}>
+                            <Link2 className="size-4" />
+                            Rasknjiži
+                          </DropdownMenuItem>
+                        ) : null}
+                        {canPrintCashReceipt ? (
+                          <DropdownMenuItem onClick={() => onPrintCashReceipt(transaction)}>
+                            <Printer className="size-4" />
+                            Isplatnica
+                          </DropdownMenuItem>
+                        ) : null}
+                        {canEdit ? (
+                          <>
+                            <DropdownMenuItem onClick={() => onEdit(transaction)}>
+                              <Pencil className="size-4" />
+                              Izmeni
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onClick={() => onRequestDelete(transaction)}
+                            >
+                              <Trash2 className="size-4" />
+                              Obriši
+                            </DropdownMenuItem>
+                          </>
+                        ) : null}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   ) : (

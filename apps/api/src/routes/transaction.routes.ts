@@ -6,7 +6,9 @@ import {
   bankStatementEntryWriteSchema,
   financeExportQuerySchema,
   financeReportQuerySchema,
+  listSettlementTargetsQuerySchema,
   listTransactionsQuerySchema,
+  paymentAllocationWriteSchema,
   settleAdvancesSchema,
   transactionIdParamsSchema,
   transactionWriteSchema,
@@ -41,6 +43,12 @@ transactionRouter.get(
 );
 
 transactionRouter.get(
+  '/settlement-targets',
+  validateRequest({ query: listSettlementTargetsQuerySchema }),
+  asyncHandler(transactionController.listSettlementTargets),
+);
+
+transactionRouter.get(
   '/reports',
   validateRequest({ query: financeReportQuerySchema }),
   asyncHandler(transactionController.getFinanceReport),
@@ -62,6 +70,12 @@ transactionRouter.patch(
   '/bank-statements/:id',
   validateRequest({ params: transactionIdParamsSchema, body: bankStatementEntryWriteSchema }),
   asyncHandler(transactionController.updateBankStatementEntry),
+);
+
+transactionRouter.post(
+  '/:id/allocations',
+  validateRequest({ params: transactionIdParamsSchema, body: paymentAllocationWriteSchema }),
+  asyncHandler(transactionController.createPaymentAllocation),
 );
 
 transactionRouter.get(

@@ -81,6 +81,20 @@ export const TRANSACTION_SOURCE_TYPE_LABELS: Record<TransactionSourceType, strin
   COMPANY_EXPENSE: 'Trošak firme',
 };
 
+export const SETTLEMENT_TARGET_TYPES = [
+  'COMPANY_EXPENSE',
+  'TRIP_INVOICE',
+  'TRIP_SERIES_INVOICE',
+] as const;
+
+export type SettlementTargetType = (typeof SETTLEMENT_TARGET_TYPES)[number];
+
+export const SETTLEMENT_TARGET_TYPE_LABELS: Record<SettlementTargetType, string> = {
+  COMPANY_EXPENSE: 'Račun dobavljača',
+  TRIP_INVOICE: 'Faktura vožnje',
+  TRIP_SERIES_INVOICE: 'Mesečna faktura serije',
+};
+
 export const FINANCE_EXPORT_FORMATS = ['pdf', 'xlsx'] as const;
 
 export type FinanceExportFormat = (typeof FINANCE_EXPORT_FORMATS)[number];
@@ -119,6 +133,9 @@ export interface TransactionDto {
   sourceId: string | null;
   statementNumber: string | null;
   bankReference: string | null;
+  allocatedAmount: number;
+  unallocatedAmount: number;
+  allocationCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -143,4 +160,35 @@ export interface SettleAdvancesResult {
   settlement: TransactionDto;
   settledCount: number;
   settledTotal: number;
+}
+
+export interface PaymentAllocationDto {
+  id: string;
+  transactionId: string;
+  targetType: SettlementTargetType;
+  targetId: string;
+  amount: number;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SettlementTargetDto {
+  targetType: SettlementTargetType;
+  targetId: string;
+  label: string;
+  counterparty: string;
+  issuedAt: string;
+  totalAmount: number;
+  allocatedAmount: number;
+  remainingAmount: number;
+}
+
+export interface SettlementTargetsDto {
+  targets: SettlementTargetDto[];
+}
+
+export interface CreatePaymentAllocationResult {
+  allocation: PaymentAllocationDto;
+  transaction: TransactionDto;
 }

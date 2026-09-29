@@ -15,6 +15,7 @@ import type {
   TransactionSortField,
   TransactionStatus,
   TransactionType,
+  SettlementTargetType,
   TripSortField,
   TripStatus,
   VehicleSortField,
@@ -155,6 +156,14 @@ export interface TransactionListQueryParams {
   to?: string;
 }
 
+export interface SettlementTargetsParams {
+  transactionId?: string;
+  type?: TransactionType;
+  search?: string;
+  limit?: number;
+  targetType?: SettlementTargetType;
+}
+
 export interface TripListQueryParams {
   page: number;
   limit: number;
@@ -252,7 +261,10 @@ export const queryKeys = {
     detail: (id: string) => ['transactions', 'detail', id] as const,
     unsettledAdvances: (supplier?: string) =>
       ['transactions', 'unsettled-advances', supplier] as const,
-    reports: (from?: string, to?: string) => ['transactions', 'reports', from, to] as const,
+    settlementTargets: (params: SettlementTargetsParams) =>
+      ['transactions', 'settlement-targets', params] as const,
+    reports: (from?: string, to?: string, paymentMethod?: PaymentMethod) =>
+      ['transactions', 'reports', from, to, paymentMethod] as const,
   },
   trips: {
     all: ['trips'] as const,

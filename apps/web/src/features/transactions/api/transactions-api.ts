@@ -2,11 +2,15 @@ import type {
   ApiPaginatedResponse,
   ApiResponse,
   BankStatementEntryWriteRequest,
+  CreatePaymentAllocationResult,
   DeleteTransactionResult,
   FinanceReportDto,
+  PaymentAllocationWriteRequest,
   PaginationMeta,
+  PaymentMethod,
   SettleAdvancesRequest,
   SettleAdvancesResult,
+  SettlementTargetsDto,
   TransactionDto,
   TransactionWriteRequest,
   UnsettledAdvancesDto,
@@ -39,6 +43,23 @@ export const fetchUnsettledAdvances = async (
   const response = await apiClient.get<ApiResponse<UnsettledAdvancesDto>>(
     '/transactions/unsettled-advances',
     { params: supplier ? { supplier } : undefined, signal },
+  );
+
+  return unwrap(response.data);
+};
+
+export const fetchSettlementTargets = async (
+  params: {
+    transactionId?: string;
+    type?: TransactionDto['type'];
+    search?: string;
+    limit?: number;
+  },
+  signal?: AbortSignal,
+): Promise<SettlementTargetsDto> => {
+  const response = await apiClient.get<ApiResponse<SettlementTargetsDto>>(
+    '/transactions/settlement-targets',
+    { params, signal },
   );
 
   return unwrap(response.data);
@@ -93,6 +114,18 @@ export const updateBankStatementEntry = async (
   return unwrap(response.data);
 };
 
+export const createPaymentAllocation = async (
+  transactionId: string,
+  body: PaymentAllocationWriteRequest,
+): Promise<CreatePaymentAllocationResult> => {
+  const response = await apiClient.post<ApiResponse<CreatePaymentAllocationResult>>(
+    `/transactions/${transactionId}/allocations`,
+    body,
+  );
+
+  return unwrap(response.data);
+};
+
 export const deleteTransaction = async (id: string): Promise<DeleteTransactionResult> => {
   const response = await apiClient.delete<ApiResponse<DeleteTransactionResult>>(
     `/transactions/${id}`,
@@ -113,7 +146,7 @@ export const settleAdvances = async (
 };
 
 export const fetchFinanceReport = async (
-  params: { from?: string; to?: string },
+  params: { from?: string; to?: string; paymentMethod?: PaymentMethod },
   signal?: AbortSignal,
 ): Promise<FinanceReportDto> => {
   const response = await apiClient.get<ApiResponse<FinanceReportDto>>('/transactions/reports', {

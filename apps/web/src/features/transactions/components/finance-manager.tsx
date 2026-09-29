@@ -31,11 +31,13 @@ import { DeleteTransactionDialog } from '@/features/transactions/components/dele
 import { FinanceExportMenu } from '@/features/transactions/components/finance-export-menu';
 import { FinanceOverview } from '@/features/transactions/components/finance-overview';
 import { BankStatementEntryForm } from '@/features/transactions/components/bank-statement-entry-form';
+import { PaymentAllocationPanel } from '@/features/transactions/components/payment-allocation-panel';
 import { SettleAdvancesDialog } from '@/features/transactions/components/settle-advances-dialog';
 import { TransactionForm } from '@/features/transactions/components/transaction-form';
 import { TransactionsTable } from '@/features/transactions/components/transactions-table';
 import { UnsettledAdvancesCard } from '@/features/transactions/components/unsettled-advances-card';
 import { useTransactions } from '@/features/transactions/hooks/use-transactions';
+import { formatDate, formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 const PAGE_SIZE = 10;
@@ -45,9 +47,18 @@ const FINANCE_TABS = [
   { id: 'overview', label: 'Pregled' },
   { id: 'ledger', label: 'Transakcije' },
   { id: 'statements', label: 'Izvodi' },
+  { id: 'cash', label: 'Keš' },
 ] as const;
 
 type FinanceTabId = (typeof FINANCE_TABS)[number]['id'];
+
+const escapeHtml = (value: string): string =>
+  value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 
 export function FinanceManager() {
   const [searchInput, setSearchInput] = useState('');
@@ -61,12 +72,14 @@ export function FinanceManager() {
   const [isStatementFormOpen, setIsStatementFormOpen] = useState(false);
   const [transactionToEdit, setTransactionToEdit] = useState<TransactionDto | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<TransactionDto | null>(null);
+  const [transactionToAllocate, setTransactionToAllocate] = useState<TransactionDto | null>(null);
   const [groupToSettle, setGroupToSettle] = useState<UnsettledAdvanceGroupDto | null>(null);
   const [activeTab, setActiveTab] = useState<FinanceTabId>('overview');
 
   const type = typeFilter === ALL ? undefined : typeFilter;
   const category = categoryFilter === ALL ? undefined : categoryFilter;
   const sourceType = activeTab === 'statements' ? 'BANK_STATEMENT' : undefined;
+  const paymentMethod = activeTab === 'cash' ? 'CASH' : undefined;
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -86,6 +99,7 @@ export function FinanceManager() {
     ...(type ? { type } : {}),
     ...(category ? { category } : {}),
     ...(sourceType ? { sourceType } : {}),
+    ...(paymentMethod ? { paymentMethod } : {}),
     ...(from ? { from } : {}),
     ...(to ? { to } : {}),
   });
@@ -106,6 +120,58 @@ export function FinanceManager() {
     setTransactionToEdit(null);
   };
 
+  const printCashReceipt = (transaction: TransactionDto) => {
+    const title = transaction.type === 'INCOME' ? 'Potvrda o prijemu novca' : 'Isplatnica';
+    const counterparty =
+      transaction.partner ?? transaction.supplier ?? transaction.route ?? transaction.note ?? '';
+    const popup = window.open('', '_blank', 'width=760,height=900');
+
+    if (!popup) {
+      return;
+    }
+
+    popup.document.write(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(title)}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; color: #111; }
+    h1 { font-size: 24px; margin: 0 0 24px; text-transform: uppercase; }
+    .row { display: flex; justify-content: space-between; border-bottom: 1px solid #ddd; padding: 10px 0; gap: 24px; }
+    .label { color: #555; }
+    .value { font-weight: 700; text-align: right; }
+    .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; margin-top: 72px; }
+    .line { border-top: 1px solid #111; padding-top: 8px; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(title)}</h1>
+  <div class="row"><span class="label">Datum</span><span class="value">${formatDate(
+    transaction.occurredAt,
+  )}</span></div>
+  <div class="row"><span class="label">Iznos</span><span class="value">${formatMoney(
+    transaction.amount,
+  )}</span></div>
+  <div class="row"><span class="label">Stranka</span><span class="value">${escapeHtml(
+    counterparty || '-',
+  )}</span></div>
+  <div class="row"><span class="label">Opis</span><span class="value">${escapeHtml(
+    transaction.note ?? '-',
+  )}</span></div>
+  <div class="row"><span class="label">Interni broj</span><span class="value">${escapeHtml(
+    transaction.id,
+  )}</span></div>
+  <div class="signatures">
+    <div class="line">Predao</div>
+    <div class="line">Primio</div>
+  </div>
+  <script>window.print();</script>
+</body>
+</html>`);
+    popup.document.close();
+  };
+
   return (
     <>
       <PageHeader
@@ -120,7 +186,7 @@ export function FinanceManager() {
           ) : (
             <Button onClick={() => setIsFormOpen(true)}>
               <Plus className="size-4" aria-hidden />
-              Nova transakcija
+              {activeTab === 'cash' ? 'Nova keš stavka' : 'Nova transakcija'}
             </Button>
           )
         }
@@ -148,11 +214,34 @@ export function FinanceManager() {
 
       {activeTab === 'overview' ? <FinanceOverview onSettleAdvance={setGroupToSettle} /> : null}
 
-      {activeTab === 'ledger' || activeTab === 'statements' ? (
+      {activeTab === 'ledger' || activeTab === 'statements' || activeTab === 'cash' ? (
         <>
+          {transactionToAllocate ? (
+            <PaymentAllocationPanel
+              transaction={transactionToAllocate}
+              onDone={() => setTransactionToAllocate(null)}
+            />
+          ) : null}
+
           {showTransactionForm ? (
             <div className="mb-6">
-              <TransactionForm transaction={transactionToEdit ?? undefined} onDone={closeForm} />
+              <TransactionForm
+                transaction={transactionToEdit ?? undefined}
+                onDone={closeForm}
+                fixedPaymentMethod={activeTab === 'cash' ? 'CASH' : undefined}
+                title={
+                  activeTab === 'cash'
+                    ? transactionToEdit
+                      ? 'Izmena keš stavke'
+                      : 'Nova keš stavka'
+                    : undefined
+                }
+                description={
+                  activeTab === 'cash'
+                    ? 'Keš primanja i isplate vode se odvojeno od bankarskih izvoda.'
+                    : undefined
+                }
+              />
             </div>
           ) : null}
 
@@ -174,7 +263,11 @@ export function FinanceManager() {
           <Card className="shadow-none">
             <CardHeader>
               <CardTitle>
-                {activeTab === 'statements' ? 'Bankarski izvodi' : 'Sve transakcije'}
+                {activeTab === 'statements'
+                  ? 'Bankarski izvodi'
+                  : activeTab === 'cash'
+                    ? 'Keš evidencija'
+                    : 'Sve transakcije'}
               </CardTitle>
               <CardDescription>
                 {total === 0
@@ -289,6 +382,7 @@ export function FinanceManager() {
                     ...(type ? { type } : {}),
                     ...(category ? { category } : {}),
                     ...(sourceType ? { sourceType } : {}),
+                    ...(paymentMethod ? { paymentMethod } : {}),
                     ...(from ? { from } : {}),
                     ...(to ? { to } : {}),
                   }}
@@ -316,6 +410,8 @@ export function FinanceManager() {
                     Boolean(to)
                   }
                   onEdit={setTransactionToEdit}
+                  onAllocate={setTransactionToAllocate}
+                  onPrintCashReceipt={printCashReceipt}
                   onRequestDelete={setTransactionToDelete}
                   emptyAction={
                     <Button
@@ -326,7 +422,11 @@ export function FinanceManager() {
                           : setIsFormOpen(true)
                       }
                     >
-                      {activeTab === 'statements' ? 'Dodaj stavku izvoda' : 'Dodaj transakciju'}
+                      {activeTab === 'statements'
+                        ? 'Dodaj stavku izvoda'
+                        : activeTab === 'cash'
+                          ? 'Dodaj keš stavku'
+                          : 'Dodaj transakciju'}
                     </Button>
                   }
                 />

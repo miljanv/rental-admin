@@ -671,6 +671,12 @@ enum TransactionSourceType {
   COMPANY_EXPENSE
 }
 
+enum SettlementTargetType {
+  COMPANY_EXPENSE
+  TRIP_INVOICE
+  TRIP_SERIES_INVOICE
+}
+
 /// A bookkeeping row. Field names are English; the admin UI presents Serbian
 /// labels. Auto-generated rows are keyed by `sourceType` + `sourceId` so an
 /// operational create/update/delete stays in sync. `contractId` is stored as a
@@ -699,10 +705,11 @@ model FinanceTransaction {
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
 
-  vehicle           Vehicle?             @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
-  driver            Driver?              @relation(fields: [driverId], references: [id], onDelete: SetNull)
-  linkedTransaction FinanceTransaction?  @relation("AdvanceSettlement", fields: [linkedTransactionId], references: [id], onDelete: SetNull)
-  linkedAdvances    FinanceTransaction[] @relation("AdvanceSettlement")
+  vehicle            Vehicle?             @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  driver             Driver?              @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  linkedTransaction  FinanceTransaction?  @relation("AdvanceSettlement", fields: [linkedTransactionId], references: [id], onDelete: SetNull)
+  linkedAdvances     FinanceTransaction[] @relation("AdvanceSettlement")
+  paymentAllocations PaymentAllocation[]
 
   @@index([occurredAt])
   @@index([type])
@@ -717,6 +724,24 @@ model FinanceTransaction {
   @@index([statementNumber])
   @@index([bankReference])
   @@map("transactions")
+}
+
+model PaymentAllocation {
+  id            String               @id @default(cuid())
+  transactionId String
+  targetType    SettlementTargetType
+  targetId      String
+  amount        Float
+  note          String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  transaction FinanceTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@unique([transactionId, targetType, targetId])
+  @@index([transactionId])
+  @@index([targetType, targetId])
+  @@map("payment_allocations")
 }
 
 /// Per-document red/yellow warning windows for the alarm center.
