@@ -4,6 +4,7 @@ import * as partnerController from '../controllers/partner.controller';
 import { validateRequest } from '../middleware/validate-request';
 import {
   listPartnersQuerySchema,
+  partnerLedgerQuerySchema,
   partnerIdParamsSchema,
   partnerWriteSchema,
 } from '../schemas/partner.schema';
@@ -27,6 +28,12 @@ partnerRouter.get(
   '/:id',
   validateRequest({ params: partnerIdParamsSchema }),
   asyncHandler(partnerController.getPartner),
+);
+
+partnerRouter.get(
+  '/:id/ledger',
+  validateRequest({ params: partnerIdParamsSchema, query: partnerLedgerQuerySchema }),
+  asyncHandler(partnerController.getPartnerLedger),
 );
 
 partnerRouter.patch(

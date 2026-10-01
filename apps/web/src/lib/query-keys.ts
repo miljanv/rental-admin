@@ -8,9 +8,11 @@ import type {
   FuelLogFuelType,
   PartnerSortField,
   PartnerType,
+  PartnerLedgerQuery,
   PaymentMethod,
   SortOrder,
   SupplierSortField,
+  SupplierLedgerQuery,
   TransactionCategory,
   TransactionSourceType,
   TransactionSortField,
@@ -262,11 +264,14 @@ export const queryKeys = {
     all: ['partners'] as const,
     list: (params: PartnerListQueryParams) => ['partners', 'list', params] as const,
     detail: (id: string) => ['partners', 'detail', id] as const,
+    ledger: (id: string, params: PartnerLedgerQuery) => ['partners', 'ledger', id, params] as const,
   },
   suppliers: {
     all: ['suppliers'] as const,
     list: (params: SupplierListQueryParams) => ['suppliers', 'list', params] as const,
     detail: (id: string) => ['suppliers', 'detail', id] as const,
+    ledger: (id: string, params: SupplierLedgerQuery) =>
+      ['suppliers', 'ledger', id, params] as const,
   },
   contracts: {
     all: ['contracts'] as const,

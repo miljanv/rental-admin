@@ -67,6 +67,53 @@ export interface DeletePartnerResult {
   deleted: true;
 }
 
+export const PARTNER_LEDGER_ENTRY_TYPES = ['OPENING', 'INVOICE', 'PAYMENT'] as const;
+
+export type PartnerLedgerEntryType = (typeof PARTNER_LEDGER_ENTRY_TYPES)[number];
+
+export const PARTNER_LEDGER_ENTRY_TYPE_LABELS: Record<PartnerLedgerEntryType, string> = {
+  OPENING: 'Početni saldo',
+  INVOICE: 'Faktura',
+  PAYMENT: 'Uplata',
+};
+
+export interface PartnerLedgerEntryDto {
+  id: string;
+  type: PartnerLedgerEntryType;
+  postedAt: string;
+  documentType: string;
+  documentNumber: string | null;
+  externalDocumentNumber: string | null;
+  description: string;
+  dueDate: string | null;
+  remainingAmount: number | null;
+  daysOverdue: number | null;
+  debit: number;
+  credit: number;
+  balance: number;
+  sourceType: 'TRIP_INVOICE' | 'TRIP_SERIES_INVOICE' | 'FINANCE_TRANSACTION' | 'OPENING';
+  sourceId: string | null;
+}
+
+export interface PartnerLedgerSummaryDto {
+  openingDebit: number;
+  openingCredit: number;
+  openingBalance: number;
+  periodDebit: number;
+  periodCredit: number;
+  endingDebit: number;
+  endingCredit: number;
+  endingBalance: number;
+}
+
+export interface PartnerLedgerDto {
+  partner: PartnerDto;
+  from: string | null;
+  to: string | null;
+  entries: PartnerLedgerEntryDto[];
+  summary: PartnerLedgerSummaryDto;
+}
+
 /** Display name regardless of whether the partner is a company or an individual. */
 export const partnerDisplayName = (
   partner: Pick<PartnerDto, 'type' | 'companyName' | 'firstName' | 'lastName'>,

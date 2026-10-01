@@ -4,6 +4,8 @@ import type {
   DeleteSupplierResult,
   PaginationMeta,
   SupplierDto,
+  SupplierLedgerDto,
+  SupplierLedgerQuery,
   SupplierWriteRequest,
 } from '@rental-admin/shared';
 
@@ -29,6 +31,19 @@ export const fetchSuppliers = async (
 
 export const fetchSupplier = async (id: string, signal?: AbortSignal): Promise<SupplierDto> => {
   const response = await apiClient.get<ApiResponse<SupplierDto>>(`/suppliers/${id}`, { signal });
+
+  return unwrap(response.data);
+};
+
+export const fetchSupplierLedger = async (
+  id: string,
+  params: SupplierLedgerQuery,
+  signal?: AbortSignal,
+): Promise<SupplierLedgerDto> => {
+  const response = await apiClient.get<ApiResponse<SupplierLedgerDto>>(`/suppliers/${id}/ledger`, {
+    params,
+    signal,
+  });
 
   return unwrap(response.data);
 };

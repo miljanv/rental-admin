@@ -11,6 +11,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import {
   Table,
   TableBody,
   TableCell,
@@ -19,6 +26,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useBusinessAnalytics } from '@/features/analytics/hooks/use-business-analytics';
+import { PartnerLedgerContent } from '@/features/partners/components/partner-ledger-screen';
+import { SupplierLedgerContent } from '@/features/suppliers/components/supplier-ledger-sheet';
 import { formatKilometers, formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -31,6 +40,11 @@ const TABS = [
 ] as const;
 
 type AnalyticsTab = (typeof TABS)[number]['id'];
+
+interface SelectedLedger {
+  id: string;
+  label: string;
+}
 
 interface MoneyCellProps {
   value: number;
@@ -54,6 +68,8 @@ function EmptyRows({ colSpan }: { colSpan: number }) {
     </TableRow>
   );
 }
+
+const isLinkedKey = (key: string): boolean => !key.includes(':');
 
 function CompanySummary({ report }: { report: BusinessAnalyticsDto }) {
   const summary = report.summary;
@@ -160,7 +176,13 @@ function VehiclesTable({ report }: { report: BusinessAnalyticsDto }) {
   );
 }
 
-function PartnersTable({ report }: { report: BusinessAnalyticsDto }) {
+function PartnersTable({
+  report,
+  onOpenLedger,
+}: {
+  report: BusinessAnalyticsDto;
+  onOpenLedger: (partner: SelectedLedger) => void;
+}) {
   return (
     <Card className="shadow-none">
       <CardHeader>
@@ -184,7 +206,21 @@ function PartnersTable({ report }: { report: BusinessAnalyticsDto }) {
             ) : (
               report.partners.map((row) => (
                 <TableRow key={row.partnerKey}>
-                  <TableCell className="font-medium">{row.partnerLabel}</TableCell>
+                  <TableCell className="font-medium">
+                    {isLinkedKey(row.partnerKey) ? (
+                      <button
+                        type="button"
+                        className="hover:text-primary max-w-full text-left"
+                        onClick={() =>
+                          onOpenLedger({ id: row.partnerKey, label: row.partnerLabel })
+                        }
+                      >
+                        {row.partnerLabel}
+                      </button>
+                    ) : (
+                      row.partnerLabel
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">{row.tripCount}</TableCell>
                   <MoneyCell value={row.invoicedRevenue} />
                   <MoneyCell value={row.collectedRevenue} />
@@ -199,7 +235,13 @@ function PartnersTable({ report }: { report: BusinessAnalyticsDto }) {
   );
 }
 
-function SuppliersTable({ report }: { report: BusinessAnalyticsDto }) {
+function SuppliersTable({
+  report,
+  onOpenLedger,
+}: {
+  report: BusinessAnalyticsDto;
+  onOpenLedger: (supplier: SelectedLedger) => void;
+}) {
   return (
     <Card className="shadow-none">
       <CardHeader>
@@ -224,7 +266,21 @@ function SuppliersTable({ report }: { report: BusinessAnalyticsDto }) {
             ) : (
               report.suppliers.map((row) => (
                 <TableRow key={row.supplierKey}>
-                  <TableCell className="font-medium">{row.supplierLabel}</TableCell>
+                  <TableCell className="font-medium">
+                    {isLinkedKey(row.supplierKey) ? (
+                      <button
+                        type="button"
+                        className="hover:text-primary max-w-full text-left"
+                        onClick={() =>
+                          onOpenLedger({ id: row.supplierKey, label: row.supplierLabel })
+                        }
+                      >
+                        {row.supplierLabel}
+                      </button>
+                    ) : (
+                      row.supplierLabel
+                    )}
+                  </TableCell>
                   <MoneyCell value={row.invoiceTotal} />
                   <MoneyCell value={row.paidTotal} />
                   <MoneyCell value={row.openTotal} />
@@ -286,6 +342,8 @@ export function BusinessAnalytics() {
   const [from, setFrom] = useState(defaults.from);
   const [to, setTo] = useState(defaults.to);
   const [activeTab, setActiveTab] = useState<AnalyticsTab>('company');
+  const [partnerLedger, setPartnerLedger] = useState<SelectedLedger | null>(null);
+  const [supplierLedger, setSupplierLedger] = useState<SelectedLedger | null>(null);
   const query = useBusinessAnalytics({ from, to });
   const report = query.data;
 
@@ -355,11 +413,59 @@ export function BusinessAnalytics() {
         <div className="space-y-6">
           {activeTab === 'company' ? <CompanySummary report={report} /> : null}
           {activeTab === 'vehicles' ? <VehiclesTable report={report} /> : null}
-          {activeTab === 'partners' ? <PartnersTable report={report} /> : null}
-          {activeTab === 'suppliers' ? <SuppliersTable report={report} /> : null}
+          {activeTab === 'partners' ? (
+            <PartnersTable report={report} onOpenLedger={setPartnerLedger} />
+          ) : null}
+          {activeTab === 'suppliers' ? (
+            <SuppliersTable report={report} onOpenLedger={setSupplierLedger} />
+          ) : null}
           {activeTab === 'drivers' ? <DriversTable report={report} /> : null}
         </div>
       )}
+
+      <Sheet
+        open={partnerLedger !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setPartnerLedger(null);
+          }
+        }}
+      >
+        <SheetContent className="w-full overflow-y-auto data-[side=right]:sm:max-w-6xl">
+          <SheetHeader>
+            <SheetTitle>Kartica kupca</SheetTitle>
+            <SheetDescription>{partnerLedger?.label ?? 'Zaduženja i razduženja.'}</SheetDescription>
+          </SheetHeader>
+          {partnerLedger ? (
+            <div className="px-4 pb-4">
+              <PartnerLedgerContent partnerId={partnerLedger.id} embedded />
+            </div>
+          ) : null}
+        </SheetContent>
+      </Sheet>
+
+      <Sheet
+        open={supplierLedger !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setSupplierLedger(null);
+          }
+        }}
+      >
+        <SheetContent className="w-full overflow-y-auto data-[side=right]:sm:max-w-6xl">
+          <SheetHeader>
+            <SheetTitle>Kartica dobavljača</SheetTitle>
+            <SheetDescription>
+              {supplierLedger?.label ?? 'Zaduženja i plaćanja dobavljača.'}
+            </SheetDescription>
+          </SheetHeader>
+          {supplierLedger ? (
+            <div className="px-4 pb-4">
+              <SupplierLedgerContent supplierId={supplierLedger.id} />
+            </div>
+          ) : null}
+        </SheetContent>
+      </Sheet>
     </>
   );
 }

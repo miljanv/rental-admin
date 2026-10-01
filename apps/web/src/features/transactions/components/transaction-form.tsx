@@ -293,6 +293,9 @@ export function TransactionForm({
                     id="partner"
                     value={field.value ?? ''}
                     onChange={field.onChange}
+                    onPartnerIdChange={(partnerId) =>
+                      form.setValue('partnerId', partnerId, { shouldDirty: true })
+                    }
                     onBlur={field.onBlur}
                     placeholder="Agencija, naručilac…"
                     disabled={isPending}

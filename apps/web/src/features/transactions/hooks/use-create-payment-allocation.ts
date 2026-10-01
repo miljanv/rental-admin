@@ -20,6 +20,8 @@ export const useCreatePaymentAllocation = () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.companyExpenses.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.trips.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.partners.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all }),
       ]);
     },
     onError: (error) => {

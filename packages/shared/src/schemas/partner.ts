@@ -236,3 +236,24 @@ export const listPartnersQuerySchema = z.object({
 
 export type ListPartnersQuery = z.output<typeof listPartnersQuerySchema>;
 export type ListPartnersQueryInput = z.input<typeof listPartnersQuerySchema>;
+
+export const partnerLedgerQuerySchema = z
+  .object({
+    from: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Datum mora biti u formatu YYYY-MM-DD.')
+      .optional(),
+    to: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Datum mora biti u formatu YYYY-MM-DD.')
+      .optional(),
+  })
+  .refine((value) => !value.from || !value.to || value.from <= value.to, {
+    path: ['to'],
+    message: 'Datum do mora biti nakon datuma od.',
+  });
+
+export type PartnerLedgerQuery = z.output<typeof partnerLedgerQuerySchema>;
+export type PartnerLedgerQueryInput = z.input<typeof partnerLedgerQuerySchema>;

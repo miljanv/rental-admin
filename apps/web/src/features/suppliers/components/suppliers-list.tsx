@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { DeleteSupplierDialog } from '@/features/suppliers/components/delete-supplier-dialog';
+import { SupplierLedgerSheet } from '@/features/suppliers/components/supplier-ledger-sheet';
 import { SuppliersTable } from '@/features/suppliers/components/suppliers-table';
 import { useSuppliers } from '@/features/suppliers/hooks/use-suppliers';
 import { cn } from '@/lib/utils';
@@ -39,6 +40,7 @@ export function SuppliersList() {
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<`${SupplierSortField}:${SortOrder}`>('createdAt:desc');
   const [supplierToDelete, setSupplierToDelete] = useState<SupplierDto | null>(null);
+  const [supplierToView, setSupplierToView] = useState<SupplierDto | null>(null);
 
   const [sortBy, sortOrder] = sort.split(':') as [SupplierSortField, SortOrder];
 
@@ -159,6 +161,7 @@ export function SuppliersList() {
               suppliers={suppliers}
               isLoading={query.isPending}
               hasSearch={search.length > 0}
+              onOpenLedger={setSupplierToView}
               onRequestDelete={setSupplierToDelete}
               emptyAction={
                 <Button size="sm" asChild>
@@ -201,6 +204,14 @@ export function SuppliersList() {
         onOpenChange={(isOpen) => {
           if (!isOpen) {
             setSupplierToDelete(null);
+          }
+        }}
+      />
+      <SupplierLedgerSheet
+        supplier={supplierToView}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setSupplierToView(null);
           }
         }}
       />

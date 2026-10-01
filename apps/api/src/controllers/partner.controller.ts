@@ -1,4 +1,9 @@
-import type { ListPartnersQuery, PartnerIdParams, PartnerWriteRequest } from '@rental-admin/shared';
+import type {
+  ListPartnersQuery,
+  PartnerIdParams,
+  PartnerLedgerQuery,
+  PartnerWriteRequest,
+} from '@rental-admin/shared';
 import type { Request, Response } from 'express';
 
 import { validated } from '../middleware/validate-request';
@@ -17,6 +22,14 @@ export const getPartner = async (req: Request, res: Response): Promise<void> => 
   const partner = await partnerService.getPartner(id);
 
   sendSuccess(res, partner);
+};
+
+export const getPartnerLedger = async (req: Request, res: Response): Promise<void> => {
+  const { id } = validated<PartnerIdParams>(req, 'params');
+  const query = validated<PartnerLedgerQuery>(req, 'query');
+  const ledger = await partnerService.getPartnerLedger(id, query);
+
+  sendSuccess(res, ledger);
 };
 
 export const createPartner = async (req: Request, res: Response): Promise<void> => {

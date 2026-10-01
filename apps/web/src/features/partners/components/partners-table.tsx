@@ -29,6 +29,7 @@ interface PartnersTableProps {
   partners: PartnerDto[];
   isLoading: boolean;
   hasSearch: boolean;
+  onOpenLedger: (partner: PartnerDto) => void;
   onRequestDelete: (partner: PartnerDto) => void;
   emptyAction?: React.ReactNode;
 }
@@ -37,6 +38,7 @@ export function PartnersTable({
   partners,
   isLoading,
   hasSearch,
+  onOpenLedger,
   onRequestDelete,
   emptyAction,
 }: PartnersTableProps) {
@@ -74,14 +76,18 @@ export function PartnersTable({
           partners.map((partner) => (
             <TableRow key={partner.id}>
               <TableCell className="max-w-[280px]">
-                <Link href={`/partners/${partner.id}/edit`} className="hover:text-primary block">
+                <button
+                  type="button"
+                  onClick={() => onOpenLedger(partner)}
+                  className="hover:text-primary block max-w-full text-left"
+                >
                   <span className="block truncate font-medium">{partnerLabel(partner)}</span>
                   {partner.nickname ? (
                     <span className="text-muted-foreground block truncate text-xs">
                       {partner.nickname}
                     </span>
                   ) : null}
-                </Link>
+                </button>
               </TableCell>
               <TableCell>{PARTNER_TYPE_LABELS[partner.type]}</TableCell>
               <TableCell className="text-muted-foreground max-w-[280px] truncate">

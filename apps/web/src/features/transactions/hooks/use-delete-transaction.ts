@@ -14,7 +14,11 @@ export const useDeleteTransaction = () => {
     mutationFn: (variables: { id: string; label: string }) => deleteTransaction(variables.id),
     onSuccess: async (_result, variables) => {
       toast.success('Transakcija je obrisana.', { description: variables.label });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.partners.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all }),
+      ]);
     },
     onError: (error) => {
       toast.error('Transakcija nije obrisana.', { description: getApiErrorMessage(error) });

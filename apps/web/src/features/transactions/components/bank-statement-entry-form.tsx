@@ -255,6 +255,9 @@ export function BankStatementEntryForm({ transaction, onDone }: BankStatementEnt
                     id="partner"
                     value={field.value ?? ''}
                     onChange={field.onChange}
+                    onPartnerIdChange={(partnerId) =>
+                      form.setValue('partnerId', partnerId, { shouldDirty: true })
+                    }
                     onBlur={field.onBlur}
                     placeholder="Za uplate"
                     disabled={isPending}

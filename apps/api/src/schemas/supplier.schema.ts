@@ -1,7 +1,13 @@
 import {
   listSuppliersQuerySchema,
+  supplierLedgerQuerySchema,
   supplierIdParamsSchema,
   supplierWriteSchema,
 } from '@rental-admin/shared';
 
-export { listSuppliersQuerySchema, supplierIdParamsSchema, supplierWriteSchema };
+export {
+  listSuppliersQuerySchema,
+  supplierLedgerQuerySchema,
+  supplierIdParamsSchema,
+  supplierWriteSchema,
+};

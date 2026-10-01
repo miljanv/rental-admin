@@ -4,6 +4,7 @@ import * as supplierController from '../controllers/supplier.controller';
 import { validateRequest } from '../middleware/validate-request';
 import {
   listSuppliersQuerySchema,
+  supplierLedgerQuerySchema,
   supplierIdParamsSchema,
   supplierWriteSchema,
 } from '../schemas/supplier.schema';
@@ -21,6 +22,12 @@ supplierRouter.post(
   '/',
   validateRequest({ body: supplierWriteSchema }),
   asyncHandler(supplierController.createSupplier),
+);
+
+supplierRouter.get(
+  '/:id/ledger',
+  validateRequest({ params: supplierIdParamsSchema, query: supplierLedgerQuerySchema }),
+  asyncHandler(supplierController.getSupplierLedger),
 );
 
 supplierRouter.get(

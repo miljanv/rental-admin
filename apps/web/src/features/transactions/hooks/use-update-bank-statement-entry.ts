@@ -16,7 +16,11 @@ export const useUpdateBankStatementEntry = () => {
       updateBankStatementEntry(variables.id, variables.body),
     onSuccess: async () => {
       toast.success('Stavka izvoda je izmenjena.');
-      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.partners.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all }),
+      ]);
     },
     onError: (error) => {
       toast.error('Stavka izvoda nije sačuvana.', { description: getApiErrorMessage(error) });

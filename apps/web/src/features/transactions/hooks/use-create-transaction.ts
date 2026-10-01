@@ -15,7 +15,11 @@ export const useCreateTransaction = () => {
     mutationFn: (body: TransactionWriteRequest) => createTransaction(body),
     onSuccess: async () => {
       toast.success('Transakcija je dodata.');
-      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.partners.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all }),
+      ]);
     },
     onError: (error) => {
       toast.error('Transakcija nije sačuvana.', { description: getApiErrorMessage(error) });

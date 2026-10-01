@@ -11,7 +11,7 @@ import {
   type UnsettledAdvanceGroupDto,
 } from '@rental-admin/shared';
 import { Plus, RefreshCw } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { DateField } from '@/components/common/date-field';
 import { ErrorState } from '@/components/common/error-state';
@@ -62,6 +62,7 @@ const escapeHtml = (value: string): string =>
     .replaceAll("'", '&#039;');
 
 export function FinanceManager() {
+  const formRef = useRef<HTMLDivElement | null>(null);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -119,6 +120,17 @@ export function FinanceManager() {
     setIsFormOpen(false);
     setIsStatementFormOpen(false);
     setTransactionToEdit(null);
+  };
+
+  const scrollToForm = () => {
+    requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
+  const handleEdit = (transaction: TransactionDto) => {
+    setTransactionToEdit(transaction);
+    scrollToForm();
   };
 
   const printCashReceipt = (transaction: TransactionDto) => {
@@ -225,7 +237,7 @@ export function FinanceManager() {
           ) : null}
 
           {showTransactionForm ? (
-            <div className="mb-6">
+            <div ref={formRef} className="mb-6 scroll-mt-6">
               <TransactionForm
                 transaction={transactionToEdit ?? undefined}
                 onDone={closeForm}
@@ -247,7 +259,7 @@ export function FinanceManager() {
           ) : null}
 
           {showStatementForm ? (
-            <div className="mb-6">
+            <div ref={formRef} className="mb-6 scroll-mt-6">
               <BankStatementEntryForm
                 transaction={transactionToEdit ?? undefined}
                 onDone={closeForm}
@@ -416,7 +428,7 @@ export function FinanceManager() {
                     Boolean(from) ||
                     Boolean(to)
                   }
-                  onEdit={setTransactionToEdit}
+                  onEdit={handleEdit}
                   onAllocate={setTransactionToAllocate}
                   onPrintCashReceipt={printCashReceipt}
                   onRequestDelete={setTransactionToDelete}

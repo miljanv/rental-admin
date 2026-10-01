@@ -79,6 +79,65 @@ const findSupplierMatch = (
   return match ? { supplierId: match.id, supplier: match.name } : { supplierId, supplier };
 };
 
+const partnerDisplayName = (partner: {
+  type: string;
+  companyName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  nickname: string | null;
+}): string => {
+  const legalName =
+    partner.type === 'INDIVIDUAL'
+      ? `${partner.firstName ?? ''} ${partner.lastName ?? ''}`.trim()
+      : partner.companyName?.trim();
+
+  if (legalName && partner.nickname?.trim()) {
+    return `${legalName} (${partner.nickname.trim()})`;
+  }
+
+  return legalName || partner.nickname?.trim() || 'Bez kupca';
+};
+
+const findPartnerMatch = (
+  partnerId: string | null,
+  partnerName: string | null,
+  partners: Array<{
+    id: string;
+    type: string;
+    companyName: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    nickname: string | null;
+  }>,
+): { partnerId: string | null; partner: string | null } => {
+  if (partnerId || !partnerName?.trim()) {
+    return { partnerId, partner: partnerName };
+  }
+
+  const normalizedInput = normalizeMatchText(partnerName);
+  const match = partners.find((candidate) => {
+    const names = [
+      partnerDisplayName(candidate),
+      candidate.companyName,
+      candidate.nickname,
+      `${candidate.firstName ?? ''} ${candidate.lastName ?? ''}`.trim(),
+    ].filter((name): name is string => Boolean(name?.trim()));
+
+    return names.some((name) => {
+      const normalizedName = normalizeMatchText(name);
+
+      return (
+        normalizedName.length >= 3 &&
+        (normalizedInput.includes(normalizedName) || normalizedName.includes(normalizedInput))
+      );
+    });
+  });
+
+  return match
+    ? { partnerId: match.id, partner: partnerDisplayName(match) }
+    : { partnerId, partner: partnerName };
+};
+
 const addSupplier = (
   rows: Map<string, SupplierAnalyticsRowDto>,
   supplierId: string | null,
@@ -130,6 +189,7 @@ export const getBusinessAnalytics = async (
     allocations,
     vehicles,
     suppliers,
+    partners,
     tripKmRows,
     invoiceRows,
     companyExpenses,
@@ -146,6 +206,16 @@ export const getBusinessAnalytics = async (
     }),
     prisma.supplier.findMany({
       select: { id: true, name: true },
+    }),
+    prisma.partner.findMany({
+      select: {
+        id: true,
+        type: true,
+        companyName: true,
+        firstName: true,
+        lastName: true,
+        nickname: true,
+      },
     }),
     prisma.trip.findMany({
       where: { departureDate: { gte: fromDate, lte: toDate }, status: { not: 'CANCELLED' } },
@@ -342,10 +412,11 @@ export const getBusinessAnalytics = async (
       continue;
     }
 
-    const key = partnerKey(income.partnerId, income.partner);
+    const partnerMatch = findPartnerMatch(income.partnerId, income.partner, partners);
+    const key = partnerKey(partnerMatch.partnerId, partnerMatch.partner);
     const partner = partnerRows.get(key) ?? {
       partnerKey: key,
-      partnerLabel: income.partner?.trim() || 'Bez kupca',
+      partnerLabel: partnerMatch.partner?.trim() || 'Bez kupca',
       tripCount: 0,
       invoicedRevenue: 0,
       collectedRevenue: 0,

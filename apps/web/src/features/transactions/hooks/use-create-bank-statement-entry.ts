@@ -15,7 +15,11 @@ export const useCreateBankStatementEntry = () => {
     mutationFn: (body: BankStatementEntryWriteRequest) => createBankStatementEntry(body),
     onSuccess: async () => {
       toast.success('Stavka izvoda je dodata.');
-      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.partners.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all }),
+      ]);
     },
     onError: (error) => {
       toast.error('Stavka izvoda nije sačuvana.', { description: getApiErrorMessage(error) });

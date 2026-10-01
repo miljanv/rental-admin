@@ -51,35 +51,37 @@ export const supplierBankAccountWriteSchema = z.object({
     }),
 });
 
-export const supplierWriteSchema = z.object({
-  name: requiredText('Naziv dobavljača', 200),
-  email: optionalEmail,
-  phone: optionalText(80),
-  pib: optionalDigits('PIB', PIB_LENGTH),
-  registrationNumber: optionalDigits('Matični broj', REGISTRATION_NUMBER_LENGTH),
-  address: optionalText(200),
-  city: optionalText(120),
-  contactPerson: optionalText(120),
-  note: optionalText(500),
-  bankAccounts: z
-    .array(supplierBankAccountWriteSchema)
-    .max(20, 'Najviše 20 računa po dobavljaču.')
-    .default([]),
-}).superRefine((value, ctx) => {
-  const seen = new Set<string>();
+export const supplierWriteSchema = z
+  .object({
+    name: requiredText('Naziv dobavljača', 200),
+    email: optionalEmail,
+    phone: optionalText(80),
+    pib: optionalDigits('PIB', PIB_LENGTH),
+    registrationNumber: optionalDigits('Matični broj', REGISTRATION_NUMBER_LENGTH),
+    address: optionalText(200),
+    city: optionalText(120),
+    contactPerson: optionalText(120),
+    note: optionalText(500),
+    bankAccounts: z
+      .array(supplierBankAccountWriteSchema)
+      .max(20, 'Najviše 20 računa po dobavljaču.')
+      .default([]),
+  })
+  .superRefine((value, ctx) => {
+    const seen = new Set<string>();
 
-  value.bankAccounts.forEach((account, index) => {
-    if (seen.has(account.accountNumber)) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['bankAccounts', index, 'accountNumber'],
-        message: 'Broj računa je već dodat.',
-      });
-    }
+    value.bankAccounts.forEach((account, index) => {
+      if (seen.has(account.accountNumber)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['bankAccounts', index, 'accountNumber'],
+          message: 'Broj računa je već dodat.',
+        });
+      }
 
-    seen.add(account.accountNumber);
+      seen.add(account.accountNumber);
+    });
   });
-});
 
 export type SupplierWriteInput = z.input<typeof supplierWriteSchema>;
 export type SupplierWriteRequest = z.output<typeof supplierWriteSchema>;
@@ -104,3 +106,10 @@ export const listSuppliersQuerySchema = z.object({
 
 export type ListSuppliersQuery = z.output<typeof listSuppliersQuerySchema>;
 export type ListSuppliersQueryInput = z.input<typeof listSuppliersQuerySchema>;
+
+export const supplierLedgerQuerySchema = z.object({
+  from: z.iso.date().optional(),
+  to: z.iso.date().optional(),
+});
+
+export type SupplierLedgerQuery = z.output<typeof supplierLedgerQuerySchema>;

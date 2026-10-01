@@ -17,7 +17,12 @@ export const useImportBankStatementXml = () => {
       toast.success('Izvod je uvezen.', {
         description: `Novo dodato: ${result.imported}. Već postoji: ${result.duplicateSkipped}. Neispravno: ${result.invalidSkipped}. Kupci: ${result.matchedPartners}. Dobavljači: ${result.matchedSuppliers}.`,
       });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.partners.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all }),
+      ]);
     },
     onError: (error) => {
       toast.error('Izvod nije uvezen.', { description: getApiErrorMessage(error) });

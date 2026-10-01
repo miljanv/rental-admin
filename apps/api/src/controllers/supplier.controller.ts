@@ -1,5 +1,6 @@
 import type {
   ListSuppliersQuery,
+  SupplierLedgerQuery,
   SupplierIdParams,
   SupplierWriteRequest,
 } from '@rental-admin/shared';
@@ -21,6 +22,14 @@ export const getSupplier = async (req: Request, res: Response): Promise<void> =>
   const supplier = await supplierService.getSupplier(id);
 
   sendSuccess(res, supplier);
+};
+
+export const getSupplierLedger = async (req: Request, res: Response): Promise<void> => {
+  const { id } = validated<SupplierIdParams>(req, 'params');
+  const query = validated<SupplierLedgerQuery>(req, 'query');
+  const ledger = await supplierService.getSupplierLedger(id, query);
+
+  sendSuccess(res, ledger);
 };
 
 export const createSupplier = async (req: Request, res: Response): Promise<void> => {

@@ -4,6 +4,8 @@ import type {
   DeletePartnerResult,
   PaginationMeta,
   PartnerDto,
+  PartnerLedgerDto,
+  PartnerLedgerQuery,
   PartnerWriteRequest,
 } from '@rental-admin/shared';
 
@@ -29,6 +31,19 @@ export const fetchPartners = async (
 
 export const fetchPartner = async (id: string, signal?: AbortSignal): Promise<PartnerDto> => {
   const response = await apiClient.get<ApiResponse<PartnerDto>>(`/partners/${id}`, { signal });
+
+  return unwrap(response.data);
+};
+
+export const fetchPartnerLedger = async (
+  id: string,
+  params: PartnerLedgerQuery,
+  signal?: AbortSignal,
+): Promise<PartnerLedgerDto> => {
+  const response = await apiClient.get<ApiResponse<PartnerLedgerDto>>(`/partners/${id}/ledger`, {
+    params,
+    signal,
+  });
 
   return unwrap(response.data);
 };

@@ -17,7 +17,11 @@ export const useSettleAdvances = () => {
       toast.success('Avansi su razduženi.', {
         description: `${result.settledCount} avansa · ${result.settlement.supplier ?? ''}`,
       });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all }),
+      ]);
     },
     onError: (error) => {
       toast.error('Avansi nisu razduženi.', { description: getApiErrorMessage(error) });

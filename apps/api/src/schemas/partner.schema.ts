@@ -1,3 +1,13 @@
-import { listPartnersQuerySchema, partnerIdParamsSchema, partnerWriteSchema } from '@rental-admin/shared';
+import {
+  listPartnersQuerySchema,
+  partnerIdParamsSchema,
+  partnerLedgerQuerySchema,
+  partnerWriteSchema,
+} from '@rental-admin/shared';
 
-export { listPartnersQuerySchema, partnerIdParamsSchema, partnerWriteSchema };
+export {
+  listPartnersQuerySchema,
+  partnerIdParamsSchema,
+  partnerLedgerQuerySchema,
+  partnerWriteSchema,
+};

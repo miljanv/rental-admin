@@ -28,6 +28,7 @@ interface SuppliersTableProps {
   suppliers: SupplierDto[];
   isLoading: boolean;
   hasSearch: boolean;
+  onOpenLedger: (supplier: SupplierDto) => void;
   onRequestDelete: (supplier: SupplierDto) => void;
   emptyAction?: React.ReactNode;
 }
@@ -39,6 +40,7 @@ export function SuppliersTable({
   suppliers,
   isLoading,
   hasSearch,
+  onOpenLedger,
   onRequestDelete,
   emptyAction,
 }: SuppliersTableProps) {
@@ -78,14 +80,18 @@ export function SuppliersTable({
           suppliers.map((supplier) => (
             <TableRow key={supplier.id}>
               <TableCell className="max-w-[260px]">
-                <Link href={`/suppliers/${supplier.id}/edit`} className="hover:text-primary block">
+                <button
+                  type="button"
+                  onClick={() => onOpenLedger(supplier)}
+                  className="hover:text-primary block max-w-full text-left"
+                >
                   <span className="block truncate font-medium">{supplier.name}</span>
                   {supplier.note ? (
                     <span className="text-muted-foreground block truncate text-xs">
                       {supplier.note}
                     </span>
                   ) : null}
-                </Link>
+                </button>
               </TableCell>
               <TableCell className="text-muted-foreground max-w-[220px]">
                 <span className="block truncate">{supplier.email ?? supplier.phone ?? '—'}</span>
@@ -97,7 +103,9 @@ export function SuppliersTable({
               <TableCell className="text-muted-foreground max-w-[220px]">
                 {supplier.bankAccounts.length > 0 ? (
                   <>
-                    <span className="block truncate">{supplier.bankAccounts[0]?.accountNumber}</span>
+                    <span className="block truncate">
+                      {supplier.bankAccounts[0]?.accountNumber}
+                    </span>
                     {supplier.bankAccounts.length > 1 ? (
                       <span className="block text-xs">+{supplier.bankAccounts.length - 1}</span>
                     ) : null}

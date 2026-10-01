@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { DeletePartnerDialog } from '@/features/partners/components/delete-partner-dialog';
+import { PartnerLedgerSheet } from '@/features/partners/components/partner-ledger-sheet';
 import { PartnersTable } from '@/features/partners/components/partners-table';
 import { usePartners } from '@/features/partners/hooks/use-partners';
 import { cn } from '@/lib/utils';
@@ -47,6 +48,7 @@ export function PartnersList() {
   const [typeFilter, setTypeFilter] = useState<typeof ALL_TYPES | PartnerType>(ALL_TYPES);
   const [sort, setSort] = useState<`${PartnerSortField}:${SortOrder}`>('createdAt:desc');
   const [partnerToDelete, setPartnerToDelete] = useState<PartnerDto | null>(null);
+  const [partnerToView, setPartnerToView] = useState<PartnerDto | null>(null);
 
   const [sortBy, sortOrder] = sort.split(':') as [PartnerSortField, SortOrder];
   const type = typeFilter === ALL_TYPES ? undefined : typeFilter;
@@ -194,6 +196,7 @@ export function PartnersList() {
               partners={partners}
               isLoading={query.isPending}
               hasSearch={search.length > 0 || Boolean(type)}
+              onOpenLedger={setPartnerToView}
               onRequestDelete={setPartnerToDelete}
               emptyAction={
                 <Button size="sm" asChild>
@@ -236,6 +239,14 @@ export function PartnersList() {
         onOpenChange={(isOpen) => {
           if (!isOpen) {
             setPartnerToDelete(null);
+          }
+        }}
+      />
+      <PartnerLedgerSheet
+        partner={partnerToView}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setPartnerToView(null);
           }
         }}
       />
