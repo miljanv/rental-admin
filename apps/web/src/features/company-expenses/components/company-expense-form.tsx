@@ -7,6 +7,7 @@ import {
   COMPANY_EXPENSE_SCOPE_LABELS,
   splitCompanyExpenseAmount,
   type CompanyExpenseDto,
+  type CompanyExpenseScope,
   type CompanyExpenseVatRate,
 } from '@rental-admin/shared';
 import { Controller, useForm, useWatch, type Resolver } from 'react-hook-form';
@@ -38,6 +39,7 @@ import { SupplierNameInput } from '@/features/suppliers/components/supplier-name
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
 import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
 import { formatMoney } from '@/lib/format';
+import { cn } from '@/lib/utils';
 
 interface CompanyExpenseFormProps {
   expense?: CompanyExpenseDto;
@@ -51,6 +53,16 @@ interface FieldProps {
   error?: string;
   children: React.ReactNode;
 }
+
+const EXPENSE_SCOPE_OPTIONS: Array<{
+  value: CompanyExpenseScope;
+  description: string;
+}> = [
+  { value: 'COMMON', description: 'Opšti trošak firme' },
+  { value: 'VEHICLE', description: 'Trošak vozila i kilometraža' },
+  { value: 'SUBCONTRACTOR', description: 'Prevoz je izvršio drugi prevoznik' },
+  { value: 'BANK', description: 'Naknade, kamate i održavanje računa' },
+];
 
 function Field({ id, label, error, children }: FieldProps) {
   return (
@@ -162,44 +174,75 @@ export function CompanyExpenseForm({ expense, defaultVehicleId, onDone }: Compan
               control={form.control}
               name="scope"
               render={({ field }) => (
-                <Field
-                  id="expenseScope"
-                  label="Mesto utroška"
-                  error={errors.scope?.message ?? errors.vehicleId?.message}
-                >
-                  <Select
-                    value={field.value === 'VEHICLE' ? vehicleId : field.value}
-                    onValueChange={(value) => {
-                      if (value === 'COMMON' || value === 'SUBCONTRACTOR' || value === 'BANK') {
-                        field.onChange(value);
-                        form.setValue('vehicleId', '', { shouldValidate: true });
-                        form.setValue('odometerKm', null, { shouldValidate: true });
-                      } else {
-                        field.onChange('VEHICLE');
-                        form.setValue('vehicleId', value, { shouldValidate: true });
-                      }
-                    }}
-                    disabled={isPending || vehiclesQuery.isPending}
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label id="expense-scope-label">Vrsta troška</Label>
+                  <div
+                    role="radiogroup"
+                    aria-labelledby="expense-scope-label"
+                    className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
                   >
-                    <SelectTrigger id="expenseScope" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="COMMON">{COMPANY_EXPENSE_SCOPE_LABELS.COMMON}</SelectItem>
-                      <SelectItem value="SUBCONTRACTOR">
-                        {COMPANY_EXPENSE_SCOPE_LABELS.SUBCONTRACTOR}
-                      </SelectItem>
-                      <SelectItem value="BANK">{COMPANY_EXPENSE_SCOPE_LABELS.BANK}</SelectItem>
-                      {vehicles.map((vehicle) => (
-                        <SelectItem key={vehicle.id} value={vehicle.id}>
-                          {vehicleLabel(vehicle)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
+                    {EXPENSE_SCOPE_OPTIONS.map((option) => {
+                      const isSelected = field.value === option.value;
+
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={isSelected}
+                          disabled={isPending}
+                          onClick={() => {
+                            field.onChange(option.value);
+
+                            if (option.value !== 'VEHICLE') {
+                              form.setValue('vehicleId', '', { shouldValidate: true });
+                              form.setValue('odometerKm', null, { shouldValidate: true });
+                            }
+                          }}
+                          className={cn(
+                            'hover:bg-muted/70 focus-visible:border-ring focus-visible:ring-ring/50 rounded-lg border p-3 text-left outline-none transition-colors focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-50',
+                            isSelected ? 'border-primary bg-primary/5' : 'border-border',
+                          )}
+                        >
+                          <span className="block text-sm font-medium">
+                            {COMPANY_EXPENSE_SCOPE_LABELS[option.value]}
+                          </span>
+                          <span className="text-muted-foreground mt-1 block text-xs">
+                            {option.description}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {errors.scope?.message ? (
+                    <p className="text-destructive text-xs">{errors.scope.message}</p>
+                  ) : null}
+                </div>
               )}
             />
+
+            {isVehicleExpense ? (
+              <Field id="expenseVehicle" label="Vozilo" error={errors.vehicleId?.message}>
+                <Select
+                  value={vehicleId}
+                  onValueChange={(value) => {
+                    form.setValue('vehicleId', value, { shouldValidate: true });
+                  }}
+                  disabled={isPending || vehiclesQuery.isPending}
+                >
+                  <SelectTrigger id="expenseVehicle" className="w-full">
+                    <SelectValue placeholder="Izaberi vozilo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vehicles.map((vehicle) => (
+                      <SelectItem key={vehicle.id} value={vehicle.id}>
+                        {vehicleLabel(vehicle)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            ) : null}
 
             <Field id="amount" label="Iznos sa PDV-om (RSD)" error={errors.amount?.message}>
               <Input
