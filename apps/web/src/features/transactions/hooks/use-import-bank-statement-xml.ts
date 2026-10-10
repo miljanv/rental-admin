@@ -15,9 +15,12 @@ export const useImportBankStatementXml = () => {
     mutationFn: (body: BankStatementXmlImportRequest) => importBankStatementXml(body),
     onSuccess: async (result) => {
       toast.success('Izvod je uvezen.', {
-        description: `Novo dodato: ${result.imported}. Već postoji: ${result.duplicateSkipped}. Neispravno: ${result.invalidSkipped}. Kupci: ${result.matchedPartners}. Dobavljači: ${result.matchedSuppliers}.`,
+        description: `Novo dodato: ${result.imported}. Već postoji: ${result.duplicateSkipped}. Neispravno: ${result.invalidSkipped}. Kupci: ${result.matchedPartners}. Dobavljači: ${result.matchedSuppliers}. Rasknjiženo: ${result.allocated}. Čeka raspoređivanje: ${result.unallocated}.`,
       });
       await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.trips.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.companyExpenses.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.partners.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.all }),

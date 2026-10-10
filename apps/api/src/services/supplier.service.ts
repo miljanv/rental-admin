@@ -14,6 +14,7 @@ import type {
 import { defaultFinanceReportRange } from '@rental-admin/shared';
 
 import { prisma } from '../config/prisma';
+import { canonicalBankAccount, uniqueStatementNameMatch } from '../utils/statement-matching';
 import { buildPaginationMeta } from '../utils/api-response';
 import { conflict, notFound } from '../utils/app-error';
 import { logger } from '../utils/logger';
@@ -78,15 +79,6 @@ export const listSupplierNames = async (): Promise<string[]> => {
   return rows.map((row) => row.name);
 };
 
-const normalizeMatchText = (value: string): string =>
-  value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/Đ/g, 'DJ')
-    .replace(/đ/g, 'dj')
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '');
-
 const parseDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`);
 
 const toIsoDate = (date: Date): string => date.toISOString().slice(0, 10);
@@ -118,18 +110,8 @@ export const findSupplierIdByName = async (
     return record.id;
   }
 
-  const normalizedInput = normalizeMatchText(normalized);
   const suppliers = await prisma.supplier.findMany({ select: { id: true, name: true } });
-  const fuzzy = suppliers.find((supplier) => {
-    const normalizedSupplier = normalizeMatchText(supplier.name);
-
-    return (
-      normalizedSupplier.length >= 3 &&
-      (normalizedInput.includes(normalizedSupplier) || normalizedSupplier.includes(normalizedInput))
-    );
-  });
-
-  return fuzzy?.id ?? null;
+  return uniqueStatementNameMatch(suppliers, normalized, (supplier) => [supplier.name])?.id ?? null;
 };
 
 export const findSupplierByBankAccount = async (
@@ -146,7 +128,17 @@ export const findSupplierByBankAccount = async (
     include: { supplier: { select: { id: true, name: true } } },
   });
 
-  return account?.supplier ?? null;
+  if (account) return account.supplier;
+  const accounts = await prisma.supplierBankAccount.findMany({
+    include: { supplier: { select: { id: true, name: true } } },
+  });
+  const matches = accounts.filter(
+    (candidate) =>
+      canonicalBankAccount(candidate.accountNumber) === canonicalBankAccount(normalized),
+  );
+  return new Set(matches.map((candidate) => candidate.supplierId)).size === 1
+    ? matches[0]!.supplier
+    : null;
 };
 
 export const rememberSupplierBankAccount = async (

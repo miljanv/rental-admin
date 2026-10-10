@@ -48,6 +48,7 @@ const FINANCE_TABS = [
   { id: 'overview', label: 'Pregled' },
   { id: 'ledger', label: 'Transakcije' },
   { id: 'statements', label: 'Izvodi' },
+  { id: 'unallocated', label: 'Neraspoređene uplate' },
   { id: 'cash', label: 'Keš' },
 ] as const;
 
@@ -80,7 +81,8 @@ export function FinanceManager() {
 
   const type = typeFilter === ALL ? undefined : typeFilter;
   const category = categoryFilter === ALL ? undefined : categoryFilter;
-  const sourceType = activeTab === 'statements' ? 'BANK_STATEMENT' : undefined;
+  const sourceType =
+    activeTab === 'statements' || activeTab === 'unallocated' ? 'BANK_STATEMENT' : undefined;
   const paymentMethod = activeTab === 'cash' ? 'CASH' : undefined;
 
   useEffect(() => {
@@ -101,10 +103,21 @@ export function FinanceManager() {
     ...(type ? { type } : {}),
     ...(category ? { category } : {}),
     ...(sourceType ? { sourceType } : {}),
+    ...(activeTab === 'unallocated' ? { unallocatedOnly: true } : {}),
     ...(paymentMethod ? { paymentMethod } : {}),
     ...(from ? { from } : {}),
     ...(to ? { to } : {}),
   });
+
+  const unresolvedQuery = useTransactions({
+    page: 1,
+    limit: 1,
+    sourceType: 'BANK_STATEMENT',
+    unallocatedOnly: true,
+    sortBy: 'occurredAt',
+    sortOrder: 'desc',
+  });
+  const unresolvedCount = unresolvedQuery.data?.pagination.total ?? 0;
 
   const transactions = query.data?.transactions ?? [];
   const pagination = query.data?.pagination;
@@ -191,7 +204,8 @@ export function FinanceManager() {
         title="Finansije"
         description="Finansijski promet preko izvoda, ručne transakcije i odvojeni pregled prihoda i rashoda."
         actions={
-          showForm || activeTab === 'overview' ? null : activeTab === 'statements' ? (
+          showForm || activeTab === 'overview' || activeTab === 'unallocated' ? null : activeTab ===
+            'statements' ? (
             <Button onClick={() => setIsStatementFormOpen(true)}>
               <Plus className="size-4" aria-hidden />
               Nova stavka izvoda
@@ -212,7 +226,12 @@ export function FinanceManager() {
             type="button"
             role="tab"
             aria-selected={activeTab === tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => {
+              setActiveTab(tab.id);
+              setPage(1);
+              closeForm();
+              setTransactionToAllocate(null);
+            }}
             className={cn(
               'shrink-0 border-b-2 px-3 py-2 text-sm transition-colors',
               activeTab === tab.id
@@ -221,16 +240,57 @@ export function FinanceManager() {
             )}
           >
             {tab.label}
+            {tab.id === 'unallocated' && unresolvedCount > 0 ? (
+              <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                {unresolvedCount}
+              </span>
+            ) : null}
           </button>
         ))}
       </div>
 
+      {unresolvedQuery.isError ? (
+        <ErrorState
+          error={unresolvedQuery.error}
+          title="Neraspoređene uplate nisu učitane"
+          onRetry={() => void unresolvedQuery.refetch()}
+        />
+      ) : unresolvedCount > 0 ? (
+        <div
+          role="status"
+          className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-950 dark:text-amber-100"
+        >
+          <span>
+            {unresolvedCount} stavki izvoda čeka raspoređivanje. Uplate su evidentirane; preostali
+            iznosi nisu povezani sa računima.
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setActiveTab('unallocated');
+              setPage(1);
+              setSearchInput('');
+              setSearch('');
+              setTypeFilter(ALL);
+              setCategoryFilter(ALL);
+              setFrom('');
+              setTo('');
+              closeForm();
+            }}
+          >
+            Pregledaj uplate
+          </Button>
+        </div>
+      ) : null}
+
       {activeTab === 'overview' ? <FinanceOverview onSettleAdvance={setGroupToSettle} /> : null}
 
-      {activeTab === 'ledger' || activeTab === 'statements' || activeTab === 'cash' ? (
+      {activeTab !== 'overview' ? (
         <>
           {transactionToAllocate ? (
             <PaymentAllocationPanel
+              key={transactionToAllocate.id}
               transaction={transactionToAllocate}
               onDone={() => setTransactionToAllocate(null)}
             />
@@ -282,11 +342,13 @@ export function FinanceManager() {
           <Card className="shadow-none">
             <CardHeader>
               <CardTitle>
-                {activeTab === 'statements'
-                  ? 'Bankarski izvodi'
-                  : activeTab === 'cash'
-                    ? 'Keš evidencija'
-                    : 'Sve transakcije'}
+                {activeTab === 'unallocated'
+                  ? 'Neraspoređene uplate i isplate iz izvoda'
+                  : activeTab === 'statements'
+                    ? 'Bankarski izvodi'
+                    : activeTab === 'cash'
+                      ? 'Keš evidencija'
+                      : 'Sve transakcije'}
               </CardTitle>
               <CardDescription>
                 {total === 0

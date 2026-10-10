@@ -7,9 +7,10 @@ import {
   type TransactionDto,
 } from '@rental-admin/shared';
 import { Link2, RefreshCw } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { ErrorState } from '@/components/common/error-state';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,7 +39,7 @@ const targetOptionLabel = (target: SettlementTargetDto): string =>
 export function PaymentAllocationPanel({ transaction, onDone }: PaymentAllocationPanelProps) {
   const [search, setSearch] = useState('');
   const [selectedKey, setSelectedKey] = useState('');
-  const [amount, setAmount] = useState('');
+  const [amountOverride, setAmount] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const targetsQuery = useSettlementTargets(
     { transactionId: transaction.id, search, limit: 80 },
@@ -46,26 +47,14 @@ export function PaymentAllocationPanel({ transaction, onDone }: PaymentAllocatio
   );
   const mutation = useCreatePaymentAllocation();
   const targets = targetsQuery.data?.targets ?? [];
-  const selectedTarget = useMemo(
-    () =>
-      targets.find((target) => `${target.targetType}:${target.targetId}` === selectedKey) ?? null,
-    [selectedKey, targets],
-  );
-
-  useEffect(() => {
-    setSelectedKey('');
-    setAmount('');
-    setNote('');
-  }, [transaction.id]);
-
-  useEffect(() => {
-    if (!selectedTarget) {
-      return;
-    }
-
-    const suggested = Math.min(transaction.unallocatedAmount, selectedTarget.remainingAmount);
-    setAmount(String(Math.max(0, Math.round(suggested * 100) / 100)));
-  }, [selectedTarget, transaction.unallocatedAmount]);
+  const selectedTarget =
+    targets.find((target) => `${target.targetType}:${target.targetId}` === selectedKey) ?? null;
+  const suggested = selectedTarget
+    ? Math.min(transaction.unallocatedAmount, selectedTarget.remainingAmount)
+    : 0;
+  const amount =
+    amountOverride ??
+    (selectedTarget ? String(Math.max(0, Math.round(suggested * 100) / 100)) : '');
 
   const canSubmit = Boolean(selectedTarget) && Number(amount) > 0 && !mutation.isPending;
 
@@ -102,6 +91,18 @@ export function PaymentAllocationPanel({ transaction, onDone }: PaymentAllocatio
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {targetsQuery.isError ? (
+          <ErrorState
+            error={targetsQuery.error}
+            title="Zaduženja nisu učitana"
+            onRetry={() => void targetsQuery.refetch()}
+          />
+        ) : !targetsQuery.isPending && targets.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            Nema otvorenih računa za izabranu pretragu. Uplata ostaje u evidenciji dok je ne
+            povežete.
+          </p>
+        ) : null}
         <div className="grid gap-4 lg:grid-cols-[1fr_220px]">
           <div className="space-y-1.5">
             <Label htmlFor="settlement-search">Pretraga otvorenih zaduženja</Label>
@@ -136,7 +137,13 @@ export function PaymentAllocationPanel({ transaction, onDone }: PaymentAllocatio
         <div className="grid gap-4 lg:grid-cols-[1fr_180px]">
           <div className="space-y-1.5">
             <Label>Otvoreno zaduženje</Label>
-            <Select value={selectedKey} onValueChange={setSelectedKey}>
+            <Select
+              value={selectedKey}
+              onValueChange={(value) => {
+                setSelectedKey(value);
+                setAmount(null);
+              }}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder={targetsQuery.isPending ? 'Učitavanje…' : 'Izaberi'} />
               </SelectTrigger>

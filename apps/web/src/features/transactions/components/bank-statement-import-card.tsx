@@ -25,11 +25,13 @@ export function BankStatementImportCard() {
       return;
     }
 
-    const xml = await file.text();
-    await mutation.mutateAsync({ xml, rememberMatchedAccounts });
-
-    if (inputRef.current) {
-      inputRef.current.value = '';
+    try {
+      const xml = await file.text();
+      await mutation.mutateAsync({ xml, rememberMatchedAccounts });
+    } catch {
+      // The mutation reports import failures.
+    } finally {
+      if (inputRef.current) inputRef.current.value = '';
     }
   };
 
@@ -38,7 +40,8 @@ export function BankStatementImportCard() {
       <CardHeader>
         <CardTitle>Import XML izvoda</CardTitle>
         <CardDescription>
-          Svaka stavka iz XML fajla biće dodata kao posebna stavka izvoda.
+          Uplate i isplate se odmah knjiže i povezuju sa kupcima, dobavljačima i otvorenim računima.
+          Neraspoređeni iznosi ostaju u evidenciji za ručno povezivanje.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

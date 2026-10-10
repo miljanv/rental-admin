@@ -229,7 +229,39 @@ export function TransactionsTable({
                     {statementLabel || '—'}
                   </TableCell>
                   <TableCell>
-                    <AdvanceStatusBadge transaction={transaction} />
+                    {isBankStatement ? (
+                      <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                        {transaction.unallocatedAmount > 0.005
+                          ? 'Plaćeno'
+                          : 'Plaćeno · rasknjiženo'}
+                      </span>
+                    ) : (
+                      <AdvanceStatusBadge transaction={transaction} />
+                    )}
+                    {isBankStatement && transaction.unallocatedAmount > 0.005 ? (
+                      <div className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                        <span className="block">
+                          Neraspoređeno: {formatMoney(transaction.unallocatedAmount)}
+                        </span>
+                        <span className="block">
+                          {transaction.type === 'INCOME'
+                            ? transaction.partnerId
+                              ? 'Čeka povezivanje sa fakturom'
+                              : 'Kupac nije povezan'
+                            : transaction.supplierId
+                              ? 'Čeka povezivanje sa računom'
+                              : 'Dobavljač nije povezan'}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="link"
+                          className="h-auto px-0 py-1"
+                          onClick={() => onAllocate(transaction)}
+                        >
+                          Poveži sa računom
+                        </Button>
+                      </div>
+                    ) : null}
                     {!transaction.isAdvance && transaction.allocationCount > 0 ? (
                       <span className="text-muted-foreground block text-xs">
                         {formatMoney(transaction.allocatedAmount)}

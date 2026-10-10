@@ -170,6 +170,10 @@ export const listTransactionsQuerySchema = z.object({
   paymentMethod: paymentMethodSchema.optional(),
   sourceType: transactionSourceTypeSchema.optional(),
   status: transactionStatusSchema.optional(),
+  unallocatedOnly: z
+    .union([z.literal('true'), z.literal('false'), z.boolean()])
+    .optional()
+    .transform((value) => (value === undefined ? undefined : value === true || value === 'true')),
   isAdvance: z
     .union([z.literal('true'), z.literal('false'), z.boolean()])
     .optional()

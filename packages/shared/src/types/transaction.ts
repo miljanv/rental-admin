@@ -151,6 +151,8 @@ export interface BankStatementImportResult {
   invalidSkipped: number;
   matchedPartners: number;
   matchedSuppliers: number;
+  allocated: number;
+  unallocated: number;
   transactions: TransactionDto[];
 }
 

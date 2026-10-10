@@ -17,6 +17,10 @@ export const useUpdateBankStatementEntry = () => {
     onSuccess: async () => {
       toast.success('Stavka izvoda je izmenjena.');
       await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.trips.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.companyExpenses.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.partners.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all }),

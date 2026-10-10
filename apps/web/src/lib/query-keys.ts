@@ -164,6 +164,7 @@ export interface TransactionListQueryParams {
   paymentMethod?: PaymentMethod;
   sourceType?: TransactionSourceType;
   status?: TransactionStatus;
+  unallocatedOnly?: boolean;
   isAdvance?: boolean;
   supplier?: string;
   vehicleId?: string;
