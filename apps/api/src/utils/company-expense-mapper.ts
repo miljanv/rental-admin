@@ -1,4 +1,4 @@
-import type { CompanyExpenseDto, PaymentMethod } from '@rental-admin/shared';
+import type { CompanyExpenseDto, CompanyExpenseScope, PaymentMethod } from '@rental-admin/shared';
 
 export interface CompanyExpenseVehicleRecord {
   id: string;
@@ -18,6 +18,7 @@ export interface CompanyExpenseRecord {
   vatAmount: number;
   amountWithVat: number;
   paymentMethod: PaymentMethod;
+  scope: CompanyExpenseScope;
   vehicleId: string | null;
   vehicle: CompanyExpenseVehicleRecord | null;
   odometerKm: number | null;
@@ -38,6 +39,7 @@ export const toCompanyExpenseDto = (record: CompanyExpenseRecord): CompanyExpens
   vatAmount: record.vatAmount,
   amountWithVat: record.amountWithVat,
   paymentMethod: record.paymentMethod,
+  scope: record.scope,
   vehicleId: record.vehicleId,
   vehicle: record.vehicle
     ? {

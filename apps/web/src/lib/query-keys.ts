@@ -1,6 +1,7 @@
 import type {
   ContractSortField,
   CompanyExpenseSortField,
+  CompanyExpenseScope,
   ContractStatus,
   DriverSortField,
   DriverStatus,
@@ -72,6 +73,7 @@ export interface FuelConsumptionQueryParams {
 export interface CompanyExpenseListQueryParams {
   vehicleId?: string;
   commonOnly?: boolean;
+  scope?: CompanyExpenseScope;
   supplier?: string;
   from?: string;
   to?: string;
@@ -83,6 +85,7 @@ export interface CompanyExpenseListQueryParams {
 export interface CompanyExpenseSummaryParams {
   vehicleId?: string;
   commonOnly?: boolean;
+  scope?: CompanyExpenseScope;
   supplier?: string;
   from?: string;
   to?: string;

@@ -29,7 +29,11 @@ import type {
   UnsettledAdvancesDto,
   UnsettledAdvancesQuery,
 } from '@rental-admin/shared';
-import { buildFinanceReport, defaultFinanceReportRange } from '@rental-admin/shared';
+import {
+  buildFinanceReport,
+  companyExpenseFinanceCategory,
+  defaultFinanceReportRange,
+} from '@rental-admin/shared';
 
 import { prisma } from '../config/prisma';
 import type { Prisma } from '../generated/prisma/client';
@@ -1814,7 +1818,7 @@ export const getFinanceReport = async (
   const from = query.from ?? defaults.from;
   const to = query.to ?? defaults.to;
 
-  const [records, partners, suppliers] = await Promise.all([
+  const [records, companyExpenses, partners, suppliers] = await Promise.all([
     prisma.financeTransaction.findMany({
       where: {
         occurredAt: { gte: parseDate(from), lte: parseDate(to) },
@@ -1844,6 +1848,16 @@ export const getFinanceReport = async (
         },
         route: true,
         vehicle: { select: { id: true, make: true, model: true, licensePlate: true } },
+        paymentAllocations: { select: { targetType: true, amount: true } },
+      },
+    }),
+    prisma.companyExpense.findMany({
+      where: {
+        issuedAt: { gte: parseDate(from), lte: parseDate(to) },
+        ...(query.paymentMethod ? { paymentMethod: query.paymentMethod } : {}),
+      },
+      include: {
+        vehicle: { select: { id: true, make: true, model: true, licensePlate: true } },
       },
     }),
     prisma.partner.findMany({
@@ -1865,17 +1879,41 @@ export const getFinanceReport = async (
   ]);
 
   return buildFinanceReport(
-    records.map((record) => ({
-      type: record.type,
-      category: record.category,
-      amount: record.amount,
-      occurredAt: toIsoDate(record.occurredAt),
-      paymentMethod: record.paymentMethod,
-      vehicle: record.vehicle,
-      partner: resolveFinancePartnerLabel(record, partners),
-      supplier: resolveFinanceSupplierLabel(record, suppliers),
-      route: record.route,
-    })),
+    [
+      ...records
+        .map((record) => {
+          const invoiceAllocations =
+            record.type === 'EXPENSE'
+              ? record.paymentAllocations
+                  .filter((allocation) => allocation.targetType === 'COMPANY_EXPENSE')
+                  .reduce((sum, allocation) => sum + allocation.amount, 0)
+              : 0;
+
+          return {
+            type: record.type,
+            category: record.category,
+            amount: roundMoney(record.amount - invoiceAllocations),
+            occurredAt: toIsoDate(record.occurredAt),
+            paymentMethod: record.paymentMethod,
+            vehicle: record.vehicle,
+            partner: resolveFinancePartnerLabel(record, partners),
+            supplier: resolveFinanceSupplierLabel(record, suppliers),
+            route: record.route,
+          };
+        })
+        .filter((record) => record.amount > MONEY_EPSILON),
+      ...companyExpenses.map((expense) => ({
+        type: 'EXPENSE' as const,
+        category: companyExpenseFinanceCategory(expense.description, expense.scope),
+        amount: expense.amountWithVat,
+        occurredAt: toIsoDate(expense.issuedAt),
+        paymentMethod: expense.paymentMethod,
+        vehicle: expense.vehicle,
+        partner: null,
+        supplier: resolveFinanceSupplierLabel(expense, suppliers),
+        route: null,
+      })),
+    ],
     from,
     to,
   );
@@ -1990,42 +2028,11 @@ export const exportFinanceReport = async (
   const defaults = defaultFinanceReportRange();
   const from = filters.from ?? (oldest ? toIsoDate(oldest.occurredAt) : defaults.from);
   const to = filters.to ?? (newest ? toIsoDate(newest.occurredAt) : defaults.to);
-  const [partners, suppliers] = await Promise.all([
-    prisma.partner.findMany({
-      select: {
-        id: true,
-        type: true,
-        companyName: true,
-        firstName: true,
-        lastName: true,
-        nickname: true,
-      },
-    }),
-    prisma.supplier.findMany({
-      select: {
-        id: true,
-        name: true,
-      },
-    }),
-  ]);
-
-  const report = buildFinanceReport(
-    ledgerRecords
-      .filter((record) => !(record.isAdvance && record.status === 'SETTLED'))
-      .map((record) => ({
-        type: record.type,
-        category: record.category,
-        amount: record.amount,
-        occurredAt: toIsoDate(record.occurredAt),
-        paymentMethod: record.paymentMethod,
-        vehicle: record.vehicle,
-        partner: resolveFinancePartnerLabel(record, partners),
-        supplier: resolveFinanceSupplierLabel(record, suppliers),
-        route: record.route,
-      })),
+  const report = await getFinanceReport({
     from,
     to,
-  );
+    paymentMethod: filters.paymentMethod,
+  });
 
   const document = buildFinanceExportDocument({
     report,

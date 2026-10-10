@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   COMPANY_EXPENSE_VAT_RATE_LABELS,
   COMPANY_EXPENSE_VAT_RATES,
+  COMPANY_EXPENSE_SCOPE_LABELS,
   splitCompanyExpenseAmount,
   type CompanyExpenseDto,
   type CompanyExpenseVatRate,
@@ -37,8 +38,6 @@ import { SupplierNameInput } from '@/features/suppliers/components/supplier-name
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
 import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
 import { formatMoney } from '@/lib/format';
-
-const COMMON_EXPENSE = 'common';
 
 interface CompanyExpenseFormProps {
   expense?: CompanyExpenseDto;
@@ -81,13 +80,19 @@ export function CompanyExpenseForm({ expense, defaultVehicleId, onDone }: Compan
     resolver: zodResolver(companyExpenseFormSchema) as Resolver<CompanyExpenseFormValues>,
     defaultValues: expense
       ? toCompanyExpenseFormValues(expense)
-      : { ...EMPTY_COMPANY_EXPENSE_FORM, vehicleId: defaultVehicleId ?? '' },
+      : {
+          ...EMPTY_COMPANY_EXPENSE_FORM,
+          scope: defaultVehicleId ? 'VEHICLE' : 'COMMON',
+          vehicleId: defaultVehicleId ?? '',
+        },
   });
   const errors = form.formState.errors;
   const vehicleId = useWatch({ control: form.control, name: 'vehicleId' });
+  const scope = useWatch({ control: form.control, name: 'scope' });
+  const supplier = useWatch({ control: form.control, name: 'supplier' });
   const amount = useWatch({ control: form.control, name: 'amount' });
   const vatRate = useWatch({ control: form.control, name: 'vatRate' });
-  const isVehicleExpense = Boolean(vehicleId);
+  const isVehicleExpense = scope === 'VEHICLE';
   const splitPreview =
     typeof amount === 'number' && Number.isFinite(amount) && amount > 0
       ? splitCompanyExpenseAmount(amount, vatRate)
@@ -147,7 +152,7 @@ export function CompanyExpenseForm({ expense, defaultVehicleId, onDone }: Compan
                 id="supplier"
                 disabled={isPending}
                 ariaInvalid={Boolean(errors.supplier)}
-                value={form.watch('supplier')}
+                value={supplier}
                 onChange={(value) => form.setValue('supplier', value, { shouldValidate: true })}
                 onBlur={() => form.trigger('supplier')}
               />
@@ -155,25 +160,36 @@ export function CompanyExpenseForm({ expense, defaultVehicleId, onDone }: Compan
 
             <Controller
               control={form.control}
-              name="vehicleId"
+              name="scope"
               render={({ field }) => (
-                <Field id="vehicleId" label="Mesto utroška" error={errors.vehicleId?.message}>
+                <Field
+                  id="expenseScope"
+                  label="Mesto utroška"
+                  error={errors.scope?.message ?? errors.vehicleId?.message}
+                >
                   <Select
-                    value={field.value || COMMON_EXPENSE}
+                    value={field.value === 'VEHICLE' ? vehicleId : field.value}
                     onValueChange={(value) => {
-                      field.onChange(value === COMMON_EXPENSE ? '' : value);
-
-                      if (value === COMMON_EXPENSE) {
+                      if (value === 'COMMON' || value === 'SUBCONTRACTOR' || value === 'BANK') {
+                        field.onChange(value);
+                        form.setValue('vehicleId', '', { shouldValidate: true });
                         form.setValue('odometerKm', null, { shouldValidate: true });
+                      } else {
+                        field.onChange('VEHICLE');
+                        form.setValue('vehicleId', value, { shouldValidate: true });
                       }
                     }}
                     disabled={isPending || vehiclesQuery.isPending}
                   >
-                    <SelectTrigger id="vehicleId" className="w-full">
+                    <SelectTrigger id="expenseScope" className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={COMMON_EXPENSE}>Zajednički trošak</SelectItem>
+                      <SelectItem value="COMMON">{COMPANY_EXPENSE_SCOPE_LABELS.COMMON}</SelectItem>
+                      <SelectItem value="SUBCONTRACTOR">
+                        {COMPANY_EXPENSE_SCOPE_LABELS.SUBCONTRACTOR}
+                      </SelectItem>
+                      <SelectItem value="BANK">{COMPANY_EXPENSE_SCOPE_LABELS.BANK}</SelectItem>
                       {vehicles.map((vehicle) => (
                         <SelectItem key={vehicle.id} value={vehicle.id}>
                           {vehicleLabel(vehicle)}

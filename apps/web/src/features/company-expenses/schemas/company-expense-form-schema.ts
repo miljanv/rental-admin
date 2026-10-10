@@ -3,6 +3,7 @@ import {
   inferCompanyExpenseVatRate,
   isoDateSchema,
   splitCompanyExpenseAmount,
+  type CompanyExpenseScope,
   type CompanyExpenseDto,
   type CompanyExpenseVatRate,
   type CompanyExpenseWriteRequest,
@@ -18,6 +19,7 @@ export interface CompanyExpenseFormValues {
   amount: number | '';
   vatRate: CompanyExpenseVatRate;
   paymentMethod: PaymentMethod | '';
+  scope: CompanyExpenseScope;
   vehicleId: string;
   odometerKm: number | null;
 }
@@ -58,6 +60,7 @@ export const companyExpenseFormSchema = z
     ),
     vatRate: z.union([z.literal(0), z.literal(10), z.literal(20)]),
     paymentMethod: z.string(),
+    scope: z.enum(['VEHICLE', 'COMMON', 'SUBCONTRACTOR', 'BANK']),
     vehicleId: z.string(),
     odometerKm: z.preprocess(
       toNullableNumber,
@@ -70,7 +73,15 @@ export const companyExpenseFormSchema = z
     ),
   })
   .superRefine((value, ctx) => {
-    if (value.vehicleId && value.odometerKm === null) {
+    if (value.scope === 'VEHICLE' && !value.vehicleId) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['vehicleId'],
+        message: 'Vozilo je obavezno za trošak vozila.',
+      });
+    }
+
+    if (value.scope === 'VEHICLE' && value.odometerKm === null) {
       ctx.addIssue({
         code: 'custom',
         path: ['odometerKm'],
@@ -78,7 +89,7 @@ export const companyExpenseFormSchema = z
       });
     }
 
-    if (!value.vehicleId && value.odometerKm !== null) {
+    if (value.scope !== 'VEHICLE' && value.odometerKm !== null) {
       ctx.addIssue({
         code: 'custom',
         path: ['odometerKm'],
@@ -98,6 +109,7 @@ export const toCompanyExpenseWriteRequest = (
     supplier: values.supplier,
     description: values.description,
     paymentMethod: values.paymentMethod,
+    scope: values.scope,
     vehicleId: values.vehicleId,
     odometerKm: values.odometerKm,
     ...splitCompanyExpenseAmount(amount, values.vatRate),
@@ -112,6 +124,7 @@ export const EMPTY_COMPANY_EXPENSE_FORM: CompanyExpenseFormValues = {
   amount: '',
   vatRate: 20,
   paymentMethod: '',
+  scope: 'COMMON',
   vehicleId: '',
   odometerKm: null,
 };
@@ -126,6 +139,7 @@ export const toCompanyExpenseFormValues = (
   amount: expense.amountWithVat,
   vatRate: inferCompanyExpenseVatRate(expense),
   paymentMethod: expense.paymentMethod ?? '',
+  scope: expense.scope,
   vehicleId: expense.vehicleId ?? '',
   odometerKm: expense.odometerKm,
 });

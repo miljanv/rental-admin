@@ -8,6 +8,7 @@ const base = {
   supplier: 'Auto delovi',
   description: 'Filter ulja',
   paymentMethod: 'CASH' as const,
+  scope: 'COMMON' as const,
   vehicleId: '',
   odometerKm: null,
 };
@@ -27,5 +28,14 @@ describe('toCompanyExpenseWriteRequest', () => {
       vatAmount: 0,
       amountWithVat: 5_000,
     });
+  });
+
+  it('keeps subcontractor and bank costs separate from shared costs', () => {
+    expect(
+      toCompanyExpenseWriteRequest({ ...base, scope: 'SUBCONTRACTOR', amount: 50_000, vatRate: 0 }),
+    ).toMatchObject({ scope: 'SUBCONTRACTOR', vehicleId: null, odometerKm: null });
+    expect(
+      toCompanyExpenseWriteRequest({ ...base, scope: 'BANK', amount: 500, vatRate: 0 }),
+    ).toMatchObject({ scope: 'BANK', vehicleId: null, odometerKm: null });
   });
 });

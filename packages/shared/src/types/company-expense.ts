@@ -1,5 +1,16 @@
 import type { PaymentMethod, TransactionCategory } from './transaction';
 
+export const COMPANY_EXPENSE_SCOPES = ['VEHICLE', 'COMMON', 'SUBCONTRACTOR', 'BANK'] as const;
+
+export type CompanyExpenseScope = (typeof COMPANY_EXPENSE_SCOPES)[number];
+
+export const COMPANY_EXPENSE_SCOPE_LABELS: Record<CompanyExpenseScope, string> = {
+  VEHICLE: 'Vozilo',
+  COMMON: 'Zajednički trošak',
+  SUBCONTRACTOR: 'Podizvođač',
+  BANK: 'Banka',
+};
+
 export interface CompanyExpenseVehicleDto {
   id: string;
   make: string;
@@ -18,6 +29,7 @@ export interface CompanyExpenseDto {
   vatAmount: number;
   amountWithVat: number;
   paymentMethod: PaymentMethod;
+  scope: CompanyExpenseScope;
   vehicleId: string | null;
   vehicle: CompanyExpenseVehicleDto | null;
   odometerKm: number | null;
@@ -79,7 +91,18 @@ const includesAny = (text: string, needles: readonly string[]): boolean =>
  * Finance category for an invoice already recorded under Troškovi.
  * The description is what the operator typed; there is no separate category field.
  */
-export const companyExpenseFinanceCategory = (description: string): TransactionCategory => {
+export const companyExpenseFinanceCategory = (
+  description: string,
+  scope: CompanyExpenseScope = 'COMMON',
+): TransactionCategory => {
+  if (scope === 'SUBCONTRACTOR') {
+    return 'SUBCONTRACTOR';
+  }
+
+  if (scope === 'BANK') {
+    return 'BANK';
+  }
+
   const text = description.toLocaleLowerCase('sr-Latn');
 
   if (includesAny(text, ['pp aparat', 'protivpožar', 'protivpozar'])) {

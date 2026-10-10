@@ -48,13 +48,15 @@ const toWriteData = async (input: CompanyExpenseWriteRequest) => ({
   vatAmount: input.vatAmount,
   amountWithVat: input.amountWithVat,
   paymentMethod: input.paymentMethod,
+  scope: input.scope,
   vehicleId: input.vehicleId,
   odometerKm: input.odometerKm,
 });
 
 const expenseListWhere = (query: ListCompanyExpensesQuery | CompanyExpenseSummaryQuery) => ({
   ...(query.vehicleId ? { vehicleId: query.vehicleId } : {}),
-  ...(query.commonOnly ? { vehicleId: null } : {}),
+  ...(query.commonOnly ? { scope: 'COMMON' as const } : {}),
+  ...(query.scope ? { scope: query.scope } : {}),
   ...(query.supplier
     ? { supplier: { contains: query.supplier, mode: 'insensitive' as const } }
     : {}),
@@ -178,7 +180,7 @@ export const listVehicleCompanyExpenses = async (
 ): Promise<CompanyExpenseDto[]> => {
   await assertVehicleExists(vehicleId);
 
-  return listCompanyExpenses({ ...query, vehicleId, commonOnly: undefined });
+  return listCompanyExpenses({ ...query, vehicleId, scope: undefined, commonOnly: undefined });
 };
 
 export const getCompanyExpenseSummary = async (

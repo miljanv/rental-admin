@@ -2,6 +2,7 @@
 
 import {
   PAYMENT_METHOD_LABELS,
+  COMPANY_EXPENSE_SCOPE_LABELS,
   type CompanyExpenseDto,
 } from '@rental-admin/shared';
 import { MoreHorizontal, Pencil, ReceiptText, Trash2 } from 'lucide-react';
@@ -83,7 +84,9 @@ export function CompanyExpensesTable({
         ) : (
           expenses.map((expense) => (
             <TableRow key={expense.id}>
-              <TableCell className="text-muted-foreground">{formatDate(expense.issuedAt)}</TableCell>
+              <TableCell className="text-muted-foreground">
+                {formatDate(expense.issuedAt)}
+              </TableCell>
               <TableCell className="text-muted-foreground">
                 {expense.invoiceNumber ?? '—'}
               </TableCell>
@@ -94,7 +97,7 @@ export function CompanyExpensesTable({
                       {vehicleLabel(expense.vehicle)}
                     </Link>
                   ) : (
-                    'Zajednički trošak'
+                    COMPANY_EXPENSE_SCOPE_LABELS[expense.scope]
                   )}
                 </TableCell>
               ) : null}

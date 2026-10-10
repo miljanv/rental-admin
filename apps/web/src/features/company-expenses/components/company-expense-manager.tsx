@@ -1,6 +1,10 @@
 'use client';
 
-import type { CompanyExpenseDto } from '@rental-admin/shared';
+import {
+  COMPANY_EXPENSE_SCOPE_LABELS,
+  type CompanyExpenseDto,
+  type CompanyExpenseScope,
+} from '@rental-admin/shared';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 
@@ -28,7 +32,10 @@ import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
 import { formatMoney } from '@/lib/format';
 
 const ALL = 'all';
-const COMMON = 'common';
+const SCOPE_FILTERS: CompanyExpenseScope[] = ['COMMON', 'SUBCONTRACTOR', 'BANK'];
+
+const isScopeFilter = (value: string): value is CompanyExpenseScope =>
+  SCOPE_FILTERS.includes(value as CompanyExpenseScope);
 
 export function CompanyExpenseManager() {
   const [from, setFrom] = useState('');
@@ -48,8 +55,8 @@ export function CompanyExpenseManager() {
   const vehicles = vehiclesQuery.data?.vehicles ?? [];
 
   const params = {
-    ...(vehicleFilter === ALL || vehicleFilter === COMMON ? {} : { vehicleId: vehicleFilter }),
-    ...(vehicleFilter === COMMON ? { commonOnly: true } : {}),
+    ...(vehicleFilter === ALL || isScopeFilter(vehicleFilter) ? {} : { vehicleId: vehicleFilter }),
+    ...(isScopeFilter(vehicleFilter) ? { scope: vehicleFilter } : {}),
     ...(supplierFilter.trim() ? { supplier: supplierFilter.trim() } : {}),
     ...(from ? { from } : {}),
     ...(to ? { to } : {}),
@@ -100,11 +107,11 @@ export function CompanyExpenseManager() {
         <Card className="shadow-none">
           <CardHeader className="pb-2">
             <CardDescription>PDV</CardDescription>
-            <CardTitle className="text-2xl">{formatMoney(summaryQuery.data?.totalVat ?? 0)}</CardTitle>
+            <CardTitle className="text-2xl">
+              {formatMoney(summaryQuery.data?.totalVat ?? 0)}
+            </CardTitle>
           </CardHeader>
-          <CardContent className="text-muted-foreground text-sm">
-            Ulazni PDV
-          </CardContent>
+          <CardContent className="text-muted-foreground text-sm">Ulazni PDV</CardContent>
         </Card>
         <Card className="shadow-none">
           <CardHeader className="pb-2">
@@ -122,12 +129,7 @@ export function CompanyExpenseManager() {
           <Label htmlFor="expense-from" className="text-xs">
             Od
           </Label>
-          <DateField
-            id="expense-from"
-            value={from}
-            onChange={setFrom}
-            className="w-full sm:w-40"
-          />
+          <DateField id="expense-from" value={from} onChange={setFrom} className="w-full sm:w-40" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="expense-to" className="text-xs">
@@ -145,7 +147,11 @@ export function CompanyExpenseManager() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>Sva mesta</SelectItem>
-              <SelectItem value={COMMON}>Zajednički troškovi</SelectItem>
+              {SCOPE_FILTERS.map((scope) => (
+                <SelectItem key={scope} value={scope}>
+                  {COMPANY_EXPENSE_SCOPE_LABELS[scope]}
+                </SelectItem>
+              ))}
               {vehicles.map((vehicle) => (
                 <SelectItem key={vehicle.id} value={vehicle.id}>
                   {vehicleLabel(vehicle)}
@@ -173,7 +179,7 @@ export function CompanyExpenseManager() {
             key={editing?.id ?? 'new'}
             expense={editing}
             defaultVehicleId={
-              vehicleFilter === ALL || vehicleFilter === COMMON ? undefined : vehicleFilter
+              vehicleFilter === ALL || isScopeFilter(vehicleFilter) ? undefined : vehicleFilter
             }
             onDone={closeForm}
           />
@@ -192,7 +198,7 @@ export function CompanyExpenseManager() {
           <CardHeader>
             <CardTitle>Svi troškovi</CardTitle>
             <CardDescription>
-              Filteri važe za troškove vozila i zajedničke troškove firme.
+              Filteri važe za vozila, zajedničke troškove, podizvođače i banku.
             </CardDescription>
           </CardHeader>
           <CardContent className="px-0">

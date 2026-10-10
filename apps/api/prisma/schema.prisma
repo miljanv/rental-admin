@@ -406,11 +406,19 @@ model VehicleMaintenance {
 }
 
 /// A company-level expense entered from invoices or cash payments. It may be
-/// tied to a vehicle (with an odometer reading) or kept as a shared firm cost.
+/// tied to a vehicle (with an odometer reading), shared by the company, paid to
+/// a subcontractor, or charged by a bank.
+enum CompanyExpenseScope {
+  VEHICLE
+  COMMON
+  SUBCONTRACTOR
+  BANK
+}
+
 model CompanyExpense {
-  id               String        @id @default(cuid())
-  issuedAt         DateTime      @db.Date
-  paidAt           DateTime?     @db.Date
+  id               String              @id @default(cuid())
+  issuedAt         DateTime            @db.Date
+  paidAt           DateTime?           @db.Date
   invoiceNumber    String?
   supplier         String
   supplierId       String?
@@ -420,10 +428,11 @@ model CompanyExpense {
   vatAmount        Float
   amountWithVat    Float
   paymentMethod    PaymentMethod
+  scope            CompanyExpenseScope @default(COMMON)
   vehicleId        String?
   odometerKm       Int?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
 
   vehicle     Vehicle?  @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
   supplierRef Supplier? @relation("CompanyExpenseSupplier", fields: [supplierId], references: [id], onDelete: SetNull)
@@ -433,6 +442,7 @@ model CompanyExpense {
   @@index([invoiceNumber])
   @@index([supplier])
   @@index([supplierId])
+  @@index([scope])
   @@index([vehicleId])
   @@map("company_expenses")
 }
@@ -707,6 +717,8 @@ enum TransactionCategory {
   TACHOGRAPH
   FIRE_EXTINGUISHER
   SALARY
+  SUBCONTRACTOR
+  BANK
   OTHER
 }
 

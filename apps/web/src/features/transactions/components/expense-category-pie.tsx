@@ -27,6 +27,8 @@ const CATEGORY_FILL: Record<TransactionCategory, string> = {
   TACHOGRAPH: 'fill-[#ca8a04] dark:fill-[#facc15]',
   FIRE_EXTINGUISHER: 'fill-[#be123c] dark:fill-[#fb7185]',
   SALARY: 'fill-[#0369a1] dark:fill-[#38bdf8]',
+  SUBCONTRACTOR: 'fill-[#9333ea] dark:fill-[#c084fc]',
+  BANK: 'fill-[#475569] dark:fill-[#94a3b8]',
   OTHER: 'fill-[#57534e] dark:fill-[#a8a29e]',
 };
 
@@ -38,6 +40,8 @@ const CATEGORY_BG: Record<TransactionCategory, string> = {
   TACHOGRAPH: 'bg-[#ca8a04] dark:bg-[#facc15]',
   FIRE_EXTINGUISHER: 'bg-[#be123c] dark:bg-[#fb7185]',
   SALARY: 'bg-[#0369a1] dark:bg-[#38bdf8]',
+  SUBCONTRACTOR: 'bg-[#9333ea] dark:bg-[#c084fc]',
+  BANK: 'bg-[#475569] dark:bg-[#94a3b8]',
   OTHER: 'bg-[#57534e] dark:bg-[#a8a29e]',
 };
 
@@ -81,9 +85,19 @@ export function ExpenseCategoryPie({ byCategory }: ExpenseCategoryPieProps) {
 
   return (
     <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-      <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="size-44 shrink-0" role="img" aria-label="Rashodi po kategoriji">
+      <svg
+        viewBox={`0 0 ${SIZE} ${SIZE}`}
+        className="size-44 shrink-0"
+        role="img"
+        aria-label="Rashodi po kategoriji"
+      >
         {slices.length === 1 ? (
-          <circle cx={CX} cy={CY} r={RADIUS} className={CATEGORY_FILL[slices[0]?.category ?? 'OTHER']} />
+          <circle
+            cx={CX}
+            cy={CY}
+            r={RADIUS}
+            className={CATEGORY_FILL[slices[0]?.category ?? 'OTHER']}
+          />
         ) : (
           slices.map((slice) => (
             <path

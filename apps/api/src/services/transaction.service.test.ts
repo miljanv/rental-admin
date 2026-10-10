@@ -44,6 +44,7 @@ import { findSupplierByBankAccount, findSupplierIdByName } from './supplier.serv
 import {
   createPaymentAllocation,
   deleteTransaction,
+  getFinanceReport,
   importBankStatementXml,
   listTransactions,
   updateBankStatementEntry,
@@ -519,6 +520,82 @@ describe('bank statement posting', () => {
     );
     expect(listTransactionsQuerySchema.parse({ unallocatedOnly: 'false' }).unallocatedOnly).toBe(
       false,
+    );
+  });
+});
+
+describe('finance report invoice recognition', () => {
+  it('shows old entered invoices by issue month and does not count their bank payment twice', async () => {
+    vi.mocked(prisma.financeTransaction.findMany).mockResolvedValue([
+      {
+        type: 'EXPENSE',
+        category: 'OTHER',
+        amount: 100,
+        occurredAt: new Date('2026-10-10'),
+        paymentMethod: 'ACCOUNT',
+        supplier: supplier.name,
+        supplierId: supplier.id,
+        partner: null,
+        partnerId: null,
+        partnerRef: null,
+        route: null,
+        vehicle: null,
+        paymentAllocations: [{ targetType: 'COMPANY_EXPENSE', amount: 100 }],
+      },
+      {
+        type: 'EXPENSE',
+        category: 'BANK',
+        amount: 20,
+        occurredAt: new Date('2026-10-10'),
+        paymentMethod: 'ACCOUNT',
+        supplier: 'Banka',
+        supplierId: null,
+        partner: null,
+        partnerId: null,
+        partnerRef: null,
+        route: null,
+        vehicle: null,
+        paymentAllocations: [],
+      },
+    ] as never);
+    vi.mocked(prisma.companyExpense.findMany).mockResolvedValue([
+      {
+        ...expense,
+        description: 'Prevoz grupe',
+        scope: 'SUBCONTRACTOR',
+        paymentMethod: 'ACCOUNT',
+        vehicle: null,
+        issuedAt: new Date('2026-05-15'),
+      },
+      {
+        ...expense,
+        id: 'bill-2',
+        amountWithVat: 30,
+        description: 'Održavanje računa',
+        scope: 'BANK',
+        paymentMethod: 'ACCOUNT',
+        vehicle: null,
+        issuedAt: new Date('2026-06-15'),
+      },
+    ] as never);
+    vi.mocked(prisma.partner.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.supplier.findMany).mockResolvedValue([supplier] as never);
+
+    const report = await getFinanceReport({
+      from: '2026-05-01',
+      to: '2026-10-10',
+      paymentMethod: 'ACCOUNT',
+    });
+
+    expect(report.totals.expense).toBe(150);
+    expect(report.monthly.find((month) => month.month === 5)?.expense).toBe(100);
+    expect(report.monthly.find((month) => month.month === 6)?.expense).toBe(30);
+    expect(report.monthly.find((month) => month.month === 10)?.expense).toBe(20);
+    expect(report.byCategory).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ category: 'SUBCONTRACTOR', expense: 100 }),
+        expect.objectContaining({ category: 'BANK', expense: 50 }),
+      ]),
     );
   });
 });

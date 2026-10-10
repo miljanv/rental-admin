@@ -97,7 +97,8 @@ export function FinanceOverview({ onSettleAdvance }: FinanceOverviewProps) {
             <CardHeader>
               <CardTitle>Prihod i rashod po mesecima</CardTitle>
               <CardDescription>
-                Pregled bankarskog prometa; keš je izdvojen u poseban tab.
+                Računi ulaze u rashod na datum izdavanja; uplata iz izvoda ih zatvara bez
+                dupliranja. Keš je izdvojen u poseban tab.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -114,7 +115,7 @@ export function FinanceOverview({ onSettleAdvance }: FinanceOverviewProps) {
               <CardHeader>
                 <CardTitle>Rashodi po kategoriji</CardTitle>
                 <CardDescription>
-                  Gorivo, delovi, pregledi i ostalo u izabranom periodu.
+                  Gorivo, delovi, podizvođači, banka i ostalo u izabranom periodu.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -208,7 +209,9 @@ export function FinanceOverview({ onSettleAdvance }: FinanceOverviewProps) {
             <Card className="shadow-none">
               <CardHeader>
                 <CardTitle>Rashod po dobavljaču</CardTitle>
-                <CardDescription>Isplate sa izvoda, ručni rashodi i povezani troškovi.</CardDescription>
+                <CardDescription>
+                  Isplate sa izvoda, ručni rashodi i povezani troškovi.
+                </CardDescription>
               </CardHeader>
               <CardContent className="px-0">
                 {query.isPending ? (

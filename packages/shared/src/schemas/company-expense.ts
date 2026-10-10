@@ -5,8 +5,10 @@ import { SORT_ORDERS } from './file';
 import type { PaymentMethod } from '../types/transaction';
 import { paymentMethodSchema } from './transaction';
 import { vehicleIdSchema } from './vehicle';
+import { COMPANY_EXPENSE_SCOPES } from '../types/company-expense';
 
 export const companyExpenseIdSchema = z.string().trim().min(1).max(64);
+export const companyExpenseScopeSchema = z.enum(COMPANY_EXPENSE_SCOPES);
 
 export const companyExpenseIdParamsSchema = z.object({ id: companyExpenseIdSchema });
 
@@ -91,11 +93,28 @@ export const companyExpenseWriteSchema = z
     vatAmount: moneyAmount('PDV', 'nonnegative'),
     amountWithVat: moneyAmount('Ukupno sa PDV-om', 'positive'),
     paymentMethod: requiredPaymentMethod,
+    scope: companyExpenseScopeSchema,
     vehicleId: optionalId,
     odometerKm: optionalOdometerKm,
   })
   .superRefine((value, ctx) => {
-    if (value.vehicleId && value.odometerKm === null) {
+    if (value.scope === 'VEHICLE' && !value.vehicleId) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['vehicleId'],
+        message: 'Vozilo je obavezno za trošak vozila.',
+      });
+    }
+
+    if (value.scope !== 'VEHICLE' && value.vehicleId) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['vehicleId'],
+        message: 'Vozilo se bira samo za trošak vozila.',
+      });
+    }
+
+    if (value.scope === 'VEHICLE' && value.odometerKm === null) {
       ctx.addIssue({
         code: 'custom',
         path: ['odometerKm'],
@@ -103,7 +122,7 @@ export const companyExpenseWriteSchema = z
       });
     }
 
-    if (!value.vehicleId && value.odometerKm !== null) {
+    if (value.scope !== 'VEHICLE' && value.odometerKm !== null) {
       ctx.addIssue({
         code: 'custom',
         path: ['odometerKm'],
@@ -121,6 +140,7 @@ export type CompanyExpenseSortField = (typeof COMPANY_EXPENSE_SORT_FIELDS)[numbe
 
 const companyExpenseQueryBaseSchema = z.object({
   vehicleId: vehicleIdSchema.optional(),
+  scope: companyExpenseScopeSchema.optional(),
   commonOnly: z
     .union([z.literal('true'), z.literal('false'), z.boolean()])
     .optional()
@@ -146,11 +166,19 @@ const refineCompanyExpenseQuery = (
   value: z.output<typeof companyExpenseQueryBaseSchema>,
   ctx: z.RefinementCtx,
 ): void => {
-  if (value.vehicleId && value.commonOnly) {
+  if (value.vehicleId && (value.commonOnly || value.scope)) {
     ctx.addIssue({
       code: 'custom',
       path: ['commonOnly'],
       message: 'Filter vozila i zajednički troškovi ne mogu zajedno.',
+    });
+  }
+
+  if (value.commonOnly && value.scope && value.scope !== 'COMMON') {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['scope'],
+      message: 'Filteri mesta troška nisu usklađeni.',
     });
   }
 

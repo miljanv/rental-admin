@@ -15,6 +15,8 @@ export const TRANSACTION_CATEGORIES = [
   'TACHOGRAPH',
   'FIRE_EXTINGUISHER',
   'SALARY',
+  'SUBCONTRACTOR',
+  'BANK',
   'OTHER',
 ] as const;
 
@@ -28,6 +30,8 @@ export const TRANSACTION_CATEGORY_LABELS: Record<TransactionCategory, string> = 
   TACHOGRAPH: 'Tahograf',
   FIRE_EXTINGUISHER: 'PP aparat',
   SALARY: 'Zarada',
+  SUBCONTRACTOR: 'Podizvođač',
+  BANK: 'Banka',
   OTHER: 'Ostalo',
 };
 

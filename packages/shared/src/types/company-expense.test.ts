@@ -43,6 +43,11 @@ describe('companyExpenseFinanceCategory', () => {
     expect(companyExpenseFinanceCategory('PLOČICE, FILTERI, SENZOR')).toBe('PARTS');
     expect(companyExpenseFinanceCategory('KAZNA NS 882-RT')).toBe('OTHER');
   });
+
+  it('uses the explicit subcontractor and bank scopes before description inference', () => {
+    expect(companyExpenseFinanceCategory('Prevoz grupe', 'SUBCONTRACTOR')).toBe('SUBCONTRACTOR');
+    expect(companyExpenseFinanceCategory('Održavanje računa', 'BANK')).toBe('BANK');
+  });
 });
 
 describe('companyExpenseFinanceNote', () => {
@@ -53,7 +58,9 @@ describe('companyExpenseFinanceNote', () => {
         description: 'Gume komplet',
       }),
     ).toBe('12-2026 — Gume komplet');
-    expect(companyExpenseFinanceNote({ invoiceNumber: null, description: ' Kazna ' })).toBe('Kazna');
+    expect(companyExpenseFinanceNote({ invoiceNumber: null, description: ' Kazna ' })).toBe(
+      'Kazna',
+    );
   });
 });
 
