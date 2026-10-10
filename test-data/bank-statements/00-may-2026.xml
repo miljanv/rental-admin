@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<statement>
+  <acctid>160-0000000099999-99</acctid>
+  <stmtnumber>DEMO-MAY-2026</stmtnumber>
+  <stmttrn>
+    <benefit>credit</benefit>
+    <trnamt>44000.00</trnamt>
+    <dtposted>2026-05-15</dtposted>
+    <fitid>demo-may-partner-001</fitid>
+    <payeeinfo><name>BALKAN TOURS DEMO DOO</name></payeeinfo>
+    <payeeaccountinfo><acctid>265-0000000044444-44</acctid></payeeaccountinfo>
+    <payeerefnumber>BT-DEMO-0526</payeerefnumber>
+    <purpose>Uplata majske fakture za prevoz</purpose>
+  </stmttrn>
+  <stmttrn>
+    <benefit>debit</benefit>
+    <trnamt>6000.00</trnamt>
+    <dtposted>2026-05-16</dtposted>
+    <fitid>demo-may-supplier-001</fitid>
+    <payeeinfo><name>TELEKOM SRBIJA DEMO</name></payeeinfo>
+    <payeeaccountinfo><acctid>160-0000000022222-22</acctid></payeeaccountinfo>
+    <payeerefnumber>TEL-DEMO-0526</payeerefnumber>
+    <purpose>Plaćanje računa za maj</purpose>
+  </stmttrn>
+</statement>

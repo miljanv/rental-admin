@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<statement>
+  <acctid>160-0000000099999-99</acctid>
+  <stmtnumber>DEMO-JUNE-2026</stmtnumber>
+  <stmttrn>
+    <benefit>credit</benefit>
+    <trnamt>66000.00</trnamt>
+    <dtposted>2026-06-15</dtposted>
+    <fitid>demo-june-partner-001</fitid>
+    <payeeinfo><name>FK MLADOST DEMO</name></payeeinfo>
+    <payeeaccountinfo><acctid>205-0000000055555-55</acctid></payeeaccountinfo>
+    <payeerefnumber>FK-DEMO-0626</payeerefnumber>
+    <purpose>Uplata junske fakture za prevoz</purpose>
+  </stmttrn>
+  <stmttrn>
+    <benefit>debit</benefit>
+    <trnamt>12000.00</trnamt>
+    <dtposted>2026-06-16</dtposted>
+    <fitid>demo-june-supplier-001</fitid>
+    <payeeinfo><name>NIS PETROL DEMO</name></payeeinfo>
+    <payeeaccountinfo><acctid>160-0000000011111-11</acctid></payeeaccountinfo>
+    <payeerefnumber>NIS-DEMO-0626</payeerefnumber>
+    <purpose>Plaćanje zbirnog računa za jun</purpose>
+  </stmttrn>
+</statement>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<statement>
+  <acctid>160-0000000099999-99</acctid>
+  <stmtnumber>DEMO-05</stmtnumber>
+  <stmttrn>
+    <benefit>debit</benefit>
+    <trnamt>36000.00</trnamt>
+    <dtposted>2026-10-09</dtposted>
+    <fitid>demo-name-learning-001</fitid>
+    <payeeinfo><name>SERVIS BUS DEMO</name></payeeinfo>
+    <payeeaccountinfo><acctid>160-0000000033333-33</acctid></payeeaccountinfo>
+    <payeerefnumber>SRV-DEMO-1001</payeerefnumber>
+    <purpose>Plaćanje redovnog servisa autobusa</purpose>
+  </stmttrn>
+</statement>

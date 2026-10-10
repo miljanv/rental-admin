@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<statement>
+  <acctid>160-0000000099999-99</acctid>
+  <stmtnumber>DEMO-02</stmtnumber>
+  <stmttrn>
+    <benefit>credit</benefit>
+    <trnamt>100000.00</trnamt>
+    <dtposted>2026-10-06</dtposted>
+    <fitid>demo-overpayment-001</fitid>
+    <payeeinfo><name>FK MLADOST DEMO</name></payeeinfo>
+    <payeeaccountinfo><acctid>205-0000000055555-55</acctid></payeeaccountinfo>
+    <payeerefnumber>FK-DEMO-1001</payeerefnumber>
+    <purpose>Uplata prevoza sa preplatom</purpose>
+  </stmttrn>
+</statement>

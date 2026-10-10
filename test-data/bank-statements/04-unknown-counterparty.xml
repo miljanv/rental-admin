@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<statement>
+  <acctid>160-0000000099999-99</acctid>
+  <stmtnumber>DEMO-04</stmtnumber>
+  <stmttrn>
+    <benefit>credit</benefit>
+    <trnamt>12500.00</trnamt>
+    <dtposted>2026-10-08</dtposted>
+    <fitid>demo-unknown-counterparty-001</fitid>
+    <payeeinfo><name>NOVA AGENCIJA TEST</name></payeeinfo>
+    <payeeaccountinfo><acctid>340-0000000066666-66</acctid></payeeaccountinfo>
+    <payeerefnumber>AVANS-DEMO-01</payeerefnumber>
+    <purpose>Avansna uplata nepoznatog kupca</purpose>
+  </stmttrn>
+</statement>

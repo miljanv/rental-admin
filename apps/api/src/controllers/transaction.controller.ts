@@ -107,6 +107,13 @@ export const importBankStatementXml = async (req: Request, res: Response): Promi
   sendSuccess(res, result, 201);
 };
 
+export const previewBankStatementXml = async (req: Request, res: Response): Promise<void> => {
+  const body = validated<BankStatementXmlImportRequest>(req, 'body');
+  const result = await transactionService.previewBankStatementXml(body);
+
+  sendSuccess(res, result);
+};
+
 export const updateTransaction = async (req: Request, res: Response): Promise<void> => {
   const { id } = validated<TransactionIdParams>(req, 'params');
   const body = validated<TransactionWriteRequest>(req, 'body');

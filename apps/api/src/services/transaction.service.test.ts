@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { bankStatementEntryWriteSchema, listTransactionsQuerySchema } from '@rental-admin/shared';
+import {
+  bankStatementEntryWriteSchema,
+  listSettlementTargetsQuerySchema,
+  listTransactionsQuerySchema,
+} from '@rental-admin/shared';
 
 vi.mock('../config/prisma', () => {
   const model = () =>
@@ -46,7 +50,9 @@ import {
   deleteTransaction,
   getFinanceReport,
   importBankStatementXml,
+  listSettlementTargets,
   listTransactions,
+  previewBankStatementXml,
   updateBankStatementEntry,
 } from './transaction.service';
 
@@ -211,6 +217,92 @@ beforeEach(() => {
 });
 
 describe('bank statement posting', () => {
+  it('recommends and limits open bills to the supplier recognized on the payment', async () => {
+    vi.mocked(prisma.financeTransaction.findUnique).mockResolvedValueOnce({
+      type: 'EXPENSE',
+      supplierId: supplier.id,
+      supplier: supplier.name,
+      partnerId: null,
+      partner: null,
+    } as never);
+    vi.mocked(prisma.companyExpense.findMany).mockResolvedValueOnce([
+      {
+        ...expense,
+        id: 'other-bill',
+        supplierId: 'other-supplier',
+        supplier: 'Other Supplier',
+        description: 'Other bill',
+        createdAt: date,
+      },
+      { ...expense, description: 'Phone bill', createdAt: date },
+    ] as never);
+
+    const result = await listSettlementTargets(
+      listSettlementTargetsQuerySchema.parse({
+        transactionId: 'payment-1',
+        search: 'Supplier',
+      }),
+    );
+
+    expect(prisma.companyExpense.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: [
+            {
+              OR: [
+                { supplierId: supplier.id },
+                {
+                  supplierId: null,
+                  supplier: { equals: supplier.name, mode: 'insensitive' },
+                },
+              ],
+            },
+          ],
+        }),
+      }),
+    );
+    expect(result.targets[0]).toMatchObject({
+      targetId: expense.id,
+      counterparty: supplier.name,
+      recommended: true,
+    });
+  });
+
+  it('previews account and invoice matches without writing financial data', async () => {
+    const result = await previewBankStatementXml({ xml: xml(), rememberMatchedAccounts: true });
+
+    expect(result.summary).toMatchObject({ total: 1, ready: 1, unallocated: 0 });
+    expect(result.rows[0]).toMatchObject({
+      status: 'READY',
+      matchMethod: 'BANK_ACCOUNT',
+      counterpartyId: supplier.id,
+      allocatedAmount: 100,
+      unallocatedAmount: 0,
+    });
+    expect(result.rows[0]?.allocations[0]).toMatchObject({
+      targetType: 'COMPANY_EXPENSE',
+      targetId: expense.id,
+      amount: 100,
+    });
+    expect(prisma.financeTransaction.create).not.toHaveBeenCalled();
+    expect(prisma.paymentAllocation.upsert).not.toHaveBeenCalled();
+  });
+
+  it('shows an unmatched reference as unallocated before import', async () => {
+    const result = await previewBankStatementXml({
+      xml: xml({ reference: 'wrong-reference' }),
+      rememberMatchedAccounts: true,
+    });
+
+    expect(result.summary).toMatchObject({ total: 1, ready: 0, unallocated: 1 });
+    expect(result.rows[0]).toMatchObject({
+      status: 'UNALLOCATED',
+      matchMethod: 'BANK_ACCOUNT',
+      allocatedAmount: 0,
+      unallocatedAmount: 100,
+    });
+  });
+
   it('retains rows without a bank reference and deduplicates repeat imports', async () => {
     const input = {
       xml: xml().replace('<fitid>bank-1</fitid>', ''),

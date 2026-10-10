@@ -38,6 +38,12 @@ transactionRouter.post(
 );
 
 transactionRouter.post(
+  '/bank-statements/preview-xml',
+  validateRequest({ body: bankStatementXmlImportSchema }),
+  asyncHandler(transactionController.previewBankStatementXml),
+);
+
+transactionRouter.post(
   '/bank-statements/import-xml',
   validateRequest({ body: bankStatementXmlImportSchema }),
   asyncHandler(transactionController.importBankStatementXml),

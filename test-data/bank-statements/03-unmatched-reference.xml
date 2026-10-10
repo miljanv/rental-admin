@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<statement>
+  <acctid>160-0000000099999-99</acctid>
+  <stmtnumber>DEMO-03</stmtnumber>
+  <stmttrn>
+    <benefit>debit</benefit>
+    <trnamt>7200.00</trnamt>
+    <dtposted>2026-10-07</dtposted>
+    <fitid>demo-unmatched-reference-001</fitid>
+    <payeeinfo><name>TELEKOM SRBIJA DEMO</name></payeeinfo>
+    <payeeaccountinfo><acctid>160-0000000022222-22</acctid></payeeaccountinfo>
+    <payeerefnumber>POGRESAN-POZIV-999</payeerefnumber>
+    <purpose>Plaćanje računa za telefon i internet</purpose>
+  </stmttrn>
+</statement>

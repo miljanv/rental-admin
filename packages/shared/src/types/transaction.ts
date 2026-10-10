@@ -160,6 +160,65 @@ export interface BankStatementImportResult {
   transactions: TransactionDto[];
 }
 
+export const BANK_STATEMENT_PREVIEW_STATUSES = [
+  'READY',
+  'REVIEW',
+  'PARTIAL',
+  'UNALLOCATED',
+  'DUPLICATE',
+  'INVALID',
+] as const;
+
+export type BankStatementPreviewStatus = (typeof BANK_STATEMENT_PREVIEW_STATUSES)[number];
+
+export const BANK_STATEMENT_MATCH_METHODS = ['BANK_ACCOUNT', 'NAME', 'NONE'] as const;
+
+export type BankStatementMatchMethod = (typeof BANK_STATEMENT_MATCH_METHODS)[number];
+
+export interface BankStatementPreviewAllocationDto {
+  targetType: SettlementTargetType;
+  targetId: string;
+  label: string;
+  counterparty: string;
+  amount: number;
+}
+
+export interface BankStatementPreviewRowDto {
+  id: string;
+  type: TransactionType;
+  category: TransactionCategory;
+  amount: number;
+  occurredAt: string;
+  payeeName: string | null;
+  accountNumber: string | null;
+  reference: string | null;
+  purpose: string | null;
+  counterpartyId: string | null;
+  counterpartyName: string | null;
+  matchMethod: BankStatementMatchMethod;
+  matchReason: string;
+  willRememberAccount: boolean;
+  allocations: BankStatementPreviewAllocationDto[];
+  allocatedAmount: number;
+  unallocatedAmount: number;
+  status: BankStatementPreviewStatus;
+}
+
+export interface BankStatementPreviewResult {
+  statementNumber: string | null;
+  accountNumber: string | null;
+  rows: BankStatementPreviewRowDto[];
+  summary: {
+    total: number;
+    ready: number;
+    review: number;
+    partial: number;
+    unallocated: number;
+    duplicates: number;
+    invalid: number;
+  };
+}
+
 export interface DeleteTransactionResult {
   id: string;
   deleted: true;
@@ -196,6 +255,7 @@ export interface PaymentAllocationDto {
 export interface SettlementTargetDto {
   targetType: SettlementTargetType;
   targetId: string;
+  recommended: boolean;
   label: string;
   counterparty: string;
   issuedAt: string;

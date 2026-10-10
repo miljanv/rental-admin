@@ -2,6 +2,7 @@ import type {
   ApiPaginatedResponse,
   ApiResponse,
   BankStatementImportResult,
+  BankStatementPreviewResult,
   BankStatementXmlImportRequest,
   BankStatementEntryWriteRequest,
   CreatePaymentAllocationResult,
@@ -101,6 +102,17 @@ export const importBankStatementXml = async (
 ): Promise<BankStatementImportResult> => {
   const response = await apiClient.post<ApiResponse<BankStatementImportResult>>(
     '/transactions/bank-statements/import-xml',
+    body,
+  );
+
+  return unwrap(response.data);
+};
+
+export const previewBankStatementXml = async (
+  body: BankStatementXmlImportRequest,
+): Promise<BankStatementPreviewResult> => {
+  const response = await apiClient.post<ApiResponse<BankStatementPreviewResult>>(
+    '/transactions/bank-statements/preview-xml',
     body,
   );
 

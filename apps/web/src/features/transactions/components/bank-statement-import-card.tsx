@@ -3,17 +3,32 @@
 import { Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
+import type {
+  BankStatementPreviewResult,
+  BankStatementXmlImportRequest,
+} from '@rental-admin/shared';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useImportBankStatementXml } from '@/features/transactions/hooks/use-import-bank-statement-xml';
+import { usePreviewBankStatementXml } from '@/features/transactions/hooks/use-preview-bank-statement-xml';
+import { BankStatementPreviewSheet } from '@/features/transactions/components/bank-statement-preview-sheet';
+
+interface PendingImport {
+  fileName: string;
+  body: BankStatementXmlImportRequest;
+  preview: BankStatementPreviewResult;
+}
 
 export function BankStatementImportCard() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [rememberMatchedAccounts, setRememberMatchedAccounts] = useState(true);
-  const mutation = useImportBankStatementXml();
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
+  const previewMutation = usePreviewBankStatementXml();
+  const importMutation = useImportBankStatementXml();
+  const isPending = previewMutation.isPending || importMutation.isPending;
 
   const onFileChange = async (file: File | undefined) => {
     if (!file) {
@@ -27,11 +42,24 @@ export function BankStatementImportCard() {
 
     try {
       const xml = await file.text();
-      await mutation.mutateAsync({ xml, rememberMatchedAccounts });
+      const body = { xml, rememberMatchedAccounts };
+      const preview = await previewMutation.mutateAsync(body);
+      setPendingImport({ fileName: file.name, body, preview });
     } catch {
-      // The mutation reports import failures.
+      // The preview mutation reports failures.
     } finally {
       if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  const confirmImport = async () => {
+    if (!pendingImport) return;
+
+    try {
+      await importMutation.mutateAsync(pendingImport.body);
+      setPendingImport(null);
+    } catch {
+      // The import mutation reports failures and keeps the preview open.
     }
   };
 
@@ -40,7 +68,7 @@ export function BankStatementImportCard() {
       <CardHeader>
         <CardTitle>Import XML izvoda</CardTitle>
         <CardDescription>
-          Uplate i isplate se odmah knjiže i povezuju sa kupcima, dobavljačima i otvorenim računima.
+          Izaberite XML, proverite pronađene partnere i račune, pa potvrdite uvoz i knjiženje.
           Neraspoređeni iznosi ostaju u evidenciji za ručno povezivanje.
         </CardDescription>
       </CardHeader>
@@ -50,7 +78,7 @@ export function BankStatementImportCard() {
             id="remember-matched-accounts"
             checked={rememberMatchedAccounts}
             onCheckedChange={(value) => setRememberMatchedAccounts(value === true)}
-            disabled={mutation.isPending}
+            disabled={isPending}
           />
           <Label htmlFor="remember-matched-accounts" className="text-sm">
             Zapamti račun ako je kupac ili dobavljač pronađen po nazivu
@@ -67,14 +95,23 @@ export function BankStatementImportCard() {
           <Button
             type="button"
             variant="outline"
-            disabled={mutation.isPending}
+            disabled={isPending}
             onClick={() => inputRef.current?.click()}
           >
             <Upload className="size-4" aria-hidden />
-            {mutation.isPending ? 'Uvoz…' : 'Uvezi XML'}
+            {previewMutation.isPending ? 'Analiza…' : 'Izaberi XML'}
           </Button>
         </div>
       </CardContent>
+      <BankStatementPreviewSheet
+        fileName={pendingImport?.fileName ?? null}
+        preview={pendingImport?.preview ?? null}
+        isImporting={importMutation.isPending}
+        onOpenChange={(open) => {
+          if (!open && !importMutation.isPending) setPendingImport(null);
+        }}
+        onConfirm={() => void confirmImport()}
+      />
     </Card>
   );
 }

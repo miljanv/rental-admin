@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<statement>
+  <acctid>160-0000000099999-99</acctid>
+  <stmtnumber>DEMO-01</stmtnumber>
+  <stmttrn>
+    <benefit>credit</benefit>
+    <trnamt>55000.00</trnamt>
+    <dtposted>2026-10-05</dtposted>
+    <fitid>demo-known-partner-001</fitid>
+    <payeeinfo><name>BALKAN TOURS DEMO DOO</name></payeeinfo>
+    <payeeaccountinfo><acctid>265-0000000044444-44</acctid></payeeaccountinfo>
+    <payeerefnumber>BT-DEMO-1001</payeerefnumber>
+    <purpose>Uplata fakture za prevoz putnika</purpose>
+  </stmttrn>
+  <stmttrn>
+    <benefit>debit</benefit>
+    <trnamt>18000.00</trnamt>
+    <dtposted>2026-10-05</dtposted>
+    <fitid>demo-known-supplier-001</fitid>
+    <payeeinfo><name>NIS PETROL DEMO</name></payeeinfo>
+    <payeeaccountinfo><acctid>160-0000000011111-11</acctid></payeeaccountinfo>
+    <payeerefnumber>NIS-DEMO-1001</payeerefnumber>
+    <purpose>Plaćanje zbirnog računa za gorivo</purpose>
+  </stmttrn>
+</statement>

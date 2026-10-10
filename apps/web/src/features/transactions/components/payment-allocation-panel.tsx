@@ -6,21 +6,15 @@ import {
   type SettlementTargetDto,
   type TransactionDto,
 } from '@rental-admin/shared';
-import { Link2, RefreshCw } from 'lucide-react';
-import { useState } from 'react';
+import { Check, Link2, LoaderCircle, RefreshCw } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { ErrorState } from '@/components/common/error-state';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useCreatePaymentAllocation } from '@/features/transactions/hooks/use-create-payment-allocation';
 import { useSettlementTargets } from '@/features/transactions/hooks/use-settlement-targets';
 import { formatDate, formatMoney } from '@/lib/format';
@@ -31,24 +25,45 @@ interface PaymentAllocationPanelProps {
   onDone: () => void;
 }
 
-const targetOptionLabel = (target: SettlementTargetDto): string =>
-  `${SETTLEMENT_TARGET_TYPE_LABELS[target.targetType]} · ${target.counterparty} · ${formatMoney(
-    target.remainingAmount,
-  )}`;
+const SEARCH_DEBOUNCE_MS = 250;
+
+const normalizeSearchText = (value: string): string =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('sr-Latn');
 
 export function PaymentAllocationPanel({ transaction, onDone }: PaymentAllocationPanelProps) {
   const [search, setSearch] = useState('');
-  const [selectedKey, setSelectedKey] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [selectedTarget, setSelectedTarget] = useState<SettlementTargetDto | null>(null);
   const [amountOverride, setAmount] = useState<string | null>(null);
   const [note, setNote] = useState('');
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSearch(search.trim()), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timeout);
+  }, [search]);
+
   const targetsQuery = useSettlementTargets(
-    { transactionId: transaction.id, search, limit: 80 },
+    {
+      transactionId: transaction.id,
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
+      limit: 40,
+    },
     Boolean(transaction.id),
   );
   const mutation = useCreatePaymentAllocation();
-  const targets = targetsQuery.data?.targets ?? [];
-  const selectedTarget =
-    targets.find((target) => `${target.targetType}:${target.targetId}` === selectedKey) ?? null;
+  const isSearchDebouncing = search.trim() !== debouncedSearch;
+  const visibleTargets = useMemo(() => {
+    const targets = targetsQuery.data?.targets ?? [];
+    const normalizedSearch = normalizeSearchText(search.trim());
+    if (!normalizedSearch) return targets;
+
+    return targets.filter((target) =>
+      normalizeSearchText(`${target.counterparty} ${target.label}`).includes(normalizedSearch),
+    );
+  }, [search, targetsQuery.data?.targets]);
   const suggested = selectedTarget
     ? Math.min(transaction.unallocatedAmount, selectedTarget.remainingAmount)
     : 0;
@@ -88,6 +103,11 @@ export function PaymentAllocationPanel({ transaction, onDone }: PaymentAllocatio
         <CardDescription>
           {formatMoney(transaction.unallocatedAmount)} je nerasknjiženo od transakcije{' '}
           {formatMoney(transaction.amount)} od {formatDate(transaction.occurredAt)}.
+          {transaction.type === 'EXPENSE' && transaction.supplier ? (
+            <> Prepoznat dobavljač: {transaction.supplier}.</>
+          ) : transaction.type === 'INCOME' && transaction.partner ? (
+            <> Prepoznat kupac: {transaction.partner}.</>
+          ) : null}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -97,7 +117,10 @@ export function PaymentAllocationPanel({ transaction, onDone }: PaymentAllocatio
             title="Zaduženja nisu učitana"
             onRetry={() => void targetsQuery.refetch()}
           />
-        ) : !targetsQuery.isPending && targets.length === 0 ? (
+        ) : !targetsQuery.isPending &&
+          !targetsQuery.isFetching &&
+          !isSearchDebouncing &&
+          visibleTargets.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             Nema otvorenih računa za izabranu pretragu. Uplata ostaje u evidenciji dok je ne
             povežete.
@@ -109,7 +132,11 @@ export function PaymentAllocationPanel({ transaction, onDone }: PaymentAllocatio
             <Input
               id="settlement-search"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setSelectedTarget(null);
+                setAmount(null);
+              }}
               placeholder={
                 transaction.type === 'EXPENSE'
                   ? 'Dobavljač, broj računa, opis'
@@ -134,36 +161,96 @@ export function PaymentAllocationPanel({ transaction, onDone }: PaymentAllocatio
           </div>
         </div>
 
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between gap-3">
+            <Label>Predložena otvorena zaduženja</Label>
+            {targetsQuery.isFetching || isSearchDebouncing ? (
+              <span className="text-muted-foreground flex items-center gap-1 text-xs">
+                <LoaderCircle className="size-3 animate-spin" aria-hidden />
+                Pretraživanje…
+              </span>
+            ) : null}
+          </div>
+          <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border p-2">
+            {visibleTargets.map((target) => {
+              const targetKey = `${target.targetType}:${target.targetId}`;
+              const selectedKey = selectedTarget
+                ? `${selectedTarget.targetType}:${selectedTarget.targetId}`
+                : null;
+              const isSelected = targetKey === selectedKey;
+
+              return (
+                <button
+                  key={targetKey}
+                  type="button"
+                  aria-pressed={isSelected}
+                  onClick={() => {
+                    setSelectedTarget(target);
+                    setAmount(null);
+                  }}
+                  className={cn(
+                    'hover:bg-muted/70 focus-visible:border-ring focus-visible:ring-ring/50 flex w-full items-start gap-3 rounded-md border p-3 text-left outline-none transition-colors focus-visible:ring-3',
+                    isSelected ? 'border-primary bg-primary/5' : 'border-transparent',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border',
+                      isSelected
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-muted-foreground/40',
+                    )}
+                  >
+                    {isSelected ? <Check className="size-3.5" aria-hidden /> : null}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                      {target.counterparty}
+                      {target.recommended ? <Badge variant="secondary">Preporučeno</Badge> : null}
+                    </span>
+                    <span className="text-muted-foreground mt-1 block text-xs">
+                      {SETTLEMENT_TARGET_TYPE_LABELS[target.targetType]} · {target.label} ·{' '}
+                      {formatDate(target.issuedAt)}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-right text-sm font-semibold">
+                    {formatMoney(target.remainingAmount)}
+                    <span className="text-muted-foreground block text-xs font-normal">
+                      preostalo
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+            {targetsQuery.isPending ? (
+              <p className="text-muted-foreground p-3 text-sm">Učitavanje otvorenih računa…</p>
+            ) : visibleTargets.length === 0 && !isSearchDebouncing ? (
+              <p className="text-muted-foreground p-3 text-sm">Nema rezultata.</p>
+            ) : visibleTargets.length === 0 ? (
+              <p className="text-muted-foreground p-3 text-sm">Pretraživanje…</p>
+            ) : null}
+          </div>
+          <p className="text-muted-foreground text-xs">
+            Pretraga obuhvata dobavljača ili kupca, broj računa i opis. Kliknite na račun koji
+            želite da zatvorite.
+          </p>
+        </div>
+
         <div className="grid gap-4 lg:grid-cols-[1fr_180px]">
           <div className="space-y-1.5">
-            <Label>Otvoreno zaduženje</Label>
-            <Select
-              value={selectedKey}
-              onValueChange={(value) => {
-                setSelectedKey(value);
-                setAmount(null);
-              }}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={targetsQuery.isPending ? 'Učitavanje…' : 'Izaberi'} />
-              </SelectTrigger>
-              <SelectContent>
-                {targets.map((target) => (
-                  <SelectItem
-                    key={`${target.targetType}:${target.targetId}`}
-                    value={`${target.targetType}:${target.targetId}`}
-                  >
-                    {targetOptionLabel(target)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Izabrano zaduženje</Label>
             {selectedTarget ? (
-              <p className="text-muted-foreground text-xs">
-                {selectedTarget.label} · {formatDate(selectedTarget.issuedAt)} · ukupno{' '}
-                {formatMoney(selectedTarget.totalAmount)}
-              </p>
-            ) : null}
+              <div className="rounded-lg border p-3 text-sm">
+                <span className="font-medium">{selectedTarget.counterparty}</span>
+                <span className="text-muted-foreground block text-xs">
+                  {selectedTarget.label} · ukupno {formatMoney(selectedTarget.totalAmount)}
+                </span>
+              </div>
+            ) : (
+              <div className="text-muted-foreground rounded-lg border border-dashed p-3 text-sm">
+                Izaberite račun iz predloga iznad.
+              </div>
+            )}
           </div>
 
           <div className="space-y-1.5">

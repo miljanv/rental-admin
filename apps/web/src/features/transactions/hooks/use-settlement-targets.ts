@@ -19,4 +19,5 @@ export const useSettlementTargets = (
     queryKey: queryKeys.transactions.settlementTargets(params),
     queryFn: ({ signal }) => fetchSettlementTargets(params, signal),
     enabled,
+    placeholderData: (previous) => previous,
   });
