@@ -42,7 +42,7 @@ describe('mergeAlarmThresholds', () => {
       criticalDays: 7,
       warningDays: 30,
     });
-    expect(merged).toHaveLength(12);
+    expect(merged).toHaveLength(13);
   });
 });
 

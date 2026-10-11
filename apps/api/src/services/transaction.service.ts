@@ -1467,6 +1467,7 @@ const matchesPreferredCounterparty = (
 const listCompanyExpenseSettlementTargets = async (
   query: ListSettlementTargetsQuery,
   preferred: PreferredSettlementCounterparty | null,
+  resultLimit: number | null = query.limit,
 ): Promise<SettlementTargetDto[]> => {
   const search = settlementTargetSearch(query.search);
   const records = await prisma.companyExpense.findMany({
@@ -1502,14 +1503,14 @@ const listCompanyExpenseSettlementTargets = async (
         : {}),
     },
     orderBy: [{ issuedAt: 'desc' }, { createdAt: 'desc' }],
-    take: Math.max(query.limit * 4, query.limit),
+    ...(resultLimit === null ? {} : { take: Math.max(resultLimit * 4, resultLimit) }),
   });
   const allocated = await allocatedByTarget(
     'COMPANY_EXPENSE',
     records.map((record) => record.id),
   );
 
-  return records
+  const targets = records
     .map((record): SettlementTargetDto => {
       const allocatedAmount = roundMoney(allocated.get(record.id) ?? 0);
       const remainingAmount = roundMoney(record.amountWithVat - allocatedAmount);
@@ -1529,8 +1530,9 @@ const listCompanyExpenseSettlementTargets = async (
       };
     })
     .filter((target) => target.remainingAmount > MONEY_EPSILON)
-    .sort((left, right) => Number(right.recommended) - Number(left.recommended))
-    .slice(0, query.limit);
+    .sort((left, right) => Number(right.recommended) - Number(left.recommended));
+
+  return resultLimit === null ? targets : targets.slice(0, resultLimit);
 };
 
 const tripCounterparty = (record: {
@@ -1578,6 +1580,7 @@ const tripLabel = (record: {
 const listTripInvoiceSettlementTargets = async (
   query: ListSettlementTargetsQuery,
   preferred: PreferredSettlementCounterparty | null,
+  resultLimit: number | null = query.limit,
 ): Promise<SettlementTargetDto[]> => {
   const search = settlementTargetSearch(query.search);
   const trips = await prisma.trip.findMany({
@@ -1620,7 +1623,7 @@ const listTripInvoiceSettlementTargets = async (
       partner: { select: { type: true, companyName: true, firstName: true, lastName: true } },
     },
     orderBy: [{ invoicedAt: 'desc' }, { departureDate: 'desc' }],
-    take: Math.max(query.limit * 8, query.limit),
+    ...(resultLimit === null ? {} : { take: Math.max(resultLimit * 8, resultLimit) }),
   });
 
   const standalone = trips.filter((trip) => !trip.invoiceGroupId);
@@ -1683,15 +1686,26 @@ const listTripInvoiceSettlementTargets = async (
     };
   });
 
-  return [...tripTargets, ...seriesTargets]
+  const targets = [...tripTargets, ...seriesTargets]
     .filter((target) => target.totalAmount > MONEY_EPSILON)
     .filter((target) => target.remainingAmount > MONEY_EPSILON)
     .sort(
       (left, right) =>
         Number(right.recommended) - Number(left.recommended) ||
         right.issuedAt.localeCompare(left.issuedAt),
-    )
-    .slice(0, query.limit);
+    );
+
+  return resultLimit === null ? targets : targets.slice(0, resultLimit);
+};
+
+export const listAllSettlementTargets = async (
+  type: 'INCOME' | 'EXPENSE',
+): Promise<SettlementTargetDto[]> => {
+  const query: ListSettlementTargetsQuery = { type, search: undefined, limit: 100 };
+
+  return type === 'INCOME'
+    ? listTripInvoiceSettlementTargets(query, null, null)
+    : listCompanyExpenseSettlementTargets(query, null, null);
 };
 
 export const listSettlementTargets = async (

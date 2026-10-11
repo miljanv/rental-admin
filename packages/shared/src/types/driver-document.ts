@@ -6,6 +6,7 @@ export const DRIVER_DOCUMENT_TYPES = [
   'MEDICAL_CERTIFICATE',
   'ACCREDITATION',
   'DRIVING_LICENSE',
+  'ID_CARD',
   'LICENSE',
 ] as const;
 
@@ -17,6 +18,7 @@ export const DRIVER_DOCUMENT_TYPE_LABELS: Record<DriverDocumentType, string> = {
   MEDICAL_CERTIFICATE: 'Lekarski',
   ACCREDITATION: 'Akreditacija',
   DRIVING_LICENSE: 'Vozačka dozvola',
+  ID_CARD: 'Lična karta',
   LICENSE: 'Licenca',
 };
 

@@ -73,6 +73,7 @@ describe('toDocumentStatusItems', () => {
       'MA_FORM',
       'ACCREDITATION',
       'DRIVING_LICENSE',
+      'ID_CARD',
     ]);
     expect(items[0]?.document?.expiresAt).toBe('2026-08-01');
     expect(items[1]?.document?.expiresAt).toBe('2026-09-01');

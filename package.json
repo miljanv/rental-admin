@@ -21,6 +21,7 @@
     "db:migrate:deploy": "pnpm --filter @rental-admin/api db:migrate:deploy",
     "db:studio": "pnpm --filter @rental-admin/api db:studio",
     "seed:bank-demo": "pnpm --filter @rental-admin/api exec tsx prisma/seed-bank-statement-demo.ts",
+    "seed:dashboard-demo": "pnpm --filter @rental-admin/api exec tsx prisma/seed-dashboard-demo.ts",
     "reset:finance-demo": "RESET_ALL_FINANCES=true pnpm --filter @rental-admin/api exec tsx prisma/seed-bank-statement-demo.ts",
     "clean": "pnpm -r exec rm -rf dist .next node_modules/.cache"
   },
