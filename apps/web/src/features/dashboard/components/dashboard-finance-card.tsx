@@ -116,12 +116,15 @@ export function DashboardFinanceCard({
             </div>
           </div>
         </CardHeader>
-        <CardContent className="grid gap-3 xl:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)]">
-          <div className={cn('rounded-lg p-3 ring-1', metricClass)}>
+        <CardContent className="grid gap-3 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <div className={cn('min-w-0 rounded-lg p-3 ring-1', metricClass)}>
             <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
               Ukupno
             </p>
-            <p className="font-heading mt-1 text-2xl font-semibold tracking-tight tabular-nums 2xl:text-3xl">
+            <p
+              className="font-heading mt-1 overflow-hidden text-xl leading-tight font-semibold tracking-tight text-ellipsis whitespace-nowrap tabular-nums 2xl:text-2xl"
+              title={formatMoney(data.total)}
+            >
               {formatMoney(data.total)}
             </p>
             <p className="text-muted-foreground mt-1 text-xs">
