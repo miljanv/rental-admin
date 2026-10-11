@@ -38,19 +38,19 @@ function TopOpenItems({ items }: { items: SettlementTargetDto[] }) {
   }
 
   return (
-    <ol className="space-y-1.5">
+    <ol className="space-y-1">
       {items.slice(0, 5).map((item, index) => (
         <li
           key={`${item.targetType}:${item.targetId}`}
-          className="flex items-start gap-3 rounded-lg border border-transparent bg-muted/35 px-2.5 py-2 transition-colors hover:border-foreground/10 hover:bg-muted/60"
+          className="flex items-center gap-2 rounded-md border border-transparent bg-muted/35 px-2 py-1.5 transition-colors hover:border-foreground/10 hover:bg-muted/60"
         >
           <span className="text-muted-foreground w-4 shrink-0 text-right text-xs tabular-nums">
             {index + 1}.
           </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{item.counterparty}</p>
-            <p className="text-muted-foreground truncate text-xs">{item.label}</p>
-          </div>
+          <p className="min-w-0 flex-1 truncate text-xs font-medium sm:text-sm">
+            {item.counterparty}
+            <span className="text-muted-foreground font-normal"> · {item.label}</span>
+          </p>
           <span className="shrink-0 text-sm font-semibold tabular-nums">
             {formatMoney(item.remainingAmount)}
           </span>
@@ -82,8 +82,9 @@ export function DashboardFinanceCard({
   return (
     <>
       <Card
+        size="sm"
         className={cn(
-          'relative min-h-80 shadow-[0_16px_36px_-30px_rgba(12,19,21,0.65)] before:absolute before:inset-y-0 before:left-0 before:w-1',
+          'relative shadow-[0_16px_36px_-30px_rgba(12,19,21,0.65)] before:absolute before:inset-y-0 before:left-0 before:w-1',
           accentClass,
         )}
       >
@@ -91,11 +92,11 @@ export function DashboardFinanceCard({
           <div className="flex items-start gap-3">
             <span
               className={cn(
-                'flex size-11 shrink-0 items-center justify-center rounded-xl shadow-sm ring-1 ring-current/10',
+                'flex size-9 shrink-0 items-center justify-center rounded-lg shadow-sm ring-1 ring-current/10',
                 toneClass,
               )}
             >
-              <Icon className="size-5" aria-hidden />
+              <Icon className="size-4.5" aria-hidden />
             </span>
             <div className="min-w-0">
               <CardTitle>
@@ -111,24 +112,24 @@ export function DashboardFinanceCard({
                   />
                 </button>
               </CardTitle>
-              <CardDescription>{description}</CardDescription>
+              <CardDescription className="line-clamp-1 text-xs">{description}</CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="grid gap-5 xl:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)]">
-          <div className={cn('rounded-xl p-4 ring-1', metricClass)}>
+        <CardContent className="grid gap-3 xl:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)]">
+          <div className={cn('rounded-lg p-3 ring-1', metricClass)}>
             <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
               Ukupno
             </p>
-            <p className="font-heading mt-2 text-3xl font-semibold tracking-tight tabular-nums xl:text-4xl">
+            <p className="font-heading mt-1 text-2xl font-semibold tracking-tight tabular-nums 2xl:text-3xl">
               {formatMoney(data.total)}
             </p>
-            <p className="text-muted-foreground mt-2 text-sm">
+            <p className="text-muted-foreground mt-1 text-xs">
               {data.count} {data.count === 1 ? 'otvorena stavka' : 'otvorenih stavki'}
             </p>
           </div>
           <div>
-            <p className="text-muted-foreground mb-3 text-xs font-medium tracking-wide uppercase">
+            <p className="text-muted-foreground mb-1.5 text-xs font-medium tracking-wide uppercase">
               Top 5
             </p>
             <TopOpenItems items={data.items} />

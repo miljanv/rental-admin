@@ -32,8 +32,9 @@ export function DashboardFuelCard({ mode, from, to, items }: DashboardFuelCardPr
 
   return (
     <Card
+      size="sm"
       className={cn(
-        'relative min-h-80 shadow-[0_16px_36px_-30px_rgba(12,19,21,0.65)] before:absolute before:inset-x-0 before:top-0 before:h-1',
+        'relative shadow-[0_16px_36px_-30px_rgba(12,19,21,0.65)] before:absolute before:inset-x-0 before:top-0 before:h-1',
         accentClass,
       )}
     >
@@ -41,33 +42,33 @@ export function DashboardFuelCard({ mode, from, to, items }: DashboardFuelCardPr
         <div className="flex items-start gap-3">
           <span
             className={cn(
-              'flex size-11 shrink-0 items-center justify-center rounded-xl shadow-sm ring-1',
+              'flex size-9 shrink-0 items-center justify-center rounded-lg shadow-sm ring-1',
               iconClass,
             )}
           >
-            <Icon className="size-5" aria-hidden />
+            <Icon className="size-4.5" aria-hidden />
           </span>
           <div>
             <CardTitle>
               {isLowest ? 'Najmanja potrošnja vozila' : 'Najveća potrošnja vozila'}
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs">
               Dizel · {formatDate(from)} – {formatDate(to)}
             </CardDescription>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="grid gap-5 xl:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)]">
-        <div className={cn('rounded-xl p-4 ring-1', metricClass)}>
+      <CardContent className="grid gap-3 xl:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)]">
+        <div className={cn('rounded-lg p-3 ring-1', metricClass)}>
           <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
             {isLowest ? 'Minimum' : 'Maksimum'}
           </p>
           {leading ? (
             <>
-              <p className="font-heading mt-2 text-3xl font-semibold tracking-tight tabular-nums">
+              <p className="font-heading mt-1 text-2xl font-semibold tracking-tight tabular-nums 2xl:text-3xl">
                 {consumption(leading.avgConsumptionPer100Km)}
               </p>
-              <p className="text-muted-foreground mt-2 truncate text-sm">{leading.vehicleLabel}</p>
+              <p className="text-muted-foreground mt-1 truncate text-xs">{leading.vehicleLabel}</p>
               <p className="text-muted-foreground mt-1 text-xs">
                 {items.length} {items.length === 1 ? 'vozilo ima' : 'vozila imaju'} obračun
               </p>
@@ -80,15 +81,15 @@ export function DashboardFuelCard({ mode, from, to, items }: DashboardFuelCardPr
           )}
         </div>
         <div>
-          <p className="text-muted-foreground mb-3 text-xs font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground mb-1.5 text-xs font-medium tracking-wide uppercase">
             Top 5
           </p>
-          <ol className="space-y-1.5">
+          <ol className="space-y-1">
             {visible.map((item, index) => (
               <li key={item.vehicleId}>
                 <Link
                   href={`/vehicles/${item.vehicleId}`}
-                  className="flex items-center gap-3 rounded-lg border border-transparent bg-muted/35 px-2.5 py-2 transition-colors hover:border-foreground/10 hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                  className="flex items-center gap-2 rounded-md border border-transparent bg-muted/35 px-2 py-1.5 transition-colors hover:border-foreground/10 hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
                 >
                   <span className="text-muted-foreground w-4 shrink-0 text-right text-xs tabular-nums">
                     {index + 1}.
