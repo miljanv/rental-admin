@@ -44,6 +44,14 @@ export const forbidden = (message: string, options?: AppErrorOptions): AppError 
 export const unauthorized = (message: string, options?: AppErrorOptions): AppError =>
   new AppError(401, API_ERROR_CODES.UNAUTHORIZED, message, options);
 
+/** A SUPERADMIN called a tenant endpoint without choosing an organization. */
+export const organizationRequired = (): AppError =>
+  new AppError(
+    400,
+    API_ERROR_CODES.ORGANIZATION_REQUIRED,
+    'Izaberite firmu u kojoj radite da biste nastavili.',
+  );
+
 export const notFound = (message: string, options?: AppErrorOptions): AppError =>
   new AppError(404, API_ERROR_CODES.NOT_FOUND, message, options);
 

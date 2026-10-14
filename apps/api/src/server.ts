@@ -5,6 +5,7 @@ import { API_PREFIX, APP_NAME, APP_VERSION } from './config/app-info';
 import { env } from './config/env';
 import { disconnectPrisma } from './config/prisma';
 import { destroyS3Client } from './config/s3';
+import { ensureBootstrapSuperadmin } from './services/bootstrap.service';
 import { logger } from './utils/logger';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
@@ -17,6 +18,11 @@ const server: Server = app.listen(env.PORT, '0.0.0.0', () => {
     apiPrefix: API_PREFIX,
     allowedOrigins: env.allowedOrigins,
   });
+});
+
+// Not fatal: the API can serve existing users even if this first-run step fails.
+void ensureBootstrapSuperadmin().catch((error: unknown) => {
+  logger.error('Could not create the bootstrap superadmin', error);
 });
 
 let isShuttingDown = false;

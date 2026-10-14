@@ -1,4 +1,5 @@
-import { disconnectPrisma, prisma } from '../src/config/prisma';
+import { disconnectPrisma, prisma, prismaUnscoped } from '../src/config/prisma';
+import { requireOrganizationId, runWithTenant } from '../src/utils/tenant-context';
 
 const date = (value: string): Date => new Date(`${value}T00:00:00.000Z`);
 
@@ -41,22 +42,29 @@ const upsertSupplier = async (
 ) =>
   prisma.supplier.upsert({
     where: { id },
-    create: { id, ...data, note: 'DEMO podaci za proveru uvoza bankarskih izvoda.' },
+    create: {
+      id,
+      organizationId: requireOrganizationId(),
+      ...data,
+      note: 'DEMO podaci za proveru uvoza bankarskih izvoda.',
+    },
     update: { ...data, note: 'DEMO podaci za proveru uvoza bankarskih izvoda.' },
   });
 
 const upsertPartnerAccount = async (partnerId: string, accountNumber: string): Promise<void> => {
+  const organizationId = requireOrganizationId();
   await prisma.partnerBankAccount.upsert({
-    where: { accountNumber },
-    create: { partnerId, accountNumber },
+    where: { organizationId_accountNumber: { organizationId, accountNumber } },
+    create: { organizationId, partnerId, accountNumber },
     update: { partnerId },
   });
 };
 
 const upsertSupplierAccount = async (supplierId: string, accountNumber: string): Promise<void> => {
+  const organizationId = requireOrganizationId();
   await prisma.supplierBankAccount.upsert({
-    where: { accountNumber },
-    create: { supplierId, accountNumber },
+    where: { organizationId_accountNumber: { organizationId, accountNumber } },
+    create: { organizationId, supplierId, accountNumber },
     update: { supplierId },
   });
 };
@@ -131,6 +139,7 @@ const seed = async (): Promise<void> => {
     prisma.partner.upsert({
       where: { id: partnerIds.agency },
       create: {
+        organizationId: requireOrganizationId(),
         id: partnerIds.agency,
         type: 'TRAVEL_AGENCY',
         companyName: 'BALKAN TOURS DEMO DOO',
@@ -153,6 +162,7 @@ const seed = async (): Promise<void> => {
     prisma.partner.upsert({
       where: { id: partnerIds.club },
       create: {
+        organizationId: requireOrganizationId(),
         id: partnerIds.club,
         type: 'SPORTS_CLUB',
         companyName: 'FK MLADOST DEMO',
@@ -183,6 +193,7 @@ const seed = async (): Promise<void> => {
     prisma.companyExpense.upsert({
       where: { id: expenseIds.telecomMay },
       create: {
+        organizationId: requireOrganizationId(),
         id: expenseIds.telecomMay,
         issuedAt: date('2026-05-05'),
         paidAt: null,
@@ -215,6 +226,7 @@ const seed = async (): Promise<void> => {
     prisma.companyExpense.upsert({
       where: { id: expenseIds.nisJune },
       create: {
+        organizationId: requireOrganizationId(),
         id: expenseIds.nisJune,
         issuedAt: date('2026-06-04'),
         paidAt: null,
@@ -247,6 +259,7 @@ const seed = async (): Promise<void> => {
     prisma.companyExpense.upsert({
       where: { id: expenseIds.nis },
       create: {
+        organizationId: requireOrganizationId(),
         id: expenseIds.nis,
         issuedAt: date('2026-10-01'),
         paidAt: null,
@@ -279,6 +292,7 @@ const seed = async (): Promise<void> => {
     prisma.companyExpense.upsert({
       where: { id: expenseIds.telecom },
       create: {
+        organizationId: requireOrganizationId(),
         id: expenseIds.telecom,
         issuedAt: date('2026-10-02'),
         paidAt: null,
@@ -311,6 +325,7 @@ const seed = async (): Promise<void> => {
     prisma.companyExpense.upsert({
       where: { id: expenseIds.service },
       create: {
+        organizationId: requireOrganizationId(),
         id: expenseIds.service,
         issuedAt: date('2026-10-03'),
         paidAt: null,
@@ -346,6 +361,7 @@ const seed = async (): Promise<void> => {
     prisma.trip.upsert({
       where: { id: tripIds.agencyMay },
       create: {
+        organizationId: requireOrganizationId(),
         id: tripIds.agencyMay,
         referenceNumber: 'BT-DEMO-0526',
         departureDate: date('2026-05-02'),
@@ -382,6 +398,7 @@ const seed = async (): Promise<void> => {
     prisma.trip.upsert({
       where: { id: tripIds.clubJune },
       create: {
+        organizationId: requireOrganizationId(),
         id: tripIds.clubJune,
         referenceNumber: 'FK-DEMO-0626',
         departureDate: date('2026-06-03'),
@@ -418,6 +435,7 @@ const seed = async (): Promise<void> => {
     prisma.trip.upsert({
       where: { id: tripIds.agency },
       create: {
+        organizationId: requireOrganizationId(),
         id: tripIds.agency,
         referenceNumber: 'BT-DEMO-1001',
         departureDate: date('2026-09-28'),
@@ -454,6 +472,7 @@ const seed = async (): Promise<void> => {
     prisma.trip.upsert({
       where: { id: tripIds.club },
       create: {
+        organizationId: requireOrganizationId(),
         id: tripIds.club,
         referenceNumber: 'FK-DEMO-1001',
         departureDate: date('2026-09-30'),
@@ -495,7 +514,23 @@ const seed = async (): Promise<void> => {
   console.log('XML fajlovi: test-data/bank-statements/*.xml');
 };
 
-seed()
+/** Id of the organization the tenancy migration creates for all pre-existing data. */
+const MIGRATED_ORGANIZATION_ID = 'cmseedorg0000000000000001';
+
+/** The demo data goes into the migrated organization, or the oldest one if it is gone. */
+const seedInDemoOrganization = async (): Promise<void> => {
+  const organization =
+    (await prismaUnscoped.organization.findUnique({ where: { id: MIGRATED_ORGANIZATION_ID } })) ??
+    (await prismaUnscoped.organization.findFirst({ orderBy: { createdAt: 'asc' } }));
+
+  if (!organization) {
+    throw new Error('Nema nijedne firme u bazi. Prvo pokrenite migracije.');
+  }
+
+  await runWithTenant({ userId: null, organizationId: organization.id }, seed);
+};
+
+seedInDemoOrganization()
   .catch((error: unknown) => {
     console.error(error);
     process.exitCode = 1;

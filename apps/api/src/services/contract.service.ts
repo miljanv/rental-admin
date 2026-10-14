@@ -16,6 +16,7 @@ import { badRequest, conflict, notFound } from '../utils/app-error';
 import { buildPaginationMeta } from '../utils/api-response';
 import { toContractDto, type ContractRecord } from '../utils/contract-mapper';
 import { logger } from '../utils/logger';
+import { requireOrganizationId } from '../utils/tenant-context';
 import { deleteAttachedFile } from './file-attachment.service';
 
 /** Contracts in these statuses don't hold a real claim on the vehicle/driver's calendar. */
@@ -127,7 +128,9 @@ export const getContract = async (id: string): Promise<ContractDto> => {
 export const createContract = async (input: ContractWriteRequest): Promise<ContractDto> => {
   await assertReferencesExist(input);
 
-  const record = await prisma.contract.create({ data: toWriteData(input) });
+  const record = await prisma.contract.create({
+    data: { ...toWriteData(input), organizationId: requireOrganizationId() },
+  });
   logger.info('Contract created', { contractId: record.id, partnerId: record.partnerId });
 
   return toContractDto(record);

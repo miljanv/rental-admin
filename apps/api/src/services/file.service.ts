@@ -24,6 +24,7 @@ import { buildPaginationMeta } from '../utils/api-response';
 import { toFileObjectDto, type FileObjectRecord } from '../utils/file-mapper';
 import { logger } from '../utils/logger';
 import { buildStorageKey, sanitizeFileName } from '../utils/storage-key';
+import { requireOrganizationId } from '../utils/tenant-context';
 import * as storage from './storage.service';
 
 type FileOrderBy = Partial<Record<FileSortField, SortOrder>>;
@@ -50,6 +51,7 @@ export const createPresignedUpload = async (
 
   const record = await prisma.fileObject.create({
     data: {
+      organizationId: requireOrganizationId(),
       originalName: input.originalName,
       storageKey,
       mimeType: input.mimeType,
@@ -225,6 +227,7 @@ export const storeGeneratedPdf = async (params: {
   try {
     return await prisma.fileObject.create({
       data: {
+        organizationId: requireOrganizationId(),
         originalName: params.originalName,
         storageKey,
         mimeType: 'application/pdf',

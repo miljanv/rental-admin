@@ -1,4 +1,5 @@
-import { disconnectPrisma, prisma } from '../src/config/prisma';
+import { disconnectPrisma, prisma, prismaUnscoped } from '../src/config/prisma';
+import { requireOrganizationId, runWithTenant } from '../src/utils/tenant-context';
 
 const ensureLocalDatabase = (): void => {
   const rawUrl = process.env.DATABASE_URL;
@@ -76,6 +77,7 @@ const seed = async (): Promise<void> => {
       prisma.partner.upsert({
         where: { id: partnerIds[index] },
         create: {
+          organizationId: requireOrganizationId(),
           id: partnerIds[index],
           type: index === 1 ? 'SPORTS_CLUB' : index === 2 ? 'MUNICIPALITY' : 'TRAVEL_AGENCY',
           companyName: item.companyName,
@@ -99,6 +101,7 @@ const seed = async (): Promise<void> => {
       prisma.supplier.upsert({
         where: { id: supplierIds[index] },
         create: {
+          organizationId: requireOrganizationId(),
           id: supplierIds[index],
           name: item.name,
           pib: item.pib,
@@ -126,6 +129,7 @@ const seed = async (): Promise<void> => {
       prisma.driver.upsert({
         where: { id: driverIds[index] },
         create: {
+          organizationId: requireOrganizationId(),
           id: driverIds[index],
           firstName,
           lastName,
@@ -161,6 +165,7 @@ const seed = async (): Promise<void> => {
       prisma.vehicle.upsert({
         where: { id: vehicleIds[index] },
         create: {
+          organizationId: requireOrganizationId(),
           id: vehicleIds[index],
           make,
           model,
@@ -204,6 +209,7 @@ const seed = async (): Promise<void> => {
     await prisma.trip.upsert({
       where: { id: tripId },
       create: {
+        organizationId: requireOrganizationId(),
         id: tripId,
         referenceNumber: `DASH-${String(index + 1).padStart(3, '0')}`,
         departureDate: todayDate,
@@ -260,6 +266,7 @@ const seed = async (): Promise<void> => {
     await prisma.companyExpense.upsert({
       where: { id: `dashboard-demo-expense-${index + 1}` },
       create: {
+        organizationId: requireOrganizationId(),
         id: `dashboard-demo-expense-${index + 1}`,
         issuedAt: date(addDays(today.iso, -(index + 2))),
         paidAt: null,
@@ -371,7 +378,23 @@ const seed = async (): Promise<void> => {
   console.log('Kreirano/ažurirano: 12 vožnji, 7 dugovanja, 6 vozača, 6 vozila i rokovi.');
 };
 
-seed()
+/** Id of the organization the tenancy migration creates for all pre-existing data. */
+const MIGRATED_ORGANIZATION_ID = 'cmseedorg0000000000000001';
+
+/** The demo data goes into the migrated organization, or the oldest one if it is gone. */
+const seedInDemoOrganization = async (): Promise<void> => {
+  const organization =
+    (await prismaUnscoped.organization.findUnique({ where: { id: MIGRATED_ORGANIZATION_ID } })) ??
+    (await prismaUnscoped.organization.findFirst({ orderBy: { createdAt: 'asc' } }));
+
+  if (!organization) {
+    throw new Error('Nema nijedne firme u bazi. Prvo pokrenite migracije.');
+  }
+
+  await runWithTenant({ userId: null, organizationId: organization.id }, seed);
+};
+
+seedInDemoOrganization()
   .catch((error: unknown) => {
     console.error(error);
     process.exitCode = 1;

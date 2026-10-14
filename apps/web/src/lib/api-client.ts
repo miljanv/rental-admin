@@ -1,6 +1,7 @@
-import type { ApiResponse } from '@rental-admin/shared';
+import { ORGANIZATION_HEADER, type ApiResponse } from '@rental-admin/shared';
 import axios from 'axios';
 
+import { getActiveOrganizationId } from './active-organization';
 import { clearAccessToken, emitUnauthorized, getAccessToken } from './auth-token';
 import { clientEnv } from './env';
 
@@ -19,6 +20,13 @@ apiClient.interceptors.request.use((config) => {
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  // Only a superadmin has one; the API ignores the header for everyone else.
+  const organizationId = getActiveOrganizationId();
+
+  if (organizationId) {
+    config.headers[ORGANIZATION_HEADER] = organizationId;
   }
 
   return config;

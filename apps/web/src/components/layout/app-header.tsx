@@ -1,5 +1,6 @@
 import { Breadcrumbs } from '@/components/layout/breadcrumbs';
 import { MobileSidebar } from '@/components/layout/mobile-sidebar';
+import { OrganizationSwitcher } from '@/components/layout/organization-switcher';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { Separator } from '@/components/ui/separator';
 
@@ -10,6 +11,7 @@ export function AppHeader() {
       <Separator orientation="vertical" className="lg:hidden data-[orientation=vertical]:h-5" />
       <Breadcrumbs />
       <div className="ml-auto flex items-center gap-2">
+        <OrganizationSwitcher />
         <ThemeToggle />
       </div>
     </header>

@@ -3,7 +3,7 @@
 import { Bus, LogOut } from 'lucide-react';
 import Link from 'next/link';
 
-import { FOOTER_NAV_ITEMS, MAIN_NAV_ITEMS } from '@/components/layout/nav-items';
+import { FOOTER_NAV_ITEMS, MAIN_NAV_ITEMS, filterNavItems } from '@/components/layout/nav-items';
 import { SidebarNav } from '@/components/layout/sidebar-nav';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -16,7 +16,13 @@ interface SidebarContentProps {
 
 /** Shared body of the desktop sidebar and the mobile drawer. */
 export function SidebarContent({ onNavigate }: SidebarContentProps) {
-  const { logout } = useAuth();
+  const { user, activeOrganizationId, logout } = useAuth();
+  const audience = {
+    role: user?.role ?? 'USER',
+    hasOrganization: user?.role !== 'SUPERADMIN' || activeOrganizationId !== null,
+  } as const;
+  const mainItems = filterNavItems(MAIN_NAV_ITEMS, audience);
+  const footerItems = filterNavItems(FOOTER_NAV_ITEMS, audience);
 
   return (
     <div className="text-sidebar-foreground flex h-full flex-col">
@@ -42,16 +48,20 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
         <p className="text-sidebar-foreground/45 mb-2 px-6 text-xs font-medium tracking-wider uppercase">
           Navigacija
         </p>
-        <SidebarNav items={MAIN_NAV_ITEMS} onNavigate={onNavigate} />
+        <SidebarNav items={mainItems} onNavigate={onNavigate} />
       </div>
 
       <div className="px-0 pb-4">
-        <SidebarNav
-          items={FOOTER_NAV_ITEMS}
-          onNavigate={onNavigate}
-          aria-label="Alarm centar i podešavanja"
-        />
-        <Separator className="bg-sidebar-border my-2" />
+        {footerItems.length > 0 ? (
+          <>
+            <SidebarNav
+              items={footerItems}
+              onNavigate={onNavigate}
+              aria-label="Alarm centar i podešavanja"
+            />
+            <Separator className="bg-sidebar-border my-2" />
+          </>
+        ) : null}
         <div className="px-3">
           <Button
             variant="ghost"

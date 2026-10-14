@@ -14,6 +14,10 @@ const booleanFromString = z
   .default(false)
   .transform((value) => value === true || value === 'true' || value === '1');
 
+/** A variable left blank in a hosting dashboard counts as "not set". */
+const optionalText = (schema: z.ZodString) =>
+  z.preprocess((value) => (value === '' ? undefined : value), schema.optional());
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
@@ -60,6 +64,15 @@ const envSchema = z.object({
    */
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters.'),
   JWT_EXPIRES_IN: z.string().min(2).default('7d'),
+
+  /**
+   * Optional first-run superadmin. When both are set and no account with that
+   * username exists, the server creates it at startup. An existing account is
+   * never touched, so the password can be changed in the admin panel and these
+   * variables removed afterwards.
+   */
+  SUPERADMIN_USERNAME: optionalText(z.string().trim().min(3).max(64)),
+  SUPERADMIN_PASSWORD: optionalText(z.string().min(8).max(128)),
 });
 
 export type RawEnv = z.infer<typeof envSchema>;

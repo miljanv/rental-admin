@@ -26,3 +26,4 @@ export * from './vehicle-document';
 export * from './vehicle-inspection';
 export * from './vehicle-maintenance';
 export * from './vehicle-safety-equipment';
+export * from './user-admin';

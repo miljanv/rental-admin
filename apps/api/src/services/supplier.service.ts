@@ -19,6 +19,7 @@ import { buildPaginationMeta } from '../utils/api-response';
 import { conflict, notFound } from '../utils/app-error';
 import { logger } from '../utils/logger';
 import { toSupplierDto, type SupplierRecord } from '../utils/supplier-mapper';
+import { requireOrganizationId } from '../utils/tenant-context';
 
 type SupplierOrderBy = Partial<Record<SupplierSortField, SortOrder>>;
 
@@ -123,7 +124,7 @@ export const findSupplierByBankAccount = async (
     return null;
   }
 
-  const account = await prisma.supplierBankAccount.findUnique({
+  const account = await prisma.supplierBankAccount.findFirst({
     where: { accountNumber: normalized },
     include: { supplier: { select: { id: true, name: true } } },
   });
@@ -152,7 +153,9 @@ export const rememberSupplierBankAccount = async (
   }
 
   await prisma.supplierBankAccount
-    .create({ data: { supplierId, accountNumber: normalized } })
+    .create({
+      data: { organizationId: requireOrganizationId(), supplierId, accountNumber: normalized },
+    })
     .catch(() => null);
 };
 
@@ -358,11 +361,14 @@ export const getSupplierLedger = async (
 
 export const createSupplier = async (input: SupplierWriteRequest): Promise<SupplierDto> => {
   try {
+    const organizationId = requireOrganizationId();
     const record = await prisma.supplier.create({
       data: {
         ...toWriteData(input),
+        organizationId,
         bankAccounts: {
           create: input.bankAccounts.map((account) => ({
+            organizationId,
             accountNumber: account.accountNumber,
           })),
         },
@@ -387,6 +393,8 @@ export const updateSupplier = async (
 ): Promise<SupplierDto> => {
   await getSupplier(id);
 
+  const organizationId = requireOrganizationId();
+
   try {
     const record = await prisma.$transaction(async (tx) => {
       await tx.supplierBankAccount.deleteMany({ where: { supplierId: id } });
@@ -397,6 +405,7 @@ export const updateSupplier = async (
           ...toWriteData(input),
           bankAccounts: {
             create: input.bankAccounts.map((account) => ({
+              organizationId,
               accountNumber: account.accountNumber,
             })),
           },

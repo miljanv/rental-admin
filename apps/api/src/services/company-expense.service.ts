@@ -12,6 +12,7 @@ import { prisma } from '../config/prisma';
 import { badRequest, notFound } from '../utils/app-error';
 import { toCompanyExpenseDto, type CompanyExpenseRecord } from '../utils/company-expense-mapper';
 import { logger } from '../utils/logger';
+import { requireOrganizationId } from '../utils/tenant-context';
 import { findSupplierIdByName, listSupplierNames, mergeSupplierNames } from './supplier.service';
 import { deleteOperationalTransaction } from './transaction.service';
 
@@ -121,7 +122,7 @@ export const createCompanyExpense = async (
   await assertVehicleExists(input.vehicleId);
 
   const record = await prisma.companyExpense.create({
-    data: await toWriteData(input),
+    data: { ...(await toWriteData(input)), organizationId: requireOrganizationId() },
     include: companyExpenseInclude,
   });
 
