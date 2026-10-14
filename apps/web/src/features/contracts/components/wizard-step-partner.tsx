@@ -31,6 +31,7 @@ import {
 import { QuickCreatePartnerSheet } from '@/features/contracts/components/quick-create-partner-sheet';
 import type { ContractFormValues } from '@/features/contracts/schemas/contract-form-schema';
 import { usePartners } from '@/features/partners/hooks/use-partners';
+import { sortAlphabetically } from '@/lib/sort-options';
 
 interface FieldProps {
   id: string;
@@ -80,7 +81,7 @@ export function WizardStepPartner() {
   const isLegalEntity = isLegalEntityPartnerType(clientType);
 
   const partnersQuery = usePartners({ page: 1, limit: 100, sortBy: 'type', sortOrder: 'asc' });
-  const partners = partnersQuery.data?.partners ?? [];
+  const partners = sortAlphabetically(partnersQuery.data?.partners ?? [], partnerSelectLabel);
 
   return (
     <div className="space-y-6">

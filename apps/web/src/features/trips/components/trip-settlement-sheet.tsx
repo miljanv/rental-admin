@@ -43,6 +43,7 @@ import { useDeleteTripExpense } from '@/features/trips/hooks/use-delete-trip-exp
 import { useTripSettlement } from '@/features/trips/hooks/use-trip-settlement';
 import { useUpdateTripSettlement } from '@/features/trips/hooks/use-update-trip-settlement';
 import { formatMoney } from '@/lib/format';
+import { sortAlphabetically } from '@/lib/sort-options';
 
 interface TripSettlementSheetProps {
   trip: TripDto | null;
@@ -127,7 +128,10 @@ export function TripSettlementSheet({ trip, onOpenChange }: TripSettlementSheetP
 
   const errors = form.formState.errors;
   const selectedDrivers = useWatch({ control: form.control, name: 'drivers' }) ?? [];
-  const driverOptions = driversQuery.data?.drivers ?? [];
+  const driverOptions = sortAlphabetically(
+    driversQuery.data?.drivers ?? [],
+    (driver) => `${driver.firstName} ${driver.lastName}`,
+  );
   const assignedIds = new Set(selectedDrivers.map((driver) => driver.driverId));
 
   const driverName = (driverId: string): string => {

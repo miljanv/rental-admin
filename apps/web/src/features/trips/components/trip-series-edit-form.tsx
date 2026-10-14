@@ -36,6 +36,7 @@ import { usePartners } from '@/features/partners/hooks/use-partners';
 import { useEditTripSeries } from '@/features/trips/hooks/use-edit-trip-series';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
 import { vehicleSelectLabel } from '@/features/vehicles/lib/vehicle';
+import { sortAlphabetically } from '@/lib/sort-options';
 
 const NONE = 'none';
 
@@ -122,15 +123,21 @@ export function TripSeriesEditForm({
   const driversQuery = useDrivers({ page: 1, limit: 100, sortBy: 'lastName', sortOrder: 'asc' });
   const partnersQuery = usePartners({ page: 1, limit: 100, sortBy: 'type', sortOrder: 'asc' });
 
-  const vehicleOptions = (vehiclesQuery.data?.vehicles ?? []).map((vehicle) => ({
+  const vehicleOptions = sortAlphabetically(
+    vehiclesQuery.data?.vehicles ?? [],
+    (vehicle) => vehicle.licensePlate,
+  ).map((vehicle) => ({
     value: vehicle.id,
     label: vehicleSelectLabel(vehicle),
   }));
-  const driverOptions = (driversQuery.data?.drivers ?? []).map((driver) => ({
+  const driverOptions = sortAlphabetically(
+    driversQuery.data?.drivers ?? [],
+    (driver) => `${driver.firstName} ${driver.lastName}`,
+  ).map((driver) => ({
     value: driver.id,
     label: `${driver.firstName} ${driver.lastName}`,
   }));
-  const partners = partnersQuery.data?.partners ?? [];
+  const partners = sortAlphabetically(partnersQuery.data?.partners ?? [], partnerSelectLabel);
   const isPending = mutation.isPending;
 
   const onSubmit = form.handleSubmit(async (values) => {

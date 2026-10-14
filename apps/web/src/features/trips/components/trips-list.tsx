@@ -36,6 +36,7 @@ import { useDrivers } from '@/features/drivers/hooks/use-drivers';
 import { usePartners } from '@/features/partners/hooks/use-partners';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
 import { localTodayIso } from '@/lib/format';
+import { sortAlphabetically } from '@/lib/sort-options';
 import { cn } from '@/lib/utils';
 
 const PAGE_SIZE = 50;
@@ -83,9 +84,15 @@ export function TripsList() {
   const vehiclesQuery = useVehicles({ page: 1, limit: 100, sortBy: 'make', sortOrder: 'asc' });
   const driversQuery = useDrivers({ page: 1, limit: 100, sortBy: 'lastName', sortOrder: 'asc' });
   const partnersQuery = usePartners({ page: 1, limit: 100, sortBy: 'type', sortOrder: 'asc' });
-  const vehicles = vehiclesQuery.data?.vehicles ?? [];
-  const drivers = driversQuery.data?.drivers ?? [];
-  const partners = partnersQuery.data?.partners ?? [];
+  const vehicles = sortAlphabetically(
+    vehiclesQuery.data?.vehicles ?? [],
+    (vehicle) => vehicle.licensePlate,
+  );
+  const drivers = sortAlphabetically(
+    driversQuery.data?.drivers ?? [],
+    (driver) => `${driver.firstName} ${driver.lastName}`,
+  );
+  const partners = sortAlphabetically(partnersQuery.data?.partners ?? [], partnerSelectLabel);
 
   const query = useTrips({
     page,

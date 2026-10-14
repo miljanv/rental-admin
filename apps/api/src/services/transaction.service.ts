@@ -1518,6 +1518,7 @@ const listCompanyExpenseSettlementTargets = async (
       return {
         targetType: 'COMPANY_EXPENSE',
         targetId: record.id,
+        counterpartyId: record.supplierId,
         recommended: matchesPreferredCounterparty(record.supplierId, record.supplier, preferred),
         label: [record.invoiceNumber ? `Račun ${record.invoiceNumber}` : null, record.description]
           .filter(Boolean)
@@ -1652,6 +1653,7 @@ const listTripInvoiceSettlementTargets = async (
     return {
       targetType: 'TRIP_INVOICE',
       targetId: trip.id,
+      counterpartyId: trip.partnerId,
       recommended: matchesPreferredCounterparty(trip.partnerId, tripCounterparty(trip), preferred),
       label: tripLabel(trip),
       counterparty: tripCounterparty(trip),
@@ -1672,6 +1674,7 @@ const listTripInvoiceSettlementTargets = async (
     return {
       targetType: 'TRIP_SERIES_INVOICE',
       targetId: groupId,
+      counterpartyId: first?.partnerId ?? null,
       recommended: first
         ? matchesPreferredCounterparty(first.partnerId, tripCounterparty(first), preferred)
         : false,
@@ -1763,6 +1766,7 @@ const getSettlementTarget = async (
     return {
       targetType,
       targetId,
+      counterpartyId: record.supplierId,
       recommended: false,
       label: [record.invoiceNumber ? `Račun ${record.invoiceNumber}` : null, record.description]
         .filter(Boolean)
@@ -1795,6 +1799,7 @@ const getSettlementTarget = async (
     return {
       targetType,
       targetId,
+      counterpartyId: record.partnerId,
       recommended: false,
       label: tripLabel(record),
       counterparty: tripCounterparty(record),
@@ -1827,6 +1832,7 @@ const getSettlementTarget = async (
   return {
     targetType,
     targetId,
+    counterpartyId: first.partnerId,
     recommended: false,
     label: `${tripLabel(first)} · serija ${rows.length} dana`,
     counterparty: tripCounterparty(first),

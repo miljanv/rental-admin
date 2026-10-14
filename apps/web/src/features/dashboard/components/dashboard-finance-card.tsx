@@ -1,6 +1,6 @@
 'use client';
 
-import type { DashboardOpenItemsDto, SettlementTargetDto } from '@rental-admin/shared';
+import type { DashboardOpenCounterpartyDto, DashboardOpenItemsDto } from '@rental-admin/shared';
 import { ArrowUpRight, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 
@@ -32,7 +32,18 @@ interface DashboardFinanceCardProps {
   tone: 'income' | 'expense';
 }
 
-function TopOpenItems({ items }: { items: SettlementTargetDto[] }) {
+function openItemLabel(count: number): string {
+  const lastTwoDigits = count % 100;
+  const lastDigit = count % 10;
+
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return `${count} stavki`;
+  if (lastDigit === 1) return `${count} stavka`;
+  if (lastDigit >= 2 && lastDigit <= 4) return `${count} stavke`;
+
+  return `${count} stavki`;
+}
+
+function TopOpenItems({ items }: { items: DashboardOpenCounterpartyDto[] }) {
   if (items.length === 0) {
     return <p className="text-muted-foreground py-8 text-center text-sm">Nema otvorenih stavki.</p>;
   }
@@ -41,7 +52,7 @@ function TopOpenItems({ items }: { items: SettlementTargetDto[] }) {
     <ol className="space-y-1">
       {items.slice(0, 5).map((item, index) => (
         <li
-          key={`${item.targetType}:${item.targetId}`}
+          key={item.counterpartyKey}
           className="flex items-center gap-2 rounded-md border border-transparent bg-muted/35 px-2 py-1.5 transition-colors hover:border-foreground/10 hover:bg-muted/60"
         >
           <span className="text-muted-foreground w-4 shrink-0 text-right text-xs tabular-nums">
@@ -49,7 +60,10 @@ function TopOpenItems({ items }: { items: SettlementTargetDto[] }) {
           </span>
           <p className="min-w-0 flex-1 truncate text-xs font-medium sm:text-sm">
             {item.counterparty}
-            <span className="text-muted-foreground font-normal"> · {item.label}</span>
+            <span className="text-muted-foreground font-normal">
+              {' '}
+              · {openItemLabel(item.openItemCount)}
+            </span>
           </p>
           <span className="shrink-0 text-sm font-semibold tabular-nums">
             {formatMoney(item.remainingAmount)}
@@ -78,6 +92,16 @@ export function DashboardFinanceCard({
     tone === 'income'
       ? 'bg-emerald-500/[0.07] ring-emerald-500/15'
       : 'bg-rose-500/[0.07] ring-rose-500/15';
+  const counterpartyLabel =
+    tone === 'income'
+      ? data.counterpartyCount === 1
+        ? 'kupac'
+        : 'kupaca'
+      : data.counterpartyCount === 1
+        ? 'dobavljač'
+        : 'dobavljača';
+  const counterpartyGenitive =
+    tone === 'income' ? (data.counterpartyCount === 1 ? 'kupca' : 'kupaca') : 'dobavljača';
 
   return (
     <>
@@ -128,12 +152,14 @@ export function DashboardFinanceCard({
               {formatMoney(data.total)}
             </p>
             <p className="text-muted-foreground mt-1 text-xs">
-              {data.count} {data.count === 1 ? 'otvorena stavka' : 'otvorenih stavki'}
+              {openItemLabel(data.count)}
+              {' · '}
+              {data.counterpartyCount} {counterpartyLabel}
             </p>
           </div>
           <div>
             <p className="text-muted-foreground mb-1.5 text-xs font-medium tracking-wide uppercase">
-              Top 5
+              Top 5 {tone === 'income' ? 'kupaca' : 'dobavljača'}
             </p>
             <TopOpenItems items={data.items} />
           </div>
@@ -145,7 +171,8 @@ export function DashboardFinanceCard({
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>
-              {modalDescription} Ukupno {formatMoney(data.total)} kroz {data.count} stavki.
+              {modalDescription} Ukupno {formatMoney(data.total)} kroz {openItemLabel(data.count)}{' '}
+              kod {data.counterpartyCount} {counterpartyGenitive}.
             </DialogDescription>
           </DialogHeader>
           <div className="min-h-0 overflow-auto border-t px-4 pb-4">
@@ -158,8 +185,8 @@ export function DashboardFinanceCard({
                 <TableHeader className="bg-popover sticky top-0 z-10">
                   <TableRow>
                     <TableHead>Partner / dobavljač</TableHead>
-                    <TableHead>Dokument</TableHead>
-                    <TableHead>Datum</TableHead>
+                    <TableHead className="text-right">Otvorene stavke</TableHead>
+                    <TableHead>Poslednja faktura</TableHead>
                     <TableHead className="text-right">Ukupno</TableHead>
                     <TableHead className="text-right">Plaćeno</TableHead>
                     <TableHead className="text-right">Preostalo</TableHead>
@@ -167,12 +194,14 @@ export function DashboardFinanceCard({
                 </TableHeader>
                 <TableBody>
                   {data.items.map((item) => (
-                    <TableRow key={`${item.targetType}:${item.targetId}`}>
+                    <TableRow key={item.counterpartyKey}>
                       <TableCell className="max-w-48 truncate font-medium">
                         {item.counterparty}
                       </TableCell>
-                      <TableCell className="max-w-72 truncate">{item.label}</TableCell>
-                      <TableCell>{formatDate(item.issuedAt)}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {item.openItemCount}
+                      </TableCell>
+                      <TableCell>{formatDate(item.latestIssuedAt)}</TableCell>
                       <TableCell className="text-right tabular-nums">
                         {formatMoney(item.totalAmount)}
                       </TableCell>

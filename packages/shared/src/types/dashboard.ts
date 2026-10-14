@@ -1,5 +1,4 @@
 import type { AlarmKind } from './alarm';
-import type { SettlementTargetDto } from './transaction';
 import type { TripStatus } from './trip';
 
 export interface DashboardTodayTripDto {
@@ -17,10 +16,22 @@ export interface DashboardTodayTripsDto {
   items: DashboardTodayTripDto[];
 }
 
+export interface DashboardOpenCounterpartyDto {
+  counterpartyKey: string;
+  counterpartyId: string | null;
+  counterparty: string;
+  openItemCount: number;
+  latestIssuedAt: string;
+  totalAmount: number;
+  allocatedAmount: number;
+  remainingAmount: number;
+}
+
 export interface DashboardOpenItemsDto {
   total: number;
   count: number;
-  items: SettlementTargetDto[];
+  counterpartyCount: number;
+  items: DashboardOpenCounterpartyDto[];
 }
 
 export interface DashboardExpiredItemDto {
@@ -41,6 +52,7 @@ export interface DashboardExpiredItemsDto {
 export interface DashboardFuelConsumptionDto {
   vehicleId: string;
   vehicleLabel: string;
+  fillUpCount: number;
   litersFilled: number;
   kmDriven: number;
   avgConsumptionPer100Km: number;

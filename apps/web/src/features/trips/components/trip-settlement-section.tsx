@@ -36,6 +36,7 @@ import { TripExpensesTable } from '@/features/trips/components/trip-expenses-tab
 import { useTripSettlement } from '@/features/trips/hooks/use-trip-settlement';
 import { useUpdateTripSettlement } from '@/features/trips/hooks/use-update-trip-settlement';
 import { formatMoney } from '@/lib/format';
+import { sortAlphabetically } from '@/lib/sort-options';
 import { cn } from '@/lib/utils';
 
 interface TripSettlementSectionProps {
@@ -131,7 +132,7 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
   const [expenseToDelete, setExpenseToDelete] = useState<TripExpenseDto | null>(null);
 
   const settlement = query.data;
-  const partners = partnersQuery.data?.partners ?? [];
+  const partners = sortAlphabetically(partnersQuery.data?.partners ?? [], partnerSelectLabel);
 
   const form = useForm<TripSettlementWriteInput, unknown, TripSettlementWriteRequest>({
     resolver: zodResolver(tripSettlementWriteSchema),

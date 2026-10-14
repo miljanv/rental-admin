@@ -19,6 +19,7 @@ import { driverFullName } from '@/features/drivers/lib/driver';
 import { useDrivers } from '@/features/drivers/hooks/use-drivers';
 import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
+import { sortAlphabetically } from '@/lib/sort-options';
 
 interface FieldProps {
   id: string;
@@ -56,8 +57,8 @@ export function WizardStepResources({ excludeContractId }: WizardStepResourcesPr
 
   const vehiclesQuery = useVehicles({ page: 1, limit: 100, sortBy: 'make', sortOrder: 'asc' });
   const driversQuery = useDrivers({ page: 1, limit: 100, sortBy: 'lastName', sortOrder: 'asc' });
-  const vehicles = vehiclesQuery.data?.vehicles ?? [];
-  const drivers = driversQuery.data?.drivers ?? [];
+  const vehicles = sortAlphabetically(vehiclesQuery.data?.vehicles ?? [], vehicleLabel);
+  const drivers = sortAlphabetically(driversQuery.data?.drivers ?? [], driverFullName);
 
   const availabilityQuery = useContractAvailability({
     vehicleId: vehicleId || undefined,

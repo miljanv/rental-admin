@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 
 import { Input } from '@/components/ui/input';
 import { usePartners } from '@/features/partners/hooks/use-partners';
+import { sortAlphabetically } from '@/lib/sort-options';
 
 interface PartnerNameInputProps {
   id: string;
@@ -41,7 +42,7 @@ const partnerNameOptions = (partners: PartnerDto[]): PartnerNameOption[] => {
     }
   }
 
-  return [...byLabel.values()].sort((left, right) => left.label.localeCompare(right.label, 'sr'));
+  return sortAlphabetically([...byLabel.values()], (option) => option.label);
 };
 
 export function PartnerNameInput({

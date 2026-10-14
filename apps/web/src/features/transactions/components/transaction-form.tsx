@@ -38,6 +38,7 @@ import {
 } from '@/features/transactions/schemas/transaction-form-schema';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
 import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
+import { sortAlphabetically } from '@/lib/sort-options';
 import { cn } from '@/lib/utils';
 
 interface TransactionFormProps {
@@ -91,8 +92,11 @@ export function TransactionForm({
     sortBy: 'lastName',
     sortOrder: 'asc',
   });
-  const vehicles = vehiclesQuery.data?.vehicles ?? [];
-  const drivers = driversQuery.data?.drivers ?? [];
+  const vehicles = sortAlphabetically(vehiclesQuery.data?.vehicles ?? [], vehicleLabel);
+  const drivers = sortAlphabetically(
+    driversQuery.data?.drivers ?? [],
+    (driver) => `${driver.firstName} ${driver.lastName}`,
+  );
 
   const form = useForm<TransactionFormValues, unknown, TransactionWriteRequest>({
     resolver: zodResolver(transactionFormSchema),

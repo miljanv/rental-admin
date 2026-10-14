@@ -31,6 +31,7 @@ import { ContractsTable } from '@/features/contracts/components/contracts-table'
 import { DeleteContractDialog } from '@/features/contracts/components/delete-contract-dialog';
 import { useContracts } from '@/features/contracts/hooks/use-contracts';
 import { usePartners } from '@/features/partners/hooks/use-partners';
+import { sortAlphabetically } from '@/lib/sort-options';
 import { cn } from '@/lib/utils';
 
 const PAGE_SIZE = 10;
@@ -74,7 +75,7 @@ export function ContractsList() {
   }, [searchInput]);
 
   const partnersQuery = usePartners({ page: 1, limit: 100, sortBy: 'type', sortOrder: 'asc' });
-  const partners = partnersQuery.data?.partners ?? [];
+  const partners = sortAlphabetically(partnersQuery.data?.partners ?? [], partnerSelectLabel);
 
   const query = useContracts({
     page,

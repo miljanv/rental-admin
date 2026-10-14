@@ -49,6 +49,7 @@ import {
 } from '@/features/trips/schemas/trip-series-form-schema';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
 import { vehicleSelectLabel } from '@/features/vehicles/lib/vehicle';
+import { sortAlphabetically } from '@/lib/sort-options';
 import { cn } from '@/lib/utils';
 
 interface FieldProps {
@@ -102,15 +103,21 @@ export function TripSeriesForm() {
     sortOrder: 'desc',
   });
 
-  const vehicleOptions = (vehiclesQuery.data?.vehicles ?? []).map((vehicle) => ({
+  const vehicleOptions = sortAlphabetically(
+    vehiclesQuery.data?.vehicles ?? [],
+    (vehicle) => vehicle.licensePlate,
+  ).map((vehicle) => ({
     value: vehicle.id,
     label: vehicleSelectLabel(vehicle),
   }));
-  const driverOptions = (driversQuery.data?.drivers ?? []).map((driver) => ({
+  const driverOptions = sortAlphabetically(
+    driversQuery.data?.drivers ?? [],
+    (driver) => `${driver.firstName} ${driver.lastName}`,
+  ).map((driver) => ({
     value: driver.id,
     label: `${driver.firstName} ${driver.lastName}`,
   }));
-  const partners = partnersQuery.data?.partners ?? [];
+  const partners = sortAlphabetically(partnersQuery.data?.partners ?? [], partnerSelectLabel);
   const contracts = contractsQuery.data?.contracts ?? [];
 
   const toggleWeekday = (day: number) => {

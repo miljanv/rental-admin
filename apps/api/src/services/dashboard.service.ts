@@ -2,6 +2,7 @@ import type {
   AlarmItemDto,
   DashboardExpiredItemsDto,
   DashboardFuelConsumptionDto,
+  DashboardOpenCounterpartyDto,
   DashboardOpenItemsDto,
   DashboardStats,
   DashboardTodayTripDto,
@@ -69,15 +70,59 @@ const partnerLabel = (trip: {
   return trip.partner.companyName?.trim() || 'Bez kupca';
 };
 
-const summarizeOpenItems = (items: SettlementTargetDto[]): DashboardOpenItemsDto => {
-  const sorted = [...items].sort(
-    (left, right) =>
-      right.remainingAmount - left.remainingAmount || right.issuedAt.localeCompare(left.issuedAt),
-  );
+const normalizeCounterparty = (value: string): string =>
+  value
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase('sr-Latn');
+
+export const summarizeOpenItems = (items: SettlementTargetDto[]): DashboardOpenItemsDto => {
+  const grouped = new Map<string, DashboardOpenCounterpartyDto>();
+
+  for (const item of items) {
+    const normalizedName = normalizeCounterparty(item.counterparty) || 'bez-naziva';
+    const counterpartyKey = item.counterpartyId
+      ? `id:${item.counterpartyId}`
+      : `name:${normalizedName}`;
+    const current = grouped.get(counterpartyKey) ?? {
+      counterpartyKey,
+      counterpartyId: item.counterpartyId,
+      counterparty: item.counterparty.trim() || 'Bez partnera',
+      openItemCount: 0,
+      latestIssuedAt: item.issuedAt,
+      totalAmount: 0,
+      allocatedAmount: 0,
+      remainingAmount: 0,
+    };
+
+    current.openItemCount += 1;
+    current.latestIssuedAt =
+      item.issuedAt > current.latestIssuedAt ? item.issuedAt : current.latestIssuedAt;
+    current.totalAmount += item.totalAmount;
+    current.allocatedAmount += item.allocatedAmount;
+    current.remainingAmount += item.remainingAmount;
+    grouped.set(counterpartyKey, current);
+  }
+
+  const sorted = [...grouped.values()]
+    .map((item) => ({
+      ...item,
+      totalAmount: round(item.totalAmount),
+      allocatedAmount: round(item.allocatedAmount),
+      remainingAmount: round(item.remainingAmount),
+    }))
+    .sort(
+      (left, right) =>
+        right.remainingAmount - left.remainingAmount ||
+        left.counterparty.localeCompare(right.counterparty, 'sr'),
+    );
 
   return {
-    total: round(sorted.reduce((sum, item) => sum + item.remainingAmount, 0)),
-    count: sorted.length,
+    total: round(items.reduce((sum, item) => sum + item.remainingAmount, 0)),
+    count: items.length,
+    counterpartyCount: sorted.length,
     items: sorted,
   };
 };
@@ -114,7 +159,7 @@ interface FuelRow {
 export const summarizeVehicleFuelConsumption = (rows: FuelRow[]): DashboardFuelConsumptionDto[] => {
   const byVehicle = new Map<
     string,
-    { vehicleLabel: string; litersFilled: number; kmDriven: number }
+    { vehicleLabel: string; fillUpCount: number; litersFilled: number; kmDriven: number }
   >();
 
   for (const row of rows) {
@@ -124,9 +169,11 @@ export const summarizeVehicleFuelConsumption = (rows: FuelRow[]): DashboardFuelC
 
     const current = byVehicle.get(row.vehicleId) ?? {
       vehicleLabel: `${row.vehicle.make} ${row.vehicle.model} · ${row.vehicle.licensePlate}`,
+      fillUpCount: 0,
       litersFilled: 0,
       kmDriven: 0,
     };
+    current.fillUpCount += 1;
     current.litersFilled += row.litersFilled;
     current.kmDriven += row.kmDriven;
     byVehicle.set(row.vehicleId, current);
@@ -136,6 +183,7 @@ export const summarizeVehicleFuelConsumption = (rows: FuelRow[]): DashboardFuelC
     .map(([vehicleId, value]) => ({
       vehicleId,
       vehicleLabel: value.vehicleLabel,
+      fillUpCount: value.fillUpCount,
       litersFilled: round(value.litersFilled),
       kmDriven: value.kmDriven,
       avgConsumptionPer100Km: round((value.litersFilled / value.kmDriven) * 100),

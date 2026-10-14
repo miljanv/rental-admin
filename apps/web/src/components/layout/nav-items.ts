@@ -26,7 +26,7 @@ export interface NavItem {
 /** Single source of truth for the sidebar and the breadcrumb labels. */
 export const NAV_ITEMS: NavItem[] = [
   {
-    title: 'Dashboard',
+    title: 'Kontrolna tabla',
     href: '/',
     icon: LayoutDashboard,
     description: 'Vožnje, finansije i rokovi',

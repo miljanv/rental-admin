@@ -255,6 +255,7 @@ export interface PaymentAllocationDto {
 export interface SettlementTargetDto {
   targetType: SettlementTargetType;
   targetId: string;
+  counterpartyId: string | null;
   recommended: boolean;
   label: string;
   counterparty: string;

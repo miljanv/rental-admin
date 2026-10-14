@@ -30,6 +30,7 @@ import { useCompanyExpenses } from '@/features/company-expenses/hooks/use-compan
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
 import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
 import { formatMoney } from '@/lib/format';
+import { sortAlphabetically } from '@/lib/sort-options';
 
 const ALL = 'all';
 const SCOPE_FILTERS: CompanyExpenseScope[] = ['COMMON', 'SUBCONTRACTOR', 'BANK'];
@@ -52,7 +53,7 @@ export function CompanyExpenseManager() {
     sortBy: 'make',
     sortOrder: 'asc',
   });
-  const vehicles = vehiclesQuery.data?.vehicles ?? [];
+  const vehicles = sortAlphabetically(vehiclesQuery.data?.vehicles ?? [], vehicleLabel);
 
   const params = {
     ...(vehicleFilter === ALL || isScopeFilter(vehicleFilter) ? {} : { vehicleId: vehicleFilter }),

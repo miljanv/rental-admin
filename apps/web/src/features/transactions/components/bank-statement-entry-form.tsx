@@ -35,6 +35,7 @@ import { PartnerNameInput } from '@/features/partners/components/partner-name-in
 import { SupplierNameInput } from '@/features/transactions/components/supplier-name-input';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
 import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
+import { sortAlphabetically } from '@/lib/sort-options';
 
 interface BankStatementEntryFormProps {
   transaction?: TransactionDto;
@@ -78,8 +79,11 @@ export function BankStatementEntryForm({ transaction, onDone }: BankStatementEnt
     sortBy: 'lastName',
     sortOrder: 'asc',
   });
-  const vehicles = vehiclesQuery.data?.vehicles ?? [];
-  const drivers = driversQuery.data?.drivers ?? [];
+  const vehicles = sortAlphabetically(vehiclesQuery.data?.vehicles ?? [], vehicleLabel);
+  const drivers = sortAlphabetically(
+    driversQuery.data?.drivers ?? [],
+    (driver) => `${driver.firstName} ${driver.lastName}`,
+  );
 
   const form = useForm<BankStatementEntryFormValues, unknown, BankStatementEntryWriteRequest>({
     resolver: zodResolver(bankStatementEntryFormSchema),

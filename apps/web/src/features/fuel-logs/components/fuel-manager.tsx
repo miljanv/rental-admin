@@ -25,6 +25,7 @@ import { FuelSupplierField } from '@/features/fuel-logs/components/fuel-supplier
 import { useFuelLogs } from '@/features/fuel-logs/hooks/use-fuel-logs';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
 import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
+import { sortAlphabetically } from '@/lib/sort-options';
 
 const ALL = 'all';
 
@@ -45,7 +46,7 @@ export function FuelManager() {
     sortBy: 'make',
     sortOrder: 'asc',
   });
-  const vehicles = vehiclesQuery.data?.vehicles ?? [];
+  const vehicles = sortAlphabetically(vehiclesQuery.data?.vehicles ?? [], vehicleLabel);
 
   const query = useFuelLogs({
     ...(vehicleFilter === ALL ? {} : { vehicleId: vehicleFilter }),

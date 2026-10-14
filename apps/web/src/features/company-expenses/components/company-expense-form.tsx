@@ -39,6 +39,7 @@ import { SupplierNameInput } from '@/features/suppliers/components/supplier-name
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
 import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
 import { formatMoney } from '@/lib/format';
+import { sortAlphabetically } from '@/lib/sort-options';
 import { cn } from '@/lib/utils';
 
 interface CompanyExpenseFormProps {
@@ -86,7 +87,7 @@ export function CompanyExpenseForm({ expense, defaultVehicleId, onDone }: Compan
     sortBy: 'make',
     sortOrder: 'asc',
   });
-  const vehicles = vehiclesQuery.data?.vehicles ?? [];
+  const vehicles = sortAlphabetically(vehiclesQuery.data?.vehicles ?? [], vehicleLabel);
 
   const form = useForm<CompanyExpenseFormValues>({
     resolver: zodResolver(companyExpenseFormSchema) as Resolver<CompanyExpenseFormValues>,

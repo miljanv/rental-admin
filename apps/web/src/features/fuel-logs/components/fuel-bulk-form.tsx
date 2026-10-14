@@ -30,6 +30,7 @@ import {
   type FuelLogBulkRowValues,
 } from '@/features/fuel-logs/schemas/fuel-log-bulk-form-schema';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
+import { sortAlphabetically } from '@/lib/sort-options';
 
 interface FuelBulkFormProps {
   onDone: () => void;
@@ -59,8 +60,14 @@ export function FuelBulkForm({ onDone }: FuelBulkFormProps) {
     sortBy: 'make',
     sortOrder: 'asc',
   });
-  const drivers = driversQuery.data?.drivers ?? [];
-  const vehicles = vehiclesQuery.data?.vehicles ?? [];
+  const drivers = sortAlphabetically(
+    driversQuery.data?.drivers ?? [],
+    (driver) => `${driver.firstName} ${driver.lastName}`,
+  );
+  const vehicles = sortAlphabetically(
+    vehiclesQuery.data?.vehicles ?? [],
+    (vehicle) => vehicle.licensePlate,
+  );
 
   const updateRow = (index: number, patch: Partial<FuelLogBulkRowValues>): void => {
     setValues((current) => ({

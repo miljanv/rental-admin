@@ -14,7 +14,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 
-const ROOT_CRUMB = { title: 'Dashboard', href: '/' };
+const ROOT_CRUMB = { title: 'Kontrolna tabla', href: '/' };
 
 const toTitleCase = (segment: string): string =>
   segment

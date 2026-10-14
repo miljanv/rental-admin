@@ -22,6 +22,7 @@ import { useAlarms } from '@/features/alarms/hooks/use-alarms';
 import { useDrivers } from '@/features/drivers/hooks/use-drivers';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
 import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
+import { sortAlphabetically } from '@/lib/sort-options';
 import { cn } from '@/lib/utils';
 
 const ALL = 'all';
@@ -67,14 +68,20 @@ export function AlarmCenter() {
   );
 
   const hasFilters = Object.values(filters).some((value) => value !== ALL);
-  const drivers = (driversQuery.data?.drivers ?? []).map((driver) => ({
-    id: driver.id,
-    label: `${driver.firstName} ${driver.lastName}`,
-  }));
-  const vehicles = (vehiclesQuery.data?.vehicles ?? []).map((vehicle) => ({
-    id: vehicle.id,
-    label: vehicleLabel(vehicle),
-  }));
+  const drivers = sortAlphabetically(
+    (driversQuery.data?.drivers ?? []).map((driver) => ({
+      id: driver.id,
+      label: `${driver.firstName} ${driver.lastName}`,
+    })),
+    (driver) => driver.label,
+  );
+  const vehicles = sortAlphabetically(
+    (vehiclesQuery.data?.vehicles ?? []).map((vehicle) => ({
+      id: vehicle.id,
+      label: vehicleLabel(vehicle),
+    })),
+    (vehicle) => vehicle.label,
+  );
 
   return (
     <div className="space-y-8">

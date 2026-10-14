@@ -25,7 +25,7 @@ function DashboardSectionTitle({ children }: { children: React.ReactNode }) {
 
 function DashboardSkeleton() {
   return (
-    <div className="space-y-3" aria-label="Učitavanje dashboarda">
+    <div className="space-y-3" aria-label="Učitavanje kontrolne table">
       {Array.from({ length: 3 }).map((_, row) => (
         <div key={row} className="grid gap-3 lg:grid-cols-2">
           <Card className="h-60 p-4 shadow-sm">
@@ -48,7 +48,7 @@ export function DashboardOverview() {
       <div className="mb-4 flex flex-col justify-between gap-2 border-b pb-3 sm:flex-row sm:items-end">
         <div>
           <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
-            Dashboard
+            Kontrolna tabla
           </h1>
           <p className="text-muted-foreground mt-0.5 text-sm">
             Najvažniji podaci poslovanja na jednom mestu.
@@ -66,7 +66,7 @@ export function DashboardOverview() {
         <Card className="shadow-sm">
           <ErrorState
             error={query.error}
-            title="Dashboard nije učitan"
+            title="Kontrolna tabla nije učitana"
             retryLabel="Pokušaj ponovo"
             retryingLabel="Učitavanje…"
             onRetry={() => void query.refetch()}
@@ -80,16 +80,16 @@ export function DashboardOverview() {
           <div className="grid gap-3 lg:grid-cols-2">
             <DashboardFinanceCard
               title="Ukupno za naplatu"
-              description="Fakturisano kupcima, a još nije naplaćeno. Kliknite na naslov za sve stavke."
-              modalDescription="Sve fakture kupaca koje čekaju naplatu."
+              description="Otvorene fakture sabrane po kupcu. Kliknite na naslov za sve kupce."
+              modalDescription="Otvorena potraživanja sabrana po kupcu."
               data={query.data.receivables}
               icon={CircleDollarSign}
               tone="income"
             />
             <DashboardFinanceCard
               title="Dugovanja prema dobavljačima"
-              description="Računi koje firma još treba da plati. Kliknite na naslov za sve stavke."
-              modalDescription="Svi računi dobavljača koji čekaju plaćanje."
+              description="Otvoreni računi sabrani po dobavljaču. Kliknite na naslov za sve dobavljače."
+              modalDescription="Otvorena dugovanja sabrana po dobavljaču."
               data={query.data.payables}
               icon={Building2}
               tone="expense"

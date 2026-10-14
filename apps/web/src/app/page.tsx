@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { DashboardOverview } from '@/features/dashboard/components/dashboard-overview';
 
 export const metadata: Metadata = {
-  title: 'Dashboard',
+  title: 'Kontrolna tabla',
 };
 
 export default function HomePage() {

@@ -53,7 +53,7 @@ export function DashboardFuelCard({ mode, from, to, items }: DashboardFuelCardPr
               {isLowest ? 'Najmanja potrošnja vozila' : 'Najveća potrošnja vozila'}
             </CardTitle>
             <CardDescription className="text-xs">
-              Dizel · {formatDate(from)} – {formatDate(to)}
+              Sva dizel sipanja sabrana po vozilu · {formatDate(from)} – {formatDate(to)}
             </CardDescription>
           </div>
         </div>
@@ -96,6 +96,10 @@ export function DashboardFuelCard({ mode, from, to, items }: DashboardFuelCardPr
                   </span>
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">
                     {item.vehicleLabel}
+                    <span className="text-muted-foreground font-normal">
+                      {' '}
+                      · {item.fillUpCount} {item.fillUpCount === 1 ? 'sipanje' : 'sipanja'}
+                    </span>
                   </span>
                   <span className="shrink-0 text-sm font-semibold tabular-nums">
                     {consumption(item.avgConsumptionPer100Km)}
