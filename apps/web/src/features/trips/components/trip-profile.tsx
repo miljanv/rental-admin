@@ -8,7 +8,7 @@ import {
   tripVehicleDisplay,
   type TripDto,
 } from '@rental-admin/shared';
-import { FileText, Pencil, Trash2 } from 'lucide-react';
+import { FileText, Pencil, ReceiptText, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -19,8 +19,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useGenerateContractDocument } from '@/features/contract-documents/hooks/use-generate-contract-document';
-import { TripBillingDocumentsSection } from '@/features/trip-billing-documents/components/trip-billing-documents-section';
 import { DeleteTripDialog } from '@/features/trips/components/delete-trip-dialog';
+import { TripInvoiceSheet } from '@/features/trips/components/trip-invoice-sheet';
 import { TripSettlementSection } from '@/features/trips/components/trip-settlement-section';
 import { TripStatusBadge } from '@/features/trips/components/trip-status-badge';
 import { useTrip } from '@/features/trips/hooks/use-trip';
@@ -44,8 +44,9 @@ function DetailItem({ label, value }: DetailItemProps) {
   );
 }
 
-function TripOverview({ trip }: { trip: TripDto }) {
+function TripOverview({ trip, onInvoice }: { trip: TripDto; onInvoice: () => void }) {
   const generateContractDocument = useGenerateContractDocument(trip.contract?.id ?? '');
+  const billingDate = trip.paymentMethod === 'CASH' ? trip.cashRecordedAt : trip.invoicedAt;
 
   return (
     <div className="space-y-6">
@@ -153,21 +154,49 @@ function TripOverview({ trip }: { trip: TripDto }) {
       </Card>
 
       <Card className="shadow-none">
-        <CardHeader>
-          <CardTitle>Cena i plaćanje</CardTitle>
+        <CardHeader className="gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1.5">
+            <CardTitle>
+              {trip.paymentMethod === 'CASH' ? 'Keš evidencija' : 'Fakturisanje'}
+            </CardTitle>
+            <CardDescription>
+              {trip.paymentMethod === 'CASH'
+                ? 'Interna evidencija koja ne ulazi u zvanične finansije.'
+                : 'Cena i način plaćanja unose se kroz jedinstven tok fakturisanja.'}
+            </CardDescription>
+          </div>
+          <Button type="button" onClick={onInvoice}>
+            <ReceiptText className="size-4" aria-hidden />
+            {billingDate
+              ? trip.paymentMethod === 'CASH'
+                ? 'Izmeni keš vožnju'
+                : 'Izmeni fakturu'
+              : 'Fakturiši'}
+          </Button>
         </CardHeader>
-        <CardContent>
-          <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <DetailItem label="Cena" value={formatMoney(trip.price)} />
-            <DetailItem
-              label="Način plaćanja"
-              value={trip.paymentMethod ? PAYMENT_METHOD_LABELS[trip.paymentMethod] : '—'}
-            />
-          </dl>
-        </CardContent>
+        {billingDate ? (
+          <CardContent>
+            <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <DetailItem
+                label={trip.paymentMethod === 'CASH' ? 'Datum evidencije' : 'Datum fakture'}
+                value={formatDate(billingDate)}
+              />
+              <DetailItem
+                label="Ukupno"
+                value={formatMoney(
+                  trip.paymentMethod === 'CASH'
+                    ? (trip.cashAmount ?? trip.price)
+                    : (trip.invoiceGrossAmount ?? trip.price),
+                )}
+              />
+              <DetailItem
+                label="Način plaćanja"
+                value={trip.paymentMethod ? PAYMENT_METHOD_LABELS[trip.paymentMethod] : '—'}
+              />
+            </dl>
+          </CardContent>
+        ) : null}
       </Card>
-
-      <TripBillingDocumentsSection tripId={trip.id} />
 
       {trip.notes ? (
         <Card className="shadow-none">
@@ -202,6 +231,7 @@ function TripOverview({ trip }: { trip: TripDto }) {
 export function TripProfile({ tripId }: TripProfileProps) {
   const query = useTrip(tripId);
   const [tripToDelete, setTripToDelete] = useState<TripDto | null>(null);
+  const [invoiceTarget, setInvoiceTarget] = useState<TripDto | null>(null);
 
   if (query.isPending) {
     return (
@@ -253,9 +283,18 @@ export function TripProfile({ tripId }: TripProfileProps) {
       />
 
       <div className="space-y-6">
-        <TripOverview trip={trip} />
+        <TripOverview trip={trip} onInvoice={() => setInvoiceTarget(trip)} />
         <TripSettlementSection tripId={trip.id} />
       </div>
+
+      <TripInvoiceSheet
+        trip={invoiceTarget}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setInvoiceTarget(null);
+          }
+        }}
+      />
 
       <DeleteTripDialog
         trip={tripToDelete}

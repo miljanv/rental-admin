@@ -256,6 +256,7 @@ export const getTripSettlement = async (tripId: string): Promise<TripSettlementD
 
   return {
     tripId,
+    paymentMethod: trip.paymentMethod,
     paidAt: trip.paidAt,
     startKm: trip.startKm,
     endKm: trip.endKm,
@@ -277,7 +278,7 @@ export const updateTripSettlement = async (
   tripId: string,
   input: TripSettlementWriteRequest,
 ): Promise<TripSettlementDto> => {
-  await loadTrip(tripId);
+  const current = toTripDto(await loadTrip(tripId));
   await assertCarrierExists(input.carrierId);
 
   const drivers = input.drivers;
@@ -302,14 +303,16 @@ export const updateTripSettlement = async (
   }
 
   const distanceKm =
-    input.startKm != null && input.endKm != null
+    input.startKm !== null && input.endKm !== null
       ? Math.round((input.endKm - input.startKm) * 10) / 10
       : undefined;
 
   const record = await prisma.trip.update({
     where: { id: tripId },
     data: {
-      paidAt: input.paidAt ? parseDate(input.paidAt) : null,
+      ...(current.paymentMethod === 'CASH'
+        ? {}
+        : { paidAt: input.paidAt ? parseDate(input.paidAt) : null }),
       carrierId: input.carrierId,
       startKm: input.startKm,
       endKm: input.endKm,

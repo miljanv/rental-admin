@@ -1,5 +1,6 @@
 import type { AttachedFileDto } from './file';
 import type { TripDriverDto, TripPartnerDto } from './trip';
+import type { PaymentMethod } from './transaction';
 
 export const TRIP_EXPENSE_CATEGORIES = [
   'FUEL',
@@ -61,6 +62,7 @@ export interface TripExpenseCategoryTotal {
 
 export interface TripSettlementDto {
   tripId: string;
+  paymentMethod: PaymentMethod | null;
   paidAt: string | null;
   startKm: number | null;
   endKm: number | null;

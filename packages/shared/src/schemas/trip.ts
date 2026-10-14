@@ -1,7 +1,12 @@
 import { z } from 'zod';
 
 import { PAGINATION_DEFAULTS } from '../constants';
-import { MAX_TRIP_DRIVERS, MAX_TRIP_VEHICLES, TRIP_STATUSES } from '../types/trip';
+import {
+  CASH_TRIP_PAYMENT_STATUSES,
+  MAX_TRIP_DRIVERS,
+  MAX_TRIP_VEHICLES,
+  TRIP_STATUSES,
+} from '../types/trip';
 import { driverIdSchema, isoDateSchema } from './driver';
 import { SORT_ORDERS } from './file';
 import { optionalPaymentMethodSchema, paymentMethodSchema } from './transaction';
@@ -158,6 +163,7 @@ export const tripInvoiceWriteSchema = z
     /** Worker transport: both prices are per day, and every trip of this series in the departure month is one invoice. */
     billSeriesMonth: z.boolean().default(false),
     paymentMethod: paymentMethodSchema,
+    cashRecipient: optionalText(120),
   })
   .superRefine((value, ctx) => {
     if ((value.domesticPrice ?? 0) <= 0 && (value.foreignPrice ?? 0) <= 0) {
@@ -167,10 +173,65 @@ export const tripInvoiceWriteSchema = z
         message: 'Unesite cenu u zemlji ili cenu u inostranstvu.',
       });
     }
+
+    if (value.paymentMethod === 'CASH' && !value.cashRecipient) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['cashRecipient'],
+        message: 'Unesite osobu kod koje ide keš.',
+      });
+    }
+
+    if (value.paymentMethod === 'CASH' && value.billSeriesMonth) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['billSeriesMonth'],
+        message: 'Keš vožnje se evidentiraju pojedinačno, ne kao mesečna faktura.',
+      });
+    }
   });
 
 export type TripInvoiceWriteInput = z.input<typeof tripInvoiceWriteSchema>;
 export type TripInvoiceWriteRequest = z.output<typeof tripInvoiceWriteSchema>;
+
+export const cashTripLedgerQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(PAGINATION_DEFAULTS.page),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(PAGINATION_DEFAULTS.maxLimit)
+    .default(PAGINATION_DEFAULTS.limit),
+  search: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .transform((value) => (value ? value : undefined)),
+  status: z.enum(CASH_TRIP_PAYMENT_STATUSES).optional(),
+  from: isoDateSchema.optional(),
+  to: isoDateSchema.optional(),
+});
+
+export type CashTripLedgerQuery = z.output<typeof cashTripLedgerQuerySchema>;
+
+export const tripCashPaymentWriteSchema = z.object({
+  amount: z.coerce
+    .number()
+    .positive('Iznos mora biti veći od nule.')
+    .max(10_000_000, 'Iznos nije ispravan.'),
+  paidAt: isoDateSchema,
+  note: optionalText(500),
+});
+
+export type TripCashPaymentWriteInput = z.input<typeof tripCashPaymentWriteSchema>;
+export type TripCashPaymentWriteRequest = z.output<typeof tripCashPaymentWriteSchema>;
+
+export const tripCashPaymentParamsSchema = tripIdParamsSchema.extend({
+  paymentId: z.string().trim().min(1).max(64),
+});
+
+export type TripCashPaymentParams = z.infer<typeof tripCashPaymentParamsSchema>;
 
 export const TRIP_SORT_FIELDS = [
   'departureDate',

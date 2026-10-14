@@ -226,7 +226,11 @@ export const getBusinessAnalytics = async (
       },
     }),
     prisma.trip.findMany({
-      where: { invoicedAt: { gte: fromDate, lte: toDate }, invoiceGrossAmount: { not: null } },
+      where: {
+        invoicedAt: { gte: fromDate, lte: toDate },
+        invoiceGrossAmount: { not: null },
+        paymentMethod: 'ACCOUNT',
+      },
       select: {
         id: true,
         partnerId: true,
@@ -238,7 +242,7 @@ export const getBusinessAnalytics = async (
       },
     }),
     prisma.companyExpense.findMany({
-      where: { issuedAt: { gte: fromDate, lte: toDate } },
+      where: { issuedAt: { gte: fromDate, lte: toDate }, paymentMethod: 'ACCOUNT' },
       select: {
         id: true,
         supplier: true,
@@ -248,16 +252,21 @@ export const getBusinessAnalytics = async (
       },
     }),
     prisma.fuelLog.findMany({
-      where: { fueledAt: { gte: fromDate, lte: toDate }, cost: { not: null } },
+      where: {
+        fueledAt: { gte: fromDate, lte: toDate },
+        cost: { not: null },
+        paymentMethod: 'ACCOUNT',
+      },
       select: { supplier: true, supplierId: true, cost: true, vehicleId: true },
     }),
     prisma.vehicleMaintenance.findMany({
-      where: { date: { gte: fromDate, lte: toDate } },
+      where: { date: { gte: fromDate, lte: toDate }, paymentMethod: 'ACCOUNT' },
       select: { supplier: true, supplierId: true, cost: true, vehicleId: true },
     }),
     prisma.financeTransaction.findMany({
       where: {
         type: 'EXPENSE',
+        paymentMethod: 'ACCOUNT',
         occurredAt: { gte: fromDate, lte: toDate },
         sourceType: {
           in: [
@@ -281,6 +290,7 @@ export const getBusinessAnalytics = async (
     prisma.financeTransaction.findMany({
       where: {
         type: 'INCOME',
+        paymentMethod: 'ACCOUNT',
         occurredAt: { gte: fromDate, lte: toDate },
         sourceType: { in: ['MANUAL', 'BANK_STATEMENT'] },
       },

@@ -15,4 +15,10 @@ describe('tripBillingStatus', () => {
     expect(tripBillingStatus({ invoicedAt: '2026-09-26', paidAt: '2026-09-28' })).toBe('PAID');
     expect(tripBillingStatus({ invoicedAt: null, paidAt: '2026-09-28' })).toBe('PAID');
   });
+
+  it('treats an internally recorded cash trip as ready for collection', () => {
+    expect(
+      tripBillingStatus({ invoicedAt: null, cashRecordedAt: '2026-10-14', paidAt: null }),
+    ).toBe('INVOICED');
+  });
 });

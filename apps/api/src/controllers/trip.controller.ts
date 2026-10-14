@@ -1,5 +1,8 @@
 import type {
+  CashTripLedgerQuery,
   ListTripsQuery,
+  TripCashPaymentParams,
+  TripCashPaymentWriteRequest,
   TripIdParams,
   TripInvoiceWriteRequest,
   TripStatsQueryRequest,
@@ -23,6 +26,28 @@ export const getTripStats = async (req: Request, res: Response): Promise<void> =
   const stats = await tripService.getTripStats(query);
 
   sendSuccess(res, stats);
+};
+
+export const listCashTripLedger = async (req: Request, res: Response): Promise<void> => {
+  const query = validated<CashTripLedgerQuery>(req, 'query');
+  const result = await tripService.listCashTripLedger(query);
+
+  sendSuccess(res, result);
+};
+
+export const createTripCashPayment = async (req: Request, res: Response): Promise<void> => {
+  const { id } = validated<TripIdParams>(req, 'params');
+  const body = validated<TripCashPaymentWriteRequest>(req, 'body');
+  const payment = await tripService.createTripCashPayment(id, body);
+
+  sendSuccess(res, payment, 201);
+};
+
+export const deleteTripCashPayment = async (req: Request, res: Response): Promise<void> => {
+  const { id, paymentId } = validated<TripCashPaymentParams>(req, 'params');
+  const result = await tripService.deleteTripCashPayment(id, paymentId);
+
+  sendSuccess(res, result);
 };
 
 export const getTrip = async (req: Request, res: Response): Promise<void> => {

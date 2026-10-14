@@ -840,6 +840,7 @@ const loadStatementAllocationTargets = async (
           { supplierId: null, supplier: { equals: supplier.name, mode: 'insensitive' } },
         ],
         paidAt: null,
+        paymentMethod: 'ACCOUNT',
         issuedAt: { lte: input.occurredAt },
       },
     });
@@ -874,6 +875,7 @@ const loadStatementAllocationTargets = async (
           })),
         ],
         invoicedAt: { not: null, lte: input.occurredAt },
+        paymentMethod: 'ACCOUNT',
       },
     });
     const groups = new Map<string, typeof trips>();
@@ -1473,6 +1475,7 @@ const listCompanyExpenseSettlementTargets = async (
   const records = await prisma.companyExpense.findMany({
     where: {
       paidAt: null,
+      paymentMethod: 'ACCOUNT',
       ...(preferred?.id
         ? {
             AND: [
@@ -1588,6 +1591,7 @@ const listTripInvoiceSettlementTargets = async (
     where: {
       invoicedAt: { not: null },
       paidAt: null,
+      paymentMethod: 'ACCOUNT',
       ...(preferred?.id
         ? {
             AND: [
@@ -1760,6 +1764,10 @@ const getSettlementTarget = async (
       throw notFound('Račun dobavljača nije pronađen.');
     }
 
+    if (record.paymentMethod !== 'ACCOUNT') {
+      throw conflict('Keš trošak se ne rasknjižava kroz zvanične finansije.');
+    }
+
     if (record.paidAt && allocatedAmount <= MONEY_EPSILON)
       throw conflict('Račun je već označen kao plaćen.');
 
@@ -1791,6 +1799,10 @@ const getSettlementTarget = async (
       throw notFound('Faktura vožnje nije pronađena.');
     }
 
+    if (record.paymentMethod !== 'ACCOUNT') {
+      throw conflict('Keš vožnja se naplaćuje samo kroz keš evidenciju.');
+    }
+
     if (record.invoiceGroupId) throw conflict('Koristite mesečnu fakturu serije.');
     if (record.paidAt && allocatedAmount <= MONEY_EPSILON)
       throw conflict('Faktura je već označena kao plaćena.');
@@ -1811,7 +1823,7 @@ const getSettlementTarget = async (
   }
 
   const rows = await tx.trip.findMany({
-    where: { invoiceGroupId: targetId, invoicedAt: { not: null } },
+    where: { invoiceGroupId: targetId, invoicedAt: { not: null }, paymentMethod: 'ACCOUNT' },
     include: {
       partner: { select: { type: true, companyName: true, firstName: true, lastName: true } },
     },
@@ -1918,7 +1930,11 @@ export const createPaymentAllocation = async (
     }
 
     if (transaction.sourceType !== 'MANUAL' && transaction.sourceType !== 'BANK_STATEMENT') {
-      throw conflict('Rasknjižavanje je dozvoljeno samo za ručne, keš i stavke izvoda.');
+      throw conflict('Rasknjižavanje je dozvoljeno samo za ručne transakcije i stavke izvoda.');
+    }
+
+    if (transaction.paymentMethod !== 'ACCOUNT') {
+      throw conflict('Keš transakcije se vode samo u odvojenoj keš evidenciji.');
     }
 
     if (!targetTypeForTransactionType(transaction.type).includes(input.targetType)) {
@@ -1948,6 +1964,8 @@ export const createPaymentAllocation = async (
       });
       const first = trips[0];
       if (!first) throw notFound('Faktura nije pronađena.');
+      if (trips.some((trip) => trip.paymentMethod !== 'ACCOUNT'))
+        throw conflict('Keš vožnja se naplaćuje samo kroz keš evidenciju.');
       if (trips.some((trip) => trip.partnerId !== first.partnerId))
         throw conflict('Faktura sadrži različite kupce.');
       const partner = first.partner ?? (await findPartnerByStatementName(first.clientName));
@@ -2272,13 +2290,14 @@ export const getVatReport = async (query: FinanceReportQueryRequest): Promise<Va
   const to = query.to ?? defaults.to;
   const [expenses, trips] = await Promise.all([
     prisma.companyExpense.findMany({
-      where: { issuedAt: { gte: parseDate(from), lte: parseDate(to) } },
+      where: { issuedAt: { gte: parseDate(from), lte: parseDate(to) }, paymentMethod: 'ACCOUNT' },
       select: { issuedAt: true, vatAmount: true },
     }),
     prisma.trip.findMany({
       where: {
         invoicedAt: { gte: parseDate(from), lte: parseDate(to) },
         invoiceVatAmount: { not: null },
+        paymentMethod: 'ACCOUNT',
       },
       select: { invoicedAt: true, invoiceVatAmount: true },
     }),

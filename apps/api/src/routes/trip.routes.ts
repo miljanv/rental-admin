@@ -13,7 +13,10 @@ import {
   tripSeriesIdParamsSchema,
 } from '../schemas/trip-series.schema';
 import {
+  cashTripLedgerQuerySchema,
   listTripsQuerySchema,
+  tripCashPaymentParamsSchema,
+  tripCashPaymentWriteSchema,
   tripExpenseParamsSchema,
   tripExpenseWriteSchema,
   tripIdParamsSchema,
@@ -32,7 +35,11 @@ tripRouter.get(
   asyncHandler(tripController.listTrips),
 );
 
-tripRouter.post('/', validateRequest({ body: tripWriteSchema }), asyncHandler(tripController.createTrip));
+tripRouter.post(
+  '/',
+  validateRequest({ body: tripWriteSchema }),
+  asyncHandler(tripController.createTrip),
+);
 
 // Static/collection routes MUST be declared before the `/:id` routes to avoid
 // "stats"/"series" being captured as an :id param.
@@ -40,6 +47,12 @@ tripRouter.get(
   '/stats',
   validateRequest({ query: tripStatsQuerySchema }),
   asyncHandler(tripController.getTripStats),
+);
+
+tripRouter.get(
+  '/cash-ledger',
+  validateRequest({ query: cashTripLedgerQuerySchema }),
+  asyncHandler(tripController.listCashTripLedger),
 );
 
 tripRouter.post(
@@ -82,6 +95,18 @@ tripRouter.patch(
   '/:id/invoice',
   validateRequest({ params: tripIdParamsSchema, body: tripInvoiceWriteSchema }),
   asyncHandler(tripController.invoiceTrip),
+);
+
+tripRouter.post(
+  '/:id/cash-payments',
+  validateRequest({ params: tripIdParamsSchema, body: tripCashPaymentWriteSchema }),
+  asyncHandler(tripController.createTripCashPayment),
+);
+
+tripRouter.delete(
+  '/:id/cash-payments/:paymentId',
+  validateRequest({ params: tripCashPaymentParamsSchema }),
+  asyncHandler(tripController.deleteTripCashPayment),
 );
 
 tripRouter.patch(

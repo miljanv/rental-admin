@@ -32,6 +32,7 @@ import { FinanceExportMenu } from '@/features/transactions/components/finance-ex
 import { FinanceOverview } from '@/features/transactions/components/finance-overview';
 import { BankStatementEntryForm } from '@/features/transactions/components/bank-statement-entry-form';
 import { BankStatementImportCard } from '@/features/transactions/components/bank-statement-import-card';
+import { CashTripsLedger } from '@/features/transactions/components/cash-trips-ledger';
 import { PaymentAllocationPanel } from '@/features/transactions/components/payment-allocation-panel';
 import { SettleAdvancesDialog } from '@/features/transactions/components/settle-advances-dialog';
 import { TransactionForm } from '@/features/transactions/components/transaction-form';
@@ -49,7 +50,7 @@ const FINANCE_TABS = [
   { id: 'ledger', label: 'Transakcije' },
   { id: 'statements', label: 'Izvodi' },
   { id: 'unallocated', label: 'Neraspoređene uplate' },
-  { id: 'cash', label: 'Keš' },
+  { id: 'cash', label: 'Keš vožnje' },
 ] as const;
 
 type FinanceTabId = (typeof FINANCE_TABS)[number]['id'];
@@ -83,7 +84,8 @@ export function FinanceManager() {
   const category = categoryFilter === ALL ? undefined : categoryFilter;
   const sourceType =
     activeTab === 'statements' || activeTab === 'unallocated' ? 'BANK_STATEMENT' : undefined;
-  const paymentMethod = activeTab === 'cash' ? 'CASH' : undefined;
+  const paymentMethod =
+    activeTab === 'cash' ? 'CASH' : activeTab === 'ledger' ? 'ACCOUNT' : undefined;
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -288,6 +290,12 @@ export function FinanceManager() {
 
       {activeTab !== 'overview' ? (
         <>
+          {activeTab === 'cash' ? (
+            <div className="mb-6">
+              <CashTripsLedger />
+            </div>
+          ) : null}
+
           {transactionToAllocate ? (
             <PaymentAllocationPanel
               key={transactionToAllocate.id}
@@ -347,7 +355,7 @@ export function FinanceManager() {
                   : activeTab === 'statements'
                     ? 'Bankarski izvodi'
                     : activeTab === 'cash'
-                      ? 'Keš evidencija'
+                      ? 'Ostale keš transakcije'
                       : 'Sve transakcije'}
               </CardTitle>
               <CardDescription>

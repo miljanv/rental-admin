@@ -41,4 +41,33 @@ describe('tripInvoiceWriteSchema', () => {
       }).success,
     ).toBe(false);
   });
+
+  it('requires a cash recipient and keeps cash trips out of monthly series billing', () => {
+    expect(
+      tripInvoiceWriteSchema.safeParse({
+        domesticPrice: 25_000,
+        paymentMethod: 'CASH',
+        invoicedAt: '2026-09-26',
+      }).success,
+    ).toBe(false);
+
+    expect(
+      tripInvoiceWriteSchema.safeParse({
+        domesticPrice: 25_000,
+        paymentMethod: 'CASH',
+        cashRecipient: 'Marko Marković',
+        invoicedAt: '2026-09-26',
+        billSeriesMonth: true,
+      }).success,
+    ).toBe(false);
+
+    expect(
+      tripInvoiceWriteSchema.safeParse({
+        domesticPrice: 25_000,
+        paymentMethod: 'CASH',
+        cashRecipient: 'Marko Marković',
+        invoicedAt: '2026-09-26',
+      }).success,
+    ).toBe(true);
+  });
 });

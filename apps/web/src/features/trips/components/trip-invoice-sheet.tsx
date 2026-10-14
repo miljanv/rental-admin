@@ -14,7 +14,7 @@ import {
   type TripInvoiceWriteInput,
   type TripInvoiceWriteRequest,
 } from '@rental-admin/shared';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 
 import { DateField } from '@/components/common/date-field';
@@ -73,38 +73,43 @@ const enteredDomestic = (trip: TripDto): number | '' => {
     return trip.price ?? '';
   }
 
-  return trip.priceIncludesVat ? (trip.invoiceGrossAmount ?? trip.price ?? '') : (trip.invoiceNetAmount ?? '');
+  return trip.priceIncludesVat
+    ? (trip.invoiceGrossAmount ?? trip.price ?? '')
+    : (trip.invoiceNetAmount ?? '');
 };
 
 const invoiceFormValues = (trip: TripDto | null): TripInvoiceWriteInput => ({
   referenceNumber: trip?.referenceNumber ?? '',
-  invoicedAt: trip?.invoicedAt ?? localTodayIso(),
-  description: trip?.invoiceDescription ?? '',
+  invoicedAt:
+    (trip?.paymentMethod === 'CASH' ? trip.cashRecordedAt : trip?.invoicedAt) ?? localTodayIso(),
+  description:
+    (trip?.paymentMethod === 'CASH' ? trip.cashDescription : trip?.invoiceDescription) ?? '',
   domesticPrice: trip ? enteredDomestic(trip) : '',
   foreignPrice: trip?.invoiceForeignAmount ?? '',
   priceIncludesVat: trip?.priceIncludesVat ?? false,
-  billSeriesMonth: Boolean(trip?.seriesId),
+  billSeriesMonth: Boolean(trip?.seriesId && trip.paymentMethod !== 'CASH'),
   paymentMethod: trip?.paymentMethod ?? 'ACCOUNT',
+  cashRecipient: trip?.cashRecipient ?? '',
 });
 
 export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) {
   const invoiceMutation = useInvoiceTrip(trip?.id ?? '');
   const month = trip ? invoiceMonthBounds(trip.departureDate) : null;
-  const tripRef = useRef(trip);
-  tripRef.current = trip;
   const form = useForm<TripInvoiceWriteInput, unknown, TripInvoiceWriteRequest>({
     resolver: zodResolver(tripInvoiceWriteSchema),
     defaultValues: invoiceFormValues(trip),
   });
 
   useEffect(() => {
-    form.reset(invoiceFormValues(tripRef.current));
-  }, [form, trip?.id]);
+    form.reset(invoiceFormValues(trip));
+  }, [form, trip]);
 
   const billSeriesMonth = useWatch({ control: form.control, name: 'billSeriesMonth' });
   const priceIncludesVat = useWatch({ control: form.control, name: 'priceIncludesVat' });
   const domesticPrice = useWatch({ control: form.control, name: 'domesticPrice' });
   const foreignPrice = useWatch({ control: form.control, name: 'foreignPrice' });
+  const paymentMethod = useWatch({ control: form.control, name: 'paymentMethod' });
+  const isCash = paymentMethod === 'CASH';
   const seriesQuery = useTrips(
     {
       page: 1,
@@ -115,11 +120,12 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
       from: month?.from,
       to: month?.to,
     },
-    Boolean(trip?.seriesId) && Boolean(billSeriesMonth),
+    Boolean(trip?.seriesId) && Boolean(billSeriesMonth) && !isCash,
   );
   const seriesDays =
-    seriesQuery.data?.trips.filter((row) => row.status !== 'CANCELLED' && row.status !== 'FREE' && !row.paidAt)
-      .length ?? 0;
+    seriesQuery.data?.trips.filter(
+      (row) => row.status !== 'CANCELLED' && row.status !== 'FREE' && !row.paidAt,
+    ).length ?? 0;
   const dayCount = billSeriesMonth ? seriesDays : 1;
   const typedDomestic = typeof domesticPrice === 'number' ? domesticPrice : 0;
   const typedForeign = typeof foreignPrice === 'number' ? foreignPrice : 0;
@@ -128,7 +134,7 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
     (Number.isFinite(typedForeign) && typedForeign > 0)
       ? computeSplitTransportFare({
           domesticAmount: Number.isFinite(typedDomestic) ? typedDomestic : 0,
-          domesticIncludesVat: Boolean(priceIncludesVat),
+          domesticIncludesVat: isCash ? false : Boolean(priceIncludesVat),
           foreignAmount: Number.isFinite(typedForeign) ? typedForeign : 0,
         })
       : null;
@@ -148,18 +154,32 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
     <Sheet open={trip != null} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto data-[side=right]:sm:max-w-3xl">
         <SheetHeader>
-          <SheetTitle>Fakturisanje</SheetTitle>
+          <SheetTitle>{isCash ? 'Evidencija keš vožnje' : 'Fakturisanje'}</SheetTitle>
           <SheetDescription>
-            {trip ? tripRouteLabel(trip) : 'Vožnja'}. PDV {TRANSPORT_VAT_RATE}% ide samo na cenu u
-            zemlji. Cena u inostranstvu je uvek bez PDV-a. Ukupno je zbir ta dva.
+            {trip ? tripRouteLabel(trip) : 'Vožnja'}.{' '}
+            {isCash
+              ? 'Keš vožnja se vodi samo u internoj keš evidenciji i ne ulazi u zvanične finansije.'
+              : `PDV ${TRANSPORT_VAT_RATE}% ide samo na cenu u zemlji. Cena u inostranstvu je uvek bez PDV-a. Ukupno je zbir ta dva.`}
           </SheetDescription>
         </SheetHeader>
 
         <form onSubmit={onSubmit} noValidate className="flex flex-1 flex-col gap-4 px-4 pb-4">
-          <Field id="invoice-reference" label="RN broj (opciono)" error={errors.referenceNumber?.message}>
-            <Input id="invoice-reference" disabled={invoiceMutation.isPending} {...form.register('referenceNumber')} />
+          <Field
+            id="invoice-reference"
+            label="RN broj (opciono)"
+            error={errors.referenceNumber?.message}
+          >
+            <Input
+              id="invoice-reference"
+              disabled={invoiceMutation.isPending}
+              {...form.register('referenceNumber')}
+            />
           </Field>
-          <Field id="invoice-date" label="Datum fakture" error={errors.invoicedAt?.message}>
+          <Field
+            id="invoice-date"
+            label={isCash ? 'Datum evidencije' : 'Datum fakture'}
+            error={errors.invoicedAt?.message}
+          >
             <Controller
               control={form.control}
               name="invoicedAt"
@@ -173,11 +193,7 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
               )}
             />
           </Field>
-          <Field
-            id="invoice-description"
-            label="Napomena"
-            error={errors.description?.message}
-          >
+          <Field id="invoice-description" label="Napomena" error={errors.description?.message}>
             <Textarea
               id="invoice-description"
               rows={3}
@@ -187,7 +203,7 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
             />
           </Field>
 
-          {trip?.seriesId ? (
+          {trip?.seriesId && !isCash ? (
             <Controller
               control={form.control}
               name="billSeriesMonth"
@@ -200,8 +216,8 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
                   />
                   <span>
                     Prevoz radnika: fakturiši ceo mesec
-                    {month ? ` (${formatMonthYear(month.year, month.month)})` : ''}. Obe cene su iznos
-                    po danu.
+                    {month ? ` (${formatMonthYear(month.year, month.month)})` : ''}. Obe cene su
+                    iznos po danu.
                   </span>
                 </label>
               )}
@@ -223,33 +239,39 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
                 aria-invalid={Boolean(errors.domesticPrice)}
                 {...form.register('domesticPrice', { valueAsNumber: true })}
               />
-              <Controller
-                control={form.control}
-                name="priceIncludesVat"
-                render={({ field }) => (
-                  <div className="grid grid-cols-1 gap-1">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={field.value ? 'outline' : 'default'}
-                      className="h-7 w-full shrink px-1 text-xs"
-                      onClick={() => field.onChange(false)}
-                    >
-                      Bez PDV-a
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={field.value ? 'default' : 'outline'}
-                      className="h-7 w-full shrink px-1 text-xs"
-                      onClick={() => field.onChange(true)}
-                    >
-                      Sa PDV-om
-                    </Button>
-                  </div>
-                )}
-              />
-              {unitFare ? (
+              {isCash ? (
+                <p className="text-muted-foreground text-xs leading-tight">
+                  Interna evidencija, bez obračuna PDV-a
+                </p>
+              ) : (
+                <Controller
+                  control={form.control}
+                  name="priceIncludesVat"
+                  render={({ field }) => (
+                    <div className="grid grid-cols-1 gap-1">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={field.value ? 'outline' : 'default'}
+                        className="h-7 w-full shrink px-1 text-xs"
+                        onClick={() => field.onChange(false)}
+                      >
+                        Bez PDV-a
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={field.value ? 'default' : 'outline'}
+                        className="h-7 w-full shrink px-1 text-xs"
+                        onClick={() => field.onChange(true)}
+                      >
+                        Sa PDV-om
+                      </Button>
+                    </div>
+                  )}
+                />
+              )}
+              {unitFare && !isCash ? (
                 <p className="text-muted-foreground text-xs leading-tight">
                   Sa PDV-om: {formatMoney(unitFare.domesticGross)}
                 </p>
@@ -296,10 +318,10 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
             </div>
           </div>
 
-          {unitFare ? (
+          {unitFare && !isCash ? (
             <p className="text-muted-foreground text-xs">
-              PDV {TRANSPORT_VAT_RATE}% na zemlju: {formatMoney(unitFare.vatAmount)}. Ukupno je zemlja
-              sa PDV-om ({formatMoney(unitFare.domesticGross)}) + inostranstvo (
+              PDV {TRANSPORT_VAT_RATE}% na zemlju: {formatMoney(unitFare.vatAmount)}. Ukupno je
+              zemlja sa PDV-om ({formatMoney(unitFare.domesticGross)}) + inostranstvo (
               {formatMoney(unitFare.foreignNet)}).
               {billSeriesMonth && preview && dayCount > 1
                 ? ` Za ${dayCount} dana: ${formatMoney(preview.grossAmount)}.`
@@ -311,8 +333,22 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
             control={form.control}
             name="paymentMethod"
             render={({ field }) => (
-              <Field id="invoice-payment" label="Način plaćanja" error={errors.paymentMethod?.message}>
-                <Select value={field.value} onValueChange={field.onChange} disabled={invoiceMutation.isPending}>
+              <Field
+                id="invoice-payment"
+                label="Način plaćanja"
+                error={errors.paymentMethod?.message}
+              >
+                <Select
+                  value={field.value}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    if (value === 'CASH') {
+                      form.setValue('billSeriesMonth', false);
+                      form.setValue('priceIncludesVat', false);
+                    }
+                  }}
+                  disabled={invoiceMutation.isPending}
+                >
                   <SelectTrigger id="invoice-payment" className="w-full">
                     <SelectValue placeholder="Izaberite način" />
                   </SelectTrigger>
@@ -328,18 +364,38 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
             )}
           />
 
+          {isCash ? (
+            <Field
+              id="invoice-cash-recipient"
+              label="Keš ide kod osobe"
+              error={errors.cashRecipient?.message}
+            >
+              <Input
+                id="invoice-cash-recipient"
+                placeholder="Ime i prezime osobe"
+                disabled={invoiceMutation.isPending}
+                {...form.register('cashRecipient')}
+              />
+            </Field>
+          ) : null}
+
           {billSeriesMonth && seriesQuery.isPending ? (
             <p className="text-muted-foreground text-sm">Brojanje vožnji u mesecu…</p>
           ) : null}
           {billSeriesMonth && !seriesQuery.isPending ? (
             <p className="text-muted-foreground text-xs">
-              U finansijama je jedan račun za ceo mesec. Na rasporedu svaki dan pokazuje iznos tog dana.
+              U finansijama je jedan račun za ceo mesec. Na rasporedu svaki dan pokazuje iznos tog
+              dana.
             </p>
           ) : null}
 
           <SheetFooter className="px-0">
             <Button type="submit" disabled={invoiceMutation.isPending || !trip}>
-              {invoiceMutation.isPending ? 'Čuvanje…' : 'Evidentiraj fakturu'}
+              {invoiceMutation.isPending
+                ? 'Čuvanje…'
+                : isCash
+                  ? 'Evidentiraj keš vožnju'
+                  : 'Evidentiraj fakturu'}
             </Button>
           </SheetFooter>
         </form>

@@ -114,13 +114,14 @@ export const buildTripStats = (rows: TripStatsRow[], from: string, to: string): 
     statusCounts.set(row.status, (statusCounts.get(row.status) ?? 0) + 1);
 
     const isCancelled = row.status === 'CANCELLED';
-    const revenue = !isCancelled && row.price ? row.price : 0;
+    const isOfficialRevenue = row.paymentMethod !== 'CASH';
+    const revenue = !isCancelled && isOfficialRevenue && row.price ? row.price : 0;
     const distance = row.distanceKm ?? 0;
 
     totalDistanceKm += distance;
     totalRevenue += revenue;
 
-    if (row.paymentMethod && !isCancelled) {
+    if (row.paymentMethod === 'ACCOUNT' && !isCancelled) {
       const bucket = paymentTotals.get(row.paymentMethod) ?? { count: 0, revenue: 0 };
       bucket.count += 1;
       bucket.revenue += revenue;

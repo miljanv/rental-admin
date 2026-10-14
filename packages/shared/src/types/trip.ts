@@ -1,5 +1,6 @@
 import type { PartnerType } from './partner';
 import type { PaymentMethod } from './transaction';
+import type { PaginationMeta } from './api';
 
 export const TRIP_STATUSES = ['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'FREE'] as const;
 
@@ -27,12 +28,13 @@ export const TRIP_BILLING_STATUS_LABELS: Record<TripBillingStatus, string> = {
 export const tripBillingStatus = (trip: {
   invoicedAt: string | null;
   paidAt: string | null;
+  cashRecordedAt?: string | null;
 }): TripBillingStatus => {
   if (trip.paidAt) {
     return 'PAID';
   }
 
-  if (trip.invoicedAt) {
+  if (trip.invoicedAt || trip.cashRecordedAt) {
     return 'INVOICED';
   }
 
@@ -161,10 +163,16 @@ export interface TripDto {
   invoiceTotalKm: number | null;
   invoiceNetAmount: number | null;
   invoiceVatAmount: number | null;
-  /** What the customer owes for this row. Bank statement entries settle the payment later. */
+  /** What the customer owes for this row. Account and cash collections are settled separately. */
   invoiceGrossAmount: number | null;
   /** Set when this day belongs to one monthly series invoice. */
   invoiceGroupId: string | null;
+  /** Person who receives/holds cash for this internal cash trip. */
+  cashRecipient: string | null;
+  /** Date and amount recorded only in the internal cash ledger. */
+  cashRecordedAt: string | null;
+  cashAmount: number | null;
+  cashDescription: string | null;
   paymentMethod: PaymentMethod | null;
   status: TripStatus;
   contractId: string | null;
@@ -177,6 +185,54 @@ export interface TripDto {
   drivers: TripDriverDto[];
   createdAt: string;
   updatedAt: string;
+}
+
+export const CASH_TRIP_PAYMENT_STATUSES = ['UNPAID', 'PARTIAL', 'PAID'] as const;
+
+export type CashTripPaymentStatus = (typeof CASH_TRIP_PAYMENT_STATUSES)[number];
+
+export const CASH_TRIP_PAYMENT_STATUS_LABELS: Record<CashTripPaymentStatus, string> = {
+  UNPAID: 'Nije naplaćeno',
+  PARTIAL: 'Delimično naplaćeno',
+  PAID: 'Naplaćeno',
+};
+
+export interface TripCashPaymentDto {
+  id: string;
+  tripId: string;
+  amount: number;
+  paidAt: string;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CashTripLedgerRowDto {
+  tripId: string;
+  referenceNumber: string | null;
+  departureDate: string;
+  recordedAt: string;
+  route: string;
+  customer: string;
+  cashRecipient: string | null;
+  totalAmount: number;
+  collectedAmount: number;
+  remainingAmount: number;
+  status: CashTripPaymentStatus;
+  payments: TripCashPaymentDto[];
+}
+
+export interface CashTripLedgerSummaryDto {
+  tripCount: number;
+  totalCharged: number;
+  totalCollected: number;
+  totalRemaining: number;
+}
+
+export interface CashTripLedgerDto {
+  summary: CashTripLedgerSummaryDto;
+  items: CashTripLedgerRowDto[];
+  pagination: PaginationMeta;
 }
 
 export interface DeleteTripResult {

@@ -74,6 +74,7 @@ const expense = {
   invoiceNumber: '123/26',
   issuedAt: new Date('2026-10-01'),
   paidAt: null,
+  paymentMethod: 'ACCOUNT',
 };
 const trip = {
   id: 'trip-1',
@@ -90,6 +91,7 @@ const trip = {
   origin: 'A',
   destination: 'B',
   invoiceDescription: null,
+  paymentMethod: 'ACCOUNT',
 };
 let rows: FinanceTransactionRecord[];
 let allocations: Array<{

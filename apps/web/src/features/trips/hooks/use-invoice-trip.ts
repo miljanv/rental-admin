@@ -13,15 +13,27 @@ export const useInvoiceTrip = (tripId: string) => {
 
   return useMutation({
     mutationFn: (body: TripInvoiceWriteRequest) => invoiceTrip(tripId, body),
-    onSuccess: async () => {
-      toast.success('Faktura je evidentirana.');
+    onSuccess: async (_trip, variables) => {
+      toast.success(
+        variables.paymentMethod === 'CASH'
+          ? 'Keš vožnja je evidentirana.'
+          : 'Faktura je evidentirana.',
+      );
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.trips.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.partners.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all }),
       ]);
     },
-    onError: (error) => {
-      toast.error('Faktura nije sačuvana.', { description: getApiErrorMessage(error) });
+    onError: (error, variables) => {
+      toast.error(
+        variables.paymentMethod === 'CASH' ? 'Keš vožnja nije sačuvana.' : 'Faktura nije sačuvana.',
+        {
+          description: getApiErrorMessage(error),
+        },
+      );
     },
   });
 };

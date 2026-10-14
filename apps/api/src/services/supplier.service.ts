@@ -215,7 +215,7 @@ export const getSupplierLedger = async (
 
   const [companyExpenses, fuelLogs, maintenanceRecords, payments] = await Promise.all([
     prisma.companyExpense.findMany({
-      where: matchWhere,
+      where: { ...matchWhere, paymentMethod: 'ACCOUNT' },
       select: {
         id: true,
         issuedAt: true,
@@ -225,7 +225,7 @@ export const getSupplierLedger = async (
       },
     }),
     prisma.fuelLog.findMany({
-      where: { ...matchWhere, cost: { not: null } },
+      where: { ...matchWhere, cost: { not: null }, paymentMethod: 'ACCOUNT' },
       select: {
         id: true,
         fueledAt: true,
@@ -236,7 +236,7 @@ export const getSupplierLedger = async (
       },
     }),
     prisma.vehicleMaintenance.findMany({
-      where: matchWhere,
+      where: { ...matchWhere, paymentMethod: 'ACCOUNT' },
       select: {
         id: true,
         date: true,

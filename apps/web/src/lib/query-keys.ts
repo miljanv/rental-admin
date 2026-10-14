@@ -2,6 +2,7 @@ import type {
   ContractSortField,
   CompanyExpenseSortField,
   CompanyExpenseScope,
+  CashTripPaymentStatus,
   ContractStatus,
   DriverSortField,
   DriverStatus,
@@ -66,6 +67,15 @@ export interface FuelLogListQueryParams {
 
 export interface FuelConsumptionQueryParams {
   vehicleId: string;
+  from?: string;
+  to?: string;
+}
+
+export interface CashTripLedgerQueryParams {
+  page: number;
+  limit: number;
+  search?: string;
+  status?: CashTripPaymentStatus;
   from?: string;
   to?: string;
 }
@@ -304,6 +314,7 @@ export const queryKeys = {
     list: (params: TripListQueryParams) => ['trips', 'list', params] as const,
     detail: (id: string) => ['trips', 'detail', id] as const,
     stats: (params?: TripStatsParams) => ['trips', 'stats', params] as const,
+    cashLedger: (params: CashTripLedgerQueryParams) => ['trips', 'cash-ledger', params] as const,
     series: (id: string) => ['trips', 'series', id] as const,
     settlement: (id: string) => ['trips', 'settlement', id] as const,
     billingDocuments: (id: string) => ['trips', id, 'billing-documents'] as const,

@@ -197,6 +197,7 @@ export const getPartnerLedger = async (
         not: null,
         ...(toDate ? { lte: toDate } : {}),
       },
+      paymentMethod: 'ACCOUNT',
       OR: [{ partnerId: id }, ...legacyClientMatches],
     },
     select: {

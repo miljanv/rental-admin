@@ -150,6 +150,12 @@ function TripRow({
   onSettle: (trip: TripDto) => void;
 }) {
   const billingStatus = tripBillingStatus(trip);
+  const billingLabel =
+    trip.paymentMethod === 'CASH' && trip.cashRecordedAt
+      ? billingStatus === 'PAID'
+        ? 'Naplaćeno'
+        : 'Za naplatu'
+      : TRIP_BILLING_STATUS_LABELS[billingStatus];
 
   return (
     <TableRow className="group">
@@ -220,10 +226,10 @@ function TripRow({
           type="button"
           size="sm"
           className={cn('h-7 border-transparent', BILLING_STATUS_CLASS[billingStatus])}
-          aria-label={`Obračun, ${TRIP_BILLING_STATUS_LABELS[billingStatus]}`}
+          aria-label={`Obračun, ${billingLabel}`}
           onClick={() => onSettle(trip)}
         >
-          {TRIP_BILLING_STATUS_LABELS[billingStatus]}
+          {billingLabel}
         </Button>
       </TableCell>
       <TableCell className="sticky right-0 z-10 bg-background text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.35)] group-hover:bg-muted/50">

@@ -1,6 +1,7 @@
 import type {
   ApiPaginatedResponse,
   ApiResponse,
+  CashTripLedgerDto,
   DeleteTripExpenseResult,
   DeleteTripResult,
   PaginationMeta,
@@ -8,6 +9,8 @@ import type {
   TripExpenseDto,
   TripExpenseWriteRequest,
   TripInvoiceWriteRequest,
+  TripCashPaymentDto,
+  TripCashPaymentWriteRequest,
   TripSettlementDto,
   TripSettlementWriteRequest,
   TripStatsDto,
@@ -15,7 +18,11 @@ import type {
 } from '@rental-admin/shared';
 
 import { apiClient, unwrap } from '@/lib/api-client';
-import type { TripListQueryParams, TripStatsParams } from '@/lib/query-keys';
+import type {
+  CashTripLedgerQueryParams,
+  TripListQueryParams,
+  TripStatsParams,
+} from '@/lib/query-keys';
 
 export interface TripListPage {
   trips: TripDto[];
@@ -59,7 +66,10 @@ export const fetchTripStats = async (
   params: TripStatsParams,
   signal?: AbortSignal,
 ): Promise<TripStatsDto> => {
-  const response = await apiClient.get<ApiResponse<TripStatsDto>>('/trips/stats', { params, signal });
+  const response = await apiClient.get<ApiResponse<TripStatsDto>>('/trips/stats', {
+    params,
+    signal,
+  });
 
   return unwrap(response.data);
 };
@@ -68,15 +78,56 @@ export const fetchTripSettlement = async (
   tripId: string,
   signal?: AbortSignal,
 ): Promise<TripSettlementDto> => {
-  const response = await apiClient.get<ApiResponse<TripSettlementDto>>(`/trips/${tripId}/settlement`, {
+  const response = await apiClient.get<ApiResponse<TripSettlementDto>>(
+    `/trips/${tripId}/settlement`,
+    {
+      signal,
+    },
+  );
+
+  return unwrap(response.data);
+};
+
+export const invoiceTrip = async (
+  tripId: string,
+  body: TripInvoiceWriteRequest,
+): Promise<TripDto> => {
+  const response = await apiClient.patch<ApiResponse<TripDto>>(`/trips/${tripId}/invoice`, body);
+
+  return unwrap(response.data);
+};
+
+export const fetchCashTripLedger = async (
+  params: CashTripLedgerQueryParams,
+  signal?: AbortSignal,
+): Promise<CashTripLedgerDto> => {
+  const response = await apiClient.get<ApiResponse<CashTripLedgerDto>>('/trips/cash-ledger', {
+    params,
     signal,
   });
 
   return unwrap(response.data);
 };
 
-export const invoiceTrip = async (tripId: string, body: TripInvoiceWriteRequest): Promise<TripDto> => {
-  const response = await apiClient.patch<ApiResponse<TripDto>>(`/trips/${tripId}/invoice`, body);
+export const createTripCashPayment = async (
+  tripId: string,
+  body: TripCashPaymentWriteRequest,
+): Promise<TripCashPaymentDto> => {
+  const response = await apiClient.post<ApiResponse<TripCashPaymentDto>>(
+    `/trips/${tripId}/cash-payments`,
+    body,
+  );
+
+  return unwrap(response.data);
+};
+
+export const deleteTripCashPayment = async (
+  tripId: string,
+  paymentId: string,
+): Promise<{ id: string; deleted: true }> => {
+  const response = await apiClient.delete<ApiResponse<{ id: string; deleted: true }>>(
+    `/trips/${tripId}/cash-payments/${paymentId}`,
+  );
 
   return unwrap(response.data);
 };
@@ -97,7 +148,10 @@ export const createTripExpense = async (
   tripId: string,
   body: TripExpenseWriteRequest,
 ): Promise<TripExpenseDto> => {
-  const response = await apiClient.post<ApiResponse<TripExpenseDto>>(`/trips/${tripId}/expenses`, body);
+  const response = await apiClient.post<ApiResponse<TripExpenseDto>>(
+    `/trips/${tripId}/expenses`,
+    body,
+  );
 
   return unwrap(response.data);
 };

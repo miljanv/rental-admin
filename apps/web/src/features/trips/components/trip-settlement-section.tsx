@@ -210,7 +210,9 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
         <CardHeader>
           <CardTitle>Finansijski obračun</CardTitle>
           <CardDescription>
-            Datum uplate, stvarni prevoznik i dnevnice po vozaču. Troškovi se unose posebno ispod.
+            {settlement.paymentMethod === 'CASH'
+              ? 'Naplata se evidentira u Finansije → Keš vožnje. Ovde unosite prevoznika, kilometražu i dnevnice.'
+              : 'Datum uplate, stvarni prevoznik i dnevnice po vozaču. Troškovi se unose posebno ispod.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -258,20 +260,22 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
                   {...form.register('fuelLiters', { valueAsNumber: true })}
                 />
               </Field>
-              <Field id="paidAt" label="Datum uplate" error={errors.paidAt?.message}>
-                <Controller
-                  control={form.control}
-                  name="paidAt"
-                  render={({ field }) => (
-                    <DateField
-                      id="paidAt"
-                      value={field.value ?? ''}
-                      onChange={field.onChange}
-                      disabled={saveMutation.isPending}
-                    />
-                  )}
-                />
-              </Field>
+              {settlement.paymentMethod === 'CASH' ? null : (
+                <Field id="paidAt" label="Datum uplate" error={errors.paidAt?.message}>
+                  <Controller
+                    control={form.control}
+                    name="paidAt"
+                    render={({ field }) => (
+                      <DateField
+                        id="paidAt"
+                        value={field.value ?? ''}
+                        onChange={field.onChange}
+                        disabled={saveMutation.isPending}
+                      />
+                    )}
+                  />
+                </Field>
+              )}
               <Controller
                 control={form.control}
                 name="carrierId"

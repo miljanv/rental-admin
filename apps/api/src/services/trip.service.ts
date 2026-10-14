@@ -4,12 +4,17 @@ import {
   defaultTripStatsRange,
   invoiceMonthBounds,
   seriesInvoiceGroupId,
+  type CashTripLedgerDto,
+  type CashTripLedgerQuery,
+  type CashTripLedgerRowDto,
   type DeleteTripResult,
   type ListTripsQuery,
   type PaginationMeta,
   type TransportVatResult,
   type TripDto,
   type TripInvoiceWriteRequest,
+  type TripCashPaymentDto,
+  type TripCashPaymentWriteRequest,
   type TripSortField,
   type TripStatsDto,
   type TripStatsQueryRequest,
@@ -179,7 +184,7 @@ const syncSeriesInvoiceRevenue = async (groupId: string): Promise<void> => {
 const fareForInvoice = (input: TripInvoiceWriteRequest): TransportVatResult =>
   computeSplitTransportFare({
     domesticAmount: input.domesticPrice ?? 0,
-    domesticIncludesVat: input.priceIncludesVat,
+    domesticIncludesVat: input.paymentMethod === 'CASH' ? false : input.priceIncludesVat,
     foreignAmount: input.foreignPrice ?? 0,
   });
 
@@ -187,22 +192,53 @@ const invoiceColumns = (
   input: TripInvoiceWriteRequest,
   fare: TransportVatResult,
   groupId: string | null,
-) => ({
-  price: fare.grossAmount,
-  paymentMethod: input.paymentMethod,
-  invoicedAt: parseDate(input.invoicedAt),
-  referenceNumber: input.referenceNumber,
-  invoiceDescription: input.description,
-  priceIncludesVat: input.priceIncludesVat,
-  invoiceDomesticAmount: input.domesticPrice,
-  invoiceForeignAmount: input.foreignPrice,
-  invoiceDomesticKm: null,
-  invoiceTotalKm: null,
-  invoiceNetAmount: fare.netAmount,
-  invoiceVatAmount: fare.vatAmount,
-  invoiceGrossAmount: fare.grossAmount,
-  invoiceGroupId: groupId,
-});
+) => {
+  const common = {
+    price: fare.grossAmount,
+    paymentMethod: input.paymentMethod,
+    referenceNumber: input.referenceNumber,
+  };
+
+  if (input.paymentMethod === 'CASH') {
+    return {
+      ...common,
+      invoicedAt: null,
+      invoiceDescription: null,
+      priceIncludesVat: null,
+      invoiceDomesticAmount: null,
+      invoiceForeignAmount: null,
+      invoiceDomesticKm: null,
+      invoiceTotalKm: null,
+      invoiceNetAmount: null,
+      invoiceVatAmount: null,
+      invoiceGrossAmount: null,
+      invoiceGroupId: null,
+      cashRecipient: input.cashRecipient,
+      cashRecordedAt: parseDate(input.invoicedAt),
+      cashAmount: fare.grossAmount,
+      cashDescription: input.description,
+    };
+  }
+
+  return {
+    ...common,
+    invoicedAt: parseDate(input.invoicedAt),
+    invoiceDescription: input.description,
+    priceIncludesVat: input.priceIncludesVat,
+    invoiceDomesticAmount: input.domesticPrice,
+    invoiceForeignAmount: input.foreignPrice,
+    invoiceDomesticKm: null,
+    invoiceTotalKm: null,
+    invoiceNetAmount: fare.netAmount,
+    invoiceVatAmount: fare.vatAmount,
+    invoiceGrossAmount: fare.grossAmount,
+    invoiceGroupId: groupId,
+    cashRecipient: null,
+    cashRecordedAt: null,
+    cashAmount: null,
+    cashDescription: null,
+  };
+};
 
 const toWriteData = (input: TripWriteRequest) => ({
   referenceNumber: input.referenceNumber,
@@ -365,6 +401,41 @@ export const invoiceTrip = async (id: string, input: TripInvoiceWriteRequest): P
   const current = await getTrip(id);
   const previousGroupId = current.invoiceGroupId;
 
+  if (input.paymentMethod === 'CASH') {
+    const [cashPayments, officialAllocations] = await Promise.all([
+      prisma.tripCashPayment.aggregate({ where: { tripId: id }, _sum: { amount: true } }),
+      prisma.paymentAllocation.count({
+        where: {
+          OR: [
+            { targetType: 'TRIP_INVOICE', targetId: id },
+            ...(previousGroupId
+              ? [{ targetType: 'TRIP_SERIES_INVOICE' as const, targetId: previousGroupId }]
+              : []),
+          ],
+        },
+      }),
+    ]);
+
+    if (officialAllocations > 0) {
+      throw badRequest('Vožnja ima zvanične uplate i ne može se prebaciti u keš evidenciju.');
+    }
+
+    const paidAmount = cashPayments._sum.amount ?? 0;
+    const nextTotal = fareForInvoice(input).grossAmount;
+
+    if (paidAmount > nextTotal + 0.005) {
+      throw badRequest('Nova cena je manja od već evidentirane keš naplate.');
+    }
+  } else {
+    const cashPaymentCount = await prisma.tripCashPayment.count({ where: { tripId: id } });
+
+    if (cashPaymentCount > 0) {
+      throw badRequest(
+        'Vožnja ima keš naplate. Obrišite ih pre prelaska na plaćanje preko računa.',
+      );
+    }
+  }
+
   if (input.billSeriesMonth) {
     const saved = await invoiceSeriesMonth(current, input);
 
@@ -376,9 +447,25 @@ export const invoiceTrip = async (id: string, input: TripInvoiceWriteRequest): P
   }
 
   const fare = fareForInvoice(input);
+  const cashCollected =
+    input.paymentMethod === 'CASH'
+      ? ((
+          await prisma.tripCashPayment.aggregate({
+            where: { tripId: id },
+            _sum: { amount: true },
+          })
+        )._sum.amount ?? 0)
+      : 0;
   const record = await prisma.trip.update({
     where: { id },
-    data: invoiceColumns(input, fare, null),
+    data: {
+      ...invoiceColumns(input, fare, null),
+      ...(input.paymentMethod === 'CASH'
+        ? {
+            paidAt: cashCollected + 0.005 >= fare.grossAmount ? current.paidAt : null,
+          }
+        : {}),
+    },
     include: tripInclude,
   });
   const trip = toTripDto(record);
@@ -395,6 +482,194 @@ export const invoiceTrip = async (id: string, input: TripInvoiceWriteRequest): P
   });
 
   return trip;
+};
+
+const roundMoney = (value: number): number => Math.round(value * 100) / 100;
+
+const cashTripCustomer = (trip: {
+  clientName: string | null;
+  partner: {
+    type: string;
+    companyName: string | null;
+    firstName: string | null;
+    lastName: string | null;
+  } | null;
+}): string => {
+  if (trip.clientName?.trim()) {
+    return trip.clientName.trim();
+  }
+
+  if (!trip.partner) {
+    return 'Bez kupca';
+  }
+
+  if (trip.partner.type === 'INDIVIDUAL') {
+    return `${trip.partner.firstName ?? ''} ${trip.partner.lastName ?? ''}`.trim() || 'Bez kupca';
+  }
+
+  return trip.partner.companyName?.trim() || 'Bez kupca';
+};
+
+const toCashPaymentDto = (payment: {
+  id: string;
+  tripId: string;
+  amount: number;
+  paidAt: Date;
+  note: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): TripCashPaymentDto => ({
+  id: payment.id,
+  tripId: payment.tripId,
+  amount: payment.amount,
+  paidAt: toIsoDate(payment.paidAt),
+  note: payment.note,
+  createdAt: payment.createdAt.toISOString(),
+  updatedAt: payment.updatedAt.toISOString(),
+});
+
+export const listCashTripLedger = async (
+  query: CashTripLedgerQuery,
+): Promise<CashTripLedgerDto> => {
+  const records = await prisma.trip.findMany({
+    where: {
+      paymentMethod: 'CASH',
+      cashRecordedAt: {
+        not: null,
+        ...(query.from ? { gte: parseDate(query.from) } : {}),
+        ...(query.to ? { lte: parseDate(query.to) } : {}),
+      },
+      status: { notIn: ['CANCELLED', 'FREE'] },
+      ...(query.search
+        ? {
+            OR: [
+              { referenceNumber: { contains: query.search, mode: 'insensitive' } },
+              { origin: { contains: query.search, mode: 'insensitive' } },
+              { destination: { contains: query.search, mode: 'insensitive' } },
+              { clientName: { contains: query.search, mode: 'insensitive' } },
+              { cashRecipient: { contains: query.search, mode: 'insensitive' } },
+              { partner: { companyName: { contains: query.search, mode: 'insensitive' } } },
+              { partner: { firstName: { contains: query.search, mode: 'insensitive' } } },
+              { partner: { lastName: { contains: query.search, mode: 'insensitive' } } },
+            ],
+          }
+        : {}),
+    },
+    include: {
+      partner: { select: { type: true, companyName: true, firstName: true, lastName: true } },
+      cashPayments: { orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }] },
+    },
+    orderBy: [{ cashRecordedAt: 'desc' }, { departureDate: 'desc' }],
+  });
+
+  const rows = records.map((trip): CashTripLedgerRowDto => {
+    const totalAmount = roundMoney(trip.cashAmount ?? trip.price ?? 0);
+    const collectedAmount = roundMoney(
+      trip.cashPayments.reduce((sum, payment) => sum + payment.amount, 0),
+    );
+    const remainingAmount = roundMoney(Math.max(0, totalAmount - collectedAmount));
+
+    return {
+      tripId: trip.id,
+      referenceNumber: trip.referenceNumber,
+      departureDate: toIsoDate(trip.departureDate),
+      recordedAt: toIsoDate(trip.cashRecordedAt!),
+      route: `${trip.origin} – ${trip.destination}`,
+      customer: cashTripCustomer(trip),
+      cashRecipient: trip.cashRecipient,
+      totalAmount,
+      collectedAmount,
+      remainingAmount,
+      status: remainingAmount <= 0.005 ? 'PAID' : collectedAmount > 0.005 ? 'PARTIAL' : 'UNPAID',
+      payments: trip.cashPayments.map(toCashPaymentDto),
+    };
+  });
+  const filteredRows = query.status ? rows.filter((row) => row.status === query.status) : rows;
+  const summary = filteredRows.reduce(
+    (total, row) => ({
+      tripCount: total.tripCount + 1,
+      totalCharged: roundMoney(total.totalCharged + row.totalAmount),
+      totalCollected: roundMoney(total.totalCollected + row.collectedAmount),
+      totalRemaining: roundMoney(total.totalRemaining + row.remainingAmount),
+    }),
+    { tripCount: 0, totalCharged: 0, totalCollected: 0, totalRemaining: 0 },
+  );
+  const start = (query.page - 1) * query.limit;
+
+  return {
+    summary,
+    items: filteredRows.slice(start, start + query.limit),
+    pagination: buildPaginationMeta({
+      page: query.page,
+      limit: query.limit,
+      total: filteredRows.length,
+    }),
+  };
+};
+
+const cashTripBalance = async (tripId: string): Promise<{ total: number; collected: number }> => {
+  const trip = await prisma.trip.findUnique({
+    where: { id: tripId },
+    select: { paymentMethod: true, cashRecordedAt: true, cashAmount: true, price: true },
+  });
+
+  if (!trip || trip.paymentMethod !== 'CASH' || !trip.cashRecordedAt) {
+    throw badRequest('Keš vožnja nije pronađena.');
+  }
+
+  const payments = await prisma.tripCashPayment.aggregate({
+    where: { tripId },
+    _sum: { amount: true },
+  });
+
+  return {
+    total: roundMoney(trip.cashAmount ?? trip.price ?? 0),
+    collected: roundMoney(payments._sum.amount ?? 0),
+  };
+};
+
+export const createTripCashPayment = async (
+  tripId: string,
+  input: TripCashPaymentWriteRequest,
+): Promise<TripCashPaymentDto> => {
+  const balance = await cashTripBalance(tripId);
+  const remaining = roundMoney(balance.total - balance.collected);
+
+  if (input.amount > remaining + 0.005) {
+    throw badRequest(`Naplata je veća od preostalog iznosa (${remaining.toFixed(2)} RSD).`);
+  }
+
+  const payment = await prisma.$transaction(async (tx) => {
+    const created = await tx.tripCashPayment.create({
+      data: { tripId, amount: input.amount, paidAt: parseDate(input.paidAt), note: input.note },
+    });
+    const isPaid = balance.collected + input.amount + 0.005 >= balance.total;
+    await tx.trip.update({
+      where: { id: tripId },
+      data: { paidAt: isPaid ? parseDate(input.paidAt) : null },
+    });
+    return created;
+  });
+
+  return toCashPaymentDto(payment);
+};
+
+export const deleteTripCashPayment = async (
+  tripId: string,
+  paymentId: string,
+): Promise<{ id: string; deleted: true }> => {
+  const payment = await prisma.tripCashPayment.findFirst({ where: { id: paymentId, tripId } });
+
+  if (!payment) {
+    throw notFound('Keš naplata nije pronađena.');
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.tripCashPayment.delete({ where: { id: paymentId } });
+    await tx.trip.update({ where: { id: tripId }, data: { paidAt: null } });
+  });
+
+  return { id: paymentId, deleted: true };
 };
 
 export const deleteTrip = async (id: string): Promise<DeleteTripResult> => {
