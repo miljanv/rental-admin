@@ -26,6 +26,9 @@ coverage/
 npm-debug.log*
 pnpm-debug.log*
 
+# local database backups (may contain production or personal data)
+/backups/
+
 # editors and OS
 .DS_Store
 .idea/
