@@ -50,6 +50,56 @@ export const TRIP_SERIES_FREQUENCY_LABELS: Record<TripSeriesFrequency, string> =
   WEEKLY: 'Određeni dani u nedelji',
 };
 
+export interface TripSeriesScheduleInput {
+  frequency: TripSeriesFrequency;
+  daysOfWeek: number[];
+  startDate: string;
+  endDate: string;
+  pauses: Array<{ startDate: string; endDate: string }>;
+}
+
+/** Returns every ISO date that a recurring trip schedule will generate. */
+export const buildTripSeriesOccurrenceDates = ({
+  frequency,
+  daysOfWeek,
+  startDate,
+  endDate,
+  pauses,
+}: TripSeriesScheduleInput): string[] => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+    return [];
+  }
+
+  const cursor = new Date(`${startDate}T00:00:00.000Z`);
+  const end = new Date(`${endDate}T00:00:00.000Z`);
+
+  if (
+    Number.isNaN(cursor.getTime()) ||
+    Number.isNaN(end.getTime()) ||
+    cursor.toISOString().slice(0, 10) !== startDate ||
+    end.toISOString().slice(0, 10) !== endDate ||
+    cursor > end
+  ) {
+    return [];
+  }
+
+  const dates: string[] = [];
+  const daySet = new Set(daysOfWeek);
+
+  while (cursor <= end) {
+    const isoDate = cursor.toISOString().slice(0, 10);
+    const paused = pauses.some((pause) => pause.startDate <= isoDate && isoDate <= pause.endDate);
+
+    if ((frequency === 'DAILY' || daySet.has(cursor.getUTCDay())) && !paused) {
+      dates.push(isoDate);
+    }
+
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return dates;
+};
+
 /** 0 = Sunday .. 6 = Saturday, matching JS `Date#getUTCDay()`. */
 export const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6] as const;
 

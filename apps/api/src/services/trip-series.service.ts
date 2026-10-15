@@ -1,14 +1,15 @@
-import type {
-  BulkUpdateTripSeriesRequest,
-  BulkUpdateTripSeriesResult,
-  EditTripSeriesRequest,
-  EditTripSeriesResult,
-  GenerateTripSeriesRequest,
-  GenerateTripSeriesResult,
-  TerminateTripSeriesRequest,
-  TerminateTripSeriesResult,
-  TripDto,
-  TripSeriesDto,
+import {
+  buildTripSeriesOccurrenceDates,
+  type BulkUpdateTripSeriesRequest,
+  type BulkUpdateTripSeriesResult,
+  type EditTripSeriesRequest,
+  type EditTripSeriesResult,
+  type GenerateTripSeriesRequest,
+  type GenerateTripSeriesResult,
+  type TerminateTripSeriesRequest,
+  type TerminateTripSeriesResult,
+  type TripDto,
+  type TripSeriesDto,
 } from '@rental-admin/shared';
 
 import { prisma } from '../config/prisma';
@@ -20,36 +21,6 @@ import { assertDriversExist, assertVehiclesExist, parseDate, tripInclude } from 
 
 /** Safety cap on how many trips one generation call can create in a single transaction. */
 const MAX_SERIES_INSTANCES = 400;
-
-const isPaused = (date: Date, pauses: Array<{ startDate: string; endDate: string }>): boolean =>
-  pauses.some((pause) => {
-    const from = new Date(`${pause.startDate}T00:00:00.000Z`);
-    const to = new Date(`${pause.endDate}T00:00:00.000Z`);
-    return date.getTime() >= from.getTime() && date.getTime() <= to.getTime();
-  });
-
-const computeSeriesDates = (
-  frequency: GenerateTripSeriesRequest['frequency'],
-  daysOfWeek: number[],
-  startDate: string,
-  endDate: string,
-  pauses: GenerateTripSeriesRequest['pauses'],
-): Date[] => {
-  const dates: Date[] = [];
-  const cursor = new Date(`${startDate}T00:00:00.000Z`);
-  const end = new Date(`${endDate}T00:00:00.000Z`);
-  const daySet = new Set(daysOfWeek);
-
-  while (cursor.getTime() <= end.getTime()) {
-    if ((frequency === 'DAILY' || daySet.has(cursor.getUTCDay())) && !isPaused(cursor, pauses)) {
-      dates.push(new Date(cursor));
-    }
-
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-  }
-
-  return dates;
-};
 
 const assertReferencesExist = async (
   input: Pick<GenerateTripSeriesRequest, 'partnerId' | 'contractId' | 'vehicleIds' | 'driverIds'>,
@@ -83,13 +54,7 @@ export const generateTripSeries = async (
 ): Promise<GenerateTripSeriesResult> => {
   await assertReferencesExist(input);
 
-  const dates = computeSeriesDates(
-    input.frequency,
-    input.daysOfWeek,
-    input.startDate,
-    input.endDate,
-    input.pauses,
-  );
+  const dates = buildTripSeriesOccurrenceDates(input);
 
   if (dates.length === 0) {
     throw badRequest('Izabrani period i dani u nedelji ne generišu nijednu vožnju.');
@@ -124,8 +89,8 @@ export const generateTripSeries = async (
       const createdTrips = await tx.trip.createManyAndReturn({
         data: dates.map((date) => ({
           referenceNumber: input.referenceNumber,
-          departureDate: date,
-          returnDate: date,
+          departureDate: parseDate(date),
+          returnDate: parseDate(date),
           country: input.country,
           origin: input.origin,
           destination: input.destination,
@@ -405,7 +370,7 @@ export const editTripSeries = async (
       await tx.tripDriver.createMany({ data: driverAdditions });
     }
 
-    if (input.driverPay != null) {
+    if (input.driverPay !== null && input.driverPay !== undefined) {
       await tx.tripDriver.updateMany({
         where: { tripId: { in: trips.map((trip) => trip.id) } },
         data: { perDiemAmount: input.driverPay },
@@ -415,7 +380,7 @@ export const editTripSeries = async (
     driversChanged = driverRemovals.length > 0 || driverAdditions.length > 0;
   });
 
-  if (input.driverPay != null || driversChanged) {
+  if ((input.driverPay !== null && input.driverPay !== undefined) || driversChanged) {
     for (const trip of trips) {
       await syncTripDriverPayouts(trip.id);
     }

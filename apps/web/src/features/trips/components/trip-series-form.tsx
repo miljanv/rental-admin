@@ -2,6 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  buildTripSeriesOccurrenceDates,
   CONTRACT_STATUS_LABELS,
   contractRouteLabel,
   MAX_TRIP_DRIVERS,
@@ -19,7 +20,7 @@ import {
 } from '@rental-admin/shared';
 import { Plus, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 
 import { DateField } from '@/components/common/date-field';
@@ -49,6 +50,7 @@ import {
 } from '@/features/trips/schemas/trip-series-form-schema';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
 import { vehicleSelectLabel } from '@/features/vehicles/lib/vehicle';
+import { formatDate } from '@/lib/format';
 import { sortAlphabetically } from '@/lib/sort-options';
 import { cn } from '@/lib/utils';
 
@@ -84,9 +86,14 @@ export function TripSeriesForm() {
   const errors = form.formState.errors;
   const pauseFields = useFieldArray({ control: form.control, name: 'pauses' });
   const frequency = useWatch({ control: form.control, name: 'frequency' });
-  const daysOfWeek = useWatch({ control: form.control, name: 'daysOfWeek' }) ?? [];
+  const watchedDaysOfWeek = useWatch({ control: form.control, name: 'daysOfWeek' });
+  const startDate = useWatch({ control: form.control, name: 'startDate' });
+  const endDate = useWatch({ control: form.control, name: 'endDate' });
+  const watchedPauses = useWatch({ control: form.control, name: 'pauses' });
   const vehicleIds = useWatch({ control: form.control, name: 'vehicleIds' }) ?? [];
   const driverIds = useWatch({ control: form.control, name: 'driverIds' }) ?? [];
+  const daysOfWeek = useMemo(() => watchedDaysOfWeek ?? [], [watchedDaysOfWeek]);
+  const pauses = useMemo(() => watchedPauses ?? [], [watchedPauses]);
 
   const vehiclesQuery = useVehicles({
     page: 1,
@@ -119,6 +126,26 @@ export function TripSeriesForm() {
   }));
   const partners = sortAlphabetically(partnersQuery.data?.partners ?? [], partnerSelectLabel);
   const contracts = contractsQuery.data?.contracts ?? [];
+  const occurrenceDates = useMemo(
+    () =>
+      buildTripSeriesOccurrenceDates({
+        frequency,
+        daysOfWeek,
+        startDate,
+        endDate,
+        pauses,
+      }),
+    [daysOfWeek, endDate, frequency, pauses, startDate],
+  );
+  const periodDayCount = useMemo(() => {
+    if (!startDate || !endDate || endDate < startDate) {
+      return 0;
+    }
+
+    const start = new Date(`${startDate}T00:00:00.000Z`);
+    const end = new Date(`${endDate}T00:00:00.000Z`);
+    return Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
+  }, [endDate, startDate]);
 
   const toggleWeekday = (day: number) => {
     const next = daysOfWeek.includes(day)
@@ -128,6 +155,16 @@ export function TripSeriesForm() {
   };
 
   const onSubmit = form.handleSubmit(async (values) => {
+    const dates = buildTripSeriesOccurrenceDates(values);
+    if (
+      periodDayCount > 62 &&
+      !window.confirm(
+        `Izabrani period je ${formatDate(values.startDate)} – ${formatDate(values.endDate)} i generisaće ${dates.length} vožnji. Da li ste sigurni da želite da nastavite?`,
+      )
+    ) {
+      return;
+    }
+
     await generateMutation.mutateAsync(values);
   });
 
@@ -187,12 +224,23 @@ export function TripSeriesForm() {
                   <DateField
                     id="startDate"
                     value={field.value}
-                    onChange={field.onChange}
+                    onChange={(value) => {
+                      field.onChange(value);
+                      const currentEndDate = form.getValues('endDate');
+
+                      if (value && (!currentEndDate || currentEndDate < value)) {
+                        form.setValue('endDate', value, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                      }
+                    }}
                     disabled={isPending}
                   />
                 )}
               />
             </Field>
+
             <Field id="endDate" label="Datum završetka" error={errors.endDate?.message}>
               <Controller
                 control={form.control}
@@ -207,6 +255,31 @@ export function TripSeriesForm() {
                 )}
               />
             </Field>
+
+            {startDate && endDate && endDate >= startDate ? (
+              <div
+                className={cn(
+                  'rounded-lg border px-4 py-3 text-sm sm:col-span-2',
+                  periodDayCount > 62
+                    ? 'border-amber-400 bg-amber-50 text-amber-950 dark:bg-amber-950/30 dark:text-amber-100'
+                    : 'bg-muted/40',
+                )}
+                aria-live="polite"
+              >
+                <p className="font-medium">
+                  Period: {formatDate(startDate)} – {formatDate(endDate)} ({periodDayCount} dana)
+                </p>
+                <p>
+                  Biće generisano <strong>{occurrenceDates.length} vožnji</strong> prema izabranim
+                  danima i pauzama.
+                </p>
+                {periodDayCount > 62 ? (
+                  <p className="mt-1 font-medium">
+                    Proverite mesece: izabrani period je duži od dva meseca.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
             {frequency === 'WEEKLY' ? (
               <div className="sm:col-span-2">
