@@ -53,8 +53,9 @@ COPY --from=build /app/apps/api/dist ./apps/api/dist
 COPY apps/api/prisma ./apps/api/prisma
 COPY apps/api/prisma.config.ts ./apps/api/prisma.config.ts
 COPY apps/api/docker-entrypoint.sh ./apps/api/docker-entrypoint.sh
+COPY apps/api/scripts/migrate-production.sh ./apps/api/scripts/migrate-production.sh
 COPY apps/api/assets ./apps/api/assets
-RUN chmod +x ./apps/api/docker-entrypoint.sh
+RUN chmod +x ./apps/api/docker-entrypoint.sh ./apps/api/scripts/migrate-production.sh
 
 USER node
 EXPOSE 4000

@@ -1,0 +1,2 @@
+[deploy]
+preDeployCommand = "cd /app/apps/api && ./scripts/migrate-production.sh"

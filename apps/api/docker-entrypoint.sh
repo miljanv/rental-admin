@@ -1,22 +1,20 @@
 #!/bin/sh
-# Applies pending migrations before the server starts accepting traffic.
+# Railway applies pending migrations once in its pre-deploy step. Keeping that
+# work out of the runtime container prevents overlapping deploy/restart
+# attempts from contending for Prisma's PostgreSQL advisory lock.
 #
-# `prisma migrate deploy` is the only migration command that is safe in
-# production: it never resets data and never generates new migrations
-# (unlike `prisma db push` or `prisma migrate dev`).
-#
-# Set RUN_MIGRATIONS_ON_START=false to run migrations from a separate release
-# step instead.
+# Set RUN_MIGRATIONS_ON_START=true only for an environment that has no
+# pre-deploy step (for example, an explicitly configured local Docker setup).
 set -e
 
-if [ "${RUN_MIGRATIONS_ON_START:-true}" = "true" ]; then
+if [ "${RUN_MIGRATIONS_ON_START:-false}" = "true" ]; then
   echo "Applying database migrations..."
   cd /app/apps/api
-  ./node_modules/.bin/prisma migrate deploy
+  ./scripts/migrate-production.sh
   cd /app
   echo "Migrations applied."
 else
-  echo "Skipping migrations (RUN_MIGRATIONS_ON_START=false)."
+  echo "Skipping migrations; they are handled by Railway pre-deploy."
 fi
 
 exec "$@"
