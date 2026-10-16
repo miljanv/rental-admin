@@ -78,10 +78,27 @@ const enteredDomestic = (trip: TripDto): number | '' => {
     : (trip.invoiceNetAmount ?? '');
 };
 
+const defaultInvoiceSupplyDate = (trip: TripDto | null): string => {
+  if (!trip) {
+    return localTodayIso();
+  }
+
+  if (trip.invoiceSupplyDate) {
+    return trip.invoiceSupplyDate;
+  }
+
+  if (trip.seriesId) {
+    return invoiceMonthBounds(trip.departureDate).to;
+  }
+
+  return trip.returnDate ?? trip.departureDate;
+};
+
 const invoiceFormValues = (trip: TripDto | null): TripInvoiceWriteInput => ({
   referenceNumber: trip?.referenceNumber ?? '',
   invoicedAt:
     (trip?.paymentMethod === 'CASH' ? trip.cashRecordedAt : trip?.invoicedAt) ?? localTodayIso(),
+  supplyDate: trip?.paymentMethod === 'CASH' ? '' : defaultInvoiceSupplyDate(trip),
   description:
     (trip?.paymentMethod === 'CASH' ? trip.cashDescription : trip?.invoiceDescription) ?? '',
   domesticPrice: trip ? enteredDomestic(trip) : '',
@@ -193,6 +210,29 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
               )}
             />
           </Field>
+          {!isCash ? (
+            <Field
+              id="invoice-supply-date"
+              label="Datum prometa"
+              error={errors.supplyDate?.message}
+            >
+              <Controller
+                control={form.control}
+                name="supplyDate"
+                render={({ field }) => (
+                  <DateField
+                    id="invoice-supply-date"
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    disabled={invoiceMutation.isPending}
+                  />
+                )}
+              />
+              <p className="text-muted-foreground text-xs">
+                PDV se prikazuje u mesecu ovog datuma, nezavisno od datuma fakture.
+              </p>
+            </Field>
+          ) : null}
           <Field id="invoice-description" label="Napomena" error={errors.description?.message}>
             <Textarea
               id="invoice-description"
@@ -345,6 +385,9 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
                     if (value === 'CASH') {
                       form.setValue('billSeriesMonth', false);
                       form.setValue('priceIncludesVat', false);
+                      form.setValue('supplyDate', '');
+                    } else if (!form.getValues('supplyDate')) {
+                      form.setValue('supplyDate', defaultInvoiceSupplyDate(trip));
                     }
                   }}
                   disabled={invoiceMutation.isPending}

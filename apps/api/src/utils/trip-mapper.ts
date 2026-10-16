@@ -69,6 +69,7 @@ export interface TripRecord {
   seriesId: string | null;
   paidAt: Date | null;
   invoicedAt: Date | null;
+  invoiceSupplyDate: Date | null;
   startKm: number | null;
   endKm: number | null;
   fuelLiters: number | null;
@@ -129,6 +130,7 @@ export const toTripDto = (record: TripRecord): TripDto => ({
   carrier: record.carrier ? toTripPartnerDto(record.carrier) : null,
   paidAt: record.paidAt ? toIsoDate(record.paidAt) : null,
   invoicedAt: record.invoicedAt ? toIsoDate(record.invoicedAt) : null,
+  invoiceSupplyDate: record.invoiceSupplyDate ? toIsoDate(record.invoiceSupplyDate) : null,
   startKm: record.startKm,
   endKm: record.endKm,
   fuelLiters: record.fuelLiters,

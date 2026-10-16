@@ -7,13 +7,9 @@ import {
   contractRouteLabel,
   MAX_TRIP_DRIVERS,
   MAX_TRIP_VEHICLES,
-  PAYMENT_METHOD_LABELS,
-  PAYMENT_METHODS,
   partnerSelectLabel,
   TRIP_SERIES_FREQUENCY_LABELS,
   TRIP_SERIES_FREQUENCIES,
-  TRIP_STATUS_LABELS,
-  TRIP_STATUSES,
   WEEKDAYS,
   WEEKDAY_SHORT_LABELS,
   type GenerateTripSeriesRequest,
@@ -468,6 +464,15 @@ export function TripSeriesForm() {
                 {...form.register('destination')}
               />
             </Field>
+            <div className="sm:col-span-2">
+              <Field
+                id="notes"
+                label="Napomena"
+                error={errors.notes?.message as string | undefined}
+              >
+                <Textarea id="notes" rows={3} disabled={isPending} {...form.register('notes')} />
+              </Field>
+            </div>
           </CardContent>
         </Card>
 
@@ -650,86 +655,6 @@ export function TripSeriesForm() {
                 maxSelected={MAX_TRIP_DRIVERS}
               />
             </Field>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle>Cena, plaćanje i status</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <Field
-              id="price"
-              label="Cena (RSD)"
-              error={errors.price?.message as string | undefined}
-            >
-              <Input
-                id="price"
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                disabled={isPending}
-                {...form.register('price', { valueAsNumber: true })}
-              />
-            </Field>
-            <Controller
-              control={form.control}
-              name="paymentMethod"
-              render={({ field }) => (
-                <Field
-                  id="paymentMethod"
-                  label="Način plaćanja"
-                  error={errors.paymentMethod?.message as string | undefined}
-                >
-                  <Select
-                    value={field.value || NONE}
-                    onValueChange={(value) => field.onChange(value === NONE ? '' : value)}
-                    disabled={isPending}
-                  >
-                    <SelectTrigger id="paymentMethod" className="w-full">
-                      <SelectValue placeholder="Nije uneto" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE}>Nije uneto</SelectItem>
-                      {PAYMENT_METHODS.map((method) => (
-                        <SelectItem key={method} value={method}>
-                          {PAYMENT_METHOD_LABELS[method]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              )}
-            />
-            <Controller
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <Field id="status" label="Status" error={errors.status?.message}>
-                  <Select value={field.value} onValueChange={field.onChange} disabled={isPending}>
-                    <SelectTrigger id="status" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TRIP_STATUSES.map((status) => (
-                        <SelectItem key={status} value={status}>
-                          {TRIP_STATUS_LABELS[status]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              )}
-            />
-            <div className="sm:col-span-2">
-              <Field
-                id="notes"
-                label="Napomena"
-                error={errors.notes?.message as string | undefined}
-              >
-                <Textarea id="notes" rows={3} disabled={isPending} {...form.register('notes')} />
-              </Field>
-            </div>
           </CardContent>
         </Card>
 

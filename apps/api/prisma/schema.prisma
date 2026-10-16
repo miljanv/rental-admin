@@ -419,6 +419,8 @@ enum CompanyExpenseScope {
 model CompanyExpense {
   id               String              @id @default(cuid())
   issuedAt         DateTime            @db.Date
+  /// Date when the goods or service was supplied; used for VAT reporting.
+  supplyDate       DateTime?           @db.Date
   paidAt           DateTime?           @db.Date
   invoiceNumber    String?
   supplier         String
@@ -439,6 +441,7 @@ model CompanyExpense {
   supplierRef Supplier? @relation("CompanyExpenseSupplier", fields: [supplierId], references: [id], onDelete: SetNull)
 
   @@index([issuedAt])
+  @@index([supplyDate])
   @@index([paidAt])
   @@index([invoiceNumber])
   @@index([supplier])
@@ -927,6 +930,8 @@ model Trip {
   paidAt                DateTime?      @db.Date
   /// When an outgoing invoice was issued. Null means the trip is not invoiced yet.
   invoicedAt            DateTime?      @db.Date
+  /// Date when the invoiced transport service was supplied; used for VAT reporting.
+  invoiceSupplyDate     DateTime?      @db.Date
   /// Free text printed with the invoice (route, period, what was carried).
   invoiceDescription    String?
   /// Whether the typed domestic fare already included 10% VAT. The foreign fare is never taxed.
@@ -983,6 +988,7 @@ model Trip {
   @@index([contractId])
   @@index([seriesId])
   @@index([invoiceGroupId])
+  @@index([invoiceSupplyDate])
   @@map("trips")
 }
 

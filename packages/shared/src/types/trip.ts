@@ -196,6 +196,8 @@ export interface TripDto {
   carrier: TripPartnerDto | null;
   paidAt: string | null;
   invoicedAt: string | null;
+  /** Date when the invoiced transport service was supplied. */
+  invoiceSupplyDate: string | null;
   startKm: number | null;
   endKm: number | null;
   fuelLiters: number | null;

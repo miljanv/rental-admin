@@ -86,6 +86,7 @@ const requiredPaymentMethod = z
 export const companyExpenseWriteSchema = z
   .object({
     issuedAt: isoDateSchema,
+    supplyDate: isoDateSchema,
     invoiceNumber: optionalText(80),
     supplier: requiredText('Dobavljač', 120),
     description: requiredText('Opis troška', 500),

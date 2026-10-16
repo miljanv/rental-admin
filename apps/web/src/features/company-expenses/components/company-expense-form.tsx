@@ -143,9 +143,34 @@ export function CompanyExpenseForm({ expense, defaultVehicleId, onDone }: Compan
                   <DateField
                     id="issuedAt"
                     value={field.value}
-                    onChange={field.onChange}
+                    onChange={(value) => {
+                      field.onChange(value);
+
+                      if (!form.getValues('supplyDate')) {
+                        form.setValue('supplyDate', value, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                      }
+                    }}
                     disabled={isPending}
                     aria-invalid={Boolean(errors.issuedAt)}
+                  />
+                )}
+              />
+            </Field>
+
+            <Field id="supplyDate" label="Datum prometa" error={errors.supplyDate?.message}>
+              <Controller
+                control={form.control}
+                name="supplyDate"
+                render={({ field }) => (
+                  <DateField
+                    id="supplyDate"
+                    value={field.value}
+                    onChange={field.onChange}
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.supplyDate)}
                   />
                 )}
               />

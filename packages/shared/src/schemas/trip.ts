@@ -150,6 +150,10 @@ export const tripInvoiceWriteSchema = z
   .object({
     referenceNumber: optionalText(60),
     invoicedAt: isoDateSchema,
+    supplyDate: z
+      .union([isoDateSchema, z.literal(''), z.null()])
+      .optional()
+      .transform((value) => (value ? value : null)),
     description: optionalText(2000),
     /**
      * Domestic fare. Daily amount when `billSeriesMonth` is set.
@@ -179,6 +183,14 @@ export const tripInvoiceWriteSchema = z
         code: 'custom',
         path: ['cashRecipient'],
         message: 'Unesite osobu kod koje ide keš.',
+      });
+    }
+
+    if (value.paymentMethod === 'ACCOUNT' && !value.supplyDate) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['supplyDate'],
+        message: 'Datum prometa je obavezan za fakturu.',
       });
     }
 
