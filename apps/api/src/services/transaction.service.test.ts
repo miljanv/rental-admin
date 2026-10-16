@@ -52,6 +52,7 @@ import {
   createTransaction,
   deleteTransaction,
   getFinanceReport,
+  getVatReport,
   importBankStatementXml,
   listSettlementTargets,
   listTransactions,
@@ -76,6 +77,7 @@ const expense = {
   amountWithVat: 100,
   invoiceNumber: '123/26',
   issuedAt: new Date('2026-10-01'),
+  supplyDate: new Date('2026-10-01'),
   paidAt: null,
   paymentMethod: 'ACCOUNT',
 };
@@ -88,6 +90,7 @@ const trip = {
   invoiceGrossAmount: 100,
   price: 100,
   invoicedAt: new Date('2026-10-01'),
+  invoiceSupplyDate: new Date('2026-10-01'),
   paidAt: null,
   referenceNumber: '123/26',
   departureDate: new Date('2026-10-01'),
@@ -716,5 +719,49 @@ describe('tenant isolation of transaction references', () => {
 
     await expect(createTransaction(manualInput)).rejects.toMatchObject({ statusCode: 400 });
     expect(prisma.financeTransaction.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('VAT report', () => {
+  it('groups VAT by supply date and identifies historical rows without one', async () => {
+    vi.mocked(prisma.companyExpense.findMany).mockResolvedValue([
+      {
+        issuedAt: new Date('2026-10-05'),
+        supplyDate: new Date('2026-09-30'),
+        vatAmount: 200,
+      },
+      {
+        issuedAt: new Date('2026-09-28'),
+        supplyDate: null,
+        vatAmount: 100,
+      },
+    ] as never);
+    vi.mocked(prisma.trip.findMany).mockResolvedValue([
+      {
+        invoicedAt: new Date('2026-10-05'),
+        invoiceSupplyDate: new Date('2026-09-30'),
+        invoiceVatAmount: 300,
+      },
+      {
+        invoicedAt: new Date('2026-09-26'),
+        invoiceSupplyDate: null,
+        invoiceVatAmount: 50,
+      },
+    ] as never);
+
+    const report = await getVatReport({ from: '2026-09-01', to: '2026-10-31' });
+
+    expect(report.monthly.find((month) => month.month === 9)).toMatchObject({
+      inputVat: 300,
+      outputVat: 350,
+      balance: 50,
+    });
+    expect(report.monthly.find((month) => month.month === 10)).toMatchObject({
+      inputVat: 0,
+      outputVat: 0,
+      balance: 0,
+    });
+    expect(report.legacyInputCount).toBe(1);
+    expect(report.legacyOutputCount).toBe(1);
   });
 });

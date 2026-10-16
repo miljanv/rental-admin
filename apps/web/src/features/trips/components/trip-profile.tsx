@@ -181,6 +181,12 @@ function TripOverview({ trip, onInvoice }: { trip: TripDto; onInvoice: () => voi
                 label={trip.paymentMethod === 'CASH' ? 'Datum evidencije' : 'Datum fakture'}
                 value={formatDate(billingDate)}
               />
+              {trip.paymentMethod === 'ACCOUNT' ? (
+                <DetailItem
+                  label="Datum prometa"
+                  value={trip.invoiceSupplyDate ? formatDate(trip.invoiceSupplyDate) : '—'}
+                />
+              ) : null}
               <DetailItem
                 label="Ukupno"
                 value={formatMoney(

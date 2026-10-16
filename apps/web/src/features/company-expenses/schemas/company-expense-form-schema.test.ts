@@ -4,6 +4,7 @@ import { toCompanyExpenseWriteRequest } from './company-expense-form-schema';
 
 const base = {
   issuedAt: '2026-09-26',
+  supplyDate: '2026-09-25',
   invoiceNumber: 'R-1',
   supplier: 'Auto delovi',
   description: 'Filter ulja',
@@ -16,6 +17,7 @@ const base = {
 describe('toCompanyExpenseWriteRequest', () => {
   it('splits a 20% amount into net and VAT', () => {
     expect(toCompanyExpenseWriteRequest({ ...base, amount: 12_000, vatRate: 20 })).toMatchObject({
+      supplyDate: '2026-09-25',
       amountWithoutVat: 10_000,
       vatAmount: 2_000,
       amountWithVat: 12_000,

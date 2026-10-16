@@ -36,6 +36,7 @@ const record: TripRecord = {
   seriesId: null,
   paidAt: new Date('2026-09-05T00:00:00.000Z'),
   invoicedAt: new Date('2026-09-02T00:00:00.000Z'),
+  invoiceSupplyDate: new Date('2026-09-01T00:00:00.000Z'),
   startKm: 120_000,
   endKm: 120_480,
   fuelLiters: 85.5,
@@ -67,6 +68,7 @@ describe('toTripDto', () => {
     expect(toTripDto(record)).toMatchObject({
       paidAt: '2026-09-05',
       invoicedAt: '2026-09-02',
+      invoiceSupplyDate: '2026-09-01',
       startKm: 120_000,
       endKm: 120_480,
       fuelLiters: 85.5,

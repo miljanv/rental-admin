@@ -2345,16 +2345,31 @@ export const getVatReport = async (query: FinanceReportQueryRequest): Promise<Va
   const to = query.to ?? defaults.to;
   const [expenses, trips] = await Promise.all([
     prisma.companyExpense.findMany({
-      where: { issuedAt: { gte: parseDate(from), lte: parseDate(to) }, paymentMethod: 'ACCOUNT' },
-      select: { issuedAt: true, vatAmount: true },
+      where: {
+        paymentMethod: 'ACCOUNT',
+        OR: [
+          { supplyDate: { gte: parseDate(from), lte: parseDate(to) } },
+          {
+            supplyDate: null,
+            issuedAt: { gte: parseDate(from), lte: parseDate(to) },
+          },
+        ],
+      },
+      select: { issuedAt: true, supplyDate: true, vatAmount: true },
     }),
     prisma.trip.findMany({
       where: {
-        invoicedAt: { gte: parseDate(from), lte: parseDate(to) },
         invoiceVatAmount: { not: null },
         paymentMethod: 'ACCOUNT',
+        OR: [
+          { invoiceSupplyDate: { gte: parseDate(from), lte: parseDate(to) } },
+          {
+            invoiceSupplyDate: null,
+            invoicedAt: { gte: parseDate(from), lte: parseDate(to) },
+          },
+        ],
       },
-      select: { invoicedAt: true, invoiceVatAmount: true },
+      select: { invoicedAt: true, invoiceSupplyDate: true, invoiceVatAmount: true },
     }),
   ]);
   const byMonth = new Map<
@@ -2367,11 +2382,19 @@ export const getVatReport = async (query: FinanceReportQueryRequest): Promise<Va
     ]),
   );
 
+  let legacyInputCount = 0;
+  let legacyOutputCount = 0;
+
   for (const expense of expenses) {
-    const bucket = byMonth.get(monthKey(expense.issuedAt));
+    const vatDate = expense.supplyDate ?? expense.issuedAt;
+    const bucket = byMonth.get(monthKey(vatDate));
 
     if (bucket) {
       bucket.inputVat += expense.vatAmount;
+    }
+
+    if (!expense.supplyDate) {
+      legacyInputCount += 1;
     }
   }
 
@@ -2380,10 +2403,15 @@ export const getVatReport = async (query: FinanceReportQueryRequest): Promise<Va
       continue;
     }
 
-    const bucket = byMonth.get(monthKey(trip.invoicedAt));
+    const vatDate = trip.invoiceSupplyDate ?? trip.invoicedAt;
+    const bucket = byMonth.get(monthKey(vatDate));
 
     if (bucket) {
       bucket.outputVat += trip.invoiceVatAmount ?? 0;
+    }
+
+    if (!trip.invoiceSupplyDate) {
+      legacyOutputCount += 1;
     }
   }
 
@@ -2402,7 +2430,7 @@ export const getVatReport = async (query: FinanceReportQueryRequest): Promise<Va
     { inputVat: 0, outputVat: 0, balance: 0 },
   );
 
-  return { from, to, totals, monthly };
+  return { from, to, totals, monthly, legacyInputCount, legacyOutputCount };
 };
 
 export interface FinanceExportFile {

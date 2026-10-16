@@ -10,6 +10,7 @@ export interface CompanyExpenseVehicleRecord {
 export interface CompanyExpenseRecord {
   id: string;
   issuedAt: Date;
+  supplyDate: Date | null;
   invoiceNumber: string | null;
   supplier: string;
   description: string;
@@ -31,6 +32,7 @@ const toIsoDate = (value: Date): string => value.toISOString().slice(0, 10);
 export const toCompanyExpenseDto = (record: CompanyExpenseRecord): CompanyExpenseDto => ({
   id: record.id,
   issuedAt: toIsoDate(record.issuedAt),
+  supplyDate: record.supplyDate ? toIsoDate(record.supplyDate) : null,
   invoiceNumber: record.invoiceNumber,
   supplier: record.supplier,
   description: record.description,

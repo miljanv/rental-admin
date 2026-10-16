@@ -48,7 +48,7 @@ export function CompanyExpensesTable({
   onRequestDelete,
   emptyAction,
 }: CompanyExpensesTableProps) {
-  const columnCount = (showVehicle ? 10 : 9) + (readOnly ? 0 : 1);
+  const columnCount = (showVehicle ? 11 : 10) + (readOnly ? 0 : 1);
 
   if (!isLoading && expenses.length === 0) {
     return (
@@ -66,6 +66,7 @@ export function CompanyExpensesTable({
       <TableHeader>
         <TableRow>
           <TableHead>Datum računa</TableHead>
+          <TableHead>Datum prometa</TableHead>
           <TableHead>Broj računa</TableHead>
           {showVehicle ? <TableHead>Mesto utroška</TableHead> : null}
           <TableHead>Dobavljač</TableHead>
@@ -86,6 +87,9 @@ export function CompanyExpensesTable({
             <TableRow key={expense.id}>
               <TableCell className="text-muted-foreground">
                 {formatDate(expense.issuedAt)}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {expense.supplyDate ? formatDate(expense.supplyDate) : '—'}
               </TableCell>
               <TableCell className="text-muted-foreground">
                 {expense.invoiceNumber ?? '—'}

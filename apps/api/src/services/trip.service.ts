@@ -204,6 +204,7 @@ const invoiceColumns = (
     return {
       ...common,
       invoicedAt: null,
+      invoiceSupplyDate: null,
       invoiceDescription: null,
       priceIncludesVat: null,
       invoiceDomesticAmount: null,
@@ -224,6 +225,7 @@ const invoiceColumns = (
   return {
     ...common,
     invoicedAt: parseDate(input.invoicedAt),
+    invoiceSupplyDate: input.supplyDate ? parseDate(input.supplyDate) : null,
     invoiceDescription: input.description,
     priceIncludesVat: input.priceIncludesVat,
     invoiceDomesticAmount: input.domesticPrice,

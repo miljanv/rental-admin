@@ -39,6 +39,7 @@ const assertVehicleExists = async (vehicleId: string | null): Promise<void> => {
 
 const toWriteData = async (input: CompanyExpenseWriteRequest) => ({
   issuedAt: parseDate(input.issuedAt),
+  supplyDate: parseDate(input.supplyDate),
   paidAt: null,
   invoiceNumber: input.invoiceNumber,
   supplier: input.supplier,

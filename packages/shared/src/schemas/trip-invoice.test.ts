@@ -9,6 +9,7 @@ describe('tripInvoiceWriteSchema', () => {
       foreignPrice: 237_160,
       paymentMethod: 'ACCOUNT',
       invoicedAt: '2026-09-26',
+      supplyDate: '2026-09-30',
       referenceNumber: '',
     });
 
@@ -18,6 +19,7 @@ describe('tripInvoiceWriteSchema', () => {
     expect(result.data?.foreignPrice).toBe(237_160);
     expect(result.data?.billSeriesMonth).toBe(false);
     expect(result.data?.description).toBeNull();
+    expect(result.data?.supplyDate).toBe('2026-09-30');
   });
 
   it('accepts a foreign fare on its own', () => {
@@ -25,6 +27,7 @@ describe('tripInvoiceWriteSchema', () => {
       foreignPrice: 237_160,
       paymentMethod: 'ACCOUNT',
       invoicedAt: '2026-09-26',
+      supplyDate: '2026-09-26',
     });
 
     expect(result.success).toBe(true);
@@ -38,6 +41,16 @@ describe('tripInvoiceWriteSchema', () => {
         foreignPrice: '',
         paymentMethod: 'CASH',
         invoicedAt: '2026-09-26',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('requires a supply date for an account invoice', () => {
+    expect(
+      tripInvoiceWriteSchema.safeParse({
+        domesticPrice: 25_000,
+        paymentMethod: 'ACCOUNT',
+        invoicedAt: '2026-10-05',
       }).success,
     ).toBe(false);
   });

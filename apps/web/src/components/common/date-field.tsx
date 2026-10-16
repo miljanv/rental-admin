@@ -310,6 +310,9 @@ export function DateField({
     const iso = parseMaskedDate(text);
     if (iso) {
       onChange(iso);
+    } else {
+      onChange('');
+      setText('');
     }
   };
 

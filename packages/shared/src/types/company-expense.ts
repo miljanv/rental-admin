@@ -21,6 +21,8 @@ export interface CompanyExpenseVehicleDto {
 export interface CompanyExpenseDto {
   id: string;
   issuedAt: string;
+  /** Date when goods or services were supplied. Null means historic data without this field. */
+  supplyDate: string | null;
   invoiceNumber: string | null;
   supplier: string;
   description: string;

@@ -82,6 +82,9 @@ export interface VatMonthlyPoint {
 export interface VatReportDto {
   from: string;
   to: string;
+  /** Older rows without a stored supply date are temporarily grouped by issue date. */
+  legacyInputCount: number;
+  legacyOutputCount: number;
   totals: {
     inputVat: number;
     outputVat: number;

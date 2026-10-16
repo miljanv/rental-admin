@@ -13,6 +13,7 @@ import { z } from 'zod';
 
 export interface CompanyExpenseFormValues {
   issuedAt: string;
+  supplyDate: string;
   invoiceNumber: string;
   supplier: string;
   description: string;
@@ -51,6 +52,7 @@ const toNullableNumber = (value: unknown): unknown => {
 export const companyExpenseFormSchema = z
   .object({
     issuedAt: isoDateSchema,
+    supplyDate: isoDateSchema,
     invoiceNumber: z.string(),
     supplier: z.string().trim().min(1, 'Dobavljač je obavezan.').max(120),
     description: z.string().trim().min(1, 'Opis troška je obavezan.').max(500),
@@ -105,6 +107,7 @@ export const toCompanyExpenseWriteRequest = (
 
   return companyExpenseWriteSchema.parse({
     issuedAt: values.issuedAt,
+    supplyDate: values.supplyDate,
     invoiceNumber: values.invoiceNumber,
     supplier: values.supplier,
     description: values.description,
@@ -118,6 +121,7 @@ export const toCompanyExpenseWriteRequest = (
 
 export const EMPTY_COMPANY_EXPENSE_FORM: CompanyExpenseFormValues = {
   issuedAt: '',
+  supplyDate: '',
   invoiceNumber: '',
   supplier: '',
   description: '',
@@ -133,6 +137,7 @@ export const toCompanyExpenseFormValues = (
   expense: CompanyExpenseDto,
 ): CompanyExpenseFormValues => ({
   issuedAt: expense.issuedAt,
+  supplyDate: expense.supplyDate ?? expense.issuedAt,
   invoiceNumber: expense.invoiceNumber ?? '',
   supplier: expense.supplier,
   description: expense.description,
