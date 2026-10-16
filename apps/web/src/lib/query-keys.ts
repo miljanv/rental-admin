@@ -216,11 +216,23 @@ export interface TripStatsParams {
   to?: string;
 }
 
+export interface UserListQueryParams {
+  organizationId?: string;
+}
+
 /**
  * Central query key factory. Mutations invalidate the `all` key for a domain,
  * which covers every list page and related details.
  */
 export const queryKeys = {
+  organizations: {
+    all: ['organizations'] as const,
+    list: () => ['organizations', 'list'] as const,
+  },
+  users: {
+    all: ['users'] as const,
+    list: (params: UserListQueryParams) => ['users', 'list', params] as const,
+  },
   files: {
     all: ['files'] as const,
     list: (params: FileListQueryParams) => ['files', 'list', params] as const,

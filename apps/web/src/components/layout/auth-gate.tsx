@@ -1,6 +1,7 @@
 'use client';
 
 import { AppShell } from '@/components/layout/app-shell';
+import { OrganizationGuard } from '@/components/layout/organization-guard';
 import { LoginScreen } from '@/features/auth/components/login-screen';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -19,5 +20,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     return <LoginScreen />;
   }
 
-  return <AppShell>{children}</AppShell>;
+  return (
+    <AppShell>
+      <OrganizationGuard>{children}</OrganizationGuard>
+    </AppShell>
+  );
 }

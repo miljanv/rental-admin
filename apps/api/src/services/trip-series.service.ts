@@ -16,6 +16,7 @@ import { prisma } from '../config/prisma';
 import { badRequest, notFound } from '../utils/app-error';
 import { logger } from '../utils/logger';
 import { toTripDto, toTripSeriesDto, type TripRecord } from '../utils/trip-mapper';
+import { requireOrganizationId } from '../utils/tenant-context';
 import { syncTripDriverPayouts } from './trip-expense.service';
 import { assertDriversExist, assertVehiclesExist, parseDate, tripInclude } from './trip.service';
 
@@ -66,10 +67,13 @@ export const generateTripSeries = async (
     );
   }
 
+  const organizationId = requireOrganizationId();
+
   const result = await prisma.$transaction(
     async (tx) => {
       const series = await tx.tripSeries.create({
         data: {
+          organizationId,
           name: input.name,
           frequency: input.frequency,
           daysOfWeek: input.daysOfWeek,
@@ -88,6 +92,7 @@ export const generateTripSeries = async (
 
       const createdTrips = await tx.trip.createManyAndReturn({
         data: dates.map((date) => ({
+          organizationId,
           referenceNumber: input.referenceNumber,
           departureDate: parseDate(date),
           returnDate: parseDate(date),

@@ -26,6 +26,7 @@ import { badRequest, notFound } from '../utils/app-error';
 import { buildPaginationMeta } from '../utils/api-response';
 import { toTripDto, type TripRecord } from '../utils/trip-mapper';
 import { logger } from '../utils/logger';
+import { requireOrganizationId } from '../utils/tenant-context';
 import { deleteAttachedFile } from './file-attachment.service';
 import { deleteOperationalTransaction } from './transaction.service';
 
@@ -298,7 +299,9 @@ export const createTrip = async (input: TripWriteRequest): Promise<TripDto> => {
   await assertReferencesExist(input);
 
   const record = await prisma.$transaction(async (tx) => {
-    const trip = await tx.trip.create({ data: toWriteData(input) });
+    const trip = await tx.trip.create({
+      data: { ...toWriteData(input), organizationId: requireOrganizationId() },
+    });
 
     if (input.vehicleIds.length > 0) {
       await tx.tripVehicle.createMany({

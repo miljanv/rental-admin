@@ -19,6 +19,7 @@ import {
 } from '@rental-admin/shared';
 
 import { prisma } from '../config/prisma';
+import { requireOrganizationId } from '../utils/tenant-context';
 
 const toIsoDate = (value: Date): string => value.toISOString().slice(0, 10);
 
@@ -209,11 +210,14 @@ export const getAlarmThresholds = async (): Promise<AlarmThresholdsDto> => ({
 export const updateAlarmThresholds = async (
   input: AlarmThresholdsWriteRequest,
 ): Promise<AlarmThresholdsDto> => {
+  const organizationId = requireOrganizationId();
+
   await prisma.$transaction(
     input.thresholds.map((row) =>
       prisma.alarmThreshold.upsert({
-        where: { kind: row.kind },
+        where: { organizationId_kind: { organizationId, kind: row.kind } },
         create: {
+          organizationId,
           kind: row.kind,
           criticalDays: row.criticalDays,
           warningDays: row.warningDays,

@@ -1,9 +1,23 @@
 import { megabytesToBytes } from '@rental-admin/shared';
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { app } from './app';
+import type * as AuthService from './services/auth.service';
 import { testAuthHeader } from './test/auth-header';
+
+// `requireAuth` re-reads the account on every request. There is no database in
+// unit tests, so the lookup answers with an active regular user.
+vi.mock('./services/auth.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof AuthService>()),
+  findActiveAuthUser: vi.fn(async (id: string) => ({
+    id,
+    username: 'admin',
+    role: 'USER' as const,
+    organizationId: 'org-test',
+    organizationName: 'Test firma',
+  })),
+}));
 
 const PRESIGN_URL = '/api/v1/files/presign-upload';
 const auth = testAuthHeader();

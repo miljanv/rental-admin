@@ -36,6 +36,8 @@ vi.mock('../config/prisma', () => {
     },
   };
 });
+// Services read the organization of the current request; unit tests have none.
+vi.mock('../utils/tenant-context', () => ({ requireOrganizationId: () => 'org-test' }));
 vi.mock('./supplier.service', () => ({
   findSupplierByBankAccount: vi.fn(),
   findSupplierIdByName: vi.fn(),
@@ -47,6 +49,7 @@ import type { FinanceTransactionRecord } from '../utils/transaction-mapper';
 import { findSupplierByBankAccount, findSupplierIdByName } from './supplier.service';
 import {
   createPaymentAllocation,
+  createTransaction,
   deleteTransaction,
   getFinanceReport,
   getVatReport,
@@ -134,7 +137,7 @@ beforeEach(() => {
   });
   vi.mocked(findSupplierByBankAccount).mockResolvedValue(supplier);
   vi.mocked(findSupplierIdByName).mockResolvedValue(supplier.id);
-  vi.mocked(prisma.partnerBankAccount.findUnique).mockResolvedValue({ partner } as never);
+  vi.mocked(prisma.partnerBankAccount.findFirst).mockResolvedValue({ partner } as never);
   vi.mocked(prisma.supplier.findUniqueOrThrow).mockResolvedValue(supplier as never);
   vi.mocked(prisma.partner.findUniqueOrThrow).mockResolvedValue(partner as never);
   vi.mocked(prisma.companyExpense.findMany).mockResolvedValue([expense] as never);
@@ -694,6 +697,28 @@ describe('finance report invoice recognition', () => {
         expect.objectContaining({ category: 'BANK', expense: 50 }),
       ]),
     );
+  });
+});
+
+describe('tenant isolation of transaction references', () => {
+  const manualInput = {
+    type: 'INCOME',
+    category: 'OTHER',
+    amount: 100,
+    occurredAt: '2026-10-10',
+    paymentMethod: 'ACCOUNT',
+    vehicleId: null,
+    driverId: null,
+    partnerId: 'foreign-partner',
+    contractId: null,
+  } as never;
+
+  it('rejects a partner that the caller organization does not own', async () => {
+    // The lookup is tenant-scoped, so another organization's partner id finds nothing.
+    vi.mocked(prisma.partner.findUnique).mockResolvedValue(null);
+
+    await expect(createTransaction(manualInput)).rejects.toMatchObject({ statusCode: 400 });
+    expect(prisma.financeTransaction.create).not.toHaveBeenCalled();
   });
 });
 

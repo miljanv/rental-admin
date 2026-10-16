@@ -17,6 +17,7 @@ import { conflict, notFound } from '../utils/app-error';
 import { buildPaginationMeta } from '../utils/api-response';
 import { logger } from '../utils/logger';
 import { toPartnerDto, type PartnerRecord } from '../utils/partner-mapper';
+import { requireOrganizationId } from '../utils/tenant-context';
 
 type PartnerOrderBy = Partial<Record<PartnerSortField, SortOrder>>;
 
@@ -513,11 +514,14 @@ export const getPartnerLedger = async (
 };
 
 export const createPartner = async (input: PartnerWriteRequest): Promise<PartnerDto> => {
+  const organizationId = requireOrganizationId();
   const record = await prisma.partner.create({
     data: {
       ...toWriteData(input),
+      organizationId,
       bankAccounts: {
         create: input.bankAccounts.map((account) => ({
+          organizationId,
           accountNumber: account.accountNumber,
         })),
       },
@@ -535,6 +539,8 @@ export const updatePartner = async (
 ): Promise<PartnerDto> => {
   await getPartner(id);
 
+  const organizationId = requireOrganizationId();
+
   const record = await prisma.$transaction(async (tx) => {
     await tx.partnerBankAccount.deleteMany({ where: { partnerId: id } });
 
@@ -544,6 +550,7 @@ export const updatePartner = async (
         ...toWriteData(input),
         bankAccounts: {
           create: input.bankAccounts.map((account) => ({
+            organizationId,
             accountNumber: account.accountNumber,
           })),
         },

@@ -12,13 +12,39 @@ import { logger } from '../utils/logger';
  */
 const DUMMY_PASSWORD_HASH = '$2b$12$FoQOIfb/5aL1/CU7dp876e7.1.A7x7sovjDjI6PqCUvEIIii4O0NS';
 
-const toAuthUserDto = (user: { id: string; username: string }): AuthUserDto => ({
+const authUserSelect = {
+  id: true,
+  username: true,
+  role: true,
+  isActive: true,
+  organization: { select: { id: true, name: true, isActive: true } },
+} as const;
+
+interface AuthUserRecord {
+  id: string;
+  username: string;
+  role: AuthUserDto['role'];
+  isActive: boolean;
+  organization: { id: string; name: string; isActive: boolean } | null;
+}
+
+const toAuthUserDto = (user: AuthUserRecord): AuthUserDto => ({
   id: user.id,
   username: user.username,
+  role: user.role,
+  organizationId: user.organization?.id ?? null,
+  organizationName: user.organization?.name ?? null,
 });
 
+/** A deactivated user, or one whose organization is deactivated, cannot sign in. */
+const isBlocked = (user: AuthUserRecord): boolean =>
+  !user.isActive || (user.organization !== null && !user.organization.isActive);
+
 export const login = async (input: LoginRequest): Promise<LoginResult> => {
-  const user = await prisma.user.findUnique({ where: { username: input.username } });
+  const user = await prisma.user.findUnique({
+    where: { username: input.username },
+    select: { ...authUserSelect, passwordHash: true },
+  });
   const passwordMatches = await bcrypt.compare(
     input.password,
     user?.passwordHash ?? DUMMY_PASSWORD_HASH,
@@ -28,11 +54,27 @@ export const login = async (input: LoginRequest): Promise<LoginResult> => {
     throw unauthorized('Pogrešno korisničko ime ili lozinka.');
   }
 
+  if (isBlocked(user)) {
+    throw unauthorized('Nalog je deaktiviran. Obratite se administratoru.');
+  }
+
   logger.info('User signed in', { userId: user.id, username: user.username });
 
-  const dto = toAuthUserDto(user);
+  return { token: signAccessToken(user), user: toAuthUserDto(user) };
+};
 
-  return { token: signAccessToken(dto), user: dto };
+/**
+ * Loads the account behind a verified token. Returns null when it no longer
+ * exists or is deactivated, which `requireAuth` reports as an expired session.
+ */
+export const findActiveAuthUser = async (id: string): Promise<AuthUserDto | null> => {
+  const user = await prisma.user.findUnique({ where: { id }, select: authUserSelect });
+
+  if (!user || isBlocked(user)) {
+    return null;
+  }
+
+  return toAuthUserDto(user);
 };
 
 export const getCurrentUser = (user: AuthUserDto): AuthUserDto => user;

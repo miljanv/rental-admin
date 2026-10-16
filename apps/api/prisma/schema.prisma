@@ -22,6 +22,7 @@ enum FileStatus {
 /// confirmed the object actually exists in the bucket.
 model FileObject {
   id                     String                    @id @default(cuid())
+  organizationId         String
   originalName           String
   storageKey             String                    @unique
   mimeType               String
@@ -41,9 +42,12 @@ model FileObject {
   tripExpense            TripExpense?
   tripBillingDocument    TripBillingDocument?
 
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
   @@index([status])
   @@index([createdAt])
   @@index([status, createdAt])
+  @@index([organizationId])
 }
 
 enum DriverStatus {
@@ -57,9 +61,11 @@ enum DriverStatus {
 /// presents Serbian labels.
 model Driver {
   id                     String                     @id @default(cuid())
+  organizationId         String
+  createdById            String?
   firstName              String
   lastName               String
-  jmbg                   String                     @unique
+  jmbg                   String
   dateOfBirth            DateTime                   @db.Date
   residencePlace         String
   /// Street and house number — captured once here so the employment
@@ -88,8 +94,14 @@ model Driver {
   transactions           FinanceTransaction[]
   tripAssignments        TripDriver[]
 
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, jmbg])
   @@index([status])
   @@index([lastName, firstName])
+  @@index([organizationId])
+  @@index([createdById])
   @@map("drivers")
 }
 
@@ -175,14 +187,63 @@ model DriverAbsenceAttestation {
   @@map("driver_absence_attestations")
 }
 
-/// Bootstrap admin accounts. Passwords are stored as bcrypt hashes and never
-/// returned by the API.
+enum UserRole {
+  SUPERADMIN
+  USER
+}
+
+/// A customer company (tenant). Every business record belongs to exactly one
+/// organization; users of the same organization share all of its data.
+model Organization {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users                User[]
+  fileObjects          FileObject[]
+  drivers              Driver[]
+  vehicles             Vehicle[]
+  companyExpenses      CompanyExpense[]
+  suppliers            Supplier[]
+  supplierBankAccounts SupplierBankAccount[]
+  partners             Partner[]
+  partnerBankAccounts  PartnerBankAccount[]
+  contracts            Contract[]
+  transactions         FinanceTransaction[]
+  alarmThresholds      AlarmThreshold[]
+  tripSeries           TripSeries[]
+  trips                Trip[]
+
+  @@map("organizations")
+}
+
+/// Login accounts. Passwords are stored as bcrypt hashes and never returned by
+/// the API. A SUPERADMIN has no organization and manages organizations/users;
+/// every other user belongs to exactly one organization.
 model User {
-  id           String   @id @default(cuid())
-  username     String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String    @id @default(cuid())
+  username       String    @unique
+  passwordHash   String
+  role           UserRole  @default(USER)
+  isActive       Boolean   @default(true)
+  organizationId String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  createdDrivers         Driver[]
+  createdVehicles        Vehicle[]
+  createdCompanyExpenses CompanyExpense[]
+  createdSuppliers       Supplier[]
+  createdPartners        Partner[]
+  createdContracts       Contract[]
+  createdTransactions    FinanceTransaction[]
+  createdTrips           Trip[]
+
+  @@index([organizationId])
 }
 
 enum VehicleType {
@@ -219,11 +280,13 @@ enum VehicleStatus {
 /// attach to this model as they are built.
 model Vehicle {
   id                 String          @id @default(cuid())
+  organizationId     String
+  createdById        String?
   make               String
   model              String
   year               Int
-  licensePlate       String          @unique
-  vin                String          @unique
+  licensePlate       String
+  vin                String
   engineNumber       String?
   enginePower        Float?
   engineDisplacement Int?
@@ -253,9 +316,16 @@ model Vehicle {
   transactions    FinanceTransaction[]
   tripAssignments TripVehicle[]
 
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, licensePlate])
+  @@unique([organizationId, vin])
   @@index([status])
   @@index([type])
   @@index([make, model])
+  @@index([organizationId])
+  @@index([createdById])
   @@map("vehicles")
 }
 
@@ -418,6 +488,8 @@ enum CompanyExpenseScope {
 
 model CompanyExpense {
   id               String              @id @default(cuid())
+  organizationId   String
+  createdById      String?
   issuedAt         DateTime            @db.Date
   /// Date when the goods or service was supplied; used for VAT reporting.
   supplyDate       DateTime?           @db.Date
@@ -437,8 +509,10 @@ model CompanyExpense {
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
 
-  vehicle     Vehicle?  @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
-  supplierRef Supplier? @relation("CompanyExpenseSupplier", fields: [supplierId], references: [id], onDelete: SetNull)
+  vehicle      Vehicle?     @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  supplierRef  Supplier?    @relation("CompanyExpenseSupplier", fields: [supplierId], references: [id], onDelete: SetNull)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([issuedAt])
   @@index([supplyDate])
@@ -448,6 +522,8 @@ model CompanyExpense {
   @@index([supplierId])
   @@index([scope])
   @@index([vehicleId])
+  @@index([organizationId])
+  @@index([createdById])
   @@map("company_expenses")
 }
 
@@ -456,10 +532,12 @@ model CompanyExpense {
 /// cleaned up or a supplier is renamed.
 model Supplier {
   id                 String               @id @default(cuid())
-  name               String               @unique
+  organizationId     String
+  createdById        String?
+  name               String
   email              String?
   phone              String?
-  pib                String?              @unique
+  pib                String?
   registrationNumber String?
   address            String?
   city               String?
@@ -473,20 +551,32 @@ model Supplier {
   maintenanceRecords VehicleMaintenance[] @relation("VehicleMaintenanceSupplier")
   transactions       FinanceTransaction[] @relation("FinanceTransactionSupplier")
 
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, name])
+  @@unique([organizationId, pib])
   @@index([name])
   @@index([pib])
+  @@index([organizationId])
+  @@index([createdById])
   @@map("suppliers")
 }
 
+/// `organizationId` duplicates the supplier's so an account number can be
+/// unique per organization; it must always equal `supplier.organizationId`.
 model SupplierBankAccount {
-  id            String   @id @default(cuid())
-  supplierId    String
-  accountNumber String   @unique
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String   @id @default(cuid())
+  organizationId String
+  supplierId     String
+  accountNumber  String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  supplier     Supplier     @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
+  @@unique([organizationId, accountNumber])
   @@index([supplierId])
   @@map("supplier_bank_accounts")
 }
@@ -534,6 +624,8 @@ enum PartnerType {
 /// of joining live — see Contract's client* fields.
 model Partner {
   id                 String      @id @default(cuid())
+  organizationId     String
+  createdById        String?
   type               PartnerType
   companyName        String?
   firstName          String?
@@ -557,19 +649,29 @@ model Partner {
   bankAccounts PartnerBankAccount[]
   transactions FinanceTransaction[] @relation("FinanceTransactionPartner")
 
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
   @@index([type])
+  @@index([organizationId])
+  @@index([createdById])
   @@map("partners")
 }
 
+/// `organizationId` duplicates the partner's so an account number can be
+/// unique per organization; it must always equal `partner.organizationId`.
 model PartnerBankAccount {
-  id            String   @id @default(cuid())
-  partnerId     String
-  accountNumber String   @unique
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String   @id @default(cuid())
+  organizationId String
+  partnerId      String
+  accountNumber  String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  partner Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  partner      Partner      @relation(fields: [partnerId], references: [id], onDelete: Cascade)
 
+  @@unique([organizationId, accountNumber])
   @@index([partnerId])
   @@map("partner_bank_accounts")
 }
@@ -588,6 +690,8 @@ enum ContractStatus {
 /// changes if the partner's own record is edited later.
 model Contract {
   id                       String         @id @default(cuid())
+  organizationId           String
+  createdById              String?
   partnerId                String
   vehicleId                String?
   driverId                 String?
@@ -626,11 +730,16 @@ model Contract {
   travelPermits  TravelPermit[]
   trips          Trip[]
 
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
   @@index([partnerId])
   @@index([vehicleId])
   @@index([driverId])
   @@index([status])
   @@index([conclusionDate])
+  @@index([organizationId])
+  @@index([createdById])
   @@map("contracts")
 }
 
@@ -763,6 +872,8 @@ enum SettlementTargetType {
 /// plain id until a transport-contract module exists — there is no FK yet.
 model FinanceTransaction {
   id                  String                @id @default(cuid())
+  organizationId      String
+  createdById         String?
   type                TransactionType
   category            TransactionCategory
   amount              Float
@@ -794,7 +905,11 @@ model FinanceTransaction {
   linkedTransaction  FinanceTransaction?  @relation("AdvanceSettlement", fields: [linkedTransactionId], references: [id], onDelete: SetNull)
   linkedAdvances     FinanceTransaction[] @relation("AdvanceSettlement")
   paymentAllocations PaymentAllocation[]
+  organization       Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy          User?                @relation(fields: [createdById], references: [id], onDelete: SetNull)
 
+  @@index([organizationId])
+  @@index([createdById])
   @@index([occurredAt])
   @@index([type])
   @@index([category])
@@ -832,11 +947,15 @@ model PaymentAllocation {
 
 /// Per-document red/yellow warning windows for the alarm center.
 model AlarmThreshold {
-  kind         String   @id
-  criticalDays Int
-  warningDays  Int
-  updatedAt    DateTime @updatedAt
+  organizationId String
+  kind           String
+  criticalDays   Int
+  warningDays    Int
+  updatedAt      DateTime @updatedAt
 
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@id([organizationId, kind])
   @@map("alarm_thresholds")
 }
 
@@ -858,8 +977,9 @@ enum TripSeriesFrequency {
 /// whole run can be bulk-edited from a date onward or terminated early — see
 /// Trip.seriesId and the trip-series bulk-update/terminate endpoints.
 model TripSeries {
-  id           String              @id @default(cuid())
-  name         String?
+  id             String              @id @default(cuid())
+  organizationId String
+  name           String?
   frequency    TripSeriesFrequency
   /// 0=Sunday..6=Saturday. Ignored when frequency is DAILY.
   daysOfWeek   Int[]               @default([])
@@ -870,9 +990,11 @@ model TripSeries {
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 
-  trips  Trip[]
-  pauses TripSeriesPause[]
+  trips        Trip[]
+  pauses       TripSeriesPause[]
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
+  @@index([organizationId])
   @@map("trip_series")
 }
 
@@ -901,6 +1023,8 @@ model TripSeriesPause {
 /// covers a shift change) via TripVehicle/TripDriver — never a single FK.
 model Trip {
   id                    String         @id @default(cuid())
+  organizationId        String
+  createdById           String?
   /// "RN broj" — the operator's own trip reference/registration number.
   /// Assigned once invoicing happens, so it's null on most newly-created trips.
   referenceNumber       String?
@@ -979,7 +1103,11 @@ model Trip {
   expenses         TripExpense[]
   billingDocuments TripBillingDocument[]
   cashPayments     TripCashPayment[]
+  organization     Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy        User?                 @relation(fields: [createdById], references: [id], onDelete: SetNull)
 
+  @@index([organizationId])
+  @@index([createdById])
   @@index([status])
   @@index([departureDate])
   @@index([country])

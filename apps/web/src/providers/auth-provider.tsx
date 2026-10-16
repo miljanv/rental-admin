@@ -5,6 +5,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { fetchCurrentUser, login as loginRequest } from '@/features/auth/api/auth-api';
+import {
+  clearActiveOrganizationId,
+  getActiveOrganizationId,
+  setActiveOrganizationId,
+} from '@/lib/active-organization';
 import { parseApiError } from '@/lib/api-error';
 import { queryKeys } from '@/lib/query-keys';
 import {
@@ -17,6 +22,10 @@ import {
 interface AuthContextValue {
   user: AuthUserDto | null;
   isReady: boolean;
+  /** The organization a superadmin works in. Always null for regular users. */
+  activeOrganizationId: string | null;
+  /** Switches a superadmin to another organization (or none) and reloads what is on screen. */
+  selectOrganization: (organizationId: string | null) => void;
   login: (input: { username: string; password: string }) => Promise<void>;
   logout: () => void;
 }
@@ -27,12 +36,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const [user, setUser] = useState<AuthUserDto | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [activeOrganizationId, setActiveOrganization] = useState<string | null>(null);
 
   const logout = useCallback(() => {
     clearAccessToken();
+    clearActiveOrganizationId();
     setUser(null);
+    setActiveOrganization(null);
     queryClient.clear();
   }, [queryClient]);
+
+  const selectOrganization = useCallback(
+    (organizationId: string | null) => {
+      if (organizationId) {
+        setActiveOrganizationId(organizationId);
+      } else {
+        clearActiveOrganizationId();
+      }
+
+      setActiveOrganization(organizationId);
+      // Nothing cached for the previous organization may stay on screen.
+      void queryClient.resetQueries();
+    },
+    [queryClient],
+  );
 
   useEffect(() => {
     const token = getAccessToken();
@@ -53,6 +80,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         setUser(currentUser);
+
+        if (currentUser.role === 'SUPERADMIN') {
+          setActiveOrganization(getActiveOrganizationId());
+        } else {
+          clearActiveOrganizationId();
+        }
       })
       .catch((error: unknown) => {
         // Strict Mode remounts abort the first request. That is not a failed
@@ -79,6 +112,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     mutationFn: loginRequest,
     onSuccess: (result) => {
       setAccessToken(result.token);
+      // A fresh sign-in always starts without a chosen organization.
+      clearActiveOrganizationId();
+      setActiveOrganization(null);
       setUser(result.user);
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.files.all });
@@ -97,10 +133,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       user,
       isReady,
+      activeOrganizationId,
+      selectOrganization,
       login,
       logout,
     }),
-    [user, isReady, login, logout],
+    [user, isReady, activeOrganizationId, selectOrganization, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

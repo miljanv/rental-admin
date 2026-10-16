@@ -1,3 +1,4 @@
+import type { UserRole } from '@rental-admin/shared';
 import {
   Bell,
   ChartNoAxesCombined,
@@ -7,6 +8,7 @@ import {
   ReceiptText,
   Route,
   Settings2,
+  ShieldCheck,
   Store,
   Truck,
   UserRound,
@@ -21,6 +23,8 @@ export interface NavItem {
   icon: LucideIcon;
   description: string;
   emphasis?: 'alert';
+  /** Shown only to a superadmin. Every other item is a screen of one organization's data. */
+  access?: 'superadmin';
 }
 
 /** Single source of truth for the sidebar and the breadcrumb labels. */
@@ -92,6 +96,13 @@ export const NAV_ITEMS: NavItem[] = [
     description: 'Pregled poslovanja',
   },
   {
+    title: 'Firme i korisnici',
+    href: '/admin',
+    icon: ShieldCheck,
+    description: 'Upravljanje firmama i nalozima',
+    access: 'superadmin',
+  },
+  {
     title: 'Alarm centar',
     href: '/alarms',
     icon: Bell,
@@ -115,3 +126,19 @@ export const MAIN_NAV_ITEMS = NAV_ITEMS.filter(
 export const FOOTER_NAV_ITEMS = NAV_ITEMS.filter(
   (item) => item.href === '/alarms' || item.href === '/settings',
 );
+
+export interface NavAudience {
+  role: UserRole;
+  /** A superadmin has to pick an organization before any business screen has data. */
+  hasOrganization: boolean;
+}
+
+/** Which nav items a signed-in user gets to see. */
+export const filterNavItems = (items: NavItem[], audience: NavAudience): NavItem[] =>
+  items.filter((item) => {
+    if (item.access === 'superadmin') {
+      return audience.role === 'SUPERADMIN';
+    }
+
+    return audience.role !== 'SUPERADMIN' || audience.hasOrganization;
+  });

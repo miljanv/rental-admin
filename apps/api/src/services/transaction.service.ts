@@ -36,8 +36,7 @@ import {
   defaultFinanceReportRange,
 } from '@rental-admin/shared';
 
-import { prisma } from '../config/prisma';
-import type { Prisma } from '../generated/prisma/client';
+import { prisma, type TransactionClient } from '../config/prisma';
 import { financeWrite } from '../utils/finance-write';
 import {
   planStatementAllocations,
@@ -49,6 +48,7 @@ import { badRequest, conflict, notFound } from '../utils/app-error';
 import { logger } from '../utils/logger';
 import { buildXlsx } from '../utils/xlsx';
 import { toTransactionDto, type FinanceTransactionRecord } from '../utils/transaction-mapper';
+import { requireOrganizationId } from '../utils/tenant-context';
 import {
   FINANCE_EXPORT_LEDGER_LIMIT,
   buildFinanceExportDocument,
@@ -327,7 +327,7 @@ const findPartnerByBankAccount = async (accountNumber: string | null) => {
     return null;
   }
 
-  const account = await prisma.partnerBankAccount.findUnique({
+  const account = await prisma.partnerBankAccount.findFirst({
     where: { accountNumber: normalized },
     include: {
       partner: {
@@ -479,6 +479,53 @@ const assertDriverExists = async (driverId: string | null): Promise<void> => {
   }
 };
 
+const assertPartnerExists = async (partnerId: string | null | undefined): Promise<void> => {
+  if (!partnerId) {
+    return;
+  }
+
+  const partner = await prisma.partner.findUnique({
+    where: { id: partnerId },
+    select: { id: true },
+  });
+
+  if (!partner) {
+    throw badRequest('Izabrani partner ne postoji.');
+  }
+};
+
+const assertContractExists = async (contractId: string | null | undefined): Promise<void> => {
+  if (!contractId) {
+    return;
+  }
+
+  const contract = await prisma.contract.findUnique({
+    where: { id: contractId },
+    select: { id: true },
+  });
+
+  if (!contract) {
+    throw badRequest('Izabrani ugovor ne postoji.');
+  }
+};
+
+/**
+ * Every id a transaction write takes from the request must be looked up first:
+ * the lookups are limited to the caller's organization, which is what stops a
+ * foreign vehicle, driver, partner or contract from being attached.
+ */
+const assertReferencesExist = async (input: {
+  vehicleId: string | null;
+  driverId: string | null;
+  partnerId?: string | null | undefined;
+  contractId?: string | null | undefined;
+}): Promise<void> => {
+  await assertVehicleExists(input.vehicleId);
+  await assertDriverExists(input.driverId);
+  await assertPartnerExists(input.partnerId);
+  await assertContractExists(input.contractId);
+};
+
 const toManualWriteData = async (input: TransactionWriteRequest) => ({
   type: input.type,
   category: input.category,
@@ -537,6 +584,7 @@ export const listTransactions = async (
     SELECT t.id FROM transactions t
     LEFT JOIN payment_allocations a ON a."transactionId" = t.id
     WHERE t."sourceType" = 'BANK_STATEMENT'
+      AND t."organizationId" = ${requireOrganizationId()}
     GROUP BY t.id
     HAVING t.amount - COALESCE(SUM(a.amount), 0) > 0.005
   `
@@ -579,11 +627,10 @@ export const getTransaction = async (id: string): Promise<TransactionDto> => {
 export const createTransaction = async (
   input: TransactionWriteRequest,
 ): Promise<TransactionDto> => {
-  await assertVehicleExists(input.vehicleId);
-  await assertDriverExists(input.driverId);
+  await assertReferencesExist(input);
 
   const record = await prisma.financeTransaction.create({
-    data: await toManualWriteData(input),
+    data: { ...(await toManualWriteData(input)), organizationId: requireOrganizationId() },
     include: transactionInclude,
   });
 
@@ -595,10 +642,12 @@ export const createTransaction = async (
 export const createBankStatementEntry = async (
   input: BankStatementEntryWriteRequest,
 ): Promise<TransactionDto> => {
-  await assertVehicleExists(input.vehicleId);
-  await assertDriverExists(input.driverId);
+  await assertReferencesExist(input);
 
-  const data = await toBankStatementWriteData(input);
+  const data = {
+    ...(await toBankStatementWriteData(input)),
+    organizationId: requireOrganizationId(),
+  };
   const record = await financeWrite(async (tx) => {
     const created = await tx.financeTransaction.create({ data, include: transactionInclude });
     await reconcileStatement(tx, created);
@@ -672,7 +721,11 @@ export const importBankStatementXml = async (
         if (matchedPartner && input.rememberMatchedAccounts && accountNumber) {
           await prisma.partnerBankAccount
             .create({
-              data: { partnerId: matchedPartner.id, accountNumber },
+              data: {
+                organizationId: requireOrganizationId(),
+                partnerId: matchedPartner.id,
+                accountNumber,
+              },
             })
             .catch(() => null);
         }
@@ -756,6 +809,7 @@ export const importBankStatementXml = async (
 
       const record = await tx.financeTransaction.create({
         data: {
+          organizationId: requireOrganizationId(),
           type: entry.type,
           category: inferStatementCategory(entry.type, entry.payeeName, entry.purpose),
           amount: entry.amount,
@@ -821,7 +875,7 @@ export const importBankStatementXml = async (
 };
 
 const loadStatementAllocationTargets = async (
-  tx: Prisma.TransactionClient,
+  tx: TransactionClient,
   input: {
     type: TransactionType;
     supplierId: string | null;
@@ -917,7 +971,7 @@ const loadStatementAllocationTargets = async (
 };
 
 const reconcileStatement = async (
-  tx: Prisma.TransactionClient,
+  tx: TransactionClient,
   transaction: FinanceTransactionRecord,
   reference: string | null = transaction.note?.match(/(?:^| · )Poziv ([^·]+)/)?.[1]?.trim() ?? null,
 ): Promise<void> => {
@@ -1199,8 +1253,7 @@ export const updateTransaction = async (
     throw conflict('Razdužena transakcija se ne može menjati.');
   }
 
-  await assertVehicleExists(input.vehicleId);
-  await assertDriverExists(input.driverId);
+  await assertReferencesExist(input);
 
   const record = await prisma.financeTransaction.update({
     where: { id },
@@ -1217,8 +1270,7 @@ export const updateBankStatementEntry = async (
   id: string,
   input: BankStatementEntryWriteRequest,
 ): Promise<TransactionDto> => {
-  await assertVehicleExists(input.vehicleId);
-  await assertDriverExists(input.driverId);
+  await assertReferencesExist(input);
   const data = await toBankStatementWriteData(input);
   return financeWrite(async (tx) => {
     const existing = await tx.financeTransaction.findUnique({
@@ -1364,6 +1416,7 @@ export const settleAdvances = async (
   const settlement = await prisma.$transaction(async (tx) => {
     const created = await tx.financeTransaction.create({
       data: {
+        organizationId: requireOrganizationId(),
         type: 'EXPENSE',
         category: 'FUEL',
         amount,
@@ -1430,7 +1483,7 @@ const targetTypeForTransactionType = (type: 'INCOME' | 'EXPENSE'): SettlementTar
 const allocatedByTarget = async (
   targetType: SettlementTargetType,
   targetIds: string[],
-  tx: Prisma.TransactionClient = prisma,
+  tx: TransactionClient = prisma,
 ): Promise<Map<string, number>> => {
   if (targetIds.length === 0) {
     return new Map();
@@ -1752,7 +1805,7 @@ export const listSettlementTargets = async (
 const getSettlementTarget = async (
   targetType: SettlementTargetType,
   targetId: string,
-  tx: Prisma.TransactionClient = prisma,
+  tx: TransactionClient = prisma,
 ): Promise<SettlementTargetDto> => {
   const allocated = await allocatedByTarget(targetType, [targetId], tx);
   const allocatedAmount = roundMoney(allocated.get(targetId) ?? 0);
@@ -1859,7 +1912,7 @@ const refreshTargetPaidAt = async (
   targetType: SettlementTargetType,
   targetId: string,
   paidAt: Date,
-  tx: Prisma.TransactionClient = prisma,
+  tx: TransactionClient = prisma,
 ): Promise<void> => {
   const allocated = await allocatedByTarget(targetType, [targetId], tx);
   const allocatedAmount = allocated.get(targetId) ?? 0;
@@ -2131,7 +2184,9 @@ const upsertOperationalTransaction = async (
     return;
   }
 
-  await prisma.financeTransaction.create({ data });
+  await prisma.financeTransaction.create({
+    data: { ...data, organizationId: requireOrganizationId() },
+  });
 };
 
 export const upsertOperationalExpense = (input: OperationalExpenseInput): Promise<void> =>

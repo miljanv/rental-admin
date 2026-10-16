@@ -1,3 +1,4 @@
+import { ORGANIZATION_HEADER } from '@rental-admin/shared';
 import cors, { type CorsOptions } from 'cors';
 import express, { type Express } from 'express';
 import helmet from 'helmet';
@@ -27,7 +28,7 @@ const buildCorsOptions = (): CorsOptions => ({
     callback(forbidden(`Origin ${origin} is not allowed by CORS.`));
   },
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Accept', 'Authorization', ORGANIZATION_HEADER],
   exposedHeaders: ['Content-Disposition'],
   maxAge: 86_400,
 });

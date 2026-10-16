@@ -18,6 +18,7 @@ import { buildPaginationMeta } from '../utils/api-response';
 import { toDriverDocumentDto, type DriverDocumentRecord } from '../utils/driver-document-mapper';
 import { toDriverDto, type DriverRecord } from '../utils/driver-mapper';
 import { logger } from '../utils/logger';
+import { requireOrganizationId } from '../utils/tenant-context';
 import { deleteAbsenceFilesForDriver } from './absence-attestation.service';
 import { deleteFilesForDriver } from './driver-document.service';
 import { summarizeDriverTripKm } from './driver-per-diem.service';
@@ -136,7 +137,9 @@ export const getDriver = async (id: string): Promise<DriverDto> => {
 
 export const createDriver = async (input: DriverWriteRequest): Promise<DriverDto> => {
   try {
-    const record = await prisma.driver.create({ data: toWriteData(input) });
+    const record = await prisma.driver.create({
+      data: { ...toWriteData(input), organizationId: requireOrganizationId() },
+    });
     logger.info('Driver created', { driverId: record.id, jmbg: record.jmbg });
     return toDriverDto(record);
   } catch (error) {
