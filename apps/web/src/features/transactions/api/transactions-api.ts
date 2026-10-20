@@ -23,6 +23,9 @@ import type {
 import { apiClient, unwrap } from '@/lib/api-client';
 import type { TransactionListQueryParams } from '@/lib/query-keys';
 
+// A statement processes multiple rows and can outlast the default API timeout.
+const BANK_STATEMENT_TIMEOUT_MS = 120_000;
+
 export interface TransactionListPage {
   transactions: TransactionDto[];
   pagination: PaginationMeta;
@@ -103,6 +106,7 @@ export const importBankStatementXml = async (
   const response = await apiClient.post<ApiResponse<BankStatementImportResult>>(
     '/transactions/bank-statements/import-xml',
     body,
+    { timeout: BANK_STATEMENT_TIMEOUT_MS },
   );
 
   return unwrap(response.data);
@@ -114,6 +118,7 @@ export const previewBankStatementXml = async (
   const response = await apiClient.post<ApiResponse<BankStatementPreviewResult>>(
     '/transactions/bank-statements/preview-xml',
     body,
+    { timeout: BANK_STATEMENT_TIMEOUT_MS },
   );
 
   return unwrap(response.data);

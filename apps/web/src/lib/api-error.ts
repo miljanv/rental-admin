@@ -91,9 +91,13 @@ export const parseApiError = (error: unknown): ParsedApiError => {
     }
 
     if (!error.response) {
+      const isTimeout = error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT';
+
       return {
-        code: 'NETWORK_ERROR',
-        message: NETWORK_MESSAGE,
+        code: isTimeout ? 'TIMEOUT' : 'NETWORK_ERROR',
+        message: isTimeout
+          ? 'The server took too long to respond. The operation may still be running.'
+          : NETWORK_MESSAGE,
         fieldMessages: [],
         isCanceled: false,
         isNetworkError: true,

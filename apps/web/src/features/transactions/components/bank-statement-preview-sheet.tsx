@@ -75,8 +75,10 @@ export function BankStatementPreviewSheet({
           <SheetTitle>Pregled izvoda pre uvoza</SheetTitle>
           <SheetDescription>
             {fileName ?? 'XML izvod'}
-            {preview?.statementNumber ? ` · izvod ${preview.statementNumber}` : ''}. Još ništa nije
-            upisano u bazu.
+            {preview?.statementNumber ? ` · izvod ${preview.statementNumber}` : ''}.{' '}
+            {isImporting
+              ? 'Uvoz i knjiženje su u toku. Sačekajte potvrdu; veći izvodi mogu potrajati nekoliko minuta.'
+              : 'Pregled prepoznatih stavki i predloženog knjiženja.'}
           </SheetDescription>
         </SheetHeader>
 
