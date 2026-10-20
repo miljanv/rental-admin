@@ -2,7 +2,6 @@ import { API_ERROR_CODES, type ApiErrorCode } from '@rental-admin/shared';
 import type { ErrorRequestHandler } from 'express';
 import { z } from 'zod';
 
-import { env } from '../config/env';
 import { buildErrorBody } from '../utils/api-response';
 import { isAppError } from '../utils/app-error';
 import { logger } from '../utils/logger';
@@ -113,14 +112,10 @@ export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
     return;
   }
 
-  const exposeMessage = !isUnexpected || !env.isProduction;
-  const messageForClient =
-    exposeMessage && error instanceof Error && isUnexpected ? error.message : normalized.message;
-
   res.status(normalized.statusCode).json(
     buildErrorBody({
       code: normalized.code,
-      message: messageForClient,
+      message: normalized.message,
       ...(normalized.details !== undefined ? { details: normalized.details } : {}),
     }),
   );

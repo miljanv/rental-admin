@@ -92,6 +92,28 @@ describe('errorHandler', () => {
     expect(captured.body()).toMatchObject({ error: { code: 'CONFLICT' } });
   });
 
+  it('does not expose transaction timeout details to the client', () => {
+    const captured = createResponse();
+
+    errorHandler(
+      Object.assign(
+        new Error(
+          'Invalid tx.financeTransaction.findFirst() invocation: transaction expired after 5000 ms',
+        ),
+        { code: 'P2028' },
+      ),
+      request,
+      captured.res,
+      next,
+    );
+
+    expect(captured.statusCode()).toBe(500);
+    expect(captured.body()).toEqual({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: 'Internal server error' },
+    });
+  });
+
   it('reports an unexpected error as a 500 without leaking internals in production', async () => {
     vi.resetModules();
     vi.doMock('../utils/logger', () => ({

@@ -1031,170 +1031,94 @@ export const previewBankStatementXml = async (
     throw badRequest('XML ne sadrži stavke izvoda.');
   }
 
-  return prisma.$transaction(async (tx) => {
-    const rows: BankStatementPreviewResult['rows'] = [];
-    const occurrences = new Map<string, number>();
-    const seenSourceIds = new Set<string>();
-    const plannedByTarget = new Map<string, number>();
+  // Preview only reads data; do not hold an interactive transaction open for the
+  // whole statement. Import rechecks duplicates and allocations inside financeWrite.
+  const rows: BankStatementPreviewResult['rows'] = [];
+  const occurrences = new Map<string, number>();
+  const seenSourceIds = new Set<string>();
+  const plannedByTarget = new Map<string, number>();
 
-    for (const [index, entry] of parsed.entries.entries()) {
-      const accountNumber = normalizeBankAccount(entry.payeeAccountNumber);
-      const category = inferStatementCategory(entry.type, entry.payeeName, entry.purpose);
+  for (const [index, entry] of parsed.entries.entries()) {
+    const accountNumber = normalizeBankAccount(entry.payeeAccountNumber);
+    const category = inferStatementCategory(entry.type, entry.payeeName, entry.purpose);
 
-      if (!isValidStatementEntry(entry)) {
-        rows.push({
-          id: `invalid-${index + 1}`,
-          type: entry.type,
-          category,
-          amount: entry.amount,
-          occurredAt: entry.occurredAt,
-          payeeName: entry.payeeName,
-          accountNumber,
-          reference: entry.payeeReferenceNumber,
-          purpose: entry.purpose,
-          counterpartyId: null,
-          counterpartyName: null,
-          matchMethod: 'NONE',
-          matchReason: 'Stavka nema ispravan datum ili pozitivan iznos.',
-          willRememberAccount: false,
-          allocations: [],
-          allocatedAmount: 0,
-          unallocatedAmount: Number.isFinite(entry.amount) ? entry.amount : 0,
-          status: 'INVALID',
-        });
-        continue;
-      }
-
-      const fingerprint = createHash('sha256')
-        .update(
-          JSON.stringify({
-            account: canonicalBankAccount(parsed.accountNumber),
-            statement: parsed.statementNumber,
-            entry,
-          }),
-        )
-        .digest('hex');
-      const occurrence = occurrences.get(fingerprint) ?? 0;
-      occurrences.set(fingerprint, occurrence + 1);
-      const bankReference = entry.fitId ?? `xml:${fingerprint}:${occurrence}`;
-      const sourceId = `bank:${canonicalBankAccount(parsed.accountNumber)}:${bankReference}`;
-      const duplicate =
-        seenSourceIds.has(sourceId) ||
-        Boolean(
-          await tx.financeTransaction.findFirst({
-            where: {
-              sourceType: 'BANK_STATEMENT',
-              OR: [
-                { sourceId },
-                ...(entry.fitId
-                  ? [{ sourceId: entry.fitId }, { sourceId: null, bankReference: entry.fitId }]
-                  : []),
-              ],
-            },
-            select: { id: true },
-          }),
-        );
-      seenSourceIds.add(sourceId);
-
-      let counterpartyId: string | null = null;
-      let counterpartyName: string | null = null;
-      let matchMethod: BankStatementPreviewResult['rows'][number]['matchMethod'] = 'NONE';
-
-      if (entry.type === 'INCOME') {
-        let partner = await findPartnerByBankAccount(accountNumber);
-        if (partner) {
-          matchMethod = 'BANK_ACCOUNT';
-        } else {
-          partner = await findPartnerByStatementName(entry.payeeName);
-          if (partner) matchMethod = 'NAME';
-        }
-        counterpartyId = partner?.id ?? null;
-        counterpartyName = partner ? partnerDisplayName(partner) : null;
-      } else {
-        const supplier = await findSupplierForStatementEntry(entry.payeeName, accountNumber);
-        counterpartyId = supplier?.id ?? null;
-        counterpartyName = supplier?.name ?? null;
-        matchMethod = supplier ? (supplier.matchedByAccount ? 'BANK_ACCOUNT' : 'NAME') : 'NONE';
-      }
-
-      if (duplicate) {
-        rows.push({
-          id: sourceId,
-          type: entry.type,
-          category,
-          amount: entry.amount,
-          occurredAt: entry.occurredAt,
-          payeeName: entry.payeeName,
-          accountNumber,
-          reference: entry.payeeReferenceNumber,
-          purpose: entry.purpose,
-          counterpartyId,
-          counterpartyName,
-          matchMethod,
-          matchReason: 'Stavka sa istom bankarskom referencom je već u evidenciji.',
-          willRememberAccount: false,
-          allocations: [],
-          allocatedAmount: 0,
-          unallocatedAmount: 0,
-          status: 'DUPLICATE',
-        });
-        continue;
-      }
-
-      const targets = await loadStatementAllocationTargets(tx, {
+    if (!isValidStatementEntry(entry)) {
+      rows.push({
+        id: `invalid-${index + 1}`,
         type: entry.type,
-        supplierId: entry.type === 'EXPENSE' ? counterpartyId : null,
-        partnerId: entry.type === 'INCOME' ? counterpartyId : null,
-        occurredAt: parseDate(entry.occurredAt),
+        category,
+        amount: entry.amount,
+        occurredAt: entry.occurredAt,
+        payeeName: entry.payeeName,
+        accountNumber,
+        reference: entry.payeeReferenceNumber,
+        purpose: entry.purpose,
+        counterpartyId: null,
+        counterpartyName: null,
+        matchMethod: 'NONE',
+        matchReason: 'Stavka nema ispravan datum ili pozitivan iznos.',
+        willRememberAccount: false,
+        allocations: [],
+        allocatedAmount: 0,
+        unallocatedAmount: Number.isFinite(entry.amount) ? entry.amount : 0,
+        status: 'INVALID',
       });
-      const adjustedTargets = targets.map((target) => ({
-        ...target,
-        remainingAmount: roundMoney(
-          target.remainingAmount -
-            (plannedByTarget.get(`${target.targetType}:${target.targetId}`) ?? 0),
-        ),
-      }));
-      const plan = planStatementAllocations(
-        entry.amount,
-        adjustedTargets,
-        entry.payeeReferenceNumber,
-      );
-      const allocations = [];
+      continue;
+    }
 
-      for (const allocation of plan) {
-        const key = `${allocation.targetType}:${allocation.targetId}`;
-        plannedByTarget.set(key, (plannedByTarget.get(key) ?? 0) + allocation.amount);
-        const target = await getSettlementTarget(allocation.targetType, allocation.targetId, tx);
-        allocations.push({
-          targetType: allocation.targetType,
-          targetId: allocation.targetId,
-          label: target.label,
-          counterparty: target.counterparty,
-          amount: allocation.amount,
-        });
+    const fingerprint = createHash('sha256')
+      .update(
+        JSON.stringify({
+          account: canonicalBankAccount(parsed.accountNumber),
+          statement: parsed.statementNumber,
+          entry,
+        }),
+      )
+      .digest('hex');
+    const occurrence = occurrences.get(fingerprint) ?? 0;
+    occurrences.set(fingerprint, occurrence + 1);
+    const bankReference = entry.fitId ?? `xml:${fingerprint}:${occurrence}`;
+    const sourceId = `bank:${canonicalBankAccount(parsed.accountNumber)}:${bankReference}`;
+    const duplicate =
+      seenSourceIds.has(sourceId) ||
+      Boolean(
+        await prisma.financeTransaction.findFirst({
+          where: {
+            sourceType: 'BANK_STATEMENT',
+            OR: [
+              { sourceId },
+              ...(entry.fitId
+                ? [{ sourceId: entry.fitId }, { sourceId: null, bankReference: entry.fitId }]
+                : []),
+            ],
+          },
+          select: { id: true },
+        }),
+      );
+    seenSourceIds.add(sourceId);
+
+    let counterpartyId: string | null = null;
+    let counterpartyName: string | null = null;
+    let matchMethod: BankStatementPreviewResult['rows'][number]['matchMethod'] = 'NONE';
+
+    if (entry.type === 'INCOME') {
+      let partner = await findPartnerByBankAccount(accountNumber);
+      if (partner) {
+        matchMethod = 'BANK_ACCOUNT';
+      } else {
+        partner = await findPartnerByStatementName(entry.payeeName);
+        if (partner) matchMethod = 'NAME';
       }
+      counterpartyId = partner?.id ?? null;
+      counterpartyName = partner ? partnerDisplayName(partner) : null;
+    } else {
+      const supplier = await findSupplierForStatementEntry(entry.payeeName, accountNumber);
+      counterpartyId = supplier?.id ?? null;
+      counterpartyName = supplier?.name ?? null;
+      matchMethod = supplier ? (supplier.matchedByAccount ? 'BANK_ACCOUNT' : 'NAME') : 'NONE';
+    }
 
-      const allocatedAmount = roundMoney(
-        allocations.reduce((sum, allocation) => sum + allocation.amount, 0),
-      );
-      const unallocatedAmount = roundMoney(entry.amount - allocatedAmount);
-      const status =
-        allocatedAmount <= MONEY_EPSILON
-          ? 'UNALLOCATED'
-          : unallocatedAmount > MONEY_EPSILON
-            ? 'PARTIAL'
-            : matchMethod === 'NAME'
-              ? 'REVIEW'
-              : 'READY';
-      const matchReason =
-        matchMethod === 'BANK_ACCOUNT'
-          ? 'Partner je pronađen po bankovnom računu.'
-          : matchMethod === 'NAME'
-            ? input.rememberMatchedAccounts && accountNumber
-              ? 'Partner je pronađen po nazivu; račun će biti zapamćen pri uvozu.'
-              : 'Partner je pronađen samo po nazivu.'
-            : 'Partner ili dobavljač nije pronađen.';
-
+    if (duplicate) {
       rows.push({
         id: sourceId,
         type: entry.type,
@@ -1208,31 +1132,107 @@ export const previewBankStatementXml = async (
         counterpartyId,
         counterpartyName,
         matchMethod,
-        matchReason,
-        willRememberAccount:
-          matchMethod === 'NAME' && input.rememberMatchedAccounts && accountNumber !== null,
-        allocations,
-        allocatedAmount,
-        unallocatedAmount,
-        status,
+        matchReason: 'Stavka sa istom bankarskom referencom je već u evidenciji.',
+        willRememberAccount: false,
+        allocations: [],
+        allocatedAmount: 0,
+        unallocatedAmount: 0,
+        status: 'DUPLICATE',
+      });
+      continue;
+    }
+
+    const targets = await loadStatementAllocationTargets(prisma, {
+      type: entry.type,
+      supplierId: entry.type === 'EXPENSE' ? counterpartyId : null,
+      partnerId: entry.type === 'INCOME' ? counterpartyId : null,
+      occurredAt: parseDate(entry.occurredAt),
+    });
+    const adjustedTargets = targets.map((target) => ({
+      ...target,
+      remainingAmount: roundMoney(
+        target.remainingAmount -
+          (plannedByTarget.get(`${target.targetType}:${target.targetId}`) ?? 0),
+      ),
+    }));
+    const plan = planStatementAllocations(
+      entry.amount,
+      adjustedTargets,
+      entry.payeeReferenceNumber,
+    );
+    const allocations = [];
+
+    for (const allocation of plan) {
+      const key = `${allocation.targetType}:${allocation.targetId}`;
+      plannedByTarget.set(key, (plannedByTarget.get(key) ?? 0) + allocation.amount);
+      const target = await getSettlementTarget(allocation.targetType, allocation.targetId);
+      allocations.push({
+        targetType: allocation.targetType,
+        targetId: allocation.targetId,
+        label: target.label,
+        counterparty: target.counterparty,
+        amount: allocation.amount,
       });
     }
 
-    return {
-      statementNumber: parsed.statementNumber,
-      accountNumber: normalizeBankAccount(parsed.accountNumber),
-      rows,
-      summary: {
-        total: rows.length,
-        ready: rows.filter((row) => row.status === 'READY').length,
-        review: rows.filter((row) => row.status === 'REVIEW').length,
-        partial: rows.filter((row) => row.status === 'PARTIAL').length,
-        unallocated: rows.filter((row) => row.status === 'UNALLOCATED').length,
-        duplicates: rows.filter((row) => row.status === 'DUPLICATE').length,
-        invalid: rows.filter((row) => row.status === 'INVALID').length,
-      },
-    };
-  });
+    const allocatedAmount = roundMoney(
+      allocations.reduce((sum, allocation) => sum + allocation.amount, 0),
+    );
+    const unallocatedAmount = roundMoney(entry.amount - allocatedAmount);
+    const status =
+      allocatedAmount <= MONEY_EPSILON
+        ? 'UNALLOCATED'
+        : unallocatedAmount > MONEY_EPSILON
+          ? 'PARTIAL'
+          : matchMethod === 'NAME'
+            ? 'REVIEW'
+            : 'READY';
+    const matchReason =
+      matchMethod === 'BANK_ACCOUNT'
+        ? 'Partner je pronađen po bankovnom računu.'
+        : matchMethod === 'NAME'
+          ? input.rememberMatchedAccounts && accountNumber
+            ? 'Partner je pronađen po nazivu; račun će biti zapamćen pri uvozu.'
+            : 'Partner je pronađen samo po nazivu.'
+          : 'Partner ili dobavljač nije pronađen.';
+
+    rows.push({
+      id: sourceId,
+      type: entry.type,
+      category,
+      amount: entry.amount,
+      occurredAt: entry.occurredAt,
+      payeeName: entry.payeeName,
+      accountNumber,
+      reference: entry.payeeReferenceNumber,
+      purpose: entry.purpose,
+      counterpartyId,
+      counterpartyName,
+      matchMethod,
+      matchReason,
+      willRememberAccount:
+        matchMethod === 'NAME' && input.rememberMatchedAccounts && accountNumber !== null,
+      allocations,
+      allocatedAmount,
+      unallocatedAmount,
+      status,
+    });
+  }
+
+  return {
+    statementNumber: parsed.statementNumber,
+    accountNumber: normalizeBankAccount(parsed.accountNumber),
+    rows,
+    summary: {
+      total: rows.length,
+      ready: rows.filter((row) => row.status === 'READY').length,
+      review: rows.filter((row) => row.status === 'REVIEW').length,
+      partial: rows.filter((row) => row.status === 'PARTIAL').length,
+      unallocated: rows.filter((row) => row.status === 'UNALLOCATED').length,
+      duplicates: rows.filter((row) => row.status === 'DUPLICATE').length,
+      invalid: rows.filter((row) => row.status === 'INVALID').length,
+    },
+  };
 };
 
 export const updateTransaction = async (

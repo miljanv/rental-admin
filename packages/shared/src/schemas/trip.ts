@@ -59,7 +59,7 @@ export const optionalNonNegative = (label: string, max: number) =>
     z
       .number()
       .min(0, `${label} ne može biti negativan.`)
-      .max(max, `${label} nije ispravan.`)
+      .max(max, `${label} ne može biti preko ${max.toLocaleString('sr-RS')}.`)
       .nullable(),
   );
 
@@ -97,7 +97,7 @@ export const tripWriteSchema = z
     partnerId: optionalId,
     clientName: optionalText(200),
     notes: optionalText(2000),
-    price: optionalNonNegative('Cena', 10_000_000),
+    price: optionalNonNegative('Cena', 1_000_000_000),
     paymentMethod: optionalPaymentMethodSchema,
     status: tripStatusSchema,
     contractId: optionalId,
@@ -159,9 +159,9 @@ export const tripInvoiceWriteSchema = z
      * Domestic fare. Daily amount when `billSeriesMonth` is set.
      * Net, unless `priceIncludesVat` says this figure already includes 10% VAT.
      */
-    domesticPrice: optionalNonNegative('Cena u zemlji', 10_000_000),
+    domesticPrice: optionalNonNegative('Cena u zemlji', 1_000_000_000),
     /** Foreign fare, always without VAT. Daily amount when `billSeriesMonth` is set. */
-    foreignPrice: optionalNonNegative('Cena u inostranstvu', 10_000_000),
+    foreignPrice: optionalNonNegative('Cena u inostranstvu', 1_000_000_000),
     /** When true, `domesticPrice` was typed already including 10% VAT. */
     priceIncludesVat: z.boolean().default(false),
     /** Worker transport: both prices are per day, and every trip of this series in the departure month is one invoice. */

@@ -311,6 +311,30 @@ describe('bank statement posting', () => {
     });
   });
 
+  it('previews multiple rows without a transaction, double allocation, or duplicate payments', async () => {
+    const secondRow = xml({ amount: 60, fitId: 'bank-2' }).match(
+      /<stmttrn>[\s\S]*?<\/stmttrn>/,
+    )![0];
+    const result = await previewBankStatementXml({
+      xml: xml({ amount: 60 }).replace('</statement>', `${secondRow}${secondRow}</statement>`),
+      rememberMatchedAccounts: true,
+    });
+
+    expect(result.summary).toMatchObject({ total: 3, ready: 1, partial: 1, duplicates: 1 });
+    expect(
+      result.rows.map((row) => [row.status, row.allocatedAmount, row.unallocatedAmount]),
+    ).toEqual([
+      ['READY', 60, 0],
+      ['PARTIAL', 40, 20],
+      ['DUPLICATE', 0, 0],
+    ]);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(rows).toHaveLength(0);
+    expect(allocations).toHaveLength(0);
+    expect(prisma.companyExpense.updateMany).not.toHaveBeenCalled();
+    expect(prisma.trip.updateMany).not.toHaveBeenCalled();
+  });
+
   it('retains rows without a bank reference and deduplicates repeat imports', async () => {
     const input = {
       xml: xml().replace('<fitid>bank-1</fitid>', ''),
