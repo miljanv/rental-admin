@@ -19,7 +19,7 @@ describe('opening balances and allocation confirmation', () => {
       'CREDIT',
     );
   });
-  it.each([0, -1, 1.001, Number.NaN, Number.POSITIVE_INFINITY, 1_000_000_001])(
+  it.each([0, -1, 1.001, Number.NaN, Number.POSITIVE_INFINITY, 100_000_000_000_001])(
     'rejects an invalid monetary amount %s',
     (amount) => {
       expect(openingBalanceWriteSchema.safeParse({ ...draft, amount }).success).toBe(false);

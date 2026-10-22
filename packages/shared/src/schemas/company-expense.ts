@@ -57,7 +57,7 @@ const optionalOdometerKm = z.preprocess(
     .number()
     .int('Km mora biti ceo broj.')
     .min(0, 'Km ne može biti negativno.')
-    .max(10_000_000, 'Km nije ispravno.')
+    .max(100_000_000_000, 'Km nije ispravno.')
     .nullable(),
 );
 
@@ -67,7 +67,7 @@ const moneyAmount = (label: string, minimum: 'positive' | 'nonnegative') =>
     (minimum === 'positive'
       ? z.number().positive(`${label} mora biti veći od nule.`)
       : z.number().min(0, `${label} ne može biti negativan.`)
-    ).max(10_000_000, `${label} nije ispravan.`),
+    ).max(100_000_000_000, `${label} nije ispravan.`),
   );
 
 const requiredPaymentMethod = z

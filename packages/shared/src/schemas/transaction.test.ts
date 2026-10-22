@@ -34,9 +34,7 @@ describe('transactionWriteSchema', () => {
   });
 
   it('rejects an advance without a supplier', () => {
-    expect(
-      transactionWriteSchema.safeParse({ ...validManual, supplier: '' }).success,
-    ).toBe(false);
+    expect(transactionWriteSchema.safeParse({ ...validManual, supplier: '' }).success).toBe(false);
   });
 
   it('rejects an income marked as an advance', () => {
@@ -48,6 +46,15 @@ describe('transactionWriteSchema', () => {
 
   it('rejects a zero amount', () => {
     expect(transactionWriteSchema.safeParse({ ...validManual, amount: 0 }).success).toBe(false);
+  });
+
+  it('accepts manual financial amounts up to 30 billion RSD', () => {
+    expect(
+      transactionWriteSchema.safeParse({ ...validManual, amount: 30_000_000_000 }).success,
+    ).toBe(true);
+    expect(
+      transactionWriteSchema.safeParse({ ...validManual, amount: 30_000_000_000.01 }).success,
+    ).toBe(false);
   });
 
   it('accepts explicit nulls for optional text fields', () => {

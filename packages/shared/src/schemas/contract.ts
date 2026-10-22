@@ -63,7 +63,7 @@ export const contractWriteSchema = z
       .int('Broj putnika mora biti ceo broj.')
       .min(1, 'Broj putnika mora biti najmanje 1.')
       .max(200, 'Broj putnika nije ispravan.'),
-    price: z.number().min(0, 'Cena ne može biti negativna.').max(10_000_000, 'Cena nije ispravna.'),
+    price: z.number().min(0, 'Cena ne može biti negativna.').max(100_000_000_000, 'Cena nije ispravna.'),
     advancePercentage: z
       .number()
       .int('Procenat avansa mora biti ceo broj.')

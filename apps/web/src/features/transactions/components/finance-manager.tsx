@@ -137,15 +137,49 @@ export function FinanceManager() {
     setTransactionToEdit(null);
   };
 
-  const scrollToForm = () => {
-    requestAnimationFrame(() => {
-      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+  const scrollPageToTop = () => {
+    document.scrollingElement?.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    window.scrollTo(0, 0);
+  };
+
+  useEffect(() => {
+    if (!transactionToAllocate) {
+      return;
+    }
+
+    // The panel is inserted above the clicked table row. Scroll after React has
+    // committed it, then repeat after browser scroll anchoring has settled.
+    const afterRender = window.setTimeout(scrollPageToTop, 0);
+    const afterAnchoring = window.setTimeout(scrollPageToTop, 150);
+
+    return () => {
+      window.clearTimeout(afterRender);
+      window.clearTimeout(afterAnchoring);
+    };
+  }, [transactionToAllocate]);
+
+  const requestFinanceTabsScroll = scrollPageToTop;
+
+  const openTransactionForm = () => {
+    setIsFormOpen(true);
+    requestFinanceTabsScroll();
+  };
+
+  const openStatementForm = () => {
+    setIsStatementFormOpen(true);
+    requestFinanceTabsScroll();
+  };
+
+  const openAllocation = (transaction: TransactionDto) => {
+    setTransactionToAllocate(transaction);
+    requestFinanceTabsScroll();
   };
 
   const handleEdit = (transaction: TransactionDto) => {
     setTransactionToEdit(transaction);
-    scrollToForm();
+    requestFinanceTabsScroll();
   };
 
   const printCashReceipt = (transaction: TransactionDto) => {
@@ -208,12 +242,12 @@ export function FinanceManager() {
         actions={
           showForm || activeTab === 'overview' || activeTab === 'unallocated' ? null : activeTab ===
             'statements' ? (
-            <Button onClick={() => setIsStatementFormOpen(true)}>
+            <Button onClick={openStatementForm}>
               <Plus className="size-4" aria-hidden />
               Nova stavka izvoda
             </Button>
           ) : (
-            <Button onClick={() => setIsFormOpen(true)}>
+            <Button onClick={openTransactionForm}>
               <Plus className="size-4" aria-hidden />
               {activeTab === 'cash' ? 'Nova keš stavka' : 'Nova transakcija'}
             </Button>
@@ -297,11 +331,13 @@ export function FinanceManager() {
           ) : null}
 
           {transactionToAllocate ? (
-            <PaymentAllocationPanel
-              key={transactionToAllocate.id}
-              transaction={transactionToAllocate}
-              onDone={() => setTransactionToAllocate(null)}
-            />
+            <div className="mb-6">
+              <PaymentAllocationPanel
+                key={transactionToAllocate.id}
+                transaction={transactionToAllocate}
+                onDone={() => setTransactionToAllocate(null)}
+              />
+            </div>
           ) : null}
 
           {showTransactionForm ? (
@@ -499,16 +535,14 @@ export function FinanceManager() {
                     Boolean(to)
                   }
                   onEdit={handleEdit}
-                  onAllocate={setTransactionToAllocate}
+                  onAllocate={openAllocation}
                   onPrintCashReceipt={printCashReceipt}
                   onRequestDelete={setTransactionToDelete}
                   emptyAction={
                     <Button
                       size="sm"
                       onClick={() =>
-                        activeTab === 'statements'
-                          ? setIsStatementFormOpen(true)
-                          : setIsFormOpen(true)
+                        activeTab === 'statements' ? openStatementForm() : openTransactionForm()
                       }
                     >
                       {activeTab === 'statements'

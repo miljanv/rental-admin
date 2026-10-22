@@ -29,7 +29,7 @@ const optionalNote = z
 
 export const tripExpenseWriteSchema = z.object({
   category: tripExpenseCategorySchema,
-  amount: z.number().positive('Iznos mora biti veći od nule.').max(10_000_000, 'Iznos nije ispravan.'),
+  amount: z.number().positive('Iznos mora biti veći od nule.').max(100_000_000_000, 'Iznos nije ispravan.'),
   paymentMethod: tripExpensePaymentMethodSchema,
   note: optionalNote,
   fileId: optionalFileId,
@@ -40,16 +40,16 @@ export type TripExpenseWriteRequest = z.output<typeof tripExpenseWriteSchema>;
 
 export const tripDriverAllowanceSchema = z.object({
   driverId: driverIdSchema,
-  perDiemAmount: optionalNonNegative('Dnevnica', 10_000_000),
-  advanceAmount: optionalNonNegative('Akontacija', 10_000_000),
+  perDiemAmount: optionalNonNegative('Dnevnica', 100_000_000_000),
+  advanceAmount: optionalNonNegative('Akontacija', 100_000_000_000),
 });
 
 export const tripSettlementWriteSchema = z
   .object({
     paidAt: optionalIsoDate,
     carrierId: optionalId,
-    startKm: optionalNonNegative('Početna kilometraža', 10_000_000),
-    endKm: optionalNonNegative('Završna kilometraža', 10_000_000),
+    startKm: optionalNonNegative('Početna kilometraža', 100_000_000_000),
+    endKm: optionalNonNegative('Završna kilometraža', 100_000_000_000),
     fuelLiters: optionalNonNegative('Količina goriva', 10_000),
     drivers: z
       .array(tripDriverAllowanceSchema)

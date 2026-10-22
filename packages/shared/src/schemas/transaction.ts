@@ -50,7 +50,7 @@ export const optionalCostSchema = z.preprocess((value) => {
   }
 
   return value;
-}, z.number().min(0, 'Iznos ne može biti negativan.').max(10_000_000, 'Iznos nije ispravan.').nullable());
+}, z.number().min(0, 'Iznos ne može biti negativan.').max(100_000_000_000, 'Iznos nije ispravan.').nullable());
 
 export const optionalPaymentMethodSchema = z
   .union([paymentMethodSchema, z.literal(''), z.null()])
@@ -86,7 +86,7 @@ export const transactionWriteSchema = z
     amount: z
       .number()
       .positive('Iznos mora biti veći od nule.')
-      .max(10_000_000, 'Iznos nije ispravan.'),
+      .max(100_000_000_000, 'Iznos nije ispravan.'),
     occurredAt: isoDateSchema,
     paymentMethod: paymentMethodSchema,
     note: optionalText(500),
@@ -126,7 +126,7 @@ export const bankStatementEntryWriteSchema = z.object({
   amount: z
     .number()
     .positive('Iznos mora biti veći od nule.')
-    .max(100_000_000, 'Iznos nije ispravan.'),
+    .max(100_000_000_000, 'Iznos nije ispravan.'),
   occurredAt: isoDateSchema,
   statementNumber: optionalText(80),
   bankReference: optionalText(120),
@@ -229,7 +229,7 @@ export const settleAdvancesSchema = z
     amount: z
       .number()
       .positive('Iznos mora biti veći od nule.')
-      .max(10_000_000, 'Iznos nije ispravan.')
+      .max(100_000_000_000, 'Iznos nije ispravan.')
       .optional(),
     note: optionalText(500),
   })
@@ -286,7 +286,7 @@ export const paymentAllocationWriteSchema = z.object({
   amount: z
     .number()
     .positive('Iznos mora biti veći od nule.')
-    .max(100_000_000, 'Iznos nije ispravan.'),
+    .max(100_000_000_000, 'Iznos nije ispravan.'),
   note: optionalText(500),
 });
 

@@ -28,7 +28,7 @@ const moneySchema = (label: string) =>
     .number()
     .finite(`${label} mora biti broj.`)
     .min(0, `${label} ne može biti negativna.`)
-    .max(10_000_000, `${label} je prevelika.`);
+    .max(100_000_000_000, `${label} je prevelika.`);
 
 export const generateEmploymentContractSchema = z
   .object({

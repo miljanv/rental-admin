@@ -64,7 +64,7 @@ export const generateDriverPerDiemDocumentSchema = z.object({
     .union([z.number(), z.literal(''), z.null()])
     .optional()
     .transform((value) => (value === '' || value == null ? null : value))
-    .pipe(z.number().min(0).max(1_000_000).nullable()),
+    .pipe(z.number().min(0).max(100_000_000_000).nullable()),
 });
 
 export type GenerateDriverPerDiemDocumentInput = z.input<typeof generateDriverPerDiemDocumentSchema>;

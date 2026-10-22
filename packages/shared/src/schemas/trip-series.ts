@@ -53,7 +53,7 @@ export const generateTripSeriesSchema = z
     partnerId: optionalId,
     clientName: optionalText(200),
     notes: optionalText(2000),
-    price: optionalNonNegative('Cena', 10_000_000),
+    price: optionalNonNegative('Cena', 100_000_000_000),
     paymentMethod: optionalPaymentMethodSchema,
     status: tripStatusSchema.default('PLANNED'),
     contractId: optionalId,
@@ -138,7 +138,7 @@ export const bulkUpdateTripSeriesSchema = z
       .max(MAX_TRIP_DRIVERS, `Najviše ${MAX_TRIP_DRIVERS} vozača po vožnji.`)
       .optional(),
     status: tripStatusSchema.optional(),
-    price: optionalNonNegative('Cena', 10_000_000).optional(),
+    price: optionalNonNegative('Cena', 100_000_000_000).optional(),
     paymentMethod: optionalPaymentMethodSchema.optional(),
   })
   .superRefine((value, ctx) => {
@@ -172,10 +172,10 @@ export const editTripSeriesSchema = z
     partnerId: optionalId,
     clientName: optionalText(200),
     notes: optionalText(2000),
-    price: optionalNonNegative('Cena', 10_000_000),
+    price: optionalNonNegative('Cena', 100_000_000_000),
     paymentMethod: optionalPaymentMethodSchema,
     /** Same cash amount for each assigned driver, on every day. Null leaves existing amounts. */
-    driverPay: optionalNonNegative('Plaćeno vozaču', 1_000_000),
+    driverPay: optionalNonNegative('Plaćeno vozaču', 100_000_000_000),
     vehicleCount: z.preprocess((value) => {
       if (value === '' || value === undefined || value === null) {
         return 1;

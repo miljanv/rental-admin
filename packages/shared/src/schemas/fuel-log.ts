@@ -57,7 +57,7 @@ const odometerKmSchema = z
   .number()
   .int('Stanje km mora biti ceo broj.')
   .min(0, 'Stanje km ne može biti negativno.')
-  .max(10_000_000, 'Stanje km nije ispravno.');
+  .max(100_000_000_000, 'Stanje km nije ispravno.');
 
 const fuelLogFieldsSchema = z.object({
   fueledAt: isoDateSchema,

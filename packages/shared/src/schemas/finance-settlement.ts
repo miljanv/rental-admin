@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { isoDateSchema } from './driver';
 
 const id = z.string().trim().min(1).max(64);
-const money = z.number().positive('Iznos mora biti pozitivan.').max(1_000_000_000).multipleOf(0.01);
+const money = z.number().positive('Iznos mora biti pozitivan.').max(100_000_000_000_000).multipleOf(0.01);
 export const counterpartySchema = z.object({
   partyType: z.enum(['PARTNER', 'SUPPLIER']),
   partyId: id,

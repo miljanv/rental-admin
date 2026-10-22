@@ -101,12 +101,12 @@ export const vehicleWriteSchema = z.object({
     .number()
     .int('Početna kilometraža mora biti ceo broj.')
     .min(0, 'Početna kilometraža ne može biti negativna.')
-    .max(10_000_000, 'Početna kilometraža nije ispravna.'),
+    .max(100_000_000_000, 'Početna kilometraža nije ispravna.'),
   currentMileage: z
     .number()
     .int('Kilometraža mora biti ceo broj.')
     .min(0, 'Kilometraža ne može biti negativna.')
-    .max(10_000_000, 'Kilometraža nije ispravna.'),
+    .max(100_000_000_000, 'Kilometraža nije ispravna.'),
 });
 
 export type VehicleWriteInput = z.input<typeof vehicleWriteSchema>;

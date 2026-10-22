@@ -58,7 +58,7 @@ export const companyExpenseFormSchema = z
     description: z.string().trim().min(1, 'Opis troška je obavezan.').max(500),
     amount: z.preprocess(
       toNumberOrUndefined,
-      z.number().positive('Iznos mora biti veći od nule.').max(10_000_000, 'Iznos nije ispravan.'),
+      z.number().positive('Iznos mora biti veći od nule.').max(100_000_000_000, 'Iznos nije ispravan.'),
     ),
     vatRate: z.union([z.literal(0), z.literal(10), z.literal(20)]),
     paymentMethod: z.string(),
@@ -70,7 +70,7 @@ export const companyExpenseFormSchema = z
         .number()
         .int('Km mora biti ceo broj.')
         .min(0, 'Km ne može biti negativno.')
-        .max(10_000_000, 'Km nije ispravno.')
+        .max(100_000_000_000, 'Km nije ispravno.')
         .nullable(),
     ),
   })

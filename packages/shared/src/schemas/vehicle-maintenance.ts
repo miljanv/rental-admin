@@ -26,13 +26,13 @@ export const vehicleMaintenanceWriteSchema = z.object({
     .number()
     .int('Km na satu mora biti ceo broj.')
     .min(0, 'Km na satu ne može biti negativno.')
-    .max(10_000_000, 'Km na satu nije ispravno.'),
+    .max(100_000_000_000, 'Km na satu nije ispravno.'),
   partName: requiredText('Naziv dela', 120),
   supplier: requiredText('Dobavljač', 120),
   cost: z
     .number()
     .min(0, 'Cena ne može biti negativna.')
-    .max(10_000_000, 'Cena nije ispravna.'),
+    .max(100_000_000_000, 'Cena nije ispravna.'),
   paymentMethod: paymentMethodSchema,
   mechanic: requiredText('Majstor', 120),
 });
