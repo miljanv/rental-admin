@@ -120,7 +120,13 @@ export function TripSettlementSheet({ trip, onOpenChange }: TripSettlementSheetP
       drivers: settlement.drivers.map((driver) => ({
         driverId: driver.id,
         perDiemAmount: driver.perDiemAmount ?? '',
+        perDiemCurrency: driver.perDiemCurrency,
+        perDiemStatus: driver.perDiemStatus,
+        perDiemPaidAmount: driver.perDiemPaidAmount ?? '',
+        perDiemPaidAt: driver.perDiemPaidAt ?? '',
         advanceAmount: driver.advanceAmount ?? '',
+        advanceStatus: driver.advanceStatus,
+        advancePaidAt: driver.advancePaidAt ?? '',
       })),
     });
     loadedTripId.current = sheetTrip.id;
@@ -172,8 +178,8 @@ export function TripSettlementSheet({ trip, onOpenChange }: TripSettlementSheetP
         <SheetHeader>
           <SheetTitle>Obračun</SheetTitle>
           <SheetDescription>
-            {sheetTrip ? tripRouteLabel(sheetTrip) : 'Vožnja'}. Vozač, plata, kilometraža, gorivo,
-            troškovi ture i akontacija.
+            {sheetTrip ? tripRouteLabel(sheetTrip) : 'Vožnja'}. Dnevnica se ovde obračunava; status
+            isplate i akontacije vodite na detaljnom obračunu vožnje.
           </SheetDescription>
         </SheetHeader>
 
@@ -195,7 +201,17 @@ export function TripSettlementSheet({ trip, onOpenChange }: TripSettlementSheetP
                           'drivers',
                           [
                             ...selectedDrivers,
-                            { driverId, perDiemAmount: '', advanceAmount: '' },
+                            {
+                              driverId,
+                              perDiemAmount: '',
+                              perDiemCurrency: 'RSD',
+                              perDiemStatus: 'DRAFT',
+                              perDiemPaidAmount: '',
+                              perDiemPaidAt: '',
+                              advanceAmount: '',
+                              advanceStatus: 'DRAFT',
+                              advancePaidAt: '',
+                            },
                           ],
                           { shouldDirty: true },
                         );
@@ -244,7 +260,7 @@ export function TripSettlementSheet({ trip, onOpenChange }: TripSettlementSheetP
                       <div className="grid gap-3 sm:grid-cols-2">
                         <Field
                           id={`pay-${index}`}
-                          label="Plaćeno vozaču (RSD)"
+                          label="Obračunata dnevnica (RSD)"
                           error={errors.drivers?.[index]?.perDiemAmount?.message as string | undefined}
                         >
                           <Input

@@ -2248,6 +2248,8 @@ export interface OperationalExpenseInput {
   partner?: string | null;
   route?: string | null;
   note?: string | null;
+  /** Cash advanced for a future justification: keep it out of profit/loss totals. */
+  isAdvance?: boolean;
   /** When set, the caller owns open/settled. Omitted calls leave a settled row untouched. */
   status?: 'OPEN' | 'SETTLED';
 }
@@ -2307,7 +2309,7 @@ const upsertOperationalTransaction = async (
     route: input.route ?? null,
     vehicleId: input.vehicleId ?? null,
     driverId: input.driverId ?? null,
-    isAdvance: false,
+    isAdvance: input.isAdvance ?? false,
     status: input.status ?? 'OPEN',
     sourceType: input.sourceType,
     sourceId: input.sourceId,
@@ -2365,7 +2367,9 @@ export const getFinanceReport = async (
         occurredAt: { gte: parseDate(from), lte: parseDate(to) },
         ...(query.paymentMethod ? { paymentMethod: query.paymentMethod } : {}),
         sourceType: { notIn: retiredFinanceSourceTypes },
-        NOT: { isAdvance: true, status: 'SETTLED' },
+        // Advances are cash held for a later justification, never a final
+        // business expense. They remain visible in the transaction ledger.
+        isAdvance: false,
       },
       select: {
         type: true,

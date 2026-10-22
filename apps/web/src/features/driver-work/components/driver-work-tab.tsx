@@ -118,16 +118,16 @@ export function DriverWorkTab({ driverId }: DriverWorkTabProps) {
               isLoading={query.isPending}
             />
             <SummaryCard
-              label="Dnevnice (uneseno)"
+              label="Dnevnice (RSD)"
               value={formatMoney(totals?.perDiemAmount ?? 0)}
-              hint="Iznos sa obračuna vožnji"
+              hint={`Isplaćeno ${formatMoney(totals?.perDiemPaidAmount ?? 0)}`}
               icon={Banknote}
               isLoading={query.isPending}
             />
             <SummaryCard
-              label="Akontacije"
+              label="Akontacije za pravdanje"
               value={formatMoney(totals?.advanceAmount ?? 0)}
-              hint="Unapred dato, razdužuje se troškovima ture"
+              hint="Novac dat za putne troškove"
               icon={Wallet}
               isLoading={query.isPending}
             />
@@ -135,9 +135,9 @@ export function DriverWorkTab({ driverId }: DriverWorkTabProps) {
 
           <Card className="shadow-none">
             <CardHeader>
-              <CardTitle>Neoporezivi deo dnevnice</CardTitle>
+              <CardTitle>Obračun dnevnice</CardTitle>
               <CardDescription>
-                Po zakonu: {formatMoney(DOMESTIC_PER_DIEM_RATE_RSD)} za put u zemlji i{' '}
+                Referentni iznosi: {formatMoney(DOMESTIC_PER_DIEM_RATE_RSD)} za put u zemlji i{' '}
                 {FOREIGN_PER_DIEM_RATE_EUR} EUR za put u inostranstvo. Iznosi se ne konvertuju.
                 Obračun po satima: 0–6h = 0, 6–12h = 0,5, 12–24h = 1 dnevnica (posebno za zemlju i
                 inostranstvo).
@@ -145,12 +145,24 @@ export function DriverWorkTab({ driverId }: DriverWorkTabProps) {
             </CardHeader>
           </Card>
 
+          {(totals?.foreignPerDiemAmount ?? 0) > 0 ? (
+            <Card className="shadow-none">
+              <CardContent>
+                <p className="text-sm font-medium">Obračunate dnevnice u EUR</p>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  {totals?.foreignPerDiemAmount ?? 0} EUR. U Finansije se ne prenose automatski dok
+                  se ne evidentira stvarno isplaćen RSD iznos.
+                </p>
+              </CardContent>
+            </Card>
+          ) : null}
+
           <Card className="shadow-none">
             <CardHeader>
               <CardTitle>Vožnje i dnevnice</CardTitle>
               <CardDescription>
-                Podaci sa obračuna vožnji: vozač, km, plata (dnevnica), akontacija i troškovi ture.
-                Generišite odluku, nalog i obračun pre isplate.
+                Podaci sa obračuna vožnji: vozač, km, dnevnica, akontacija i troškovi ture.
+                Generišite odluku, nalog i obračun pre odobravanja isplate.
               </CardDescription>
             </CardHeader>
             <CardContent className="px-0">

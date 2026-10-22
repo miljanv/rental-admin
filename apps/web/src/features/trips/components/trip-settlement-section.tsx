@@ -3,6 +3,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   computeTripSettlement,
+  ADVANCE_STATUSES,
+  ADVANCE_STATUS_LABELS,
+  PER_DIEM_CURRENCIES,
+  PER_DIEM_STATUS_LABELS,
+  PER_DIEM_STATUSES,
   partnerSelectLabel,
   tripSettlementWriteSchema,
   TRIP_EXPENSE_CATEGORY_LABELS,
@@ -67,6 +72,8 @@ function SettlementSummary({
   expensesTotal,
   byCategory,
   perDiemTotal,
+  foreignPerDiemTotal,
+  perDiemPaidTotal,
   advanceTotal,
   netResult,
 }: {
@@ -74,6 +81,8 @@ function SettlementSummary({
   expensesTotal: number;
   byCategory: TripExpenseCategoryTotal[];
   perDiemTotal: number;
+  foreignPerDiemTotal: number;
+  perDiemPaidTotal: number;
   advanceTotal: number;
   netResult: number;
 }) {
@@ -81,7 +90,7 @@ function SettlementSummary({
     <Card className="shadow-none">
       <CardHeader>
         <CardTitle>Neto rezultat</CardTitle>
-        <CardDescription>Prihod minus troškovi, dnevnice i akontacije.</CardDescription>
+        <CardDescription>Prihod minus stvarni troškovi i isplaćene dnevnice.</CardDescription>
       </CardHeader>
       <CardContent>
         <dl className="space-y-2 text-sm">
@@ -104,11 +113,21 @@ function SettlementSummary({
             </div>
           ) : null}
           <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Dnevnice</dt>
+            <dt className="text-muted-foreground">Dnevnice obračunate</dt>
             <dd>{formatMoney(perDiemTotal)}</dd>
           </div>
+          {foreignPerDiemTotal > 0 ? (
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Dnevnice obračunate (EUR)</dt>
+              <dd>{foreignPerDiemTotal} EUR</dd>
+            </div>
+          ) : null}
           <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Akontacije</dt>
+            <dt className="text-muted-foreground">Dnevnice isplaćene (RSD)</dt>
+            <dd>{formatMoney(perDiemPaidTotal)}</dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Akontacije za pravdanje</dt>
             <dd>{formatMoney(advanceTotal)}</dd>
           </div>
           <div className="flex justify-between gap-4 border-t pt-2 text-base font-medium">
@@ -146,7 +165,13 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
           drivers: settlement.drivers.map((driver) => ({
             driverId: driver.id,
             perDiemAmount: driver.perDiemAmount,
+              perDiemCurrency: driver.perDiemCurrency,
+              perDiemStatus: driver.perDiemStatus,
+              perDiemPaidAmount: driver.perDiemPaidAmount,
+              perDiemPaidAt: driver.perDiemPaidAt,
             advanceAmount: driver.advanceAmount,
+              advanceStatus: driver.advanceStatus,
+              advancePaidAt: driver.advancePaidAt,
           })),
         }
       : {
@@ -169,6 +194,12 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
           perDiemAmount:
             typeof driver.perDiemAmount === 'number' && Number.isFinite(driver.perDiemAmount)
               ? driver.perDiemAmount
+              : null,
+          perDiemCurrency: driver.perDiemCurrency ?? 'RSD',
+          perDiemStatus: driver.perDiemStatus ?? 'DRAFT',
+          perDiemPaidAmount:
+            typeof driver.perDiemPaidAmount === 'number' && Number.isFinite(driver.perDiemPaidAmount)
+              ? driver.perDiemPaidAmount
               : null,
           advanceAmount:
             typeof driver.advanceAmount === 'number' && Number.isFinite(driver.advanceAmount)
@@ -307,8 +338,8 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
               <div>
                 <h3 className="text-sm font-medium">Vozači — dnevnice i akontacije</h3>
                 <p className="text-muted-foreground text-xs">
-                  Dnevnica je posebna po vozaču. Akontacija je novac dat unapred, koji se kasnije
-                  pravda od zarade.
+                  Dnevnica ulazi u Finansije tek kada je stvarno isplaćena. Akontacija je novac za
+                  putne troškove i ne umanjuje rezultat vožnje dok se ne pravda računima.
                 </p>
               </div>
               {settlement.drivers.length === 0 ? (
@@ -336,9 +367,101 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
                           {...form.register(`drivers.${index}.perDiemAmount`, { valueAsNumber: true })}
                         />
                       </Field>
+                      <Controller
+                        control={form.control}
+                        name={`drivers.${index}.perDiemCurrency`}
+                        render={({ field }) => (
+                          <Field id={`drivers.${index}.perDiemCurrency`} label="Valuta dnevnice">
+                            <Select
+                              value={field.value}
+                              onValueChange={field.onChange}
+                              disabled={saveMutation.isPending}
+                            >
+                              <SelectTrigger id={`drivers.${index}.perDiemCurrency`} className="w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {PER_DIEM_CURRENCIES.map((currency) => (
+                                  <SelectItem key={currency} value={currency}>
+                                    {currency}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </Field>
+                        )}
+                      />
+                      <Controller
+                        control={form.control}
+                        name={`drivers.${index}.perDiemStatus`}
+                        render={({ field }) => (
+                          <Field id={`drivers.${index}.perDiemStatus`} label="Status dnevnice">
+                            <Select
+                              value={field.value}
+                              onValueChange={(value) => {
+                                field.onChange(value);
+                                if (value === 'PAID') {
+                                  const amount = form.getValues(`drivers.${index}.perDiemAmount`);
+                                  const currency = form.getValues(`drivers.${index}.perDiemCurrency`);
+                                  if (currency === 'RSD' && form.getValues(`drivers.${index}.perDiemPaidAmount`) == null) {
+                                    form.setValue(`drivers.${index}.perDiemPaidAmount`, amount ?? null);
+                                  }
+                                } else {
+                                  form.setValue(`drivers.${index}.perDiemPaidAmount`, null);
+                                  form.setValue(`drivers.${index}.perDiemPaidAt`, null);
+                                }
+                              }}
+                              disabled={saveMutation.isPending}
+                            >
+                              <SelectTrigger id={`drivers.${index}.perDiemStatus`} className="w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {PER_DIEM_STATUSES.map((status) => (
+                                  <SelectItem key={status} value={status}>
+                                    {PER_DIEM_STATUS_LABELS[status]}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </Field>
+                        )}
+                      />
+                      {watchedDrivers[index]?.perDiemStatus === 'PAID' ? (
+                        <>
+                          <Field
+                            id={`drivers.${index}.perDiemPaidAmount`}
+                            label="Stvarno isplaćeno (RSD)"
+                            error={errors.drivers?.[index]?.perDiemPaidAmount?.message as string | undefined}
+                          >
+                            <Input
+                              id={`drivers.${index}.perDiemPaidAmount`}
+                              type="number"
+                              inputMode="decimal"
+                              step="0.01"
+                              disabled={saveMutation.isPending}
+                              {...form.register(`drivers.${index}.perDiemPaidAmount`, { valueAsNumber: true })}
+                            />
+                          </Field>
+                          <Controller
+                            control={form.control}
+                            name={`drivers.${index}.perDiemPaidAt`}
+                            render={({ field }) => (
+                              <Field id={`drivers.${index}.perDiemPaidAt`} label="Datum isplate">
+                                <DateField
+                                  id={`drivers.${index}.perDiemPaidAt`}
+                                  value={field.value ?? ''}
+                                  onChange={field.onChange}
+                                  disabled={saveMutation.isPending}
+                                />
+                              </Field>
+                            )}
+                          />
+                        </>
+                      ) : null}
                       <Field
                         id={`drivers.${index}.advanceAmount`}
-                        label="Akontacija (RSD)"
+                        label="Akontacija za troškove (RSD)"
                         error={errors.drivers?.[index]?.advanceAmount?.message as string | undefined}
                       >
                         <Input
@@ -350,6 +473,51 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
                           {...form.register(`drivers.${index}.advanceAmount`, { valueAsNumber: true })}
                         />
                       </Field>
+                      <Controller
+                        control={form.control}
+                        name={`drivers.${index}.advanceStatus`}
+                        render={({ field }) => (
+                          <Field id={`drivers.${index}.advanceStatus`} label="Status akontacije">
+                            <Select
+                              value={field.value}
+                              onValueChange={(value) => {
+                                field.onChange(value);
+                                if (value === 'DRAFT') {
+                                  form.setValue(`drivers.${index}.advancePaidAt`, null);
+                                }
+                              }}
+                              disabled={saveMutation.isPending}
+                            >
+                              <SelectTrigger id={`drivers.${index}.advanceStatus`} className="w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {ADVANCE_STATUSES.map((status) => (
+                                  <SelectItem key={status} value={status}>
+                                    {ADVANCE_STATUS_LABELS[status]}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </Field>
+                        )}
+                      />
+                      {watchedDrivers[index]?.advanceStatus !== 'DRAFT' ? (
+                        <Controller
+                          control={form.control}
+                          name={`drivers.${index}.advancePaidAt`}
+                          render={({ field }) => (
+                            <Field id={`drivers.${index}.advancePaidAt`} label="Datum predaje">
+                              <DateField
+                                id={`drivers.${index}.advancePaidAt`}
+                                value={field.value ?? ''}
+                                onChange={field.onChange}
+                                disabled={saveMutation.isPending}
+                              />
+                            </Field>
+                          )}
+                        />
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -415,6 +583,8 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
         expensesTotal={liveTotals.expensesTotal}
         byCategory={liveTotals.byCategory}
         perDiemTotal={liveTotals.perDiemTotal}
+        foreignPerDiemTotal={liveTotals.foreignPerDiemTotal}
+        perDiemPaidTotal={liveTotals.perDiemPaidTotal}
         advanceTotal={liveTotals.advanceTotal}
         netResult={liveTotals.netResult}
       />

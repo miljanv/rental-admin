@@ -26,7 +26,7 @@ const PROFILE_TABS = [
   { id: 'overview', label: 'Osnovni podaci' },
   { id: 'documents', label: 'Dokumenta' },
   { id: 'absences', label: 'Odsustva' },
-  { id: 'work', label: 'Evidencija rada — dnevnice' },
+  { id: 'work', label: 'Dnevnice i akontacije' },
   { id: 'statistics', label: 'Statistika' },
 ] as const;
 

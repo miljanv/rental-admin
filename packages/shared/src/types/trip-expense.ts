@@ -1,5 +1,5 @@
 import type { AttachedFileDto } from './file';
-import type { TripDriverDto, TripPartnerDto } from './trip';
+import type { PerDiemCurrency, PerDiemStatus, TripDriverDto, TripPartnerDto } from './trip';
 import type { PaymentMethod } from './transaction';
 
 export const TRIP_EXPENSE_CATEGORIES = [
@@ -74,7 +74,11 @@ export interface TripSettlementDto {
   expensesTotal: number;
   byCategory: TripExpenseCategoryTotal[];
   drivers: TripDriverDto[];
+  /** Entered RSD per-diem entitlement. */
   perDiemTotal: number;
+  /** Entered foreign per-diem entitlement, kept in EUR. */
+  foreignPerDiemTotal: number;
+  perDiemPaidTotal: number;
   advanceTotal: number;
   netResult: number;
 }
@@ -82,7 +86,13 @@ export interface TripSettlementDto {
 export interface TripSettlementComputeInput {
   price: number | null;
   expenses: Array<{ category: TripExpenseCategory; amount: number }>;
-  drivers: Array<{ perDiemAmount: number | null; advanceAmount: number | null }>;
+  drivers: Array<{
+    perDiemAmount: number | null;
+    perDiemCurrency: PerDiemCurrency;
+    perDiemStatus: PerDiemStatus;
+    perDiemPaidAmount: number | null;
+    advanceAmount: number | null;
+  }>;
 }
 
 export interface TripSettlementTotals {
@@ -90,13 +100,19 @@ export interface TripSettlementTotals {
   expensesTotal: number;
   byCategory: TripExpenseCategoryTotal[];
   perDiemTotal: number;
+  foreignPerDiemTotal: number;
+  /** Paid RSD amount only; this is the amount included in the trip result. */
+  perDiemPaidTotal: number;
   advanceTotal: number;
   netResult: number;
 }
 
 const roundMoney = (value: number): number => Math.round(value * 100) / 100;
 
-/** Revenue − expenses − per diems − advances. Pure; used by the API and tests. */
+/**
+ * Revenue minus actual trip costs and paid per-diems in RSD. A travel advance
+ * is a receivable from the driver until it is justified, not a trip expense.
+ */
 export const computeTripSettlement = (input: TripSettlementComputeInput): TripSettlementTotals => {
   const revenue = roundMoney(input.price ?? 0);
   const expensesTotal = roundMoney(
@@ -112,7 +128,24 @@ export const computeTripSettlement = (input: TripSettlementComputeInput): TripSe
     return total > 0 ? [{ category, total }] : [];
   });
   const perDiemTotal = roundMoney(
-    input.drivers.reduce((sum, driver) => sum + (driver.perDiemAmount ?? 0), 0),
+    input.drivers.reduce(
+      (sum, driver) => sum + (driver.perDiemCurrency === 'RSD' ? (driver.perDiemAmount ?? 0) : 0),
+      0,
+    ),
+  );
+  const foreignPerDiemTotal = roundMoney(
+    input.drivers.reduce(
+      (sum, driver) => sum + (driver.perDiemCurrency === 'EUR' ? (driver.perDiemAmount ?? 0) : 0),
+      0,
+    ),
+  );
+  const perDiemPaidTotal = roundMoney(
+    input.drivers.reduce(
+      (sum, driver) =>
+        sum +
+        (driver.perDiemStatus === 'PAID' ? (driver.perDiemPaidAmount ?? 0) : 0),
+      0,
+    ),
   );
   const advanceTotal = roundMoney(
     input.drivers.reduce((sum, driver) => sum + (driver.advanceAmount ?? 0), 0),
@@ -123,7 +156,9 @@ export const computeTripSettlement = (input: TripSettlementComputeInput): TripSe
     expensesTotal,
     byCategory,
     perDiemTotal,
+    foreignPerDiemTotal,
+    perDiemPaidTotal,
     advanceTotal,
-    netResult: roundMoney(revenue - expensesTotal - perDiemTotal - advanceTotal),
+    netResult: roundMoney(revenue - expensesTotal - perDiemPaidTotal),
   };
 };

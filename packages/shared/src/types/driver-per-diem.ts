@@ -2,6 +2,8 @@
  * Non-taxable per-diem ceilings (Serbian payroll practice as stated by the employer).
  * Domestic amounts stay in RSD. Foreign amounts stay in EUR — never convert.
  */
+import type { AdvanceStatus, PerDiemCurrency, PerDiemStatus } from './trip';
+
 export const DOMESTIC_PER_DIEM_RATE_RSD = 3400;
 export const FOREIGN_PER_DIEM_RATE_EUR = 90;
 
@@ -66,7 +68,15 @@ export interface DriverTripPerDiemDto {
   /** Trip distance attributed to this job (not split among drivers). */
   distanceKm: number | null;
   perDiemAmount: number | null;
+  perDiemCurrency: PerDiemCurrency;
+  perDiemStatus: PerDiemStatus;
+  perDiemPaidAmount: number | null;
+  perDiemPaidAt: string | null;
   advanceAmount: number | null;
+  advanceStatus: AdvanceStatus;
+  advancePaidAt: string | null;
+  perDiemDocumentNumber: string | null;
+  perDiemDocumentGeneratedAt: string | null;
   /**
    * Trip expenses only when this driver is the sole driver on the trip.
    * Otherwise null — we do not invent a split of tour costs.
@@ -86,6 +96,8 @@ export interface DriverPerDiemLedgerDto {
     tripCount: number;
     distanceKm: number;
     perDiemAmount: number;
+    foreignPerDiemAmount: number;
+    perDiemPaidAmount: number;
     advanceAmount: number;
   };
   rates: {

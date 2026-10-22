@@ -106,9 +106,9 @@ const syncFinanceExpense = async (
 };
 
 /**
- * Posts each assigned driver's per-diem and advance as its own Finance
- * expense row (category SALARY, paid in cash — how these are actually
- * handed over) so "Neto rezultat" on the trip and the Finance ledger agree.
+ * Posts only an actually paid RSD per-diem. A planned/approved entitlement is
+ * not cash movement and therefore never appears in Finance. Travel advances
+ * remain marked as advances, so they do not reduce the trip result or P&L.
  * Keyed by the TripDriver assignment's own id, not the driver's id, so two
  * trips with the same driver never collide.
  */
@@ -131,23 +131,26 @@ export const syncTripDriverPayouts = async (tripId: string): Promise<void> => {
     };
 
     await upsertOperationalExpense({
+      ...shared,
       sourceType: 'TRIP_DRIVER_PER_DIEM',
       sourceId: assignment.id,
       category: 'SALARY',
-      amount: assignment.perDiemAmount,
-      paymentMethod: assignment.perDiemAmount ? 'CASH' : null,
+      amount: assignment.perDiemStatus === 'PAID' ? assignment.perDiemPaidAmount : null,
+      paymentMethod: assignment.perDiemStatus === 'PAID' ? 'CASH' : null,
+      occurredAt: assignment.perDiemPaidAt?.toISOString().slice(0, 10) ?? trip.departureDate,
       note: `Dnevnica — ${driverName} (${label})`,
-      ...shared,
     });
 
     await upsertOperationalExpense({
+      ...shared,
       sourceType: 'TRIP_DRIVER_ADVANCE',
       sourceId: assignment.id,
-      category: 'SALARY',
-      amount: assignment.advanceAmount,
-      paymentMethod: assignment.advanceAmount ? 'CASH' : null,
-      note: `Akontacija — ${driverName} (${label})`,
-      ...shared,
+      category: 'OTHER',
+      amount: assignment.advanceStatus === 'DRAFT' ? null : assignment.advanceAmount,
+      paymentMethod: assignment.advanceStatus === 'DRAFT' ? null : 'CASH',
+      occurredAt: assignment.advancePaidAt?.toISOString().slice(0, 10) ?? trip.departureDate,
+      isAdvance: true,
+      note: `Akontacija za putne troškove — ${driverName} (${label})`,
     });
   }
 };
@@ -269,6 +272,8 @@ export const getTripSettlement = async (tripId: string): Promise<TripSettlementD
     byCategory: totals.byCategory,
     drivers: trip.drivers,
     perDiemTotal: totals.perDiemTotal,
+    foreignPerDiemTotal: totals.foreignPerDiemTotal,
+    perDiemPaidTotal: totals.perDiemPaidTotal,
     advanceTotal: totals.advanceTotal,
     netResult: totals.netResult,
   };
@@ -296,7 +301,20 @@ export const updateTripSettlement = async (
       for (const driver of drivers) {
         await tx.tripDriver.update({
           where: { tripId_driverId: { tripId, driverId: driver.driverId } },
-          data: { perDiemAmount: driver.perDiemAmount, advanceAmount: driver.advanceAmount },
+          data: {
+            perDiemAmount: driver.perDiemAmount,
+            perDiemCurrency: driver.perDiemCurrency,
+            perDiemStatus: driver.perDiemStatus,
+            perDiemPaidAmount: driver.perDiemStatus === 'PAID' ? driver.perDiemPaidAmount : null,
+            perDiemPaidAt: driver.perDiemStatus === 'PAID' && driver.perDiemPaidAt
+              ? parseDate(driver.perDiemPaidAt)
+              : null,
+            advanceAmount: driver.advanceAmount,
+            advanceStatus: driver.advanceStatus,
+            advancePaidAt: driver.advanceStatus !== 'DRAFT' && driver.advancePaidAt
+              ? parseDate(driver.advancePaidAt)
+              : null,
+          },
         });
       }
     });

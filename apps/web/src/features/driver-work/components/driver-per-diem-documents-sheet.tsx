@@ -58,7 +58,7 @@ export function DriverPerDiemDocumentsSheet({
     const returnDate = trip.returnDate ?? trip.departureDate;
 
     return {
-      documentNumber: '',
+      documentNumber: trip.perDiemDocumentNumber ?? '',
       departureAt: stored?.departureAt?.slice(0, 16) ?? toLocalInput(departureDate, '08:00'),
       returnAt: stored?.returnAt?.slice(0, 16) ?? toLocalInput(returnDate, '20:00'),
       borderCrossings:
@@ -78,7 +78,6 @@ export function DriverPerDiemDocumentsSheet({
                 direction: 'IN' as const,
               },
             ]),
-      advanceAmount: trip.advanceAmount ?? 0,
     };
   }, [trip]);
 
@@ -88,7 +87,6 @@ export function DriverPerDiemDocumentsSheet({
   const [crossings, setCrossings] = useState<
     Array<{ at: string; direction: 'OUT' | 'IN' }>
   >([]);
-  const [advanceAmount, setAdvanceAmount] = useState(0);
 
   useEffect(() => {
     if (!trip || !defaults) {
@@ -99,7 +97,6 @@ export function DriverPerDiemDocumentsSheet({
     setDepartureAt(defaults.departureAt);
     setReturnAt(defaults.returnAt);
     setCrossings(defaults.borderCrossings);
-    setAdvanceAmount(defaults.advanceAmount);
   }, [defaults, trip]);
 
   const preview = useMemo(() => {
@@ -121,7 +118,7 @@ export function DriverPerDiemDocumentsSheet({
   const buildBody = (): GenerateDriverPerDiemDocumentRequest => ({
     tripId: trip!.tripId,
     documentNumber: documentNumber || null,
-    advanceAmount,
+    advanceAmount: null,
     timeline: {
       departureAt,
       returnAt,
@@ -255,17 +252,13 @@ export function DriverPerDiemDocumentsSheet({
               )}
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="advance">Akontacija na dokumentu</Label>
-              <Input
-                id="advance"
-                type="number"
-                step="0.01"
-                value={advanceAmount}
-                onChange={(event) => setAdvanceAmount(Number(event.target.value) || 0)}
-              />
-              <p className="text-muted-foreground text-xs">
-                Za inostranstvo u EUR, za zemlju u RSD — bez konverzije.
+            <div className="rounded-lg border p-3 text-sm">
+              <p className="font-medium">Akontacija za putne troškove</p>
+              <p className="text-muted-foreground mt-1">
+                {trip.advanceAmount != null ? `${formatMoney(trip.advanceAmount)} je preuzeto sa obračuna vožnje.` : 'Nije uneta.'}
+              </p>
+              <p className="text-muted-foreground mt-1 text-xs">
+                Akontaciju izmenite na obračunu vožnje, da dokument i Finansije ostanu usklađeni.
               </p>
             </div>
 
@@ -276,6 +269,9 @@ export function DriverPerDiemDocumentsSheet({
               </p>
               <p className="text-muted-foreground mt-1">
                 Plafon: {formatMoney(DOMESTIC_PER_DIEM_RATE_RSD)} / {FOREIGN_PER_DIEM_RATE_EUR} EUR.
+              </p>
+              <p className="text-muted-foreground mt-1 text-xs">
+                Obračun je dokumentarni predlog. Dnevnicu odobrite, a zatim označite kao isplaćenu na obračunu vožnje.
               </p>
               {preview ? (
                 <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">

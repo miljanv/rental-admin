@@ -110,13 +110,13 @@ export function DriverStatisticsTab({ driverId }: DriverStatisticsTabProps) {
               isLoading={query.isPending}
             />
             <SummaryCard
-              label="Prosečna mesečna zarada"
+              label="Prosečne dnevnice (RSD)"
               value={
                 stats?.averageMonthlyEarnings != null
                   ? formatMoney(stats.averageMonthlyEarnings)
                   : '—'
               }
-              hint={`Prosek meseci sa isplatom u ${year}.`}
+              hint={`Prosek meseci sa isplaćenim dnevnicama u ${year}.`}
               icon={TrendingUp}
               isLoading={query.isPending}
             />
@@ -126,7 +126,7 @@ export function DriverStatisticsTab({ driverId }: DriverStatisticsTabProps) {
             <CardHeader>
               <CardTitle>Zarada po mesecima ({year}.)</CardTitle>
               <CardDescription>
-                Unete dnevnice sa obračuna vožnji. Prosek iznad ne uključuje mesece bez isplate.
+                Isplaćene dnevnice u RSD. Prosek iznad ne uključuje mesece bez isplate.
               </CardDescription>
             </CardHeader>
             <CardContent className="px-0">

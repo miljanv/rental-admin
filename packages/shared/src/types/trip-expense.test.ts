@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { computeTripSettlement } from './trip-expense';
 
 describe('computeTripSettlement', () => {
-  it('subtracts expenses, per diems and advances from trip price', () => {
+  it('subtracts only paid RSD per diems and never deducts a travel advance twice', () => {
     expect(
       computeTripSettlement({
         price: 100_000,
@@ -13,8 +13,20 @@ describe('computeTripSettlement', () => {
           { category: 'FUEL', amount: 3_000 },
         ],
         drivers: [
-          { perDiemAmount: 8_000, advanceAmount: 2_000 },
-          { perDiemAmount: 8_000, advanceAmount: null },
+          {
+            perDiemAmount: 8_000,
+            perDiemCurrency: 'RSD',
+            perDiemStatus: 'PAID',
+            perDiemPaidAmount: 8_000,
+            advanceAmount: 2_000,
+          },
+          {
+            perDiemAmount: 8_000,
+            perDiemCurrency: 'RSD',
+            perDiemStatus: 'APPROVED',
+            perDiemPaidAmount: null,
+            advanceAmount: null,
+          },
         ],
       }),
     ).toEqual({
@@ -25,8 +37,10 @@ describe('computeTripSettlement', () => {
         { category: 'TOLL', total: 5_000 },
       ],
       perDiemTotal: 16_000,
+      foreignPerDiemTotal: 0,
+      perDiemPaidTotal: 8_000,
       advanceTotal: 2_000,
-      netResult: 54_000,
+      netResult: 64_000,
     });
   });
 
@@ -38,5 +52,23 @@ describe('computeTripSettlement', () => {
         drivers: [],
       }).netResult,
     ).toBe(-500);
+  });
+
+  it('uses an explicitly entered RSD payment for a foreign per-diem', () => {
+    expect(
+      computeTripSettlement({
+        price: 10_000,
+        expenses: [],
+        drivers: [
+          {
+            perDiemAmount: 90,
+            perDiemCurrency: 'EUR',
+            perDiemStatus: 'PAID',
+            perDiemPaidAmount: 10_800,
+            advanceAmount: null,
+          },
+        ],
+      }).netResult,
+    ).toBe(-800);
   });
 });

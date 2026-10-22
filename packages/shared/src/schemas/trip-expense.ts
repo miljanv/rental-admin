@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { MAX_TRIP_DRIVERS } from '../types/trip';
+import { ADVANCE_STATUSES, PER_DIEM_CURRENCIES, PER_DIEM_STATUSES } from '../types/trip';
 import { TRIP_EXPENSE_CATEGORIES, TRIP_EXPENSE_PAYMENT_METHODS } from '../types/trip-expense';
 import { driverIdSchema } from './driver';
 import { optionalId, optionalIsoDate, optionalNonNegative, tripIdSchema } from './trip';
@@ -41,7 +42,37 @@ export type TripExpenseWriteRequest = z.output<typeof tripExpenseWriteSchema>;
 export const tripDriverAllowanceSchema = z.object({
   driverId: driverIdSchema,
   perDiemAmount: optionalNonNegative('Dnevnica', 100_000_000_000),
+  perDiemCurrency: z.enum(PER_DIEM_CURRENCIES).default('RSD'),
+  perDiemStatus: z.enum(PER_DIEM_STATUSES).default('DRAFT'),
+  perDiemPaidAmount: optionalNonNegative('Isplaćena dnevnica', 100_000_000_000),
+  perDiemPaidAt: optionalIsoDate,
   advanceAmount: optionalNonNegative('Akontacija', 100_000_000_000),
+  advanceStatus: z.enum(ADVANCE_STATUSES).default('DRAFT'),
+  advancePaidAt: optionalIsoDate,
+}).superRefine((value, context) => {
+  if (value.perDiemStatus === 'PAID' && (value.perDiemPaidAmount ?? 0) <= 0) {
+    context.addIssue({
+      code: 'custom',
+      path: ['perDiemPaidAmount'],
+      message: 'Za isplaćenu dnevnicu unesite stvarno isplaćen iznos u RSD.',
+    });
+  }
+
+  if (value.perDiemStatus !== 'PAID' && value.perDiemPaidAmount != null) {
+    context.addIssue({
+      code: 'custom',
+      path: ['perDiemPaidAmount'],
+      message: 'Isplaćen iznos se unosi tek kada je dnevnica isplaćena.',
+    });
+  }
+
+  if (value.advanceStatus !== 'DRAFT' && (value.advanceAmount ?? 0) <= 0) {
+    context.addIssue({
+      code: 'custom',
+      path: ['advanceAmount'],
+      message: 'Za datu ili razduženu akontaciju unesite iznos.',
+    });
+  }
 });
 
 export const tripSettlementWriteSchema = z

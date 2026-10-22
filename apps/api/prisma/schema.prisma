@@ -1094,6 +1094,9 @@ model Trip {
   /// Departure / return datetimes and border crossings for the per-diem obračun.
   /// Shape: { departureAt, returnAt, borderCrossings: [{ at, direction: OUT|IN }] }
   travelTimeline        Json?
+  /// Last generated travel-document number and time, shared by the assigned drivers.
+  perDiemDocumentNumber String?
+  perDiemDocumentGeneratedAt DateTime?
   /// Actual carrier on this trip (subcontractor / another brand), distinct from the client `partnerId`.
   carrierId             String?
   /// Planned number of buses on this job, even before specific plates are assigned
@@ -1166,8 +1169,15 @@ model TripDriver {
   driverId      String
   /// Per-driver per diem for this trip — not a company-wide fixed rate.
   perDiemAmount Float?
-  /// Cash given to the driver up front, later deducted from the wage settlement.
+  perDiemCurrency PerDiemCurrency @default(RSD)
+  perDiemStatus PerDiemStatus @default(DRAFT)
+  /// Actual paid RSD amount. The payment ledger is created only after this is set to PAID.
+  perDiemPaidAmount Float?
+  perDiemPaidAt DateTime? @db.Date
+  /// Cash given to the driver up front for trip costs. It remains open until justified.
   advanceAmount Float?
+  advanceStatus AdvanceStatus @default(DRAFT)
+  advancePaidAt DateTime? @db.Date
   createdAt     DateTime @default(now())
 
   trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
@@ -1176,6 +1186,23 @@ model TripDriver {
   @@unique([tripId, driverId])
   @@index([driverId])
   @@map("trip_drivers")
+}
+
+enum PerDiemCurrency {
+  RSD
+  EUR
+}
+
+enum PerDiemStatus {
+  DRAFT
+  APPROVED
+  PAID
+}
+
+enum AdvanceStatus {
+  DRAFT
+  PAID
+  SETTLED
 }
 
 enum TripExpenseCategory {

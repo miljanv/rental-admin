@@ -1,8 +1,10 @@
 'use client';
 
 import {
+  ADVANCE_STATUS_LABELS,
   DOMESTIC_PER_DIEM_RATE_RSD,
   FOREIGN_PER_DIEM_RATE_EUR,
+  PER_DIEM_STATUS_LABELS,
   splitDomesticTaxable,
   type DriverTripPerDiemDto,
 } from '@rental-admin/shared';
@@ -49,7 +51,7 @@ export function DriverPerDiemTable({ trips, isLoading, onGenerate }: DriverPerDi
           <TableHead>Relacija</TableHead>
           <TableHead>Vozilo</TableHead>
           <TableHead className="text-right">Km</TableHead>
-          <TableHead className="text-right">Dnevnica</TableHead>
+          <TableHead className="text-right">Dnevnica / status</TableHead>
           <TableHead className="text-right">Akontacija</TableHead>
           <TableHead className="text-right">Troškovi / razduženje</TableHead>
           <TableHead className="text-right">Dokumenta</TableHead>
@@ -87,7 +89,14 @@ export function DriverPerDiemTable({ trips, isLoading, onGenerate }: DriverPerDi
                   {trip.distanceKm != null ? formatKilometers(trip.distanceKm) : '—'}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {trip.perDiemAmount != null ? formatMoney(trip.perDiemAmount) : '—'}
+                  {trip.perDiemAmount != null
+                    ? trip.perDiemCurrency === 'EUR'
+                      ? `${trip.perDiemAmount} EUR`
+                      : formatMoney(trip.perDiemAmount)
+                    : '—'}
+                  <p className="text-muted-foreground text-xs">
+                    {PER_DIEM_STATUS_LABELS[trip.perDiemStatus]}
+                  </p>
                   {taxable && taxable.aboveCap > 0 ? (
                     <p className="text-muted-foreground text-xs">
                       do {formatMoney(DOMESTIC_PER_DIEM_RATE_RSD)} neoporezivo
@@ -101,6 +110,11 @@ export function DriverPerDiemTable({ trips, isLoading, onGenerate }: DriverPerDi
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {trip.advanceAmount != null ? formatMoney(trip.advanceAmount) : '—'}
+                  {trip.advanceAmount != null ? (
+                    <p className="text-muted-foreground text-xs">
+                      {ADVANCE_STATUS_LABELS[trip.advanceStatus]}
+                    </p>
+                  ) : null}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {trip.expensesTotal != null ? (
@@ -122,8 +136,11 @@ export function DriverPerDiemTable({ trips, isLoading, onGenerate }: DriverPerDi
                 </TableCell>
                 <TableCell className="text-right">
                   <Button type="button" size="sm" variant="outline" onClick={() => onGenerate(trip)}>
-                    Generiši
+                    {trip.perDiemDocumentNumber ? 'Otvori' : 'Generiši'}
                   </Button>
+                  {trip.perDiemDocumentNumber ? (
+                    <p className="text-muted-foreground mt-1 text-xs">Broj {trip.perDiemDocumentNumber}</p>
+                  ) : null}
                 </TableCell>
               </TableRow>
             );

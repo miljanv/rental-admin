@@ -17,7 +17,13 @@ export interface TripVehicleAssignmentRecord {
 
 export interface TripDriverAssignmentRecord {
   perDiemAmount: number | null;
+  perDiemCurrency?: 'RSD' | 'EUR';
+  perDiemStatus?: 'DRAFT' | 'APPROVED' | 'PAID';
+  perDiemPaidAmount?: number | null;
+  perDiemPaidAt?: Date | null;
   advanceAmount: number | null;
+  advanceStatus?: 'DRAFT' | 'PAID' | 'SETTLED';
+  advancePaidAt?: Date | null;
   driver: { id: string; firstName: string; lastName: string };
 }
 
@@ -175,7 +181,13 @@ export const toTripDto = (record: TripRecord): TripDto => ({
     firstName: assignment.driver.firstName,
     lastName: assignment.driver.lastName,
     perDiemAmount: assignment.perDiemAmount,
+    perDiemCurrency: assignment.perDiemCurrency ?? 'RSD',
+    perDiemStatus: assignment.perDiemStatus ?? 'DRAFT',
+    perDiemPaidAmount: assignment.perDiemPaidAmount ?? null,
+    perDiemPaidAt: assignment.perDiemPaidAt ? toIsoDate(assignment.perDiemPaidAt) : null,
     advanceAmount: assignment.advanceAmount,
+    advanceStatus: assignment.advanceStatus ?? 'DRAFT',
+    advancePaidAt: assignment.advancePaidAt ? toIsoDate(assignment.advancePaidAt) : null,
   })),
   createdAt: record.createdAt.toISOString(),
   updatedAt: record.updatedAt.toISOString(),

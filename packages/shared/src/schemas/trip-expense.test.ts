@@ -71,5 +71,23 @@ describe('tripSettlementWriteSchema', () => {
 
     expect(result.success).toBe(true);
     expect(result.data?.drivers?.[0]?.advanceAmount).toBeNull();
+    expect(result.data?.drivers?.[0]?.perDiemStatus).toBe('DRAFT');
+    expect(result.data?.drivers?.[0]?.advanceStatus).toBe('DRAFT');
+  });
+
+  it('requires an actual RSD payment before a per-diem can be marked paid', () => {
+    expect(
+      tripSettlementWriteSchema.safeParse({
+        drivers: [
+          {
+            driverId: 'drv_1',
+            perDiemAmount: 90,
+            perDiemCurrency: 'EUR',
+            perDiemStatus: 'PAID',
+            perDiemPaidAmount: '',
+          },
+        ],
+      }).success,
+    ).toBe(false);
   });
 });

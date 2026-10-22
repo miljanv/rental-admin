@@ -62,6 +62,6 @@ export const clientEnv = {
   maxFileSizeBytes: megabytesToBytes(values.NEXT_PUBLIC_MAX_FILE_SIZE_MB),
 } as const;
 
-export const APP_NAME = 'VM Rental';
+export const APP_NAME = 'RutaPro';
 export const APP_DESCRIPTION = 'Admin panel za autoprevoznike';
-export const APP_INITIALS = 'VM';
+export const APP_INITIALS = 'RP';

@@ -87,7 +87,13 @@ const vehicleLabel = (vehicle: { make: string; model: string; licensePlate: stri
 
 const mapTripRow = (assignment: {
   perDiemAmount: number | null;
+  perDiemCurrency: 'RSD' | 'EUR';
+  perDiemStatus: 'DRAFT' | 'APPROVED' | 'PAID';
+  perDiemPaidAmount: number | null;
+  perDiemPaidAt: Date | null;
   advanceAmount: number | null;
+  advanceStatus: 'DRAFT' | 'PAID' | 'SETTLED';
+  advancePaidAt: Date | null;
   trip: {
     id: string;
     departureDate: Date;
@@ -99,6 +105,8 @@ const mapTripRow = (assignment: {
     startKm: number | null;
     endKm: number | null;
     travelTimeline: unknown;
+    perDiemDocumentNumber: string | null;
+    perDiemDocumentGeneratedAt: Date | null;
     vehicles: Array<{ vehicle: { make: string; model: string; licensePlate: string } }>;
     drivers: Array<{ driverId: string }>;
     expenses: Array<{
@@ -123,7 +131,7 @@ const mapTripRow = (assignment: {
   const expensesTotal = expenses
     ? Math.round(expenses.reduce((sum, expense) => sum + expense.amount, 0) * 100) / 100
     : null;
-  const advance = assignment.advanceAmount ?? 0;
+  const advance = assignment.advanceStatus === 'DRAFT' ? 0 : (assignment.advanceAmount ?? 0);
   const advanceOutstanding =
     expensesTotal == null
       ? assignment.advanceAmount
@@ -140,7 +148,15 @@ const mapTripRow = (assignment: {
     vehicleLabels: assignment.trip.vehicles.map((row) => vehicleLabel(row.vehicle)),
     distanceKm: tripDistanceKm(assignment.trip),
     perDiemAmount: assignment.perDiemAmount,
+    perDiemCurrency: assignment.perDiemCurrency,
+    perDiemStatus: assignment.perDiemStatus,
+    perDiemPaidAmount: assignment.perDiemPaidAmount,
+    perDiemPaidAt: assignment.perDiemPaidAt?.toISOString().slice(0, 10) ?? null,
     advanceAmount: assignment.advanceAmount,
+    advanceStatus: assignment.advanceStatus,
+    advancePaidAt: assignment.advancePaidAt?.toISOString().slice(0, 10) ?? null,
+    perDiemDocumentNumber: assignment.trip.perDiemDocumentNumber,
+    perDiemDocumentGeneratedAt: assignment.trip.perDiemDocumentGeneratedAt?.toISOString() ?? null,
     expenses,
     expensesTotal,
     advanceOutstanding,
@@ -195,8 +211,21 @@ export const getDriverPerDiemLedger = async (
     totals: {
       tripCount: trips.length,
       distanceKm: Math.round(trips.reduce((sum, trip) => sum + (trip.distanceKm ?? 0), 0) * 10) / 10,
-      perDiemAmount:
-        Math.round(trips.reduce((sum, trip) => sum + (trip.perDiemAmount ?? 0), 0) * 100) / 100,
+      perDiemAmount: Math.round(
+        trips.reduce(
+          (sum, trip) => sum + (trip.perDiemCurrency === 'RSD' ? (trip.perDiemAmount ?? 0) : 0),
+          0,
+        ) * 100,
+      ) / 100,
+      foreignPerDiemAmount: Math.round(
+        trips.reduce(
+          (sum, trip) => sum + (trip.perDiemCurrency === 'EUR' ? (trip.perDiemAmount ?? 0) : 0),
+          0,
+        ) * 100,
+      ) / 100,
+      perDiemPaidAmount: Math.round(
+        trips.reduce((sum, trip) => sum + (trip.perDiemPaidAmount ?? 0), 0) * 100,
+      ) / 100,
       advanceAmount:
         Math.round(trips.reduce((sum, trip) => sum + (trip.advanceAmount ?? 0), 0) * 100) / 100,
     },
@@ -313,8 +342,14 @@ export const getDriverStatistics = async (
 
   const distanceKm =
     Math.round(periodTrips.reduce((sum, row) => sum + (tripDistanceKm(row.trip) ?? 0), 0) * 10) / 10;
-  const perDiemAmount =
-    Math.round(periodTrips.reduce((sum, row) => sum + (row.perDiemAmount ?? 0), 0) * 100) / 100;
+  const perDiemAmount = Math.round(
+    periodTrips.reduce(
+      (sum, row) =>
+        sum +
+        (row.perDiemStatus === 'PAID' ? (row.perDiemPaidAmount ?? 0) : 0),
+      0,
+    ) * 100,
+  ) / 100;
 
   const monthlyMap = new Map<
     string,
@@ -343,7 +378,8 @@ export const getDriverStatistics = async (
     }
 
     bucket.tripCount += 1;
-    bucket.perDiemAmount += row.perDiemAmount ?? 0;
+    bucket.perDiemAmount +=
+      row.perDiemStatus === 'PAID' ? (row.perDiemPaidAmount ?? 0) : 0;
     bucket.distanceKm += tripDistanceKm(row.trip) ?? 0;
 
     const end = (row.trip.returnDate ?? row.trip.departureDate).toISOString().slice(0, 10);
@@ -630,7 +666,11 @@ export const generateTravelDecision = async (
 
   await prisma.trip.update({
     where: { id: trip.id },
-    data: { travelTimeline: input.timeline as Prisma.InputJsonValue },
+    data: {
+      travelTimeline: input.timeline as Prisma.InputJsonValue,
+      perDiemDocumentNumber: documentNumber,
+      perDiemDocumentGeneratedAt: new Date(),
+    },
   });
 
   const buffer = await buildTravelDecisionPdf({
@@ -662,7 +702,11 @@ export const generateTravelOrder = async (
 
   await prisma.trip.update({
     where: { id: trip.id },
-    data: { travelTimeline: input.timeline as Prisma.InputJsonValue },
+    data: {
+      travelTimeline: input.timeline as Prisma.InputJsonValue,
+      perDiemDocumentNumber: documentNumber,
+      perDiemDocumentGeneratedAt: new Date(),
+    },
   });
 
   const buffer = buildXlsx([
@@ -708,7 +752,11 @@ export const generateTravelSettlement = async (
 
   await prisma.trip.update({
     where: { id: trip.id },
-    data: { travelTimeline: input.timeline as Prisma.InputJsonValue },
+    data: {
+      travelTimeline: input.timeline as Prisma.InputJsonValue,
+      perDiemDocumentNumber: documentNumber,
+      perDiemDocumentGeneratedAt: new Date(),
+    },
   });
 
   const buffer = buildXlsx([

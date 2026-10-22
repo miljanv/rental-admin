@@ -136,12 +136,40 @@ export const MAX_TRIP_DRIVERS = 3;
 /** Planned buses on one job, including Expo-style runs before plates are assigned. */
 export const MAX_TRIP_VEHICLES = 20;
 
+export const PER_DIEM_STATUSES = ['DRAFT', 'APPROVED', 'PAID'] as const;
+export type PerDiemStatus = (typeof PER_DIEM_STATUSES)[number];
+
+export const PER_DIEM_STATUS_LABELS: Record<PerDiemStatus, string> = {
+  DRAFT: 'Nacrt',
+  APPROVED: 'Odobreno',
+  PAID: 'Isplaćeno',
+};
+
+export const ADVANCE_STATUSES = ['DRAFT', 'PAID', 'SETTLED'] as const;
+export type AdvanceStatus = (typeof ADVANCE_STATUSES)[number];
+
+export const ADVANCE_STATUS_LABELS: Record<AdvanceStatus, string> = {
+  DRAFT: 'Planirano',
+  PAID: 'Dato vozaču',
+  SETTLED: 'Razduženo',
+};
+
+export const PER_DIEM_CURRENCIES = ['RSD', 'EUR'] as const;
+export type PerDiemCurrency = (typeof PER_DIEM_CURRENCIES)[number];
+
 export interface TripDriverDto {
   id: string;
   firstName: string;
   lastName: string;
   perDiemAmount: number | null;
+  perDiemCurrency: PerDiemCurrency;
+  perDiemStatus: PerDiemStatus;
+  /** Actual amount paid in RSD. Finance is posted only from this value. */
+  perDiemPaidAmount: number | null;
+  perDiemPaidAt: string | null;
   advanceAmount: number | null;
+  advanceStatus: AdvanceStatus;
+  advancePaidAt: string | null;
 }
 
 export interface TripPartnerDto {

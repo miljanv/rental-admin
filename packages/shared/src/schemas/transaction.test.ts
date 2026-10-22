@@ -48,12 +48,12 @@ describe('transactionWriteSchema', () => {
     expect(transactionWriteSchema.safeParse({ ...validManual, amount: 0 }).success).toBe(false);
   });
 
-  it('accepts manual financial amounts up to 30 billion RSD', () => {
+  it('accepts manual financial amounts up to 100 billion RSD', () => {
     expect(
-      transactionWriteSchema.safeParse({ ...validManual, amount: 30_000_000_000 }).success,
+      transactionWriteSchema.safeParse({ ...validManual, amount: 100_000_000_000 }).success,
     ).toBe(true);
     expect(
-      transactionWriteSchema.safeParse({ ...validManual, amount: 30_000_000_000.01 }).success,
+      transactionWriteSchema.safeParse({ ...validManual, amount: 100_000_000_000.01 }).success,
     ).toBe(false);
   });
 
