@@ -1,4 +1,13 @@
 import { Router } from 'express';
+import {
+  allocationIdParamsSchema,
+  allocationPlanSchema,
+  confirmAllocationPlanSchema,
+  financeIdParamsSchema,
+  financeReasonSchema,
+  linkCounterpartySchema,
+} from '@rental-admin/shared';
+import * as settlementController from '../controllers/finance-settlement.controller';
 
 import * as transactionController from '../controllers/transaction.controller';
 import { validateRequest } from '../middleware/validate-request';
@@ -113,4 +122,30 @@ transactionRouter.delete(
   '/:id',
   validateRequest({ params: transactionIdParamsSchema }),
   asyncHandler(transactionController.deleteTransaction),
+);
+
+transactionRouter.patch(
+  '/:id/counterparty',
+  validateRequest({ params: financeIdParamsSchema, body: linkCounterpartySchema }),
+  asyncHandler(settlementController.linkCounterparty),
+);
+transactionRouter.post(
+  '/:id/allocation-plan',
+  validateRequest({ params: financeIdParamsSchema, body: allocationPlanSchema }),
+  asyncHandler(settlementController.previewAllocation),
+);
+transactionRouter.post(
+  '/:id/allocate-oldest',
+  validateRequest({ params: financeIdParamsSchema, body: confirmAllocationPlanSchema }),
+  asyncHandler(settlementController.confirmAllocation),
+);
+transactionRouter.get(
+  '/:id/allocations',
+  validateRequest({ params: financeIdParamsSchema }),
+  asyncHandler(settlementController.listAllocations),
+);
+transactionRouter.post(
+  '/:id/allocations/:allocationId/reverse',
+  validateRequest({ params: allocationIdParamsSchema, body: financeReasonSchema }),
+  asyncHandler(settlementController.reverseAllocation),
 );

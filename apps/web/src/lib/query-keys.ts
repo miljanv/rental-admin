@@ -1,4 +1,5 @@
 import type {
+  CounterpartyRequest,
   ContractSortField,
   CompanyExpenseSortField,
   CompanyExpenseScope,
@@ -309,7 +310,12 @@ export const queryKeys = {
     availability: (params: ContractAvailabilityParams) =>
       ['contracts', 'availability', params] as const,
   },
+  openingBalances: {
+    all: ['opening-balances'] as const,
+    list: (party: CounterpartyRequest) => ['opening-balances', party] as const,
+  },
   transactions: {
+    allocations: (id: string) => ['transactions', id, 'allocations'] as const,
     all: ['transactions'] as const,
     list: (params: TransactionListQueryParams) => ['transactions', 'list', params] as const,
     detail: (id: string) => ['transactions', 'detail', id] as const,

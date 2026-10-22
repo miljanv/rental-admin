@@ -8,6 +8,8 @@ import {
   type ListCompanyExpensesQuery,
 } from '@rental-admin/shared';
 
+import { assertDocumentHasNoAllocations } from '../utils/settled-document';
+import { assertAfterOpeningCutover } from '../utils/opening-cutover';
 import { prisma } from '../config/prisma';
 import { badRequest, notFound } from '../utils/app-error';
 import { toCompanyExpenseDto, type CompanyExpenseRecord } from '../utils/company-expense-mapper';
@@ -37,23 +39,31 @@ const assertVehicleExists = async (vehicleId: string | null): Promise<void> => {
   }
 };
 
-const toWriteData = async (input: CompanyExpenseWriteRequest) => ({
-  issuedAt: parseDate(input.issuedAt),
-  supplyDate: parseDate(input.supplyDate),
-  paidAt: null,
-  invoiceNumber: input.invoiceNumber,
-  supplier: input.supplier,
-  supplierId: await findSupplierIdByName(input.supplier),
-  description: input.description,
-  amount: input.amountWithVat,
-  amountWithoutVat: input.amountWithoutVat,
-  vatAmount: input.vatAmount,
-  amountWithVat: input.amountWithVat,
-  paymentMethod: input.paymentMethod,
-  scope: input.scope,
-  vehicleId: input.vehicleId,
-  odometerKm: input.odometerKm,
-});
+const toWriteData = async (input: CompanyExpenseWriteRequest) => {
+  const supplierId = await findSupplierIdByName(input.supplier);
+  await assertAfterOpeningCutover(prisma, {
+    supplierId,
+    occurredAt: parseDate(input.issuedAt),
+    paymentMethod: input.paymentMethod,
+  });
+  return {
+    issuedAt: parseDate(input.issuedAt),
+    supplyDate: parseDate(input.supplyDate),
+    paidAt: null,
+    invoiceNumber: input.invoiceNumber,
+    supplier: input.supplier,
+    supplierId,
+    description: input.description,
+    amount: input.amountWithVat,
+    amountWithoutVat: input.amountWithoutVat,
+    vatAmount: input.vatAmount,
+    amountWithVat: input.amountWithVat,
+    paymentMethod: input.paymentMethod,
+    scope: input.scope,
+    vehicleId: input.vehicleId,
+    odometerKm: input.odometerKm,
+  };
+};
 
 const expenseListWhere = (query: ListCompanyExpensesQuery | CompanyExpenseSummaryQuery) => ({
   ...(query.vehicleId ? { vehicleId: query.vehicleId } : {}),
@@ -143,6 +153,7 @@ export const updateCompanyExpense = async (
   if (!existing) {
     throw notFound('Trošak nije pronađen.');
   }
+  await assertDocumentHasNoAllocations([{ targetType: 'COMPANY_EXPENSE', targetId: expenseId }]);
 
   await assertVehicleExists(input.vehicleId);
 
@@ -168,6 +179,7 @@ export const deleteCompanyExpense = async (
   if (!existing) {
     throw notFound('Trošak nije pronađen.');
   }
+  await assertDocumentHasNoAllocations([{ targetType: 'COMPANY_EXPENSE', targetId: expenseId }]);
 
   await deleteOperationalTransaction('COMPANY_EXPENSE', expenseId, { includeSettled: true });
   await prisma.companyExpense.delete({ where: { id: expenseId } });

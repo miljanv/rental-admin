@@ -29,6 +29,7 @@ export interface DeleteSupplierResult {
 }
 
 export const SUPPLIER_LEDGER_ENTRY_TYPES = [
+  'OPENING',
   'COMPANY_EXPENSE',
   'FUEL_LOG',
   'MAINTENANCE',
@@ -38,6 +39,7 @@ export const SUPPLIER_LEDGER_ENTRY_TYPES = [
 export type SupplierLedgerEntryType = (typeof SUPPLIER_LEDGER_ENTRY_TYPES)[number];
 
 export const SUPPLIER_LEDGER_ENTRY_TYPE_LABELS: Record<SupplierLedgerEntryType, string> = {
+  OPENING: 'Početno stanje',
   COMPANY_EXPENSE: 'Račun troška',
   FUEL_LOG: 'Gorivo',
   MAINTENANCE: 'Održavanje',

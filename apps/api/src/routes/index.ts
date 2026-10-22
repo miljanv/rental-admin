@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { openingBalanceRouter } from './opening-balance.routes';
 
 import { requireAuth, requireRole } from '../middleware/require-auth';
 import { alarmRouter } from './alarm.routes';
@@ -33,6 +34,7 @@ apiRouter.use('/drivers', requireAuth, driverRouter);
 apiRouter.use('/files', requireAuth, fileRouter);
 apiRouter.use('/fuel-logs', requireAuth, fuelLogRouter);
 apiRouter.use('/organizations', requireAuth, requireRole('SUPERADMIN'), organizationRouter);
+apiRouter.use('/opening-balances', requireAuth, openingBalanceRouter);
 apiRouter.use('/partners', requireAuth, partnerRouter);
 apiRouter.use('/suppliers', requireAuth, supplierRouter);
 apiRouter.use('/transactions', requireAuth, transactionRouter);

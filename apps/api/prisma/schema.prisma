@@ -201,6 +201,8 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  openingBalances      OpeningBalance[]
+  financeAuditEvents   FinanceAuditEvent[]
   users                User[]
   fileObjects          FileObject[]
   drivers              Driver[]
@@ -223,17 +225,19 @@ model Organization {
 /// the API. A SUPERADMIN has no organization and manages organizations/users;
 /// every other user belongs to exactly one organization.
 model User {
-  id             String    @id @default(cuid())
-  username       String    @unique
+  id             String   @id @default(cuid())
+  username       String   @unique
   passwordHash   String
-  role           UserRole  @default(USER)
-  isActive       Boolean   @default(true)
+  role           UserRole @default(USER)
+  isActive       Boolean  @default(true)
   organizationId String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
+  createdOpeningBalances OpeningBalance[]
+  financeAuditEvents     FinanceAuditEvent[]
   createdDrivers         Driver[]
   createdVehicles        Vehicle[]
   createdCompanyExpenses CompanyExpense[]
@@ -531,7 +535,7 @@ model CompanyExpense {
 /// text so historic fuel/expense rows remain valid even when this registry is
 /// cleaned up or a supplier is renamed.
 model Supplier {
-  id                 String               @id @default(cuid())
+  id                 String                @id @default(cuid())
   organizationId     String
   createdById        String?
   name               String
@@ -543,13 +547,14 @@ model Supplier {
   city               String?
   contactPerson      String?
   note               String?
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  openingBalances    OpeningBalance[]
   bankAccounts       SupplierBankAccount[]
-  companyExpenses    CompanyExpense[]     @relation("CompanyExpenseSupplier")
-  fuelLogs           FuelLog[]            @relation("FuelLogSupplier")
-  maintenanceRecords VehicleMaintenance[] @relation("VehicleMaintenanceSupplier")
-  transactions       FinanceTransaction[] @relation("FinanceTransactionSupplier")
+  companyExpenses    CompanyExpense[]      @relation("CompanyExpenseSupplier")
+  fuelLogs           FuelLog[]             @relation("FuelLogSupplier")
+  maintenanceRecords VehicleMaintenance[]  @relation("VehicleMaintenanceSupplier")
+  transactions       FinanceTransaction[]  @relation("FinanceTransactionSupplier")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   createdBy    User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
@@ -643,11 +648,12 @@ model Partner {
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
-  contracts    Contract[]
-  trips        Trip[]               @relation("TripClient")
-  carrierTrips Trip[]               @relation("TripCarrier")
-  bankAccounts PartnerBankAccount[]
-  transactions FinanceTransaction[] @relation("FinanceTransactionPartner")
+  openingBalances OpeningBalance[]
+  contracts       Contract[]
+  trips           Trip[]               @relation("TripClient")
+  carrierTrips    Trip[]               @relation("TripCarrier")
+  bankAccounts    PartnerBankAccount[]
+  transactions    FinanceTransaction[] @relation("FinanceTransactionPartner")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   createdBy    User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
@@ -846,6 +852,7 @@ enum TransactionStatus {
 }
 
 enum TransactionSourceType {
+  OPENING_BALANCE
   MANUAL
   BANK_STATEMENT
   FUEL_LOG
@@ -861,6 +868,7 @@ enum TransactionSourceType {
 }
 
 enum SettlementTargetType {
+  OPENING_BALANCE
   COMPANY_EXPENSE
   TRIP_INVOICE
   TRIP_SERIES_INVOICE
@@ -980,15 +988,15 @@ model TripSeries {
   id             String              @id @default(cuid())
   organizationId String
   name           String?
-  frequency    TripSeriesFrequency
+  frequency      TripSeriesFrequency
   /// 0=Sunday..6=Saturday. Ignored when frequency is DAILY.
-  daysOfWeek   Int[]               @default([])
-  startDate    DateTime            @db.Date
-  endDate      DateTime            @db.Date
-  isActive     Boolean             @default(true)
-  terminatedAt DateTime?           @db.Date
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  daysOfWeek     Int[]               @default([])
+  startDate      DateTime            @db.Date
+  endDate        DateTime            @db.Date
+  isActive       Boolean             @default(true)
+  terminatedAt   DateTime?           @db.Date
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 
   trips        Trip[]
   pauses       TripSeriesPause[]
@@ -1233,4 +1241,63 @@ model TripBillingDocument {
   @@unique([tripId, type])
   @@index([tripId])
   @@map("trip_billing_documents")
+}
+
+enum OpeningBalanceStatus {
+  DRAFT
+  CONFIRMED
+  REVERSED
+}
+
+enum OpeningBalanceKind {
+  DEBT
+  CREDIT
+}
+
+/// Net balance migrated from outside the application. It is not current-period revenue/cost.
+model OpeningBalance {
+  id             String               @id @default(cuid())
+  organizationId String
+  createdById    String?
+  partnerId      String?
+  supplierId     String?
+  activeKey      String?
+  kind           OpeningBalanceKind
+  amount         Float
+  asOfDate       DateTime             @db.Date
+  note           String?
+  status         OpeningBalanceStatus @default(DRAFT)
+  confirmedAt    DateTime?
+  confirmedById  String?
+  reversedAt     DateTime?
+  reversedById   String?
+  reversalReason String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy      User?                @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  partner        Partner?             @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  supplier       Supplier?            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, activeKey])
+  @@index([organizationId, partnerId, status])
+  @@index([organizationId, supplierId, status])
+  @@map("opening_balances")
+}
+
+/// Append-only snapshots survive allocation removal and transaction deletion.
+model FinanceAuditEvent {
+  id             String       @id @default(cuid())
+  organizationId String
+  actorId        String?
+  entityId       String
+  action         String
+  reason         String?
+  details        Json
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  actor          User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, entityId, createdAt])
+  @@map("finance_audit_events")
 }

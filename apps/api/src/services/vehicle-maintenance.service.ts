@@ -8,6 +8,7 @@ import type {
 } from '@rental-admin/shared';
 
 import { prisma } from '../config/prisma';
+import { assertAfterOpeningCutover } from '../utils/opening-cutover';
 import { notFound } from '../utils/app-error';
 import { logger } from '../utils/logger';
 import {
@@ -30,16 +31,24 @@ const assertVehicleExists = async (vehicleId: string): Promise<void> => {
   }
 };
 
-const toWriteData = async (input: VehicleMaintenanceWriteRequest) => ({
-  date: parseDate(input.date),
-  odometerKm: input.odometerKm,
-  partName: input.partName,
-  supplier: input.supplier,
-  supplierId: await findSupplierIdByName(input.supplier),
-  cost: input.cost,
-  paymentMethod: input.paymentMethod,
-  mechanic: input.mechanic,
-});
+const toWriteData = async (input: VehicleMaintenanceWriteRequest) => {
+  const supplierId = await findSupplierIdByName(input.supplier);
+  await assertAfterOpeningCutover(prisma, {
+    supplierId,
+    occurredAt: parseDate(input.date),
+    paymentMethod: input.paymentMethod,
+  });
+  return {
+    date: parseDate(input.date),
+    odometerKm: input.odometerKm,
+    partName: input.partName,
+    supplier: input.supplier,
+    supplierId,
+    cost: input.cost,
+    paymentMethod: input.paymentMethod,
+    mechanic: input.mechanic,
+  };
+};
 
 export const listVehicleMaintenance = async (
   vehicleId: string,

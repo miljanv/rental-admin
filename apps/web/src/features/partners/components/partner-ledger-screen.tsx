@@ -11,6 +11,7 @@ import { Edit, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
+import { OpeningBalancePanel } from '@/features/transactions/components/opening-balance-panel';
 import { DateField } from '@/components/common/date-field';
 import { ErrorState } from '@/components/common/error-state';
 import { PageHeader } from '@/components/common/page-header';
@@ -106,6 +107,8 @@ export function PartnerLedgerContent({ partnerId, embedded = false }: PartnerLed
           }
         />
       )}
+
+      <OpeningBalancePanel party={{ partyType: 'PARTNER', partyId: partnerId }} />
 
       <Card className="shadow-none">
         <CardHeader>

@@ -13,6 +13,7 @@ import type {
 } from '@rental-admin/shared';
 import { defaultFinanceReportRange } from '@rental-admin/shared';
 
+import { openingLedgerEntries } from './opening-balance.service';
 import { prisma } from '../config/prisma';
 import { canonicalBankAccount, uniqueStatementNameMatch } from '../utils/statement-matching';
 import { buildPaginationMeta } from '../utils/api-response';
@@ -267,6 +268,10 @@ export const getSupplierLedger = async (
   ]);
 
   const entries: SupplierLedgerDraftEntry[] = [
+    ...(await openingLedgerEntries({ partyType: 'SUPPLIER', partyId: id })).map((row) => ({
+      ...row,
+      type: 'OPENING' as const,
+    })),
     ...companyExpenses.map((expense) => ({
       id: `company-expense:${expense.id}`,
       type: 'COMPANY_EXPENSE' as const,
@@ -426,6 +431,8 @@ export const updateSupplier = async (
 };
 
 export const deleteSupplier = async (id: string): Promise<DeleteSupplierResult> => {
+  if (await prisma.openingBalance.count({ where: { supplierId: id } }))
+    throw conflict('Stranka ima početno stanje i ne može se obrisati.');
   await getSupplier(id);
 
   await prisma.supplier.delete({ where: { id } });

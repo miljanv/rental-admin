@@ -201,7 +201,8 @@ export function TransactionsTable({
               const isBankStatement = transaction.sourceType === 'BANK_STATEMENT';
               const canEdit = (isManual && transaction.status !== 'SETTLED') || isBankStatement;
               const canAllocate =
-                (isManual || isBankStatement) && transaction.unallocatedAmount > 0.005;
+                (isManual || isBankStatement || transaction.sourceType === 'OPENING_BALANCE') &&
+                transaction.paymentMethod === 'ACCOUNT';
               const canPrintCashReceipt = transaction.paymentMethod === 'CASH';
               const statementLabel = [transaction.statementNumber, transaction.bankReference]
                 .filter(Boolean)
@@ -258,7 +259,7 @@ export function TransactionsTable({
                           className="h-auto px-0 py-1"
                           onClick={() => onAllocate(transaction)}
                         >
-                          Poveži sa računom
+                          Poveži / rasporedi
                         </Button>
                       </div>
                     ) : null}
@@ -286,7 +287,7 @@ export function TransactionsTable({
                         {canAllocate ? (
                           <DropdownMenuItem onClick={() => onAllocate(transaction)}>
                             <Link2 className="size-4" />
-                            Rasknjiži
+                            Povezivanja i raspored
                           </DropdownMenuItem>
                         ) : null}
                         {canPrintCashReceipt ? (

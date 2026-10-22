@@ -21,6 +21,8 @@ import { getTenantContext, type TenantContext } from '../utils/tenant-context';
  */
 
 export const OWNED_MODELS = [
+  'OpeningBalance',
+  'FinanceAuditEvent',
   'FileObject',
   'Driver',
   'Vehicle',
@@ -63,6 +65,7 @@ export const EXEMPT_MODELS = ['User', 'Organization'] as const;
 
 /** Owned models that remember which user created each row. */
 export const CREATED_BY_MODELS: ReadonlySet<string> = new Set([
+  'OpeningBalance',
   'Driver',
   'Vehicle',
   'CompanyExpense',

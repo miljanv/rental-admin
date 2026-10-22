@@ -12,6 +12,7 @@ import type {
 } from '@rental-admin/shared';
 import { partnerSelectLabel } from '@rental-admin/shared';
 
+import { openingLedgerEntries } from './opening-balance.service';
 import { prisma } from '../config/prisma';
 import { conflict, notFound } from '../utils/app-error';
 import { buildPaginationMeta } from '../utils/api-response';
@@ -303,7 +304,9 @@ export const getPartnerLedger = async (
     });
   }
 
-  const targetKeys = new Set(invoiceDrafts.map((invoice) => invoiceTargetKey(invoice.targetType, invoice.targetId)));
+  const targetKeys = new Set(
+    invoiceDrafts.map((invoice) => invoiceTargetKey(invoice.targetType, invoice.targetId)),
+  );
   const targetFilters = [...targetKeys].map((key) => {
     const [targetType, targetId] = key.split(':') as [
       'TRIP_INVOICE' | 'TRIP_SERIES_INVOICE',
@@ -392,7 +395,8 @@ export const getPartnerLedger = async (
   });
 
   for (const invoice of invoiceDrafts) {
-    const allocatedAmount = allocatedByTarget.get(invoiceTargetKey(invoice.targetType, invoice.targetId)) ?? 0;
+    const allocatedAmount =
+      allocatedByTarget.get(invoiceTargetKey(invoice.targetType, invoice.targetId)) ?? 0;
     invoice.remainingAmount = Math.max(0, roundMoney(invoice.debit - allocatedAmount));
     invoice.daysOverdue = daysOverdue(invoice.dueDate);
   }
@@ -454,7 +458,21 @@ export const getPartnerLedger = async (
     })
     .filter((entry): entry is PaymentLedgerDraft => Boolean(entry));
 
-  const allDrafts = [...invoiceDrafts, ...paymentDrafts];
+  const openingDraftEntries: PaymentLedgerDraft[] = (
+    await openingLedgerEntries({ partyType: 'PARTNER', partyId: id })
+  ).map((row) => ({
+    ...row,
+    postedAt: toIsoDate(row.postedAt),
+    sortDate: toIsoDate(row.postedAt),
+    type: 'OPENING',
+    documentType: 'Početno stanje',
+    externalDocumentNumber: null,
+    dueDate: null,
+    remainingAmount: null,
+    daysOverdue: null,
+    sourceType: 'OPENING',
+  }));
+  const allDrafts = [...openingDraftEntries, ...invoiceDrafts, ...paymentDrafts];
   const openingDrafts = allDrafts.filter((entry) => dateBeforeRange(entry.postedAt, query));
   const periodDrafts = allDrafts
     .filter((entry) => dateInRange(entry.postedAt, query))
@@ -479,7 +497,12 @@ export const getPartnerLedger = async (
     runningBalance = roundMoney(runningBalance + entry.debit - entry.credit);
     const dto = (() => {
       if ('targetType' in entry && 'targetId' in entry) {
-        const { sortDate: _sortDate, targetType: _targetType, targetId: _targetId, ...rest } = entry;
+        const {
+          sortDate: _sortDate,
+          targetType: _targetType,
+          targetId: _targetId,
+          ...rest
+        } = entry;
         return rest;
       }
 
@@ -564,6 +587,8 @@ export const updatePartner = async (
 };
 
 export const deletePartner = async (id: string): Promise<DeletePartnerResult> => {
+  if (await prisma.openingBalance.count({ where: { partnerId: id } }))
+    throw conflict('Stranka ima početno stanje i ne može se obrisati.');
   await getPartner(id);
 
   try {

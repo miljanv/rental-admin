@@ -21,6 +21,8 @@ import {
   type TripWriteRequest,
 } from '@rental-admin/shared';
 
+import { assertDocumentHasNoAllocations } from '../utils/settled-document';
+import { assertAfterOpeningCutover } from '../utils/opening-cutover';
 import { prisma } from '../config/prisma';
 import { badRequest, notFound } from '../utils/app-error';
 import { buildPaginationMeta } from '../utils/api-response';
@@ -324,7 +326,25 @@ export const createTrip = async (input: TripWriteRequest): Promise<TripDto> => {
 };
 
 export const updateTrip = async (id: string, input: TripWriteRequest): Promise<TripDto> => {
-  await getTrip(id);
+  const current = await getTrip(id);
+  if (
+    current.partnerId !== input.partnerId ||
+    current.price !== input.price ||
+    current.paymentMethod !== input.paymentMethod
+  ) {
+    await assertDocumentHasNoAllocations([
+      { targetType: 'TRIP_INVOICE', targetId: id },
+      ...(current.invoiceGroupId
+        ? [{ targetType: 'TRIP_SERIES_INVOICE' as const, targetId: current.invoiceGroupId }]
+        : []),
+    ]);
+  }
+  if (current.invoicedAt)
+    await assertAfterOpeningCutover(prisma, {
+      partnerId: input.partnerId,
+      occurredAt: parseDate(current.invoicedAt),
+      paymentMethod: input.paymentMethod,
+    });
   await assertReferencesExist(input);
 
   const record = await prisma.$transaction(async (tx) => {
@@ -370,12 +390,21 @@ const invoiceSeriesMonth = async (
       paidAt: null,
       departureDate: { gte: parseDate(bounds.from), lte: parseDate(bounds.to) },
     },
-    select: { id: true },
+    select: { id: true, invoiceGroupId: true },
   });
 
   if (records.length === 0) {
     throw badRequest('U tom mesecu nema neplaćenih vožnji ove serije.');
   }
+
+  await assertDocumentHasNoAllocations(
+    records.flatMap((row) => [
+      { targetType: 'TRIP_INVOICE' as const, targetId: row.id },
+      ...(row.invoiceGroupId
+        ? [{ targetType: 'TRIP_SERIES_INVOICE' as const, targetId: row.invoiceGroupId }]
+        : []),
+    ]),
+  );
 
   const monthGross = Math.round(dayFare.grossAmount * records.length * 100) / 100;
 
@@ -405,6 +434,17 @@ const invoiceSeriesMonth = async (
 export const invoiceTrip = async (id: string, input: TripInvoiceWriteRequest): Promise<TripDto> => {
   const current = await getTrip(id);
   const previousGroupId = current.invoiceGroupId;
+  await assertDocumentHasNoAllocations([
+    { targetType: 'TRIP_INVOICE', targetId: id },
+    ...(previousGroupId
+      ? [{ targetType: 'TRIP_SERIES_INVOICE' as const, targetId: previousGroupId }]
+      : []),
+  ]);
+  await assertAfterOpeningCutover(prisma, {
+    partnerId: current.partnerId,
+    occurredAt: parseDate(input.invoicedAt),
+    paymentMethod: input.paymentMethod,
+  });
 
   if (input.paymentMethod === 'CASH') {
     const [cashPayments, officialAllocations] = await Promise.all([
@@ -679,6 +719,12 @@ export const deleteTripCashPayment = async (
 
 export const deleteTrip = async (id: string): Promise<DeleteTripResult> => {
   const existing = await getTrip(id);
+  await assertDocumentHasNoAllocations([
+    { targetType: 'TRIP_INVOICE', targetId: id },
+    ...(existing.invoiceGroupId
+      ? [{ targetType: 'TRIP_SERIES_INVOICE' as const, targetId: existing.invoiceGroupId }]
+      : []),
+  ]);
 
   const [expenses, tripDrivers] = await Promise.all([
     prisma.tripExpense.findMany({ where: { tripId: id }, select: { id: true, fileId: true } }),

@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PaymentSettlementControls } from './payment-settlement-controls';
 import { useCreatePaymentAllocation } from '@/features/transactions/hooks/use-create-payment-allocation';
 import { useSettlementTargets } from '@/features/transactions/hooks/use-settlement-targets';
 import { formatDate, formatMoney } from '@/lib/format';
@@ -33,7 +34,11 @@ const normalizeSearchText = (value: string): string =>
     .replace(/[\u0300-\u036f]/g, '')
     .toLocaleLowerCase('sr-Latn');
 
-export function PaymentAllocationPanel({ transaction, onDone }: PaymentAllocationPanelProps) {
+export function PaymentAllocationPanel({
+  transaction: initialTransaction,
+  onDone,
+}: PaymentAllocationPanelProps) {
+  const [transaction, setTransaction] = useState(initialTransaction);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedTarget, setSelectedTarget] = useState<SettlementTargetDto | null>(null);
@@ -111,6 +116,14 @@ export function PaymentAllocationPanel({ transaction, onDone }: PaymentAllocatio
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <PaymentSettlementControls
+          transaction={transaction}
+          onUpdated={(updated) => {
+            setTransaction(updated);
+            setSelectedTarget(null);
+            setAmount(null);
+          }}
+        />
         {targetsQuery.isError ? (
           <ErrorState
             error={targetsQuery.error}

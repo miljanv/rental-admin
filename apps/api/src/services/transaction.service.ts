@@ -38,6 +38,8 @@ import {
 
 import { prisma, type TransactionClient } from '../config/prisma';
 import { financeWrite } from '../utils/finance-write';
+import { assertAfterOpeningCutover } from '../utils/opening-cutover';
+import { recordFinanceAudit } from '../utils/finance-audit';
 import {
   planStatementAllocations,
   type StatementAllocationTarget,
@@ -69,7 +71,11 @@ const parseDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`
 
 const toIsoDate = (value: Date): string => value.toISOString().slice(0, 10);
 
-const retiredFinanceSourceTypes: TransactionSourceType[] = ['COMPANY_EXPENSE', 'TRIP_REVENUE'];
+const retiredFinanceSourceTypes: TransactionSourceType[] = [
+  'COMPANY_EXPENSE',
+  'TRIP_REVENUE',
+  'OPENING_BALANCE',
+];
 const MONEY_EPSILON = 0.005;
 
 type TransactionListFilters = Omit<
@@ -113,7 +119,7 @@ const transactionListWhere = (query: TransactionListFilters) => ({
     : {}),
 });
 
-const transactionInclude = {
+export const transactionInclude = {
   vehicle: { select: { id: true, make: true, model: true, licensePlate: true } },
   driver: { select: { id: true, firstName: true, lastName: true } },
   partnerRef: {
@@ -629,9 +635,10 @@ export const createTransaction = async (
 ): Promise<TransactionDto> => {
   await assertReferencesExist(input);
 
-  const record = await prisma.financeTransaction.create({
-    data: { ...(await toManualWriteData(input)), organizationId: requireOrganizationId() },
-    include: transactionInclude,
+  const data = { ...(await toManualWriteData(input)), organizationId: requireOrganizationId() };
+  const record = await financeWrite(async (tx) => {
+    await assertAfterOpeningCutover(tx, data);
+    return tx.financeTransaction.create({ data, include: transactionInclude });
   });
 
   logger.info('Transaction created', { transactionId: record.id, isAdvance: record.isAdvance });
@@ -649,6 +656,7 @@ export const createBankStatementEntry = async (
     organizationId: requireOrganizationId(),
   };
   const record = await financeWrite(async (tx) => {
+    await assertAfterOpeningCutover(tx, data);
     const created = await tx.financeTransaction.create({ data, include: transactionInclude });
     await reconcileStatement(tx, created);
     return tx.financeTransaction.findUniqueOrThrow({
@@ -759,6 +767,11 @@ export const importBankStatementXml = async (
     ].filter(Boolean);
 
     const outcome = await financeWrite(async (tx) => {
+      await assertAfterOpeningCutover(tx, {
+        partnerId: matchedPartner?.id,
+        supplierId: matchedSupplier?.id,
+        occurredAt: parseDate(entry.occurredAt),
+      });
       const existing = await tx.financeTransaction.findFirst({
         where: {
           sourceType: 'BANK_STATEMENT',
@@ -874,7 +887,7 @@ export const importBankStatementXml = async (
   };
 };
 
-const loadStatementAllocationTargets = async (
+export const loadStatementAllocationTargets = async (
   tx: TransactionClient,
   input: {
     type: TransactionType;
@@ -884,6 +897,32 @@ const loadStatementAllocationTargets = async (
   },
 ): Promise<StatementAllocationTarget[]> => {
   const targets: StatementAllocationTarget[] = [];
+  const opening =
+    input.partnerId || input.supplierId
+      ? await tx.openingBalance.findMany({
+          where: {
+            status: 'CONFIRMED',
+            kind: 'DEBT',
+            asOfDate: { lt: input.occurredAt },
+            ...(input.type === 'INCOME'
+              ? { partnerId: input.partnerId }
+              : { supplierId: input.supplierId }),
+          },
+        })
+      : [];
+  const openingAllocated = await allocatedByTarget(
+    'OPENING_BALANCE',
+    opening.map((row) => row.id),
+    tx,
+  );
+  for (const row of opening)
+    targets.push({
+      targetType: 'OPENING_BALANCE',
+      targetId: row.id,
+      reference: null,
+      issuedAt: row.asOfDate,
+      remainingAmount: roundMoney(row.amount - (openingAllocated.get(row.id) ?? 0)),
+    });
 
   if (input.type === 'EXPENSE' && input.supplierId) {
     const supplier = await tx.supplier.findUniqueOrThrow({ where: { id: input.supplierId } });
@@ -996,13 +1035,17 @@ const reconcileStatement = async (
       },
       update: { amount: { increment: allocation.amount } },
     });
+    await recordFinanceAudit(tx, transaction.id, 'ALLOCATION_CREATED', {
+      ...allocation,
+      origin: 'BANK_STATEMENT',
+    });
     // Attach legacy documents to the same master record as the payment.
     if (allocation.targetType === 'COMPANY_EXPENSE') {
       await tx.companyExpense.updateMany({
         where: { id: allocation.targetId, supplierId: null },
         data: { supplierId: transaction.supplierId },
       });
-    } else {
+    } else if (allocation.targetType !== 'OPENING_BALANCE') {
       await tx.trip.updateMany({
         where: {
           ...(allocation.targetType === 'TRIP_INVOICE'
@@ -1253,12 +1296,15 @@ export const updateTransaction = async (
     throw conflict('Razdužena transakcija se ne može menjati.');
   }
 
+  if (await prisma.paymentAllocation.count({ where: { transactionId: id } }))
+    throw conflict('Prvo poništite povezivanja ove uplate sa računima.');
+
   await assertReferencesExist(input);
 
-  const record = await prisma.financeTransaction.update({
-    where: { id },
-    data: await toManualWriteData(input),
-    include: transactionInclude,
+  const data = await toManualWriteData(input);
+  const record = await financeWrite(async (tx) => {
+    await assertAfterOpeningCutover(tx, data);
+    return tx.financeTransaction.update({ where: { id }, data, include: transactionInclude });
   });
 
   logger.info('Transaction updated', { transactionId: id });
@@ -1273,6 +1319,7 @@ export const updateBankStatementEntry = async (
   await assertReferencesExist(input);
   const data = await toBankStatementWriteData(input);
   return financeWrite(async (tx) => {
+    await assertAfterOpeningCutover(tx, data);
     const existing = await tx.financeTransaction.findUnique({
       where: { id },
       include: transactionInclude,
@@ -1332,6 +1379,7 @@ export const deleteTransaction = async (id: string): Promise<DeleteTransactionRe
     }
 
     const allocations = await tx.paymentAllocation.findMany({ where: { transactionId: id } });
+    await recordFinanceAudit(tx, id, 'PAYMENT_DELETED', { existing, allocations });
     await tx.financeTransaction.delete({ where: { id } });
     for (const allocation of allocations) {
       await refreshTargetPaidAt(allocation.targetType, allocation.targetId, new Date(), tx);
@@ -1457,7 +1505,7 @@ export const settleAdvances = async (
 
 const roundMoney = (value: number): number => Math.round(value * 100) / 100;
 
-const toPaymentAllocationDto = (record: {
+export const toPaymentAllocationDto = (record: {
   id: string;
   transactionId: string;
   targetType: SettlementTargetType;
@@ -1478,7 +1526,9 @@ const toPaymentAllocationDto = (record: {
 });
 
 const targetTypeForTransactionType = (type: 'INCOME' | 'EXPENSE'): SettlementTargetType[] =>
-  type === 'EXPENSE' ? ['COMPANY_EXPENSE'] : ['TRIP_INVOICE', 'TRIP_SERIES_INVOICE'];
+  type === 'EXPENSE'
+    ? ['COMPANY_EXPENSE', 'OPENING_BALANCE']
+    : ['TRIP_INVOICE', 'TRIP_SERIES_INVOICE', 'OPENING_BALANCE'];
 
 const allocatedByTarget = async (
   targetType: SettlementTargetType,
@@ -1763,9 +1813,38 @@ export const listAllSettlementTargets = async (
 ): Promise<SettlementTargetDto[]> => {
   const query: ListSettlementTargetsQuery = { type, search: undefined, limit: 100 };
 
-  return type === 'INCOME'
-    ? listTripInvoiceSettlementTargets(query, null, null)
-    : listCompanyExpenseSettlementTargets(query, null, null);
+  const invoices =
+    type === 'INCOME'
+      ? await listTripInvoiceSettlementTargets(query, null, null)
+      : await listCompanyExpenseSettlementTargets(query, null, null);
+  return [...(await listOpeningDebtTargets(type, null)), ...invoices];
+};
+
+const listOpeningDebtTargets = async (
+  type: TransactionType,
+  preferred: PreferredSettlementCounterparty | null,
+  search?: string,
+): Promise<SettlementTargetDto[]> => {
+  const rows = await prisma.openingBalance.findMany({
+    where: {
+      status: 'CONFIRMED',
+      kind: 'DEBT',
+      ...(type === 'INCOME'
+        ? { partnerId: preferred?.id ?? { not: null } }
+        : { supplierId: preferred?.id ?? { not: null } }),
+    },
+  });
+  const targets = await Promise.all(
+    rows.map((row) => getSettlementTarget('OPENING_BALANCE', row.id)),
+  );
+  return targets.filter(
+    (target) =>
+      target.remainingAmount > MONEY_EPSILON &&
+      (!search ||
+        normalizeMatchText(target.counterparty + ' ' + target.label).includes(
+          normalizeMatchText(search),
+        )),
+  );
 };
 
 export const listSettlementTargets = async (
@@ -1792,23 +1871,55 @@ export const listSettlementTargets = async (
   }
 
   if (type === 'EXPENSE') {
-    return { targets: await listCompanyExpenseSettlementTargets(query, preferred) };
+    return {
+      targets: [
+        ...(await listOpeningDebtTargets(type, preferred, query.search)),
+        ...(await listCompanyExpenseSettlementTargets(query, preferred)),
+      ],
+    };
   }
 
   if (type === 'INCOME') {
-    return { targets: await listTripInvoiceSettlementTargets(query, preferred) };
+    return {
+      targets: [
+        ...(await listOpeningDebtTargets(type, preferred, query.search)),
+        ...(await listTripInvoiceSettlementTargets(query, preferred)),
+      ],
+    };
   }
 
   return { targets: [] };
 };
 
-const getSettlementTarget = async (
+export const getSettlementTarget = async (
   targetType: SettlementTargetType,
   targetId: string,
   tx: TransactionClient = prisma,
 ): Promise<SettlementTargetDto> => {
   const allocated = await allocatedByTarget(targetType, [targetId], tx);
   const allocatedAmount = roundMoney(allocated.get(targetId) ?? 0);
+
+  if (targetType === 'OPENING_BALANCE') {
+    const record = await tx.openingBalance.findUnique({
+      where: { id: targetId },
+      include: { partner: true, supplier: true },
+    });
+    if (!record) throw notFound('Početni dug nije pronađen.');
+    if (record.status !== 'CONFIRMED' || record.kind !== 'DEBT')
+      throw conflict('Stanje nije otvoren potvrđeni dug.');
+    return {
+      targetType,
+      targetId,
+      counterpartyId: record.partnerId ?? record.supplierId,
+      recommended: true,
+      label: 'Početni dug',
+      counterparty: record.partner ? partnerDisplayName(record.partner) : record.supplier!.name,
+      issuedAt: toIsoDate(record.asOfDate),
+      totalAmount: record.amount,
+      allocatedAmount,
+      remainingAmount: roundMoney(record.amount - allocatedAmount),
+    };
+  }
 
   if (targetType === 'COMPANY_EXPENSE') {
     const record = await tx.companyExpense.findUnique({ where: { id: targetId } });
@@ -1908,12 +2019,13 @@ const getSettlementTarget = async (
   };
 };
 
-const refreshTargetPaidAt = async (
+export const refreshTargetPaidAt = async (
   targetType: SettlementTargetType,
   targetId: string,
   paidAt: Date,
   tx: TransactionClient = prisma,
 ): Promise<void> => {
+  if (targetType === 'OPENING_BALANCE') return;
   const allocated = await allocatedByTarget(targetType, [targetId], tx);
   const allocatedAmount = allocated.get(targetId) ?? 0;
   const latest = await tx.paymentAllocation.findFirst({
@@ -1968,130 +2080,160 @@ const refreshTargetPaidAt = async (
   });
 };
 
-export const createPaymentAllocation = async (
+export const applyPaymentAllocation = async (
+  tx: TransactionClient,
   transactionId: string,
   input: PaymentAllocationWriteRequest,
-): Promise<{ allocation: PaymentAllocationDto; transaction: TransactionDto }> =>
-  financeWrite(async (tx) => {
-    const transaction = await tx.financeTransaction.findUnique({
-      where: { id: transactionId },
-      include: transactionInclude,
-    });
+): Promise<{ allocation: PaymentAllocationDto; transaction: TransactionDto }> => {
+  const transaction = await tx.financeTransaction.findUnique({
+    where: { id: transactionId },
+    include: transactionInclude,
+  });
 
-    if (!transaction) {
-      throw notFound('Transakcija nije pronađena.');
-    }
+  if (!transaction) {
+    throw notFound('Transakcija nije pronađena.');
+  }
 
-    if (transaction.sourceType !== 'MANUAL' && transaction.sourceType !== 'BANK_STATEMENT') {
-      throw conflict('Rasknjižavanje je dozvoljeno samo za ručne transakcije i stavke izvoda.');
-    }
+  if (!['MANUAL', 'BANK_STATEMENT', 'OPENING_BALANCE'].includes(transaction.sourceType)) {
+    throw conflict('Rasknjižavanje je dozvoljeno samo za ručne transakcije i stavke izvoda.');
+  }
 
-    if (transaction.paymentMethod !== 'ACCOUNT') {
-      throw conflict('Keš transakcije se vode samo u odvojenoj keš evidenciji.');
-    }
+  if (transaction.paymentMethod !== 'ACCOUNT') {
+    throw conflict('Keš transakcije se vode samo u odvojenoj keš evidenciji.');
+  }
 
-    if (!targetTypeForTransactionType(transaction.type).includes(input.targetType)) {
-      throw badRequest('Izabrano zaduženje ne odgovara smeru transakcije.');
-    }
+  if (!targetTypeForTransactionType(transaction.type).includes(input.targetType)) {
+    throw badRequest('Izabrano zaduženje ne odgovara smeru transakcije.');
+  }
 
-    if (input.targetType === 'COMPANY_EXPENSE') {
-      const expense = await tx.companyExpense.findUnique({ where: { id: input.targetId } });
-      if (!expense) throw notFound('Račun dobavljača nije pronađen.');
-      const supplierId = expense.supplierId ?? (await findSupplierIdByName(expense.supplier));
-      if (transaction.supplierId && supplierId !== transaction.supplierId)
-        throw conflict('Račun pripada drugom dobavljaču.');
-      if (supplierId) {
-        await tx.financeTransaction.update({
-          where: { id: transactionId },
-          data: { supplierId, supplier: expense.supplier },
-        });
-        await tx.companyExpense.update({ where: { id: expense.id }, data: { supplierId } });
+  if (input.targetType === 'OPENING_BALANCE') {
+    const opening = await tx.openingBalance.findUnique({ where: { id: input.targetId } });
+    if (!opening || opening.status !== 'CONFIRMED' || opening.kind !== 'DEBT')
+      throw conflict('Početni dug nije dostupan.');
+    if (
+      transaction.type === 'INCOME'
+        ? !transaction.partnerId || opening.partnerId !== transaction.partnerId
+        : !transaction.supplierId || opening.supplierId !== transaction.supplierId
+    )
+      throw conflict('Početni dug pripada drugoj stranci.');
+    if (transaction.occurredAt <= opening.asOfDate)
+      throw conflict('Uplata mora biti posle datuma preseka početnog duga.');
+  } else if (input.targetType === 'COMPANY_EXPENSE') {
+    const expense = await tx.companyExpense.findUnique({ where: { id: input.targetId } });
+    if (!expense) throw notFound('Račun dobavljača nije pronađen.');
+    const supplierId = expense.supplierId ?? (await findSupplierIdByName(expense.supplier));
+    if (transaction.supplierId && supplierId !== transaction.supplierId)
+      throw conflict('Račun pripada drugom dobavljaču.');
+    if (supplierId) {
+      if (transaction.sourceType !== 'OPENING_BALANCE') {
+        await assertAfterOpeningCutover(tx, { supplierId, occurredAt: transaction.occurredAt });
       }
-    } else {
-      const trips = await tx.trip.findMany({
-        where:
-          input.targetType === 'TRIP_INVOICE'
-            ? { id: input.targetId }
-            : { invoiceGroupId: input.targetId },
-        include: { partner: true },
+      await tx.financeTransaction.update({
+        where: { id: transactionId },
+        data: { supplierId, supplier: expense.supplier },
       });
-      const first = trips[0];
-      if (!first) throw notFound('Faktura nije pronađena.');
-      if (trips.some((trip) => trip.paymentMethod !== 'ACCOUNT'))
-        throw conflict('Keš vožnja se naplaćuje samo kroz keš evidenciju.');
-      if (trips.some((trip) => trip.partnerId !== first.partnerId))
-        throw conflict('Faktura sadrži različite kupce.');
-      const partner = first.partner ?? (await findPartnerByStatementName(first.clientName));
-      if (transaction.partnerId && partner?.id !== transaction.partnerId)
-        throw conflict('Faktura pripada drugom kupcu.');
-      if (partner) {
-        await tx.financeTransaction.update({
-          where: { id: transactionId },
-          data: { partnerId: partner.id, partner: partnerDisplayName(partner) },
-        });
-        await tx.trip.updateMany({
-          where: { id: { in: trips.map((trip) => trip.id) }, partnerId: null },
-          data: { partnerId: partner.id },
+      await tx.companyExpense.update({ where: { id: expense.id }, data: { supplierId } });
+    }
+  } else {
+    const trips = await tx.trip.findMany({
+      where:
+        input.targetType === 'TRIP_INVOICE'
+          ? { id: input.targetId }
+          : { invoiceGroupId: input.targetId },
+      include: { partner: true },
+    });
+    const first = trips[0];
+    if (!first) throw notFound('Faktura nije pronađena.');
+    if (trips.some((trip) => trip.paymentMethod !== 'ACCOUNT'))
+      throw conflict('Keš vožnja se naplaćuje samo kroz keš evidenciju.');
+    if (trips.some((trip) => trip.partnerId !== first.partnerId))
+      throw conflict('Faktura sadrži različite kupce.');
+    const partner = first.partner ?? (await findPartnerByStatementName(first.clientName));
+    if (transaction.partnerId && partner?.id !== transaction.partnerId)
+      throw conflict('Faktura pripada drugom kupcu.');
+    if (partner) {
+      if (transaction.sourceType !== 'OPENING_BALANCE') {
+        await assertAfterOpeningCutover(tx, {
+          partnerId: partner.id,
+          occurredAt: transaction.occurredAt,
         });
       }
+      await tx.financeTransaction.update({
+        where: { id: transactionId },
+        data: { partnerId: partner.id, partner: partnerDisplayName(partner) },
+      });
+      await tx.trip.updateMany({
+        where: { id: { in: trips.map((trip) => trip.id) }, partnerId: null },
+        data: { partnerId: partner.id },
+      });
     }
+  }
 
-    const allocatedOnTransaction = transaction.paymentAllocations.reduce(
-      (sum, allocation) => sum + allocation.amount,
-      0,
-    );
-    const availableOnTransaction = roundMoney(transaction.amount - allocatedOnTransaction);
-    const target = await getSettlementTarget(input.targetType, input.targetId, tx);
-    const availableOnTarget = roundMoney(target.remainingAmount);
+  const allocatedOnTransaction = transaction.paymentAllocations.reduce(
+    (sum, allocation) => sum + allocation.amount,
+    0,
+  );
+  const availableOnTransaction = roundMoney(transaction.amount - allocatedOnTransaction);
+  const target = await getSettlementTarget(input.targetType, input.targetId, tx);
+  const availableOnTarget = roundMoney(target.remainingAmount);
 
-    if (input.amount > availableOnTransaction + MONEY_EPSILON) {
-      throw badRequest('Iznos je veći od nerasknjiženog dela transakcije.');
-    }
+  if (input.amount > availableOnTransaction + MONEY_EPSILON) {
+    throw badRequest('Iznos je veći od nerasknjiženog dela transakcije.');
+  }
 
-    if (input.amount > availableOnTarget + MONEY_EPSILON) {
-      throw badRequest('Iznos je veći od otvorenog zaduženja.');
-    }
+  if (input.amount > availableOnTarget + MONEY_EPSILON) {
+    throw badRequest('Iznos je veći od otvorenog zaduženja.');
+  }
 
-    const allocation = await tx.paymentAllocation.upsert({
-      where: {
-        transactionId_targetType_targetId: {
-          transactionId,
-          targetType: input.targetType,
-          targetId: input.targetId,
-        },
-      },
-      create: {
+  const allocation = await tx.paymentAllocation.upsert({
+    where: {
+      transactionId_targetType_targetId: {
         transactionId,
         targetType: input.targetType,
         targetId: input.targetId,
-        amount: input.amount,
-        note: input.note,
       },
-      update: {
-        amount: { increment: input.amount },
-        note: input.note,
-      },
-    });
-
-    await refreshTargetPaidAt(input.targetType, input.targetId, transaction.occurredAt, tx);
-
-    const updated = await tx.financeTransaction.findUniqueOrThrow({
-      where: { id: transactionId },
-      include: transactionInclude,
-    });
-
-    logger.info('Payment allocation saved', {
+    },
+    create: {
       transactionId,
-      allocationId: allocation.id,
       targetType: input.targetType,
       targetId: input.targetId,
-    });
-
-    return {
-      allocation: toPaymentAllocationDto(allocation),
-      transaction: toTransactionDto(updated),
-    };
+      amount: input.amount,
+      note: input.note,
+    },
+    update: {
+      amount: { increment: input.amount },
+      note: input.note,
+    },
   });
+
+  await recordFinanceAudit(tx, transactionId, 'ALLOCATION_CREATED', {
+    allocationId: allocation.id,
+    ...input,
+  });
+  await refreshTargetPaidAt(input.targetType, input.targetId, transaction.occurredAt, tx);
+
+  const updated = await tx.financeTransaction.findUniqueOrThrow({
+    where: { id: transactionId },
+    include: transactionInclude,
+  });
+
+  logger.info('Payment allocation saved', {
+    transactionId,
+    allocationId: allocation.id,
+    targetType: input.targetType,
+    targetId: input.targetId,
+  });
+
+  return {
+    allocation: toPaymentAllocationDto(allocation),
+    transaction: toTransactionDto(updated),
+  };
+};
+
+export const createPaymentAllocation = async (
+  transactionId: string,
+  input: PaymentAllocationWriteRequest,
+) => financeWrite((tx) => applyPaymentAllocation(tx, transactionId, input));
 
 export interface OperationalExpenseInput {
   sourceType: Exclude<TransactionSourceType, 'MANUAL' | 'BANK_STATEMENT'>;

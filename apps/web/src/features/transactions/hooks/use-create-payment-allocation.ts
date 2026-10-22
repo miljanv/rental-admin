@@ -17,6 +17,7 @@ export const useCreatePaymentAllocation = () => {
     onSuccess: async () => {
       toast.success('Rasknjižavanje je sačuvano.');
       await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.openingBalances.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all }),

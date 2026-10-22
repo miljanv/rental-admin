@@ -27,17 +27,25 @@ vi.mock('../config/prisma', () => {
       $transaction: vi.fn(),
       $queryRaw: vi.fn(),
       financeTransaction: model(),
+      openingBalance: model(),
+      financeAuditEvent: model(),
       paymentAllocation: model(),
       partner: model(),
       partnerBankAccount: model(),
       supplier: model(),
+      supplierBankAccount: model(),
       companyExpense: model(),
+      fuelLog: model(),
+      vehicleMaintenance: model(),
       trip: model(),
     },
   };
 });
 // Services read the organization of the current request; unit tests have none.
-vi.mock('../utils/tenant-context', () => ({ requireOrganizationId: () => 'org-test' }));
+vi.mock('../utils/tenant-context', () => ({
+  requireOrganizationId: () => 'org-test',
+  getTenantContext: () => ({ userId: 'user-test' }),
+}));
 vi.mock('./supplier.service', () => ({
   findSupplierByBankAccount: vi.fn(),
   findSupplierIdByName: vi.fn(),
@@ -45,6 +53,18 @@ vi.mock('./supplier.service', () => ({
 }));
 
 import { prisma } from '../config/prisma';
+import {
+  linkPaymentCounterparty,
+  previewPaymentAllocation,
+  confirmPaymentAllocation,
+  reversePaymentAllocation,
+} from './payment-settlement.service';
+import {
+  saveOpeningBalance,
+  confirmOpeningBalance,
+  reverseOpeningBalance,
+  openingLedgerEntries,
+} from './opening-balance.service';
 import type { FinanceTransactionRecord } from '../utils/transaction-mapper';
 import { findSupplierByBankAccount, findSupplierIdByName } from './supplier.service';
 import {
@@ -129,6 +149,7 @@ const xml = ({
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(prisma.openingBalance.findMany).mockResolvedValue([]);
   rows = [];
   allocations = [];
   vi.mocked(prisma.$transaction).mockImplementation((callback) => {
@@ -138,6 +159,8 @@ beforeEach(() => {
   vi.mocked(findSupplierByBankAccount).mockResolvedValue(supplier);
   vi.mocked(findSupplierIdByName).mockResolvedValue(supplier.id);
   vi.mocked(prisma.partnerBankAccount.findFirst).mockResolvedValue({ partner } as never);
+  vi.mocked(prisma.supplier.findUnique).mockResolvedValue(supplier as never);
+  vi.mocked(prisma.partner.findUnique).mockResolvedValue(partner as never);
   vi.mocked(prisma.supplier.findUniqueOrThrow).mockResolvedValue(supplier as never);
   vi.mocked(prisma.partner.findUniqueOrThrow).mockResolvedValue(partner as never);
   vi.mocked(prisma.companyExpense.findMany).mockResolvedValue([expense] as never);
@@ -787,5 +810,296 @@ describe('VAT report', () => {
     });
     expect(report.legacyInputCount).toBe(1);
     expect(report.legacyOutputCount).toBe(1);
+  });
+});
+
+describe('confirmed allocation plans', () => {
+  it('allocates 2000 across 1000, 500 and 800, leaving 300 on the third invoice', async () => {
+    const bills = [1000, 500, 800].map((amountWithVat, index) => ({
+      ...expense,
+      id: `bill-${index}`,
+      amountWithVat,
+      issuedAt: new Date(`2026-10-0${index + 1}`),
+    }));
+    vi.mocked(prisma.companyExpense.findMany).mockResolvedValue(bills as never);
+    vi.mocked(prisma.companyExpense.findUnique).mockImplementation(
+      (args) => bills.find((row) => row.id === args.where.id) as never,
+    );
+    const result = await importBankStatementXml({
+      xml: xml({ amount: 2000, reference: 'not-an-invoice' }),
+      rememberMatchedAccounts: false,
+    });
+    const id = result.transactions[0]!.id;
+    expect((await previewPaymentAllocation(id, { ignoreReference: false })).allocations).toEqual(
+      [],
+    );
+    const plan = await previewPaymentAllocation(id, { ignoreReference: true });
+    expect(plan.allocations.map((row) => row.amount)).toEqual([1000, 500, 500]);
+    const updated = await confirmPaymentAllocation(id, {
+      ignoreReference: true,
+      token: plan.token,
+    });
+    expect(updated).toMatchObject({
+      allocatedAmount: 2000,
+      unallocatedAmount: 0,
+      allocationCount: 3,
+    });
+    expect(prisma.companyExpense.updateMany).toHaveBeenLastCalledWith({
+      where: { id: 'bill-2' },
+      data: { paidAt: null },
+    });
+    await expect(
+      confirmPaymentAllocation(id, { ignoreReference: true, token: plan.token }),
+    ).rejects.toThrow('promenjeni');
+    expect(allocations).toHaveLength(3);
+  });
+
+  it('preserves a surplus and refuses a plan when another payment changed the balance', async () => {
+    const result = await importBankStatementXml({
+      xml: xml({ amount: 150, reference: 'unknown' }),
+      rememberMatchedAccounts: false,
+    });
+    const id = result.transactions[0]!.id;
+    const plan = await previewPaymentAllocation(id, { ignoreReference: true });
+    expect(plan).toMatchObject({ allocatedAmount: 100, remainingAmount: 50 });
+    rows[0]!.amount = 80;
+    await expect(
+      confirmPaymentAllocation(id, { ignoreReference: true, token: plan.token }),
+    ).rejects.toThrow('promenjeni');
+    expect(allocations).toHaveLength(0);
+  });
+
+  it('links a payment to its party without allocating or changing its amount', async () => {
+    const result = await importBankStatementXml({
+      xml: xml({ reference: 'unknown' }),
+      rememberMatchedAccounts: false,
+    });
+    const updated = await linkPaymentCounterparty(result.transactions[0]!.id, {
+      partyType: 'SUPPLIER',
+      partyId: supplier.id,
+      rememberAccount: false,
+    });
+    expect(updated).toMatchObject({ amount: 100, supplierId: supplier.id, unallocatedAmount: 100 });
+    expect(allocations).toHaveLength(0);
+    expect(rows).toHaveLength(1);
+  });
+
+  it('rejects an inaccessible party and a bank account owned by another supplier', async () => {
+    const result = await importBankStatementXml({
+      xml: xml({ reference: 'unknown' }),
+      rememberMatchedAccounts: false,
+    });
+    const id = result.transactions[0]!.id;
+    vi.mocked(prisma.supplier.findUnique).mockResolvedValueOnce(null);
+    await expect(
+      linkPaymentCounterparty(id, {
+        partyType: 'SUPPLIER',
+        partyId: 'foreign-tenant-id',
+        rememberAccount: false,
+      }),
+    ).rejects.toThrow('nije pronađen');
+    vi.mocked(prisma.supplierBankAccount.findMany).mockResolvedValue([
+      { supplierId: 'other', accountNumber: '160-12345-67' },
+    ] as never);
+    await expect(
+      linkPaymentCounterparty(id, {
+        partyType: 'SUPPLIER',
+        partyId: supplier.id,
+        rememberAccount: true,
+      }),
+    ).rejects.toThrow('drugim dobavljačem');
+  });
+
+  it('undoes a link, reopens the invoice and keeps the payment and audit record', async () => {
+    const imported = await importBankStatementXml({ xml: xml(), rememberMatchedAccounts: false });
+    const allocation = allocations[0]!;
+    vi.mocked(prisma.paymentAllocation.findFirst).mockResolvedValueOnce(allocation as never);
+    vi.mocked(prisma.paymentAllocation.delete).mockImplementation(() => {
+      allocations = [];
+      return allocation as never;
+    });
+    const updated = await reversePaymentAllocation(
+      imported.transactions[0]!.id,
+      allocation.id,
+      'Pogrešan račun',
+    );
+    expect(updated).toMatchObject({ amount: 100, unallocatedAmount: 100, allocationCount: 0 });
+    expect(rows).toHaveLength(1);
+    expect(prisma.companyExpense.updateMany).toHaveBeenLastCalledWith({
+      where: { id: expense.id },
+      data: { paidAt: null },
+    });
+    expect(prisma.financeAuditEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ action: 'ALLOCATION_REVERSED', reason: 'Pogrešan račun' }),
+      }),
+    );
+  });
+});
+
+const openingRecord = {
+  id: 'opening-1',
+  organizationId: 'org-test',
+  partnerId: null,
+  supplierId: 'supplier-1',
+  kind: 'DEBT',
+  amount: 100,
+  asOfDate: new Date('2026-01-01'),
+  status: 'DRAFT',
+  note: null,
+};
+describe('opening balances', () => {
+  it('blocks linking an older bank payment to an invoice after confirming its opening balance', async () => {
+    const imported = await importBankStatementXml({
+      xml: xml({ reference: 'unknown' }),
+      rememberMatchedAccounts: false,
+    });
+    vi.mocked(prisma.openingBalance.findFirst).mockResolvedValue({
+      ...openingRecord,
+      status: 'CONFIRMED',
+    } as never);
+    await expect(
+      createPaymentAllocation(imported.transactions[0]!.id, {
+        targetType: 'COMPANY_EXPENSE',
+        targetId: expense.id,
+        amount: 100,
+        note: null,
+      }),
+    ).rejects.toThrow('početnim stanjem');
+    expect(allocations).toHaveLength(0);
+  });
+
+  it('allows the opening credit itself to settle a later invoice', async () => {
+    const imported = await importBankStatementXml({
+      xml: xml({ reference: 'unknown' }),
+      rememberMatchedAccounts: false,
+    });
+    rows[0]!.sourceType = 'OPENING_BALANCE';
+    vi.mocked(prisma.openingBalance.findFirst).mockResolvedValue({
+      ...openingRecord,
+      status: 'CONFIRMED',
+      kind: 'CREDIT',
+    } as never);
+    const result = await createPaymentAllocation(imported.transactions[0]!.id, {
+      targetType: 'COMPANY_EXPENSE',
+      targetId: expense.id,
+      amount: 100,
+      note: null,
+    });
+    expect(result.transaction.unallocatedAmount).toBe(0);
+    expect(allocations).toHaveLength(1);
+  });
+
+  it('saves a draft without creating a payment and refuses edits after confirmation', async () => {
+    vi.mocked(prisma.openingBalance.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.openingBalance.create).mockResolvedValue(openingRecord as never);
+    const input = {
+      partyType: 'SUPPLIER' as const,
+      partyId: supplier.id,
+      kind: 'DEBT' as const,
+      amount: 100,
+      asOfDate: '2026-01-01',
+      note: '',
+    };
+    await saveOpeningBalance(input);
+    expect(prisma.financeTransaction.create).not.toHaveBeenCalled();
+    vi.mocked(prisma.openingBalance.findUnique).mockResolvedValue({
+      ...openingRecord,
+      status: 'CONFIRMED',
+    } as never);
+    await expect(saveOpeningBalance(input, openingRecord.id)).rejects.toThrow('Potvrđeno stanje');
+  });
+
+  it('rejects a second active opening and overlapping already recorded balances', async () => {
+    vi.mocked(prisma.openingBalance.findFirst).mockResolvedValue(openingRecord as never);
+    await expect(
+      saveOpeningBalance({
+        partyType: 'SUPPLIER',
+        partyId: supplier.id,
+        kind: 'DEBT',
+        amount: 100,
+        asOfDate: '2026-01-01',
+        note: '',
+      }),
+    ).rejects.toThrow('već postoji');
+    vi.mocked(prisma.openingBalance.findUnique).mockResolvedValue(openingRecord as never);
+    vi.mocked(prisma.financeTransaction.count).mockResolvedValue(1);
+    await expect(confirmOpeningBalance(openingRecord.id)).rejects.toThrow('već postoje');
+    expect(prisma.openingBalance.update).not.toHaveBeenCalled();
+  });
+
+  it('creates a separately classified credit, not a new bank payment', async () => {
+    vi.mocked(prisma.openingBalance.findUnique).mockResolvedValue({
+      ...openingRecord,
+      kind: 'CREDIT',
+    } as never);
+    vi.mocked(prisma.financeTransaction.count).mockResolvedValue(0);
+    vi.mocked(prisma.companyExpense.count).mockResolvedValue(0);
+    await confirmOpeningBalance(openingRecord.id);
+    expect(rows[0]).toMatchObject({
+      sourceType: 'OPENING_BALANCE',
+      sourceId: openingRecord.id,
+      amount: 100,
+    });
+    expect(prisma.openingBalance.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'CONFIRMED' }) }),
+    );
+  });
+
+  it('rejects an opening balance overlapping old fuel or maintenance costs', async () => {
+    vi.mocked(prisma.openingBalance.findUnique).mockResolvedValue(openingRecord as never);
+    vi.mocked(prisma.financeTransaction.count).mockResolvedValue(0);
+    vi.mocked(prisma.companyExpense.count).mockResolvedValue(0);
+    for (const [fuel, maintenance] of [
+      [1, 0],
+      [0, 1],
+    ]) {
+      vi.mocked(prisma.fuelLog.count).mockResolvedValue(fuel!);
+      vi.mocked(prisma.vehicleMaintenance.count).mockResolvedValue(maintenance!);
+      await expect(confirmOpeningBalance(openingRecord.id)).rejects.toThrow('već postoje');
+    }
+    expect(prisma.openingBalance.update).not.toHaveBeenCalled();
+  });
+
+  it('includes confirmed initial debt in automatic oldest-first allocation', async () => {
+    const opening = { ...openingRecord, status: 'CONFIRMED', supplier };
+    vi.mocked(prisma.openingBalance.findMany).mockResolvedValue([opening] as never);
+    vi.mocked(prisma.openingBalance.findUnique).mockResolvedValue(opening as never);
+    const preview = await previewBankStatementXml({
+      xml: xml({ amount: 150 }),
+      rememberMatchedAccounts: false,
+    });
+    expect(preview.rows[0]!.allocations.map((row) => [row.targetType, row.amount])).toEqual([
+      ['OPENING_BALANCE', 100],
+      ['COMPANY_EXPENSE', 50],
+    ]);
+  });
+
+  it('blocks reversal of an allocated initial balance and preserves reversal history', async () => {
+    vi.mocked(prisma.openingBalance.findUnique).mockResolvedValue({
+      ...openingRecord,
+      status: 'CONFIRMED',
+    } as never);
+    vi.mocked(prisma.financeTransaction.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.paymentAllocation.count).mockResolvedValueOnce(1).mockResolvedValueOnce(0);
+    await expect(reverseOpeningBalance(openingRecord.id, 'Pogrešan iznos')).rejects.toThrow(
+      'Prvo poništite',
+    );
+    await reverseOpeningBalance(openingRecord.id, 'Pogrešan iznos');
+    expect(prisma.openingBalance.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: 'REVERSED',
+          activeKey: null,
+          reversalReason: 'Pogrešan iznos',
+        }),
+      }),
+    );
+    vi.mocked(prisma.openingBalance.findMany).mockResolvedValue([
+      { ...openingRecord, status: 'REVERSED', reversalReason: 'Pogrešan iznos' },
+    ] as never);
+    const entries = await openingLedgerEntries({ partyType: 'SUPPLIER', partyId: supplier.id });
+    expect(entries).toHaveLength(2);
+    expect(entries.reduce((sum, row) => sum + row.debit - row.credit, 0)).toBe(0);
   });
 });

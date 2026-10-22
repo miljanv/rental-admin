@@ -54,6 +54,7 @@ export const TRANSACTION_STATUS_LABELS: Record<TransactionStatus, string> = {
 };
 
 export const TRANSACTION_SOURCE_TYPES = [
+  'OPENING_BALANCE',
   'MANUAL',
   'BANK_STATEMENT',
   'FUEL_LOG',
@@ -71,6 +72,7 @@ export const TRANSACTION_SOURCE_TYPES = [
 export type TransactionSourceType = (typeof TRANSACTION_SOURCE_TYPES)[number];
 
 export const TRANSACTION_SOURCE_TYPE_LABELS: Record<TransactionSourceType, string> = {
+  OPENING_BALANCE: 'Početna pretplata',
   MANUAL: 'Ručno',
   BANK_STATEMENT: 'Izvod banke',
   FUEL_LOG: 'Točenje',
@@ -86,6 +88,7 @@ export const TRANSACTION_SOURCE_TYPE_LABELS: Record<TransactionSourceType, strin
 };
 
 export const SETTLEMENT_TARGET_TYPES = [
+  'OPENING_BALANCE',
   'COMPANY_EXPENSE',
   'TRIP_INVOICE',
   'TRIP_SERIES_INVOICE',
@@ -94,6 +97,7 @@ export const SETTLEMENT_TARGET_TYPES = [
 export type SettlementTargetType = (typeof SETTLEMENT_TARGET_TYPES)[number];
 
 export const SETTLEMENT_TARGET_TYPE_LABELS: Record<SettlementTargetType, string> = {
+  OPENING_BALANCE: 'Početni dug',
   COMPANY_EXPENSE: 'Račun dobavljača',
   TRIP_INVOICE: 'Faktura vožnje',
   TRIP_SERIES_INVOICE: 'Mesečna faktura serije',

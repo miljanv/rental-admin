@@ -17,6 +17,7 @@ import type {
 } from '@rental-admin/shared';
 
 import { prisma } from '../config/prisma';
+import { assertAfterOpeningCutover } from '../utils/opening-cutover';
 import { badRequest, notFound } from '../utils/app-error';
 import { toFuelLogDto, type FuelLogRecord } from '../utils/fuel-log-mapper';
 import { logger } from '../utils/logger';
@@ -161,6 +162,13 @@ export const createFuelLog = async (
     input.litersFilled,
   );
 
+  const supplierId = await findSupplierIdByName(input.supplier);
+  if (input.cost !== null)
+    await assertAfterOpeningCutover(prisma, {
+      supplierId,
+      occurredAt: parseDate(input.fueledAt),
+      paymentMethod: input.paymentMethod,
+    });
   const record = await prisma.fuelLog.create({
     data: {
       vehicleId: input.vehicleId,
@@ -173,7 +181,7 @@ export const createFuelLog = async (
       cost: input.cost,
       paymentMethod: input.paymentMethod,
       supplier: input.supplier,
-      supplierId: await findSupplierIdByName(input.supplier),
+      supplierId,
       note: input.note,
       kmDriven,
       consumptionPer100Km,
@@ -274,6 +282,13 @@ export const updateFuelLog = async (
     input.litersFilled,
   );
 
+  const supplierId = await findSupplierIdByName(input.supplier);
+  if (input.cost !== null)
+    await assertAfterOpeningCutover(prisma, {
+      supplierId,
+      occurredAt: parseDate(input.fueledAt),
+      paymentMethod: input.paymentMethod,
+    });
   const record = await prisma.fuelLog.update({
     where: { id: fuelLogId },
     data: {
@@ -287,7 +302,7 @@ export const updateFuelLog = async (
       cost: input.cost,
       paymentMethod: input.paymentMethod,
       supplier: input.supplier,
-      supplierId: await findSupplierIdByName(input.supplier),
+      supplierId,
       note: input.note,
       kmDriven,
       consumptionPer100Km,
