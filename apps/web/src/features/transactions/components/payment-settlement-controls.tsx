@@ -155,10 +155,20 @@ export function PaymentSettlementControls({
         </div>
       ) : null}
       <div className="space-y-3">
-        <h3 className="font-semibold">Rasporedi po najstarijim dugovanjima</h3>
+        <h3 className="font-semibold">Rasporedi po najstarijim dugovanjima stranke</h3>
         <p className="text-sm text-muted-foreground">
-          Raspoređuje se do {formatMoney(transaction.unallocatedAmount)}. Račun može biti delimično
-          plaćen; višak ostaje dostupan za kasnije.
+          {linkedId ? (
+            <>
+              Raspoređuje se do {formatMoney(transaction.unallocatedAmount)} samo na otvorena
+              dugovanja stranke <strong>{isIncome ? transaction.partner : transaction.supplier}</strong>.
+              Račun može biti delimično plaćen; višak ostaje dostupan za kasnije.
+            </>
+          ) : (
+            <>
+              Prvo izaberite i povežite kupca ili dobavljača. Raspored se nikada ne pravi preko
+              dugovanja različitih stranaka.
+            </>
+          )}
         </p>
         {transaction.note?.includes('Poziv ') ? (
           <label className="flex items-start gap-2 text-sm">
@@ -181,7 +191,11 @@ export function PaymentSettlementControls({
             preview.mutate({ id: transaction.id, body: { ignoreReference } });
           }}
         >
-          {preview.isPending ? 'Priprema…' : 'Prikaži predlog'}
+          {preview.isPending
+            ? 'Priprema…'
+            : linkedId
+              ? 'Prikaži predlog'
+              : 'Prvo povežite stranku'}
         </Button>
         {plan ? (
           <div className="space-y-3 rounded-md bg-muted p-3">
