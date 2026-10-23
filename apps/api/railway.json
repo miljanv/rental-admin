@@ -5,6 +5,7 @@
     "dockerfilePath": "apps/api/Dockerfile"
   },
   "deploy": {
+    "preDeployCommand": "cd /app/apps/api && ./scripts/migrate-production.sh",
     "healthcheckPath": "/api/v1/health",
     "healthcheckTimeout": 60,
     "restartPolicyType": "ON_FAILURE",
