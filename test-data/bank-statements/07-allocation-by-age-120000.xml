@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<statement>
+  <acctid>160-0000000099999-99</acctid>
+  <stmtnumber>DEMO-STAROST-20261023-02</stmtnumber>
+  <stmttrn>
+    <benefit>debit</benefit>
+    <trnamt>120000.00</trnamt>
+    <dtposted>2026-10-23</dtposted>
+    <fitid>demo-allocation-by-age-20261023-002</fitid>
+    <payeeinfo><name>DEMO DOBAVLJAC STAROST</name></payeeinfo>
+    <payeerefnumber>DEMO-BEZ-POKLAPANJA-STAROST-002</payeerefnumber>
+    <purpose>TEST - uplata 120000 RSD za proveru rasporeda po najstarijim dugovanjima</purpose>
+  </stmttrn>
+</statement>

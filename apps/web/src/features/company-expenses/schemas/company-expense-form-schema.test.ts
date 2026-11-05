@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { toCompanyExpenseWriteRequest } from './company-expense-form-schema';
+import {
+  companyExpenseFormSchema,
+  toCompanyExpenseWriteRequest,
+} from './company-expense-form-schema';
 
 const base = {
   issuedAt: '2026-09-26',
@@ -13,6 +16,33 @@ const base = {
   vehicleId: '',
   odometerKm: null,
 };
+
+describe('companyExpenseFormSchema', () => {
+  it('reports a missing payment method on the field before building the request', () => {
+    const result = companyExpenseFormSchema.safeParse({
+      ...base,
+      amount: 12_000,
+      vatRate: 20,
+      paymentMethod: '',
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues).toEqual([
+        expect.objectContaining({
+          path: ['paymentMethod'],
+          message: 'Način plaćanja je obavezan.',
+        }),
+      ]);
+    }
+  });
+
+  it('accepts the form after selecting a payment method', () => {
+    expect(
+      companyExpenseFormSchema.safeParse({ ...base, amount: 12_000, vatRate: 20 }).success,
+    ).toBe(true);
+  });
+});
 
 describe('toCompanyExpenseWriteRequest', () => {
   it('splits a 20% amount into net and VAT', () => {

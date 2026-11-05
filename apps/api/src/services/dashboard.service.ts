@@ -95,9 +95,19 @@ export const summarizeOpenItems = (items: SettlementTargetDto[]): DashboardOpenI
       totalAmount: 0,
       allocatedAmount: 0,
       remainingAmount: 0,
+      openItems: [],
     };
 
     current.openItemCount += 1;
+    current.openItems.push({
+      targetType: item.targetType,
+      targetId: item.targetId,
+      label: item.label,
+      issuedAt: item.issuedAt,
+      totalAmount: item.totalAmount,
+      allocatedAmount: item.allocatedAmount,
+      remainingAmount: item.remainingAmount,
+    });
     current.latestIssuedAt =
       item.issuedAt > current.latestIssuedAt ? item.issuedAt : current.latestIssuedAt;
     current.totalAmount += item.totalAmount;
@@ -112,6 +122,9 @@ export const summarizeOpenItems = (items: SettlementTargetDto[]): DashboardOpenI
       totalAmount: round(item.totalAmount),
       allocatedAmount: round(item.allocatedAmount),
       remainingAmount: round(item.remainingAmount),
+      openItems: [...item.openItems].sort((left, right) =>
+        right.issuedAt.localeCompare(left.issuedAt),
+      ),
     }))
     .sort(
       (left, right) =>

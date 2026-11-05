@@ -1,8 +1,16 @@
 'use client';
 
-import type { DashboardOpenCounterpartyDto, DashboardOpenItemsDto } from '@rental-admin/shared';
-import { ArrowUpRight, type LucideIcon } from 'lucide-react';
+import {
+  SETTLEMENT_TARGET_TYPE_LABELS,
+  type DashboardOpenCounterpartyDto,
+  type DashboardOpenItemDto,
+  type DashboardOpenItemsDto,
+} from '@rental-admin/shared';
+import { ArrowLeft, ArrowUpRight, type LucideIcon } from 'lucide-react';
+import Link from 'next/link';
 import { useState } from 'react';
+
+import { Button } from '@/components/ui/button';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -43,7 +51,65 @@ function openItemLabel(count: number): string {
   return `${count} stavki`;
 }
 
-function TopOpenItems({ items }: { items: DashboardOpenCounterpartyDto[] }) {
+function openItemHref(item: DashboardOpenItemDto): string | null {
+  return item.targetType === 'TRIP_INVOICE' ? `/trips/${item.targetId}` : null;
+}
+
+function OpenItemsTable({ items }: { items: DashboardOpenItemDto[] }) {
+  return (
+    <Table>
+      <TableHeader className="bg-popover sticky top-0 z-10">
+        <TableRow>
+          <TableHead>Dokument</TableHead>
+          <TableHead>Datum</TableHead>
+          <TableHead className="text-right">Ukupno</TableHead>
+          <TableHead className="text-right">Plaćeno</TableHead>
+          <TableHead className="text-right">Preostalo</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {items.map((item) => {
+          const href = openItemHref(item);
+
+          return (
+            <TableRow key={`${item.targetType}:${item.targetId}`}>
+              <TableCell className="max-w-72">
+                {href ? (
+                  <Link href={href} className="block truncate font-medium hover:underline">
+                    {item.label}
+                  </Link>
+                ) : (
+                  <p className="truncate font-medium">{item.label}</p>
+                )}
+                <p className="text-muted-foreground text-xs">
+                  {SETTLEMENT_TARGET_TYPE_LABELS[item.targetType]}
+                </p>
+              </TableCell>
+              <TableCell>{formatDate(item.issuedAt)}</TableCell>
+              <TableCell className="text-right tabular-nums">
+                {formatMoney(item.totalAmount)}
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                {formatMoney(item.allocatedAmount)}
+              </TableCell>
+              <TableCell className="text-right font-semibold tabular-nums">
+                {formatMoney(item.remainingAmount)}
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+}
+
+function TopOpenItems({
+  items,
+  onSelect,
+}: {
+  items: DashboardOpenCounterpartyDto[];
+  onSelect: (counterpartyKey: string) => void;
+}) {
   if (items.length === 0) {
     return <p className="text-muted-foreground py-8 text-center text-sm">Nema otvorenih stavki.</p>;
   }
@@ -51,23 +117,26 @@ function TopOpenItems({ items }: { items: DashboardOpenCounterpartyDto[] }) {
   return (
     <ol className="space-y-1">
       {items.slice(0, 5).map((item, index) => (
-        <li
-          key={item.counterpartyKey}
-          className="flex items-center gap-2 rounded-md border border-transparent bg-muted/35 px-2 py-1.5 transition-colors hover:border-foreground/10 hover:bg-muted/60"
-        >
-          <span className="text-muted-foreground w-4 shrink-0 text-right text-xs tabular-nums">
-            {index + 1}.
-          </span>
-          <p className="min-w-0 flex-1 truncate text-xs font-medium sm:text-sm">
-            {item.counterparty}
-            <span className="text-muted-foreground font-normal">
-              {' '}
-              · {openItemLabel(item.openItemCount)}
+        <li key={item.counterpartyKey}>
+          <button
+            type="button"
+            onClick={() => onSelect(item.counterpartyKey)}
+            className="flex w-full items-center gap-2 rounded-md border border-transparent bg-muted/35 px-2 py-1.5 text-left transition-colors hover:border-foreground/10 hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+          >
+            <span className="text-muted-foreground w-4 shrink-0 text-right text-xs tabular-nums">
+              {index + 1}.
             </span>
-          </p>
-          <span className="shrink-0 text-sm font-semibold tabular-nums">
-            {formatMoney(item.remainingAmount)}
-          </span>
+            <p className="min-w-0 flex-1 truncate text-xs font-medium sm:text-sm">
+              {item.counterparty}
+              <span className="text-muted-foreground font-normal">
+                {' '}
+                · {openItemLabel(item.openItemCount)}
+              </span>
+            </p>
+            <span className="shrink-0 text-sm font-semibold tabular-nums">
+              {formatMoney(item.remainingAmount)}
+            </span>
+          </button>
         </li>
       ))}
     </ol>
@@ -83,6 +152,14 @@ export function DashboardFinanceCard({
   tone,
 }: DashboardFinanceCardProps) {
   const [open, setOpen] = useState(false);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const selected = selectedKey
+    ? (data.items.find((item) => item.counterpartyKey === selectedKey) ?? null)
+    : null;
+  const openCounterparty = (counterpartyKey: string | null): void => {
+    setSelectedKey(counterpartyKey);
+    setOpen(true);
+  };
   const toneClass =
     tone === 'income'
       ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
@@ -126,7 +203,7 @@ export function DashboardFinanceCard({
               <CardTitle>
                 <button
                   type="button"
-                  onClick={() => setOpen(true)}
+                  onClick={() => openCounterparty(null)}
                   className="group/title inline-flex items-center gap-1.5 text-left hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
                 >
                   {title}
@@ -161,7 +238,7 @@ export function DashboardFinanceCard({
             <p className="text-muted-foreground mb-1.5 text-xs font-medium tracking-wide uppercase">
               Top 5 {tone === 'income' ? 'kupaca' : 'dobavljača'}
             </p>
-            <TopOpenItems items={data.items} />
+            <TopOpenItems items={data.items} onSelect={openCounterparty} />
           </div>
         </CardContent>
       </Card>
@@ -169,14 +246,39 @@ export function DashboardFinanceCard({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{title}</DialogTitle>
-            <DialogDescription>
-              {modalDescription} Ukupno {formatMoney(data.total)} kroz {openItemLabel(data.count)}{' '}
-              kod {data.counterpartyCount} {counterpartyGenitive}.
-            </DialogDescription>
+            {selected ? (
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="-ml-2 w-fit"
+                  onClick={() => setSelectedKey(null)}
+                >
+                  <ArrowLeft aria-hidden />
+                  Svi {tone === 'income' ? 'kupci' : 'dobavljači'}
+                </Button>
+                <DialogTitle>{selected.counterparty}</DialogTitle>
+                <DialogDescription>
+                  Preostalo {formatMoney(selected.remainingAmount)} kroz{' '}
+                  {openItemLabel(selected.openItemCount)}.
+                </DialogDescription>
+              </>
+            ) : (
+              <>
+                <DialogTitle>{title}</DialogTitle>
+                <DialogDescription>
+                  {modalDescription} Ukupno {formatMoney(data.total)} kroz{' '}
+                  {openItemLabel(data.count)} kod {data.counterpartyCount} {counterpartyGenitive}.
+                  Kliknite na naziv za pojedinačne stavke.
+                </DialogDescription>
+              </>
+            )}
           </DialogHeader>
           <div className="min-h-0 overflow-auto border-t px-4 pb-4">
-            {data.items.length === 0 ? (
+            {selected ? (
+              <OpenItemsTable items={selected.openItems} />
+            ) : data.items.length === 0 ? (
               <p className="text-muted-foreground py-14 text-center text-sm">
                 Nema otvorenih stavki.
               </p>
@@ -195,8 +297,14 @@ export function DashboardFinanceCard({
                 <TableBody>
                   {data.items.map((item) => (
                     <TableRow key={item.counterpartyKey}>
-                      <TableCell className="max-w-48 truncate font-medium">
-                        {item.counterparty}
+                      <TableCell className="max-w-48">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedKey(item.counterpartyKey)}
+                          className="block max-w-full truncate text-left font-medium hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                        >
+                          {item.counterparty}
+                        </button>
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {item.openItemCount}

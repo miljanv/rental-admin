@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<statement>
+  <acctid>160-0000000099999-99</acctid>
+  <stmtnumber>DEMO-PARTNER2-20261023-01</stmtnumber>
+  <stmttrn>
+    <benefit>credit</benefit>
+    <trnamt>250000.00</trnamt>
+    <dtposted>2026-10-23</dtposted>
+    <fitid>demo-partner2-receipt-250000-20261023-001</fitid>
+    <payeeinfo><name>Partner 2</name></payeeinfo>
+    <payeeaccountinfo><acctid>190-5393395395395-55</acctid></payeeaccountinfo>
+    <payeerefnumber>DEMO-PARTNER2-BEZ-POKLAPANJA-001</payeerefnumber>
+    <purpose>TEST - uplata kupca za pocetni dug i fakture, raspored po starosti</purpose>
+  </stmttrn>
+</statement>

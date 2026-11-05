@@ -1,4 +1,5 @@
 import type { AlarmKind } from './alarm';
+import type { SettlementTargetType } from './transaction';
 import type { TripStatus } from './trip';
 
 export interface DashboardTodayTripDto {
@@ -16,6 +17,16 @@ export interface DashboardTodayTripsDto {
   items: DashboardTodayTripDto[];
 }
 
+export interface DashboardOpenItemDto {
+  targetType: SettlementTargetType;
+  targetId: string;
+  label: string;
+  issuedAt: string;
+  totalAmount: number;
+  allocatedAmount: number;
+  remainingAmount: number;
+}
+
 export interface DashboardOpenCounterpartyDto {
   counterpartyKey: string;
   counterpartyId: string | null;
@@ -25,6 +36,8 @@ export interface DashboardOpenCounterpartyDto {
   totalAmount: number;
   allocatedAmount: number;
   remainingAmount: number;
+  /** Individual open documents, newest first. */
+  openItems: DashboardOpenItemDto[];
 }
 
 export interface DashboardOpenItemsDto {

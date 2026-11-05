@@ -81,6 +81,26 @@ describe('summarizeOpenItems', () => {
           totalAmount: 1000,
           allocatedAmount: 100,
           remainingAmount: 900,
+          openItems: [
+            {
+              targetType: 'TRIP_INVOICE',
+              targetId: 'invoice-2',
+              label: 'Račun 2',
+              issuedAt: '2026-10-03',
+              totalAmount: 400,
+              allocatedAmount: 0,
+              remainingAmount: 400,
+            },
+            {
+              targetType: 'TRIP_INVOICE',
+              targetId: 'invoice-1',
+              label: 'Račun 1',
+              issuedAt: '2026-10-01',
+              totalAmount: 600,
+              allocatedAmount: 100,
+              remainingAmount: 500,
+            },
+          ],
         },
         {
           counterpartyKey: 'id:partner-b',
@@ -91,6 +111,17 @@ describe('summarizeOpenItems', () => {
           totalAmount: 700,
           allocatedAmount: 0,
           remainingAmount: 700,
+          openItems: [
+            {
+              targetType: 'TRIP_INVOICE',
+              targetId: 'invoice-3',
+              label: 'Račun 3',
+              issuedAt: '2026-10-02',
+              totalAmount: 700,
+              allocatedAmount: 0,
+              remainingAmount: 700,
+            },
+          ],
         },
         {
           counterpartyKey: 'name:partner c',
@@ -101,6 +132,26 @@ describe('summarizeOpenItems', () => {
           totalAmount: 150,
           allocatedAmount: 0,
           remainingAmount: 150,
+          openItems: [
+            {
+              targetType: 'TRIP_INVOICE',
+              targetId: 'invoice-5',
+              label: 'Račun 5',
+              issuedAt: '2026-10-05',
+              totalAmount: 50,
+              allocatedAmount: 0,
+              remainingAmount: 50,
+            },
+            {
+              targetType: 'TRIP_INVOICE',
+              targetId: 'invoice-4',
+              label: 'Račun 4',
+              issuedAt: '2026-10-04',
+              totalAmount: 100,
+              allocatedAmount: 0,
+              remainingAmount: 100,
+            },
+          ],
         },
       ],
     });

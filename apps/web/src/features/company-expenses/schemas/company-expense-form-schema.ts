@@ -61,7 +61,7 @@ export const companyExpenseFormSchema = z
       z.number().positive('Iznos mora biti veći od nule.').max(100_000_000_000, 'Iznos nije ispravan.'),
     ),
     vatRate: z.union([z.literal(0), z.literal(10), z.literal(20)]),
-    paymentMethod: z.string(),
+    paymentMethod: companyExpenseWriteSchema.shape.paymentMethod,
     scope: z.enum(['VEHICLE', 'COMMON', 'SUBCONTRACTOR', 'BANK']),
     vehicleId: z.string(),
     odometerKm: z.preprocess(
