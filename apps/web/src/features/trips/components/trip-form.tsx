@@ -34,7 +34,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { useContracts } from '@/features/contracts/hooks/use-contracts';
 import { useDrivers } from '@/features/drivers/hooks/use-drivers';
 import { usePartners } from '@/features/partners/hooks/use-partners';
+import { ExistingPartnerHint } from '@/features/partners/components/existing-partner-hint';
 import { PartnerNameInput } from '@/features/partners/components/partner-name-input';
+import { findPartnerByName } from '@/features/partners/lib/partner';
 import { useCreateTrip } from '@/features/trips/hooks/use-create-trip';
 import { useUpdateTrip } from '@/features/trips/hooks/use-update-trip';
 import { toTripFormValues } from '@/features/trips/lib/trip';
@@ -87,6 +89,7 @@ export function TripForm({ trip }: TripFormProps) {
   const errors = form.formState.errors;
   const vehicleIds = useWatch({ control: form.control, name: 'vehicleIds' }) ?? [];
   const driverIds = useWatch({ control: form.control, name: 'driverIds' }) ?? [];
+  const clientName = useWatch({ control: form.control, name: 'clientName' });
 
   const vehiclesQuery = useVehicles({
     page: 1,
@@ -119,14 +122,26 @@ export function TripForm({ trip }: TripFormProps) {
   }));
   const partners = sortAlphabetically(partnersQuery.data?.partners ?? [], partnerSelectLabel);
   const contracts = contractsQuery.data?.contracts ?? [];
+  const matchedPartner = useFreeTextClient ? findPartnerByName(partners, clientName) : undefined;
+
+  const linkPartner = (partnerId: string): void => {
+    setUseFreeTextClient(false);
+    form.setValue('clientName', '');
+    form.setValue('partnerId', partnerId, { shouldDirty: true });
+  };
 
   const onSubmit = form.handleSubmit(async (values) => {
+    // A typed name that matches a registered partner is saved as that partner,
+    // otherwise reports would show the same client twice.
+    const match = useFreeTextClient ? findPartnerByName(partners, values.clientName) : undefined;
+    const payload = match ? { ...values, partnerId: match.id, clientName: null } : values;
+
     if (isEdit) {
-      await updateMutation.mutateAsync(values);
+      await updateMutation.mutateAsync(payload);
       return;
     }
 
-    await createMutation.mutateAsync(values);
+    await createMutation.mutateAsync(payload);
   });
 
   const cancelHref = trip ? `/trips/${trip.id}` : '/trips';
@@ -227,6 +242,14 @@ export function TripForm({ trip }: TripFormProps) {
                 )}
               />
             )}
+
+            {matchedPartner ? (
+              <ExistingPartnerHint
+                partner={matchedPartner}
+                onLink={() => linkPartner(matchedPartner.id)}
+                disabled={isPending}
+              />
+            ) : null}
 
             <Controller
               control={form.control}

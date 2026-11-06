@@ -36,7 +36,9 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useContracts } from '@/features/contracts/hooks/use-contracts';
 import { useDrivers } from '@/features/drivers/hooks/use-drivers';
+import { ExistingPartnerHint } from '@/features/partners/components/existing-partner-hint';
 import { PartnerNameInput } from '@/features/partners/components/partner-name-input';
+import { findPartnerByName } from '@/features/partners/lib/partner';
 import { usePartners } from '@/features/partners/hooks/use-partners';
 import { useGenerateTripSeries } from '@/features/trips/hooks/use-generate-trip-series';
 import {
@@ -88,6 +90,7 @@ export function TripSeriesForm() {
   const watchedPauses = useWatch({ control: form.control, name: 'pauses' });
   const vehicleIds = useWatch({ control: form.control, name: 'vehicleIds' }) ?? [];
   const driverIds = useWatch({ control: form.control, name: 'driverIds' }) ?? [];
+  const clientName = useWatch({ control: form.control, name: 'clientName' });
   const daysOfWeek = useMemo(() => watchedDaysOfWeek ?? [], [watchedDaysOfWeek]);
   const pauses = useMemo(() => watchedPauses ?? [], [watchedPauses]);
 
@@ -121,6 +124,22 @@ export function TripSeriesForm() {
     label: `${driver.firstName} ${driver.lastName}`,
   }));
   const partners = sortAlphabetically(partnersQuery.data?.partners ?? [], partnerSelectLabel);
+  const matchedPartner = useFreeTextClient ? findPartnerByName(partners, clientName) : undefined;
+
+  const linkPartner = (partnerId: string): void => {
+    setUseFreeTextClient(false);
+    form.setValue('clientName', '');
+    form.setValue('partnerId', partnerId, { shouldDirty: true });
+  };
+
+  // A typed name that matches a registered partner is saved as that partner,
+  // otherwise reports would show the same client twice.
+  const withMatchedPartner = <T extends { partnerId: string | null; clientName: string | null }>(
+    values: T,
+  ): T => {
+    const match = useFreeTextClient ? findPartnerByName(partners, values.clientName) : undefined;
+    return match ? { ...values, partnerId: match.id, clientName: null } : values;
+  };
   const contracts = contractsQuery.data?.contracts ?? [];
   const occurrenceDates = useMemo(
     () =>
@@ -161,7 +180,7 @@ export function TripSeriesForm() {
       return;
     }
 
-    await generateMutation.mutateAsync(values);
+    await generateMutation.mutateAsync(withMatchedPartner(values));
   });
 
   const isPending = generateMutation.isPending;
@@ -560,6 +579,14 @@ export function TripSeriesForm() {
                 )}
               />
             )}
+
+            {matchedPartner ? (
+              <ExistingPartnerHint
+                partner={matchedPartner}
+                onLink={() => linkPartner(matchedPartner.id)}
+                disabled={isPending}
+              />
+            ) : null}
 
             <Controller
               control={form.control}
