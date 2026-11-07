@@ -18,6 +18,8 @@ export const TRANSACTION_CATEGORIES = [
   'SUBCONTRACTOR',
   'BANK',
   'OTHER',
+  'VAT',
+  'TRANSFER',
 ] as const;
 
 export type TransactionCategory = (typeof TRANSACTION_CATEGORIES)[number];
@@ -33,7 +35,37 @@ export const TRANSACTION_CATEGORY_LABELS: Record<TransactionCategory, string> = 
   SUBCONTRACTOR: 'Podizvođač',
   BANK: 'Banka',
   OTHER: 'Ostalo',
+  VAT: 'PDV',
+  TRANSFER: 'Prenos između računa',
 };
+
+/**
+ * Categories that are never matched to an invoice: VAT settled with the tax authority and money
+ * moved between the company's own accounts. They stay out of the unallocated-payments queue and
+ * out of customer/supplier analytics. TRANSFER is also left out of income/expense totals.
+ */
+export const UNALLOCATABLE_TRANSACTION_CATEGORIES = [
+  'VAT',
+  'TRANSFER',
+] as const satisfies readonly TransactionCategory[];
+
+export const isUnallocatableCategory = (category: TransactionCategory): boolean =>
+  (UNALLOCATABLE_TRANSACTION_CATEGORIES as readonly TransactionCategory[]).includes(category);
+
+export const CURRENCIES = ['RSD', 'EUR'] as const;
+
+export type Currency = (typeof CURRENCIES)[number];
+
+export const CURRENCY_LABELS: Record<Currency, string> = {
+  RSD: 'Dinar (RSD)',
+  EUR: 'Evro (EUR)',
+};
+
+const roundCurrency = (value: number): number => Math.round(value * 100) / 100;
+
+/** Dinar value of a foreign-currency amount at the given rate, rounded to the para. */
+export const toDinars = (amount: number, exchangeRate: number): number =>
+  roundCurrency(amount * exchangeRate);
 
 export const PAYMENT_METHODS = ['ACCOUNT', 'CASH'] as const;
 
@@ -143,6 +175,12 @@ export interface TransactionDto {
   sourceId: string | null;
   statementNumber: string | null;
   bankReference: string | null;
+  /** `amount` is always dinars. For EUR, `currencyAmount` is the EUR figure at `exchangeRate`. */
+  currency: Currency;
+  currencyAmount: number | null;
+  exchangeRate: number | null;
+  /** EUR still free to link to an EUR invoice; null for dinar payments. */
+  unallocatedCurrencyAmount: number | null;
   allocatedAmount: number;
   unallocatedAmount: number;
   allocationCount: number;
@@ -250,7 +288,12 @@ export interface PaymentAllocationDto {
   transactionId: string;
   targetType: SettlementTargetType;
   targetId: string;
+  /** Dinars closed on the invoice, at the invoice's rate. */
   amount: number;
+  /** EUR covered, when an EUR payment closes an EUR invoice. */
+  currencyAmount: number | null;
+  /** Exchange-rate gain (+) or loss (-) in dinars. */
+  exchangeDifference: number | null;
   note: string | null;
   createdAt: string;
   updatedAt: string;
@@ -267,6 +310,11 @@ export interface SettlementTargetDto {
   totalAmount: number;
   allocatedAmount: number;
   remainingAmount: number;
+  /** Invoice currency. For EUR the `currency*` fields hold the EUR figures. */
+  currency: Currency;
+  exchangeRate: number | null;
+  currencyTotalAmount: number | null;
+  currencyRemainingAmount: number | null;
 }
 
 export interface SettlementTargetsDto {

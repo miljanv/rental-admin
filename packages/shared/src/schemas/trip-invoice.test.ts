@@ -84,3 +84,42 @@ describe('tripInvoiceWriteSchema', () => {
     ).toBe(true);
   });
 });
+
+describe('tripInvoiceWriteSchema currency', () => {
+  const base = {
+    invoicedAt: '2026-09-20',
+    supplyDate: '2026-09-20',
+    domesticPrice: 430,
+    foreignPrice: 1_670,
+    paymentMethod: 'ACCOUNT' as const,
+  };
+
+  it('defaults to dinars without a rate', () => {
+    const result = tripInvoiceWriteSchema.parse(base);
+
+    expect(result.currency).toBe('RSD');
+    expect(result.exchangeRate).toBeNull();
+  });
+
+  it('requires the invoice rate for EUR', () => {
+    const result = tripInvoiceWriteSchema.safeParse({ ...base, currency: 'EUR' });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((issue) => issue.path.join('.'))).toContain('exchangeRate');
+  });
+
+  it('accepts an EUR invoice with a rate and rejects it for cash or a series month', () => {
+    expect(
+      tripInvoiceWriteSchema.safeParse({ ...base, currency: 'EUR', exchangeRate: 117.4007 })
+        .success,
+    ).toBe(true);
+    expect(
+      tripInvoiceWriteSchema.safeParse({
+        ...base,
+        currency: 'EUR',
+        exchangeRate: 117.4007,
+        billSeriesMonth: true,
+      }).success,
+    ).toBe(false);
+  });
+});

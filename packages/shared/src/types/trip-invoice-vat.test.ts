@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  computeCurrencyTransportFare,
   computeSplitTransportFare,
   invoiceMonthBounds,
   scaleTransportFare,
@@ -93,5 +94,34 @@ describe('invoiceMonthBounds', () => {
       month: 9,
     });
     expect(seriesInvoiceGroupId('series_1', '2026-09-14')).toBe('series:series_1:2026-09');
+  });
+});
+
+describe('computeCurrencyTransportFare', () => {
+  it('matches a BizniSoft EUR invoice: converts each line, then computes VAT in dinars', () => {
+    const fare = computeCurrencyTransportFare({
+      domesticAmount: 430,
+      domesticIncludesVat: false,
+      foreignAmount: 1_670,
+      exchangeRate: 117.4007,
+    });
+
+    expect(fare.currencyGrossAmount).toBe(2_143);
+    expect(fare.dinars.domesticNet).toBe(50_482.3);
+    expect(fare.dinars.foreignNet).toBe(196_059.17);
+    expect(fare.dinars.vatAmount).toBe(5_048.23);
+    expect(fare.dinars.grossAmount).toBe(251_589.7);
+  });
+
+  it('keeps dinar invoices unchanged when there is no rate', () => {
+    const fare = computeCurrencyTransportFare({
+      domesticAmount: 1_000,
+      domesticIncludesVat: false,
+      foreignAmount: 500,
+      exchangeRate: null,
+    });
+
+    expect(fare.currencyGrossAmount).toBe(1_600);
+    expect(fare.dinars.grossAmount).toBe(1_600);
   });
 });

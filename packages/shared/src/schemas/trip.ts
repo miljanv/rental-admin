@@ -9,7 +9,12 @@ import {
 } from '../types/trip';
 import { driverIdSchema, isoDateSchema } from './driver';
 import { SORT_ORDERS } from './file';
-import { optionalPaymentMethodSchema, paymentMethodSchema } from './transaction';
+import {
+  currencySchema,
+  optionalExchangeRateSchema,
+  optionalPaymentMethodSchema,
+  paymentMethodSchema,
+} from './transaction';
 import { vehicleIdSchema } from './vehicle';
 
 export const tripStatusSchema = z.enum(TRIP_STATUSES);
@@ -168,8 +173,37 @@ export const tripInvoiceWriteSchema = z
     billSeriesMonth: z.boolean().default(false),
     paymentMethod: paymentMethodSchema,
     cashRecipient: optionalText(120),
+    /** EUR invoices: both prices are typed in EUR and converted at `exchangeRate`. */
+    currency: currencySchema.default('RSD'),
+    exchangeRate: optionalExchangeRateSchema,
   })
   .superRefine((value, ctx) => {
+    if (value.currency !== 'RSD') {
+      if (value.exchangeRate == null) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['exchangeRate'],
+          message: 'Unesite kurs sa fakture.',
+        });
+      }
+
+      if (value.paymentMethod !== 'ACCOUNT') {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['currency'],
+          message: 'Faktura u EUR se plaća samo preko računa.',
+        });
+      }
+
+      if (value.billSeriesMonth) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['currency'],
+          message: 'Mesečna faktura serije se izdaje samo u dinarima.',
+        });
+      }
+    }
+
     if ((value.domesticPrice ?? 0) <= 0 && (value.foreignPrice ?? 0) <= 0) {
       ctx.addIssue({
         code: 'custom',

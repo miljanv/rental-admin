@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { PAGINATION_DEFAULTS } from '../constants';
 import {
+  CURRENCIES,
   FINANCE_EXPORT_FORMATS,
   PAYMENT_METHODS,
   SETTLEMENT_TARGET_TYPES,
@@ -22,6 +23,30 @@ export const paymentMethodSchema = z.enum(PAYMENT_METHODS);
 export const transactionStatusSchema = z.enum(TRANSACTION_STATUSES);
 export const transactionSourceTypeSchema = z.enum(TRANSACTION_SOURCE_TYPES);
 export const settlementTargetTypeSchema = z.enum(SETTLEMENT_TARGET_TYPES);
+export const currencySchema = z.enum(CURRENCIES);
+
+const optionalPositive = (label: string, max: number) =>
+  z.preprocess(
+    (value) => {
+      if (value === '' || value === undefined || value === null) {
+        return null;
+      }
+
+      if (typeof value === 'number' && Number.isNaN(value)) {
+        return null;
+      }
+
+      return value;
+    },
+    z
+      .number()
+      .positive(`${label} mora biti veći od nule.`)
+      .max(max, `${label} nije ispravan.`)
+      .nullable(),
+  );
+
+/** Dinars for one unit of foreign currency, as printed on the invoice or statement. */
+export const optionalExchangeRateSchema = optionalPositive('Kurs', 100_000);
 
 export const transactionIdSchema = z.string().trim().min(1).max(64);
 
@@ -98,8 +123,46 @@ export const transactionWriteSchema = z
     driverId: optionalId,
     contractId: optionalId,
     isAdvance: z.boolean().default(false),
+    /** For EUR, `amount` is the dinar value; the API recomputes it from these two fields. */
+    currency: currencySchema.default('RSD'),
+    currencyAmount: optionalPositive('Iznos u EUR', 100_000_000),
+    exchangeRate: optionalExchangeRateSchema,
   })
   .superRefine((value, ctx) => {
+    if (value.currency !== 'RSD') {
+      if (value.currencyAmount == null) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['currencyAmount'],
+          message: 'Unesite iznos u EUR.',
+        });
+      }
+
+      if (value.exchangeRate == null) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['exchangeRate'],
+          message: 'Unesite kurs na dan uplate.',
+        });
+      }
+
+      if (value.paymentMethod !== 'ACCOUNT') {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['paymentMethod'],
+          message: 'Uplata u EUR ide samo preko računa.',
+        });
+      }
+
+      if (value.isAdvance) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['isAdvance'],
+          message: 'Avans se vodi samo u dinarima.',
+        });
+      }
+    }
+
     if (value.isAdvance && value.type !== 'EXPENSE') {
       ctx.addIssue({
         code: 'custom',
@@ -287,6 +350,8 @@ export const paymentAllocationWriteSchema = z.object({
     .number()
     .positive('Iznos mora biti veći od nule.')
     .max(100_000_000_000, 'Iznos nije ispravan.'),
+  /** Required when an EUR payment closes an EUR invoice; the API then derives `amount`. */
+  currencyAmount: optionalPositive('Iznos u EUR', 100_000_000).optional(),
   note: optionalText(500),
 });
 

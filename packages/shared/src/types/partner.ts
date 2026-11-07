@@ -67,7 +67,12 @@ export interface DeletePartnerResult {
   deleted: true;
 }
 
-export const PARTNER_LEDGER_ENTRY_TYPES = ['OPENING', 'INVOICE', 'PAYMENT'] as const;
+export const PARTNER_LEDGER_ENTRY_TYPES = [
+  'OPENING',
+  'INVOICE',
+  'PAYMENT',
+  'EXCHANGE_DIFFERENCE',
+] as const;
 
 export type PartnerLedgerEntryType = (typeof PARTNER_LEDGER_ENTRY_TYPES)[number];
 
@@ -75,6 +80,7 @@ export const PARTNER_LEDGER_ENTRY_TYPE_LABELS: Record<PartnerLedgerEntryType, st
   OPENING: 'Početni saldo',
   INVOICE: 'Faktura',
   PAYMENT: 'Uplata',
+  EXCHANGE_DIFFERENCE: 'Kursna razlika',
 };
 
 export interface PartnerLedgerEntryDto {

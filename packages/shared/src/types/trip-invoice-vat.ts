@@ -55,6 +55,38 @@ export const computeSplitTransportFare = (input: SplitTransportFareInput): Trans
   };
 };
 
+export interface CurrencyTransportFare {
+  /** Dinar figures used everywhere in finance and VAT reporting. */
+  dinars: TransportVatResult;
+  /** Amount due in the invoice currency (equal to `dinars.grossAmount` for RSD). */
+  currencyGrossAmount: number;
+}
+
+/**
+ * Fare for an invoice in any currency. A foreign-currency fare is converted line by line at the
+ * invoice rate first and VAT is then computed in dinars, the way Serbian invoices state it
+ * (e.g. 430 EUR x 117.4007 = 50,482.30 RSD base, VAT 5,048.23 RSD).
+ */
+export const computeCurrencyTransportFare = (
+  input: SplitTransportFareInput & { exchangeRate: number | null },
+): CurrencyTransportFare => {
+  const inCurrency = computeSplitTransportFare(input);
+  const rate = input.exchangeRate;
+
+  if (rate == null) {
+    return { dinars: inCurrency, currencyGrossAmount: inCurrency.grossAmount };
+  }
+
+  return {
+    dinars: computeSplitTransportFare({
+      domesticAmount: roundMoney(Math.max(0, input.domesticAmount) * rate),
+      domesticIncludesVat: input.domesticIncludesVat,
+      foreignAmount: roundMoney(Math.max(0, input.foreignAmount) * rate),
+    }),
+    currencyGrossAmount: inCurrency.grossAmount,
+  };
+};
+
 export const scaleTransportFare = (fare: TransportVatResult, days: number): TransportVatResult => {
   const count = Number.isFinite(days) && days > 0 ? days : 0;
   const scale = (value: number): number => roundMoney(value * count);

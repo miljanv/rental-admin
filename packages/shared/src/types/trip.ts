@@ -1,5 +1,5 @@
 import type { PartnerType } from './partner';
-import type { PaymentMethod } from './transaction';
+import type { Currency, PaymentMethod } from './transaction';
 import type { PaginationMeta } from './api';
 
 export const TRIP_STATUSES = ['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'FREE'] as const;
@@ -247,6 +247,10 @@ export interface TripDto {
   invoiceGrossAmount: number | null;
   /** Set when this day belongs to one monthly series invoice. */
   invoiceGroupId: string | null;
+  /** EUR invoices keep the typed fares in EUR; net/VAT/gross above are dinars at the rate. */
+  invoiceCurrency: Currency;
+  invoiceExchangeRate: number | null;
+  invoiceCurrencyGrossAmount: number | null;
   /** Person who receives/holds cash for this internal cash trip. */
   cashRecipient: string | null;
   /** Date and amount recorded only in the internal cash ledger. */

@@ -166,3 +166,40 @@ describe('refineCostRequiresPaymentMethod', () => {
     expect(schema.safeParse({ cost: null, paymentMethod: null }).success).toBe(true);
   });
 });
+
+describe('transactionWriteSchema currency', () => {
+  const eurIncome = {
+    type: 'INCOME',
+    category: 'CONTRACT',
+    amount: 251_160,
+    occurredAt: '2026-10-05',
+    paymentMethod: 'ACCOUNT',
+    currency: 'EUR',
+    currencyAmount: 2_143,
+    exchangeRate: 117.2,
+  } as const;
+
+  it('defaults to dinars', () => {
+    const result = transactionWriteSchema.parse({ ...eurIncome, currency: undefined });
+
+    expect(result.currency).toBe('RSD');
+  });
+
+  it('accepts an EUR payment with amount and rate', () => {
+    expect(transactionWriteSchema.safeParse(eurIncome).success).toBe(true);
+  });
+
+  it('requires the EUR amount and rate, and an account payment', () => {
+    const result = transactionWriteSchema.safeParse({
+      ...eurIncome,
+      currencyAmount: '',
+      exchangeRate: null,
+      paymentMethod: 'CASH',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((issue) => issue.path.join('.'))).toEqual(
+      expect.arrayContaining(['currencyAmount', 'exchangeRate', 'paymentMethod']),
+    );
+  });
+});
