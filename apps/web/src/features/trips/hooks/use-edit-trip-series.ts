@@ -13,13 +13,21 @@ export const useEditTripSeries = (seriesId: string) => {
   return useMutation({
     mutationFn: (body: Parameters<typeof editTripSeries>[1]) => editTripSeries(seriesId, body),
     onSuccess: async (result) => {
+      const shifted =
+        result.shiftedDays !== 0
+          ? ` Datumi su pomereni za ${Math.abs(result.shiftedDays)} dana ${result.shiftedDays > 0 ? 'unapred' : 'unazad'}.`
+          : '';
       toast.success(
         result.priceKeptCount > 0
-          ? `Sačuvano za ${result.updatedCount} vožnji. Cena je ostala na ${result.priceKeptCount} već fakturisanih dana.`
-          : `Sačuvano za sve dane (${result.updatedCount}).`,
+          ? `Sačuvano za ${result.updatedCount} vožnji. Cena je ostala na ${result.priceKeptCount} već fakturisanih dana.${shifted}`
+          : `Sačuvano za sve dane (${result.updatedCount}).${shifted}`,
       );
-      await queryClient.invalidateQueries({ queryKey: queryKeys.trips.all });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.trips.series(seriesId) });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.trips.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.trips.series(seriesId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
+      ]);
     },
     onError: (error) => {
       toast.error('Izmena serije nije uspela.', { description: getApiErrorMessage(error) });

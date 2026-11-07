@@ -17,6 +17,7 @@ import {
 import { useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 
+import { DateField } from '@/components/common/date-field';
 import { MultiSelectField } from '@/components/common/multi-select-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -74,6 +75,7 @@ const sharedDriverPay = (trip: TripDto): number | '' => {
 
 const formValues = (series: TripSeriesDto, trip: TripDto): EditTripSeriesInput => ({
   name: series.name ?? '',
+  startDate: series.startDate,
   origin: trip.origin,
   destination: trip.destination,
   country: trip.country ?? '',
@@ -168,8 +170,8 @@ export function TripSeriesEditForm({
       <CardHeader>
         <CardTitle>Izmena cele serije</CardTitle>
         <CardDescription>
-          Jedno čuvanje menja svih {dayCount} dana. Datum, faktura i obračun svakog dana ostaju.
-          Cena se ne menja na danima koji su već fakturisani ili plaćeni.
+          Jedno čuvanje menja svih {dayCount} dana. Faktura i obračun svakog dana ostaju. Cena se ne
+          menja na danima koji su već fakturisani ili plaćeni.
           {vehiclesDiffer
             ? ' Dani trenutno nemaju ista vozila — čuvanje stavlja vozila iz ove forme na sve dane.'
             : ''}
@@ -184,6 +186,27 @@ export function TripSeriesEditForm({
               error={errors.name?.message as string | undefined}
             >
               <Input id="series-name" disabled={isPending} {...form.register('name')} />
+            </Field>
+            <Field
+              id="series-start-date"
+              label="Početak serije"
+              error={errors.startDate?.message as string | undefined}
+            >
+              <Controller
+                control={form.control}
+                name="startDate"
+                render={({ field }) => (
+                  <DateField
+                    id="series-start-date"
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    disabled={isPending}
+                  />
+                )}
+              />
+              <p className="text-muted-foreground text-xs">
+                Novi početak pomera sve dane, mesečnu fakturu i datum prometa za isti broj dana.
+              </p>
             </Field>
             <Field
               id="series-country"

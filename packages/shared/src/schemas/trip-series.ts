@@ -161,10 +161,14 @@ export const bulkUpdateTripSeriesSchema = z
 export type BulkUpdateTripSeriesInput = z.input<typeof bulkUpdateTripSeriesSchema>;
 export type BulkUpdateTripSeriesRequest = z.output<typeof bulkUpdateTripSeriesSchema>;
 
-/** Overwrites the shared job details on every day of the series. Dates, invoices and settlement stay. */
+/**
+ * Overwrites the shared job details on every day of the series. A new `startDate` moves every day,
+ * its monthly invoice and the pauses by the same number of days; invoices and settlement stay.
+ */
 export const editTripSeriesSchema = z
   .object({
     name: optionalText(200),
+    startDate: isoDateSchema.optional(),
     origin: requiredText('Polazište', 150),
     destination: requiredText('Odredište', 150),
     country: optionalText(80),

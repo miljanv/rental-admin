@@ -350,6 +350,20 @@ export const createTrip = async (input: TripWriteRequest): Promise<TripDto> => {
 export const updateTrip = async (id: string, input: TripWriteRequest): Promise<TripDto> => {
   const current = await getTrip(id);
   if (
+    current.seriesId &&
+    current.invoiceGroupId &&
+    current.departureDate.slice(0, 7) !== input.departureDate.slice(0, 7)
+  ) {
+    throw badRequest(
+      'Vožnja je na mesečnoj fakturi serije i ne može preći u drugi mesec. Ceo period pomerite kroz izmenu serije (Početak serije).',
+    );
+  }
+  // An individually invoiced trip whose supply date was its last day keeps following that day.
+  const supplyDateFollowsTrip =
+    current.invoiceSupplyDate !== null &&
+    !current.invoiceGroupId &&
+    current.invoiceSupplyDate === (current.returnDate ?? current.departureDate);
+  if (
     current.partnerId !== input.partnerId ||
     current.price !== input.price ||
     current.paymentMethod !== input.paymentMethod
@@ -370,7 +384,15 @@ export const updateTrip = async (id: string, input: TripWriteRequest): Promise<T
   await assertReferencesExist(input);
 
   const record = await prisma.$transaction(async (tx) => {
-    await tx.trip.update({ where: { id }, data: toWriteData(input) });
+    await tx.trip.update({
+      where: { id },
+      data: {
+        ...toWriteData(input),
+        ...(supplyDateFollowsTrip
+          ? { invoiceSupplyDate: parseDate(input.returnDate ?? input.departureDate) }
+          : {}),
+      },
+    });
     await tx.tripVehicle.deleteMany({ where: { tripId: id } });
 
     if (input.vehicleIds.length > 0) {

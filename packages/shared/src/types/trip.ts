@@ -343,6 +343,8 @@ export interface EditTripSeriesResult {
   updatedCount: number;
   /** Days that already have an invoice or a payment. Their price is left as recorded. */
   priceKeptCount: number;
+  /** Days every trip moved by; 0 when the start date stayed. */
+  shiftedDays: number;
 }
 
 export interface TerminateTripSeriesResult {

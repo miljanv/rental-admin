@@ -1,5 +1,6 @@
 import {
   buildTripSeriesOccurrenceDates,
+  seriesInvoiceGroupId,
   type BulkUpdateTripSeriesRequest,
   type BulkUpdateTripSeriesResult,
   type EditTripSeriesRequest,
@@ -15,6 +16,7 @@ import {
 import { prisma } from '../config/prisma';
 import { badRequest, notFound } from '../utils/app-error';
 import { logger } from '../utils/logger';
+import { assertDocumentHasNoAllocations } from '../utils/settled-document';
 import { toTripDto, toTripSeriesDto, type TripRecord } from '../utils/trip-mapper';
 import { requireOrganizationId } from '../utils/tenant-context';
 import { syncTripDriverPayouts } from './trip-expense.service';
@@ -258,6 +260,105 @@ const sameIds = (current: string[], next: string[]): boolean => {
   return left.every((id, index) => id === right[index]);
 };
 
+const DAY_MS = 86_400_000;
+
+const shiftDate = (value: Date, days: number): Date => new Date(value.getTime() + days * DAY_MS);
+
+const isoDate = (value: Date): string => value.toISOString().slice(0, 10);
+
+export interface ShiftableSeriesTrip {
+  id: string;
+  departureDate: Date;
+  returnDate: Date | null;
+  invoiceSupplyDate: Date | null;
+  invoiceGroupId: string | null;
+  paidAt: Date | null;
+  travelTimeline: unknown;
+  perDiemDocumentNumber: string | null;
+}
+
+export interface SeriesTripShift {
+  id: string;
+  departureDate: Date;
+  returnDate: Date | null;
+  invoiceSupplyDate: Date | null;
+  invoiceGroupId: string | null;
+}
+
+/**
+ * New dates for every day of a series moved by `days`. A monthly invoice moves with its days, so it
+ * must land in exactly one month and must not merge into another monthly invoice.
+ */
+export const planSeriesShift = (
+  seriesId: string,
+  frequency: string,
+  trips: ShiftableSeriesTrip[],
+  days: number,
+): SeriesTripShift[] => {
+  if (frequency === 'WEEKLY' && days % 7 !== 0) {
+    throw badRequest(
+      'Nedeljna serija se pomera samo za cele nedelje, da dani u nedelji ostanu isti.',
+    );
+  }
+
+  if (trips.some((trip) => trip.paidAt)) {
+    throw badRequest('Serija ima plaćene dane i ne može se pomeriti.');
+  }
+
+  if (
+    trips.some(
+      (trip) =>
+        (trip.travelTimeline !== null && trip.travelTimeline !== undefined) ||
+        trip.perDiemDocumentNumber,
+    )
+  ) {
+    throw badRequest('Serija ima obračun dnevnica vozača i ne može se pomeriti.');
+  }
+
+  const seriesGroupPrefix = `series:${seriesId}:`;
+  const movedGroups = new Map<string, Set<string>>();
+
+  const shifts = trips.map((trip) => {
+    const departureDate = shiftDate(trip.departureDate, days);
+    let invoiceGroupId = trip.invoiceGroupId;
+
+    if (invoiceGroupId?.startsWith(seriesGroupPrefix)) {
+      const nextGroupId = seriesInvoiceGroupId(seriesId, isoDate(departureDate));
+      movedGroups.set(
+        invoiceGroupId,
+        (movedGroups.get(invoiceGroupId) ?? new Set()).add(nextGroupId),
+      );
+      invoiceGroupId = nextGroupId;
+    }
+
+    return {
+      id: trip.id,
+      departureDate,
+      returnDate: trip.returnDate ? shiftDate(trip.returnDate, days) : null,
+      invoiceSupplyDate: trip.invoiceSupplyDate ? shiftDate(trip.invoiceSupplyDate, days) : null,
+      invoiceGroupId,
+    };
+  });
+
+  const targetGroups = new Set<string>();
+
+  for (const next of movedGroups.values()) {
+    const [target] = [...next];
+
+    if (next.size > 1 || !target) {
+      throw badRequest('Mesečna faktura serije bi se posle pomeranja podelila na dva meseca.');
+    }
+
+    if (targetGroups.has(target)) {
+      throw badRequest('Posle pomeranja bi se dve mesečne fakture serije spojile u isti mesec.');
+    }
+
+    targetGroups.add(target);
+  }
+
+  return shifts;
+};
+
 /** Writes the shared route, client, vehicles and drivers onto every day. Invoiced days keep their price. */
 export const editTripSeries = async (
   seriesId: string,
@@ -287,9 +388,14 @@ export const editTripSeries = async (
     where: { seriesId },
     select: {
       id: true,
+      departureDate: true,
+      returnDate: true,
       invoicedAt: true,
+      invoiceSupplyDate: true,
       paidAt: true,
       invoiceGroupId: true,
+      travelTimeline: true,
+      perDiemDocumentNumber: true,
       vehicles: { select: { vehicleId: true } },
       drivers: { select: { driverId: true } },
     },
@@ -297,6 +403,23 @@ export const editTripSeries = async (
 
   if (trips.length === 0) {
     throw badRequest('Serija nema vožnji za izmenu.');
+  }
+
+  const shiftedDays = input.startDate
+    ? Math.round((parseDate(input.startDate).getTime() - series.startDate.getTime()) / DAY_MS)
+    : 0;
+  const shifts =
+    shiftedDays === 0 ? [] : planSeriesShift(seriesId, series.frequency, trips, shiftedDays);
+
+  if (shifts.length > 0) {
+    await assertDocumentHasNoAllocations(
+      trips.flatMap((trip) => [
+        { targetType: 'TRIP_INVOICE' as const, targetId: trip.id },
+        ...(trip.invoiceGroupId
+          ? [{ targetType: 'TRIP_SERIES_INVOICE' as const, targetId: trip.invoiceGroupId }]
+          : []),
+      ]),
+    );
   }
 
   const priceKeptIds = trips
@@ -307,83 +430,121 @@ export const editTripSeries = async (
     .map((trip) => trip.id);
   let driversChanged = false;
 
-  await prisma.$transaction(async (tx) => {
-    await tx.tripSeries.update({
-      where: { id: seriesId },
-      data: { name: input.name },
-    });
-
-    await tx.trip.updateMany({
-      where: { seriesId },
-      data: {
-        origin: input.origin,
-        destination: input.destination,
-        country: input.country,
-        passengerCount: input.passengerCount,
-        partnerId: input.partnerId,
-        clientName: input.clientName,
-        notes: input.notes,
-        vehicleCount: input.vehicleCount,
-      },
-    });
-
-    if (priceUpdateIds.length > 0) {
-      await tx.trip.updateMany({
-        where: { id: { in: priceUpdateIds } },
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.tripSeries.update({
+        where: { id: seriesId },
         data: {
-          price: input.price,
-          paymentMethod: input.paymentMethod,
+          name: input.name,
+          ...(shifts.length > 0
+            ? {
+                startDate: shiftDate(series.startDate, shiftedDays),
+                endDate: shiftDate(series.endDate, shiftedDays),
+                terminatedAt: series.terminatedAt
+                  ? shiftDate(series.terminatedAt, shiftedDays)
+                  : null,
+              }
+            : {}),
         },
       });
-    }
 
-    const vehicleTripIds = trips
-      .filter((trip) => !sameIds(trip.vehicles.map((row) => row.vehicleId), input.vehicleIds))
-      .map((trip) => trip.id);
+      if (shifts.length > 0) {
+        for (const { id, ...dates } of shifts) {
+          await tx.trip.update({ where: { id }, data: dates });
+        }
 
-    if (vehicleTripIds.length > 0) {
-      await tx.tripVehicle.deleteMany({ where: { tripId: { in: vehicleTripIds } } });
-      const vehicleRows = vehicleTripIds.flatMap((tripId) =>
-        input.vehicleIds.map((vehicleId) => ({ tripId, vehicleId })),
-      );
-      if (vehicleRows.length > 0) {
-        await tx.tripVehicle.createMany({ data: vehicleRows });
+        const pauses = await tx.tripSeriesPause.findMany({ where: { seriesId } });
+
+        for (const pause of pauses) {
+          await tx.tripSeriesPause.update({
+            where: { id: pause.id },
+            data: {
+              startDate: shiftDate(pause.startDate, shiftedDays),
+              endDate: shiftDate(pause.endDate, shiftedDays),
+            },
+          });
+        }
       }
-    }
 
-    const driverRemovals = trips.flatMap((trip) => {
-      const remove = trip.drivers
-        .map((row) => row.driverId)
-        .filter((driverId) => !input.driverIds.includes(driverId));
-
-      return remove.length > 0 ? [{ tripId: trip.id, driverId: { in: remove } }] : [];
-    });
-
-    if (driverRemovals.length > 0) {
-      await tx.tripDriver.deleteMany({ where: { OR: driverRemovals } });
-    }
-
-    const driverAdditions = trips.flatMap((trip) => {
-      const current = new Set(trip.drivers.map((row) => row.driverId));
-
-      return input.driverIds
-        .filter((driverId) => !current.has(driverId))
-        .map((driverId) => ({ tripId: trip.id, driverId }));
-    });
-
-    if (driverAdditions.length > 0) {
-      await tx.tripDriver.createMany({ data: driverAdditions });
-    }
-
-    if (input.driverPay !== null && input.driverPay !== undefined) {
-      await tx.tripDriver.updateMany({
-        where: { tripId: { in: trips.map((trip) => trip.id) } },
-        data: { perDiemAmount: input.driverPay },
+      await tx.trip.updateMany({
+        where: { seriesId },
+        data: {
+          origin: input.origin,
+          destination: input.destination,
+          country: input.country,
+          passengerCount: input.passengerCount,
+          partnerId: input.partnerId,
+          clientName: input.clientName,
+          notes: input.notes,
+          vehicleCount: input.vehicleCount,
+        },
       });
-    }
 
-    driversChanged = driverRemovals.length > 0 || driverAdditions.length > 0;
-  });
+      if (priceUpdateIds.length > 0) {
+        await tx.trip.updateMany({
+          where: { id: { in: priceUpdateIds } },
+          data: {
+            price: input.price,
+            paymentMethod: input.paymentMethod,
+          },
+        });
+      }
+
+      const vehicleTripIds = trips
+        .filter(
+          (trip) =>
+            !sameIds(
+              trip.vehicles.map((row) => row.vehicleId),
+              input.vehicleIds,
+            ),
+        )
+        .map((trip) => trip.id);
+
+      if (vehicleTripIds.length > 0) {
+        await tx.tripVehicle.deleteMany({ where: { tripId: { in: vehicleTripIds } } });
+        const vehicleRows = vehicleTripIds.flatMap((tripId) =>
+          input.vehicleIds.map((vehicleId) => ({ tripId, vehicleId })),
+        );
+        if (vehicleRows.length > 0) {
+          await tx.tripVehicle.createMany({ data: vehicleRows });
+        }
+      }
+
+      const driverRemovals = trips.flatMap((trip) => {
+        const remove = trip.drivers
+          .map((row) => row.driverId)
+          .filter((driverId) => !input.driverIds.includes(driverId));
+
+        return remove.length > 0 ? [{ tripId: trip.id, driverId: { in: remove } }] : [];
+      });
+
+      if (driverRemovals.length > 0) {
+        await tx.tripDriver.deleteMany({ where: { OR: driverRemovals } });
+      }
+
+      const driverAdditions = trips.flatMap((trip) => {
+        const current = new Set(trip.drivers.map((row) => row.driverId));
+
+        return input.driverIds
+          .filter((driverId) => !current.has(driverId))
+          .map((driverId) => ({ tripId: trip.id, driverId }));
+      });
+
+      if (driverAdditions.length > 0) {
+        await tx.tripDriver.createMany({ data: driverAdditions });
+      }
+
+      if (input.driverPay !== null && input.driverPay !== undefined) {
+        await tx.tripDriver.updateMany({
+          where: { tripId: { in: trips.map((trip) => trip.id) } },
+          data: { perDiemAmount: input.driverPay },
+        });
+      }
+
+      driversChanged = driverRemovals.length > 0 || driverAdditions.length > 0;
+    },
+    { timeout: 30_000 },
+  );
 
   if ((input.driverPay !== null && input.driverPay !== undefined) || driversChanged) {
     for (const trip of trips) {
@@ -395,9 +556,10 @@ export const editTripSeries = async (
     seriesId,
     count: trips.length,
     priceKept: priceKeptIds.length,
+    shiftedDays,
   });
 
-  return { updatedCount: trips.length, priceKeptCount: priceKeptIds.length };
+  return { updatedCount: trips.length, priceKeptCount: priceKeptIds.length, shiftedDays };
 };
 
 export const terminateTripSeries = async (
