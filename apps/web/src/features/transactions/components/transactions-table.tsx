@@ -4,6 +4,7 @@ import {
   PAYMENT_METHOD_LABELS,
   TRANSACTION_CATEGORY_LABELS,
   TRANSACTION_SOURCE_TYPE_LABELS,
+  isUnallocatableCategory,
   type TransactionDto,
 } from '@rental-admin/shared';
 import { Eye, Link2, MoreHorizontal, Pencil, Printer, Trash2, Wallet } from 'lucide-react';
@@ -39,7 +40,7 @@ import {
   TransactionTypeBadge,
 } from '@/features/transactions/components/transaction-badges';
 import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
-import { formatDate, formatMoney } from '@/lib/format';
+import { formatDate, formatEuro, formatMoney } from '@/lib/format';
 
 const COLUMN_COUNT = 10;
 
@@ -200,9 +201,15 @@ export function TransactionsTable({
               const isManual = transaction.sourceType === 'MANUAL';
               const isBankStatement = transaction.sourceType === 'BANK_STATEMENT';
               const canEdit = (isManual && transaction.status !== 'SETTLED') || isBankStatement;
+              const isForeign = transaction.currency !== 'RSD';
               const canAllocate =
                 (isManual || isBankStatement || transaction.sourceType === 'OPENING_BALANCE') &&
-                transaction.paymentMethod === 'ACCOUNT';
+                transaction.paymentMethod === 'ACCOUNT' &&
+                !isUnallocatableCategory(transaction.category);
+              const showUnallocated =
+                canAllocate &&
+                (isBankStatement || isForeign) &&
+                transaction.unallocatedAmount > 0.005;
               const canPrintCashReceipt = transaction.paymentMethod === 'CASH';
               const statementLabel = [transaction.statementNumber, transaction.bankReference]
                 .filter(Boolean)
@@ -221,6 +228,11 @@ export function TransactionsTable({
                   </TableCell>
                   <TableCell className="text-right font-medium whitespace-nowrap">
                     {formatMoney(transaction.amount)}
+                    {isForeign ? (
+                      <span className="text-muted-foreground block text-xs font-normal">
+                        {formatEuro(transaction.currencyAmount)} · kurs {transaction.exchangeRate}
+                      </span>
+                    ) : null}
                   </TableCell>
                   <TableCell>{PAYMENT_METHOD_LABELS[transaction.paymentMethod]}</TableCell>
                   <TableCell className="max-w-[320px] truncate">
@@ -239,10 +251,13 @@ export function TransactionsTable({
                     ) : (
                       <AdvanceStatusBadge transaction={transaction} />
                     )}
-                    {isBankStatement && transaction.unallocatedAmount > 0.005 ? (
+                    {showUnallocated ? (
                       <div className="mt-1 text-xs text-amber-700 dark:text-amber-400">
                         <span className="block">
-                          Neraspoređeno: {formatMoney(transaction.unallocatedAmount)}
+                          Neraspoređeno:{' '}
+                          {isForeign
+                            ? formatEuro(transaction.unallocatedCurrencyAmount)
+                            : formatMoney(transaction.unallocatedAmount)}
                         </span>
                         <span className="block">
                           {transaction.type === 'INCOME'

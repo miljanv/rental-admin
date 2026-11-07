@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import { summarizeOpenItems, summarizeVehicleFuelConsumption } from './dashboard.service';
 
+const dinarTarget = {
+  currency: 'RSD',
+  exchangeRate: null,
+  currencyTotalAmount: null,
+  currencyRemainingAmount: null,
+} as const;
+
 describe('summarizeOpenItems', () => {
   it('groups open documents by counterparty and ranks counterparties by total debt', () => {
     const result = summarizeOpenItems([
@@ -16,6 +23,7 @@ describe('summarizeOpenItems', () => {
         totalAmount: 600,
         allocatedAmount: 100,
         remainingAmount: 500,
+        ...dinarTarget,
       },
       {
         targetType: 'TRIP_INVOICE',
@@ -28,6 +36,7 @@ describe('summarizeOpenItems', () => {
         totalAmount: 400,
         allocatedAmount: 0,
         remainingAmount: 400,
+        ...dinarTarget,
       },
       {
         targetType: 'TRIP_INVOICE',
@@ -40,6 +49,7 @@ describe('summarizeOpenItems', () => {
         totalAmount: 700,
         allocatedAmount: 0,
         remainingAmount: 700,
+        ...dinarTarget,
       },
       {
         targetType: 'TRIP_INVOICE',
@@ -52,6 +62,7 @@ describe('summarizeOpenItems', () => {
         totalAmount: 100,
         allocatedAmount: 0,
         remainingAmount: 100,
+        ...dinarTarget,
       },
       {
         targetType: 'TRIP_INVOICE',
@@ -64,6 +75,7 @@ describe('summarizeOpenItems', () => {
         totalAmount: 50,
         allocatedAmount: 0,
         remainingAmount: 50,
+        ...dinarTarget,
       },
     ]);
 

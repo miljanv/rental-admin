@@ -116,6 +116,7 @@ const buildPlan = async (
   input: AllocationPlanRequest,
 ): Promise<AllocationPlanDto> => {
   const payment = await getPayment(tx, id);
+  if (payment.currency !== 'RSD') throw conflict('Uplatu u EUR povežite ručno sa fakturom u EUR.');
   if (payment.type === 'INCOME' ? !payment.partnerId : !payment.supplierId)
     throw conflict('Prvo izaberite kupca ili dobavljača.');
   const availableAmount = toTransactionDto(payment).unallocatedAmount;

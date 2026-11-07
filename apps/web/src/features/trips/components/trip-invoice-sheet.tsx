@@ -2,9 +2,12 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  CURRENCIES,
+  CURRENCY_LABELS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
   TRANSPORT_VAT_RATE,
+  computeCurrencyTransportFare,
   computeSplitTransportFare,
   invoiceMonthBounds,
   scaleTransportFare,
@@ -40,7 +43,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useInvoiceTrip } from '@/features/trips/hooks/use-invoice-trip';
 import { useTrips } from '@/features/trips/hooks/use-trips';
-import { formatMoney, formatMonthYear, localTodayIso } from '@/lib/format';
+import { formatEuro, formatMoney, formatMonthYear, localTodayIso } from '@/lib/format';
 
 interface TripInvoiceSheetProps {
   trip: TripDto | null;
@@ -63,6 +66,8 @@ function Field({ id, label, error, children }: FieldProps) {
     </div>
   );
 }
+
+const rateFormatter = new Intl.NumberFormat('sr-Latn', { maximumFractionDigits: 4 });
 
 const enteredDomestic = (trip: TripDto): number | '' => {
   if (trip.invoiceDomesticAmount != null) {
@@ -107,6 +112,8 @@ const invoiceFormValues = (trip: TripDto | null): TripInvoiceWriteInput => ({
   billSeriesMonth: Boolean(trip?.seriesId && trip.paymentMethod !== 'CASH'),
   paymentMethod: trip?.paymentMethod ?? 'ACCOUNT',
   cashRecipient: trip?.cashRecipient ?? '',
+  currency: trip?.invoiceCurrency ?? 'RSD',
+  exchangeRate: trip?.invoiceExchangeRate ?? '',
 });
 
 export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) {
@@ -126,7 +133,18 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
   const domesticPrice = useWatch({ control: form.control, name: 'domesticPrice' });
   const foreignPrice = useWatch({ control: form.control, name: 'foreignPrice' });
   const paymentMethod = useWatch({ control: form.control, name: 'paymentMethod' });
+  const currency = useWatch({ control: form.control, name: 'currency' }) ?? 'RSD';
+  const exchangeRateValue = useWatch({ control: form.control, name: 'exchangeRate' });
   const isCash = paymentMethod === 'CASH';
+  const canUseForeign = !isCash && !billSeriesMonth;
+  const isForeign = canUseForeign && currency !== 'RSD';
+  const exchangeRate =
+    typeof exchangeRateValue === 'number' &&
+    Number.isFinite(exchangeRateValue) &&
+    exchangeRateValue > 0
+      ? exchangeRateValue
+      : null;
+  const formatTyped = isForeign ? formatEuro : formatMoney;
   const seriesQuery = useTrips(
     {
       page: 1,
@@ -156,7 +174,24 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
         })
       : null;
   const preview = unitFare && dayCount > 0 ? scaleTransportFare(unitFare, dayCount) : null;
+  // Dinar figures of an EUR invoice: each line converted at the invoice rate, VAT in dinars.
+  const dinarFare =
+    isForeign && unitFare && exchangeRate
+      ? computeCurrencyTransportFare({
+          domesticAmount: Number.isFinite(typedDomestic) ? typedDomestic : 0,
+          domesticIncludesVat: Boolean(priceIncludesVat),
+          foreignAmount: Number.isFinite(typedForeign) ? typedForeign : 0,
+          exchangeRate,
+        }).dinars
+      : null;
   const errors = form.formState.errors;
+
+  // Cash trips and monthly series invoices are always in dinars.
+  useEffect(() => {
+    if (!canUseForeign && currency !== 'RSD') {
+      form.setValue('currency', 'RSD');
+    }
+  }, [canUseForeign, currency, form]);
 
   const onSubmit = form.handleSubmit(async (values) => {
     if (!trip) {
@@ -264,10 +299,61 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
             />
           ) : null}
 
+          {canUseForeign ? (
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Controller
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <Field
+                    id="invoice-currency"
+                    label="Valuta fakture"
+                    error={errors.currency?.message}
+                  >
+                    <Select
+                      value={field.value ?? 'RSD'}
+                      onValueChange={field.onChange}
+                      disabled={invoiceMutation.isPending}
+                    >
+                      <SelectTrigger id="invoice-currency" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CURRENCIES.map((value) => (
+                          <SelectItem key={value} value={value}>
+                            {CURRENCY_LABELS[value]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
+              />
+              {isForeign ? (
+                <Field
+                  id="invoice-exchange-rate"
+                  label="Kurs sa fakture"
+                  error={errors.exchangeRate?.message}
+                >
+                  <Input
+                    id="invoice-exchange-rate"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.0001"
+                    placeholder="npr. 117,4007"
+                    disabled={invoiceMutation.isPending}
+                    aria-invalid={Boolean(errors.exchangeRate)}
+                    {...form.register('exchangeRate', { valueAsNumber: true })}
+                  />
+                </Field>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="grid grid-cols-3 items-start gap-2">
             <div className="flex min-w-0 flex-col gap-1.5">
               <Label htmlFor="invoice-domestic-price" className="leading-tight">
-                Cena u zemlji
+                Cena u zemlji{isForeign ? ' (EUR)' : ''}
               </Label>
               <Input
                 id="invoice-domestic-price"
@@ -313,7 +399,7 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
               )}
               {unitFare && !isCash ? (
                 <p className="text-muted-foreground text-xs leading-tight">
-                  Sa PDV-om: {formatMoney(unitFare.domesticGross)}
+                  Sa PDV-om: {formatTyped(unitFare.domesticGross)}
                 </p>
               ) : null}
               {errors.domesticPrice?.message ? (
@@ -323,7 +409,7 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
 
             <div className="flex min-w-0 flex-col gap-1.5">
               <Label htmlFor="invoice-foreign-price" className="leading-tight">
-                Cena u inostranstvu
+                Cena u inostranstvu{isForeign ? ' (EUR)' : ''}
               </Label>
               <Input
                 id="invoice-foreign-price"
@@ -349,16 +435,24 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
                 id="invoice-total"
                 className="border-input bg-muted flex h-8 min-w-0 items-center rounded-lg border px-2 text-sm font-medium"
               >
-                {unitFare ? formatMoney(unitFare.grossAmount) : '—'}
+                {unitFare ? formatTyped(unitFare.grossAmount) : '—'}
               </div>
-              <p className="text-muted-foreground text-xs leading-tight">Zbir te dve cene</p>
+              <p className="text-muted-foreground text-xs leading-tight">
+                {dinarFare ? `= ${formatMoney(dinarFare.grossAmount)}` : 'Zbir te dve cene'}
+              </p>
               {billSeriesMonth && dayCount > 0 ? (
                 <p className="text-muted-foreground text-xs">{dayCount} dana</p>
               ) : null}
             </div>
           </div>
 
-          {unitFare && !isCash ? (
+          {isForeign && unitFare ? (
+            <p className="text-muted-foreground text-xs">
+              {dinarFare
+                ? `U dinarima po kursu ${rateFormatter.format(exchangeRate ?? 0)}: osnovica u zemlji ${formatMoney(dinarFare.domesticNet)}, PDV ${TRANSPORT_VAT_RATE}% ${formatMoney(dinarFare.vatAmount)}, inostranstvo ${formatMoney(dinarFare.foreignNet)}, ukupno ${formatMoney(dinarFare.grossAmount)}. Ovi dinarski iznosi idu u PDV obračun i zaduženja.`
+                : 'Unesite kurs sa fakture da biste videli dinarske iznose i PDV.'}
+            </p>
+          ) : unitFare && !isCash ? (
             <p className="text-muted-foreground text-xs">
               PDV {TRANSPORT_VAT_RATE}% na zemlju: {formatMoney(unitFare.vatAmount)}. Ukupno je
               zemlja sa PDV-om ({formatMoney(unitFare.domesticGross)}) + inostranstvo (

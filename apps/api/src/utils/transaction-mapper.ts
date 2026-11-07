@@ -1,4 +1,5 @@
 import type {
+  Currency,
   PaymentMethod,
   TransactionCategory,
   TransactionDto,
@@ -44,7 +45,14 @@ export interface FinanceTransactionRecord {
   sourceId: string | null;
   statementNumber: string | null;
   bankReference: string | null;
-  paymentAllocations: Array<{ amount: number }>;
+  currency: Currency;
+  currencyAmount: number | null;
+  exchangeRate: number | null;
+  paymentAllocations: Array<{
+    amount: number;
+    currencyAmount: number | null;
+    exchangeDifference: number | null;
+  }>;
   createdAt: Date;
   updatedAt: Date;
   vehicle: TransactionVehicleRecord | null;
@@ -52,6 +60,17 @@ export interface FinanceTransactionRecord {
 }
 
 const toIsoDate = (value: Date): string => value.toISOString().slice(0, 10);
+
+const roundMoney = (value: number): number => Math.round(value * 100) / 100;
+
+/**
+ * Dinars an allocation used up on the payment side. An EUR allocation closes `amount` dinars
+ * of the invoice at the invoice rate; the payment's own rate adds the exchange difference.
+ */
+export const paymentSideAmount = (allocation: {
+  amount: number;
+  exchangeDifference: number | null;
+}): number => allocation.amount + (allocation.exchangeDifference ?? 0);
 
 const toVehicleDto = (vehicle: TransactionVehicleRecord): TransactionDto['vehicle'] => ({
   id: vehicle.id,
@@ -67,10 +86,22 @@ const toDriverDto = (driver: TransactionDriverRecord): TransactionDriverDto => (
 });
 
 export const toTransactionDto = (record: FinanceTransactionRecord): TransactionDto => {
-  const allocatedAmount =
-    Math.round(
-      record.paymentAllocations.reduce((sum, allocation) => sum + allocation.amount, 0) * 100,
-    ) / 100;
+  const allocatedAmount = roundMoney(
+    record.paymentAllocations.reduce((sum, allocation) => sum + paymentSideAmount(allocation), 0),
+  );
+  const unallocatedCurrencyAmount =
+    record.currency === 'RSD' || record.currencyAmount === null
+      ? null
+      : Math.max(
+          0,
+          roundMoney(
+            record.currencyAmount -
+              record.paymentAllocations.reduce(
+                (sum, allocation) => sum + (allocation.currencyAmount ?? 0),
+                0,
+              ),
+          ),
+        );
 
   return {
     id: record.id,
@@ -95,6 +126,10 @@ export const toTransactionDto = (record: FinanceTransactionRecord): TransactionD
     sourceId: record.sourceId,
     statementNumber: record.statementNumber,
     bankReference: record.bankReference,
+    currency: record.currency,
+    currencyAmount: record.currencyAmount,
+    exchangeRate: record.exchangeRate,
+    unallocatedCurrencyAmount,
     allocatedAmount,
     unallocatedAmount: Math.max(0, Math.round((record.amount - allocatedAmount) * 100) / 100),
     allocationCount: record.paymentAllocations.length,

@@ -24,4 +24,7 @@ export const EMPTY_TRANSACTION_FORM: TransactionFormValues = {
   driverId: '',
   contractId: '',
   isAdvance: false,
+  currency: 'RSD',
+  currencyAmount: '',
+  exchangeRate: '',
 };

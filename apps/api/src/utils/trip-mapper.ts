@@ -1,4 +1,5 @@
 import type {
+  Currency,
   PartnerType,
   PaymentMethod,
   TripDriverDto,
@@ -64,6 +65,9 @@ export interface TripRecord {
   invoiceVatAmount: number | null;
   invoiceGrossAmount: number | null;
   invoiceGroupId: string | null;
+  invoiceCurrency: Currency;
+  invoiceExchangeRate: number | null;
+  invoiceCurrencyGrossAmount: number | null;
   cashRecipient: string | null;
   cashRecordedAt: Date | null;
   cashAmount: number | null;
@@ -153,6 +157,9 @@ export const toTripDto = (record: TripRecord): TripDto => ({
   invoiceVatAmount: record.invoiceVatAmount,
   invoiceGrossAmount: record.invoiceGrossAmount,
   invoiceGroupId: record.invoiceGroupId,
+  invoiceCurrency: record.invoiceCurrency,
+  invoiceExchangeRate: record.invoiceExchangeRate,
+  invoiceCurrencyGrossAmount: record.invoiceCurrencyGrossAmount,
   cashRecipient: record.cashRecipient,
   cashRecordedAt: record.cashRecordedAt ? toIsoDate(record.cashRecordedAt) : null,
   cashAmount: record.cashAmount,

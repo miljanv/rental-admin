@@ -25,7 +25,6 @@ import { OpenItemsSummary } from '@/features/transactions/components/open-items-
 import { PaymentMethodBreakdown } from '@/features/transactions/components/payment-method-breakdown';
 import { ProfitTable } from '@/features/transactions/components/profit-table';
 import { UnsettledAdvancesCard } from '@/features/transactions/components/unsettled-advances-card';
-import { VatReportCard } from '@/features/transactions/components/vat-report-card';
 import { useFinanceReport } from '@/features/transactions/hooks/use-finance-report';
 import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
 import { formatMoney } from '@/lib/format';
@@ -144,8 +143,6 @@ export function FinanceOverview({ onSettleAdvance }: FinanceOverviewProps) {
               </CardContent>
             </Card>
           </div>
-
-          <VatReportCard from={from} to={to} />
 
           <UnsettledAdvancesCard onSettle={onSettleAdvance} />
 

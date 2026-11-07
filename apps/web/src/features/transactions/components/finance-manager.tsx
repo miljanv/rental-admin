@@ -38,6 +38,7 @@ import { SettleAdvancesDialog } from '@/features/transactions/components/settle-
 import { TransactionForm } from '@/features/transactions/components/transaction-form';
 import { TransactionsTable } from '@/features/transactions/components/transactions-table';
 import { UnsettledAdvancesCard } from '@/features/transactions/components/unsettled-advances-card';
+import { VatReportCard } from '@/features/transactions/components/vat-report-card';
 import { useTransactions } from '@/features/transactions/hooks/use-transactions';
 import { formatDate, formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -47,6 +48,7 @@ const SEARCH_DEBOUNCE_MS = 350;
 const ALL = 'all';
 const FINANCE_TABS = [
   { id: 'overview', label: 'Pregled' },
+  { id: 'vat', label: 'PDV obračun' },
   { id: 'ledger', label: 'Transakcije' },
   { id: 'statements', label: 'Izvodi' },
   { id: 'unallocated', label: 'Neraspoređene uplate' },
@@ -240,8 +242,10 @@ export function FinanceManager() {
         title="Finansije"
         description="Finansijski promet preko izvoda, ručne transakcije i odvojeni pregled prihoda i rashoda."
         actions={
-          showForm || activeTab === 'overview' || activeTab === 'unallocated' ? null : activeTab ===
-            'statements' ? (
+          showForm ||
+          activeTab === 'overview' ||
+          activeTab === 'vat' ||
+          activeTab === 'unallocated' ? null : activeTab === 'statements' ? (
             <Button onClick={openStatementForm}>
               <Plus className="size-4" aria-hidden />
               Nova stavka izvoda
@@ -322,7 +326,9 @@ export function FinanceManager() {
 
       {activeTab === 'overview' ? <FinanceOverview onSettleAdvance={setGroupToSettle} /> : null}
 
-      {activeTab !== 'overview' ? (
+      {activeTab === 'vat' ? <VatReportCard /> : null}
+
+      {activeTab !== 'overview' && activeTab !== 'vat' ? (
         <>
           {activeTab === 'cash' ? (
             <div className="mb-6">

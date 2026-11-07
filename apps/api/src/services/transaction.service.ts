@@ -5,6 +5,7 @@ import type {
   BankStatementImportResult,
   BankStatementPreviewResult,
   BankStatementXmlImportRequest,
+  Currency,
   DeleteTransactionResult,
   FinanceExportQueryRequest,
   FinanceReportDto,
@@ -34,6 +35,8 @@ import {
   buildFinanceReport,
   companyExpenseFinanceCategory,
   defaultFinanceReportRange,
+  isUnallocatableCategory,
+  toDinars,
 } from '@rental-admin/shared';
 
 import { prisma, type TransactionClient } from '../config/prisma';
@@ -49,7 +52,11 @@ import { buildPaginationMeta } from '../utils/api-response';
 import { badRequest, conflict, notFound } from '../utils/app-error';
 import { logger } from '../utils/logger';
 import { buildXlsx } from '../utils/xlsx';
-import { toTransactionDto, type FinanceTransactionRecord } from '../utils/transaction-mapper';
+import {
+  paymentSideAmount,
+  toTransactionDto,
+  type FinanceTransactionRecord,
+} from '../utils/transaction-mapper';
 import { requireOrganizationId } from '../utils/tenant-context';
 import {
   FINANCE_EXPORT_LEDGER_LIMIT,
@@ -132,7 +139,7 @@ export const transactionInclude = {
       nickname: true,
     },
   },
-  paymentAllocations: { select: { amount: true } },
+  paymentAllocations: { select: { amount: true, currencyAmount: true, exchangeDifference: true } },
 } as const;
 
 interface MatchableSupplier {
@@ -383,16 +390,28 @@ const findSupplierForStatementEntry = async (
   return supplier ? { ...supplier, matchedByAccount: false } : null;
 };
 
+const TAX_AUTHORITY_MARKERS = ['PORESK', 'BUDZET', 'TREZOR', 'JAVNIPRIHOD'];
+const CURRENCY_EXCHANGE_MARKERS = ['KONVERZ', 'PRODAJADEVIZ', 'OTKUPDEVIZ', 'KUPOPRODAJADEVIZ'];
+
 const inferStatementCategory = (
   type: TransactionType,
   payeeName: string | null,
   purpose: string | null,
 ): TransactionCategory => {
+  const text = normalizeMatchText(`${payeeName ?? ''} ${purpose ?? ''}`);
+
+  if (CURRENCY_EXCHANGE_MARKERS.some((marker) => text.includes(marker))) {
+    return 'TRANSFER';
+  }
+
+  // "PDV" alone also appears on ordinary invoices, so require the tax authority as well.
+  if (text.includes('PDV') && TAX_AUTHORITY_MARKERS.some((marker) => text.includes(marker))) {
+    return 'VAT';
+  }
+
   if (type === 'INCOME') {
     return 'CONTRACT';
   }
-
-  const text = normalizeMatchText(`${payeeName ?? ''} ${purpose ?? ''}`);
 
   if (text.includes('GORIVO') || text.includes('NIS') || text.includes('OMV')) {
     return 'FUEL';
@@ -420,6 +439,8 @@ interface ParsedStatementEntry {
 interface ParsedBankStatementXml {
   accountNumber: string | null;
   statementNumber: string | null;
+  /** Statement currency when the file states it (OFX `curdef`). */
+  currency: string | null;
   entries: ParsedStatementEntry[];
 }
 
@@ -447,8 +468,22 @@ const parseBankStatementXml = (xml: string): ParsedBankStatementXml => {
   return {
     accountNumber: tagText(xml, 'acctid'),
     statementNumber: tagText(xml, 'stmtnumber'),
+    currency: tagText(xml, 'curdef') ?? tagText(xml, 'currency'),
     entries,
   };
+};
+
+const DINAR_CURRENCY_CODES = ['RSD', '941', 'DIN'];
+
+/** Statement amounts are booked as dinars, so a foreign-currency statement must not be read. */
+const assertDinarStatement = (parsed: ParsedBankStatementXml): void => {
+  const currency = parsed.currency?.trim().toUpperCase();
+
+  if (currency && !DINAR_CURRENCY_CODES.includes(currency)) {
+    throw badRequest(
+      `Izvod je u valuti ${currency}. Uvoze se samo dinarski izvodi; uplatu u EUR unesite ručno kao transakciju u EUR.`,
+    );
+  }
 };
 
 const isValidStatementEntry = (entry: ParsedStatementEntry): boolean =>
@@ -532,10 +567,20 @@ const assertReferencesExist = async (input: {
   await assertContractExists(input.contractId);
 };
 
+const foreignCurrencyFields = (input: TransactionWriteRequest) =>
+  input.currency !== 'RSD' && input.currencyAmount !== null && input.exchangeRate !== null
+    ? {
+        currency: input.currency,
+        currencyAmount: input.currencyAmount,
+        exchangeRate: input.exchangeRate,
+        amount: toDinars(input.currencyAmount, input.exchangeRate),
+      }
+    : { currency: 'RSD' as const, currencyAmount: null, exchangeRate: null, amount: input.amount };
+
 const toManualWriteData = async (input: TransactionWriteRequest) => ({
   type: input.type,
   category: input.category,
-  amount: input.amount,
+  ...foreignCurrencyFields(input),
   occurredAt: parseDate(input.occurredAt),
   paymentMethod: input.paymentMethod,
   note: input.note,
@@ -591,8 +636,10 @@ export const listTransactions = async (
     LEFT JOIN payment_allocations a ON a."transactionId" = t.id
     WHERE t."sourceType" = 'BANK_STATEMENT'
       AND t."organizationId" = ${requireOrganizationId()}
+      -- UNALLOCATABLE_TRANSACTION_CATEGORIES: VAT and own-account transfers are never linked.
+      AND t.category::text NOT IN ('VAT', 'TRANSFER')
     GROUP BY t.id
-    HAVING t.amount - COALESCE(SUM(a.amount), 0) > 0.005
+    HAVING t.amount - COALESCE(SUM(a.amount + COALESCE(a."exchangeDifference", 0)), 0) > 0.005
   `
     : null;
   const where = {
@@ -677,6 +724,7 @@ export const importBankStatementXml = async (
   input: BankStatementXmlImportRequest,
 ): Promise<BankStatementImportResult> => {
   const parsed = parseBankStatementXml(input.xml);
+  assertDinarStatement(parsed);
 
   if (parsed.entries.length === 0) {
     throw badRequest('XML ne sadrži stavke izvoda.');
@@ -969,6 +1017,8 @@ export const loadStatementAllocationTargets = async (
         ],
         invoicedAt: { not: null, lte: input.occurredAt },
         paymentMethod: 'ACCOUNT',
+        // Statements are in dinars; EUR invoices are closed only by EUR payments.
+        invoiceCurrency: 'RSD',
       },
     });
     const groups = new Map<string, typeof trips>();
@@ -1069,6 +1119,7 @@ export const previewBankStatementXml = async (
   input: BankStatementXmlImportRequest,
 ): Promise<BankStatementPreviewResult> => {
   const parsed = parseBankStatementXml(input.xml);
+  assertDinarStatement(parsed);
 
   if (parsed.entries.length === 0) {
     throw badRequest('XML ne sadrži stavke izvoda.');
@@ -1511,6 +1562,8 @@ export const toPaymentAllocationDto = (record: {
   targetType: SettlementTargetType;
   targetId: string;
   amount: number;
+  currencyAmount: number | null;
+  exchangeDifference: number | null;
   note: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -1520,6 +1573,8 @@ export const toPaymentAllocationDto = (record: {
   targetType: record.targetType,
   targetId: record.targetId,
   amount: record.amount,
+  currencyAmount: record.currencyAmount,
+  exchangeDifference: record.exchangeDifference,
   note: record.note,
   createdAt: record.createdAt.toISOString(),
   updatedAt: record.updatedAt.toISOString(),
@@ -1547,6 +1602,55 @@ const allocatedByTarget = async (
 
   return new Map(rows.map((row) => [row.targetId, row._sum.amount ?? 0]));
 };
+
+const allocatedCurrencyByTarget = async (
+  targetType: SettlementTargetType,
+  targetIds: string[],
+  tx: TransactionClient = prisma,
+): Promise<Map<string, number>> => {
+  if (targetIds.length === 0) {
+    return new Map();
+  }
+
+  const rows = await tx.paymentAllocation.groupBy({
+    by: ['targetId'],
+    where: { targetType, targetId: { in: targetIds } },
+    _sum: { currencyAmount: true },
+  });
+
+  return new Map(rows.map((row) => [row.targetId, row._sum.currencyAmount ?? 0]));
+};
+
+type TargetCurrencyFields = Pick<
+  SettlementTargetDto,
+  'currency' | 'exchangeRate' | 'currencyTotalAmount' | 'currencyRemainingAmount'
+>;
+
+const DINAR_TARGET: TargetCurrencyFields = {
+  currency: 'RSD',
+  exchangeRate: null,
+  currencyTotalAmount: null,
+  currencyRemainingAmount: null,
+};
+
+const tripTargetCurrency = (
+  trip: {
+    invoiceCurrency: Currency;
+    invoiceExchangeRate: number | null;
+    invoiceCurrencyGrossAmount: number | null;
+  },
+  allocatedCurrency: number,
+): TargetCurrencyFields =>
+  trip.invoiceCurrency === 'RSD'
+    ? DINAR_TARGET
+    : {
+        currency: trip.invoiceCurrency,
+        exchangeRate: trip.invoiceExchangeRate,
+        currencyTotalAmount: trip.invoiceCurrencyGrossAmount,
+        currencyRemainingAmount: roundMoney(
+          (trip.invoiceCurrencyGrossAmount ?? 0) - allocatedCurrency,
+        ),
+      };
 
 const settlementTargetSearch = (query: string | undefined): string | undefined =>
   query?.trim() ? query.trim() : undefined;
@@ -1634,6 +1738,7 @@ const listCompanyExpenseSettlementTargets = async (
         totalAmount: record.amountWithVat,
         allocatedAmount,
         remainingAmount,
+        ...DINAR_TARGET,
       };
     })
     .filter((target) => target.remainingAmount > MONEY_EPSILON)
@@ -1688,6 +1793,8 @@ const listTripInvoiceSettlementTargets = async (
   query: ListSettlementTargetsQuery,
   preferred: PreferredSettlementCounterparty | null,
   resultLimit: number | null = query.limit,
+  /** Only invoices a payment in this currency can close; all when omitted. */
+  currency?: Currency,
 ): Promise<SettlementTargetDto[]> => {
   const search = settlementTargetSearch(query.search);
   const trips = await prisma.trip.findMany({
@@ -1695,6 +1802,7 @@ const listTripInvoiceSettlementTargets = async (
       invoicedAt: { not: null },
       paidAt: null,
       paymentMethod: 'ACCOUNT',
+      ...(currency ? { invoiceCurrency: currency } : {}),
       ...(preferred?.id
         ? {
             AND: [
@@ -1751,6 +1859,10 @@ const listTripInvoiceSettlementTargets = async (
     'TRIP_INVOICE',
     standalone.map((trip) => trip.id),
   );
+  const standaloneCurrencyAllocated = await allocatedCurrencyByTarget(
+    'TRIP_INVOICE',
+    standalone.filter((trip) => trip.invoiceCurrency !== 'RSD').map((trip) => trip.id),
+  );
   const seriesAllocated = await allocatedByTarget('TRIP_SERIES_INVOICE', [...seriesGroups.keys()]);
 
   const tripTargets = standalone.map((trip): SettlementTargetDto => {
@@ -1768,6 +1880,7 @@ const listTripInvoiceSettlementTargets = async (
       totalAmount,
       allocatedAmount,
       remainingAmount: roundMoney(totalAmount - allocatedAmount),
+      ...tripTargetCurrency(trip, standaloneCurrencyAllocated.get(trip.id) ?? 0),
     };
   });
 
@@ -1793,6 +1906,7 @@ const listTripInvoiceSettlementTargets = async (
       totalAmount,
       allocatedAmount,
       remainingAmount: roundMoney(totalAmount - allocatedAmount),
+      ...DINAR_TARGET,
     };
   });
 
@@ -1852,11 +1966,19 @@ export const listSettlementTargets = async (
 ): Promise<SettlementTargetsDto> => {
   let type = query.type;
   let preferred: PreferredSettlementCounterparty | null = null;
+  let currency: Currency | undefined;
 
   if (query.transactionId) {
     const transaction = await prisma.financeTransaction.findUnique({
       where: { id: query.transactionId },
-      select: { type: true, supplierId: true, supplier: true, partnerId: true, partner: true },
+      select: {
+        type: true,
+        supplierId: true,
+        supplier: true,
+        partnerId: true,
+        partner: true,
+        currency: true,
+      },
     });
 
     if (!transaction) {
@@ -1864,6 +1986,23 @@ export const listSettlementTargets = async (
     }
 
     type = transaction.type;
+    currency = transaction.currency;
+
+    // An EUR payment can only close an EUR trip invoice.
+    if (currency !== 'RSD') {
+      return {
+        targets:
+          type === 'INCOME'
+            ? await listTripInvoiceSettlementTargets(
+                query,
+                { id: transaction.partnerId, name: transaction.partner },
+                query.limit,
+                currency,
+              )
+            : [],
+      };
+    }
+
     preferred =
       transaction.type === 'EXPENSE'
         ? { id: transaction.supplierId, name: transaction.supplier }
@@ -1883,7 +2022,7 @@ export const listSettlementTargets = async (
     return {
       targets: [
         ...(await listOpeningDebtTargets(type, preferred, query.search)),
-        ...(await listTripInvoiceSettlementTargets(query, preferred)),
+        ...(await listTripInvoiceSettlementTargets(query, preferred, query.limit, currency)),
       ],
     };
   }
@@ -1918,6 +2057,7 @@ export const getSettlementTarget = async (
       totalAmount: record.amount,
       allocatedAmount,
       remainingAmount: roundMoney(record.amount - allocatedAmount),
+      ...DINAR_TARGET,
     };
   }
 
@@ -1948,6 +2088,7 @@ export const getSettlementTarget = async (
       totalAmount: record.amountWithVat,
       allocatedAmount,
       remainingAmount: roundMoney(record.amountWithVat - allocatedAmount),
+      ...DINAR_TARGET,
     };
   }
 
@@ -1971,6 +2112,10 @@ export const getSettlementTarget = async (
     if (record.paidAt && allocatedAmount <= MONEY_EPSILON)
       throw conflict('Faktura je već označena kao plaćena.');
     const totalAmount = record.invoiceGrossAmount ?? record.price ?? 0;
+    const allocatedCurrency =
+      record.invoiceCurrency === 'RSD'
+        ? 0
+        : ((await allocatedCurrencyByTarget(targetType, [targetId], tx)).get(targetId) ?? 0);
 
     return {
       targetType,
@@ -1983,6 +2128,7 @@ export const getSettlementTarget = async (
       totalAmount,
       allocatedAmount,
       remainingAmount: roundMoney(totalAmount - allocatedAmount),
+      ...tripTargetCurrency(record, allocatedCurrency),
     };
   }
 
@@ -2016,6 +2162,7 @@ export const getSettlementTarget = async (
     totalAmount,
     allocatedAmount,
     remainingAmount: roundMoney(totalAmount - allocatedAmount),
+    ...DINAR_TARGET,
   };
 };
 
@@ -2080,6 +2227,58 @@ export const refreshTargetPaidAt = async (
   });
 };
 
+/**
+ * How an EUR payment closes an EUR invoice: the invoice side is valued at the invoice rate and
+ * the payment side at the payment rate. The difference is the exchange gain (+) or loss (-).
+ * Covering the last euro of either side uses its exact remaining dinars, so no para is left open.
+ */
+const foreignAllocationSplit = (input: {
+  transaction: FinanceTransactionRecord;
+  target: SettlementTargetDto;
+  requestedCurrency: number | null;
+  availableOnTransaction: number;
+}): { invoiceSide: number; currencyAmount: number; exchangeDifference: number } | null => {
+  const { transaction, target, requestedCurrency } = input;
+
+  if (target.currency === 'RSD') {
+    return null;
+  }
+
+  if (requestedCurrency === null) {
+    throw badRequest('Unesite koliko evra ova uplata pokriva.');
+  }
+
+  if (target.exchangeRate === null || transaction.exchangeRate === null) {
+    throw conflict('Kurs nije unet na fakturi ili na uplati.');
+  }
+
+  const freeOnTransaction = toTransactionDto(transaction).unallocatedCurrencyAmount ?? 0;
+  const freeOnTarget = target.currencyRemainingAmount ?? 0;
+
+  if (requestedCurrency > freeOnTransaction + MONEY_EPSILON) {
+    throw badRequest('Iznos je veći od nerasporedjenog dela uplate u EUR.');
+  }
+
+  if (requestedCurrency > freeOnTarget + MONEY_EPSILON) {
+    throw badRequest('Iznos je veći od otvorenog dela fakture u EUR.');
+  }
+
+  const invoiceSide =
+    Math.abs(requestedCurrency - freeOnTarget) <= MONEY_EPSILON
+      ? roundMoney(target.remainingAmount)
+      : toDinars(requestedCurrency, target.exchangeRate);
+  const paymentSide =
+    Math.abs(requestedCurrency - freeOnTransaction) <= MONEY_EPSILON
+      ? input.availableOnTransaction
+      : toDinars(requestedCurrency, transaction.exchangeRate);
+
+  return {
+    invoiceSide,
+    currencyAmount: requestedCurrency,
+    exchangeDifference: roundMoney(paymentSide - invoiceSide),
+  };
+};
+
 export const applyPaymentAllocation = async (
   tx: TransactionClient,
   transactionId: string,
@@ -2100,6 +2299,10 @@ export const applyPaymentAllocation = async (
 
   if (transaction.paymentMethod !== 'ACCOUNT') {
     throw conflict('Keš transakcije se vode samo u odvojenoj keš evidenciji.');
+  }
+
+  if (isUnallocatableCategory(transaction.category)) {
+    throw conflict('PDV i prenos između računa se ne povezuju sa računima.');
   }
 
   if (!targetTypeForTransactionType(transaction.type).includes(input.targetType)) {
@@ -2170,18 +2373,34 @@ export const applyPaymentAllocation = async (
   }
 
   const allocatedOnTransaction = transaction.paymentAllocations.reduce(
-    (sum, allocation) => sum + allocation.amount,
+    (sum, allocation) => sum + paymentSideAmount(allocation),
     0,
   );
   const availableOnTransaction = roundMoney(transaction.amount - allocatedOnTransaction);
   const target = await getSettlementTarget(input.targetType, input.targetId, tx);
   const availableOnTarget = roundMoney(target.remainingAmount);
 
-  if (input.amount > availableOnTransaction + MONEY_EPSILON) {
+  if (transaction.currency !== target.currency) {
+    throw conflict(
+      transaction.currency === 'RSD'
+        ? 'Faktura je u EUR i zatvara se samo uplatom u EUR.'
+        : 'Uplata u EUR se povezuje samo sa fakturom u EUR.',
+    );
+  }
+
+  const split = foreignAllocationSplit({
+    transaction,
+    target,
+    requestedCurrency: input.currencyAmount ?? null,
+    availableOnTransaction,
+  });
+  const amount = split ? split.invoiceSide : input.amount;
+
+  if (!split && amount > availableOnTransaction + MONEY_EPSILON) {
     throw badRequest('Iznos je veći od nerasknjiženog dela transakcije.');
   }
 
-  if (input.amount > availableOnTarget + MONEY_EPSILON) {
+  if (!split && amount > availableOnTarget + MONEY_EPSILON) {
     throw badRequest('Iznos je veći od otvorenog zaduženja.');
   }
 
@@ -2197,11 +2416,19 @@ export const applyPaymentAllocation = async (
       transactionId,
       targetType: input.targetType,
       targetId: input.targetId,
-      amount: input.amount,
+      amount,
+      currencyAmount: split?.currencyAmount ?? null,
+      exchangeDifference: split?.exchangeDifference ?? null,
       note: input.note,
     },
     update: {
-      amount: { increment: input.amount },
+      amount: { increment: amount },
+      ...(split
+        ? {
+            currencyAmount: { increment: split.currencyAmount },
+            exchangeDifference: { increment: split.exchangeDifference },
+          }
+        : {}),
       note: input.note,
     },
   });
@@ -2209,6 +2436,8 @@ export const applyPaymentAllocation = async (
   await recordFinanceAudit(tx, transactionId, 'ALLOCATION_CREATED', {
     allocationId: allocation.id,
     ...input,
+    amount,
+    ...(split ?? {}),
   });
   await refreshTargetPaidAt(input.targetType, input.targetId, transaction.occurredAt, tx);
 
@@ -2370,6 +2599,8 @@ export const getFinanceReport = async (
         // Advances are cash held for a later justification, never a final
         // business expense. They remain visible in the transaction ledger.
         isAdvance: false,
+        // Money moved between own accounts is neither revenue nor cost.
+        category: { not: 'TRANSFER' },
       },
       select: {
         type: true,

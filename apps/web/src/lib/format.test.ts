@@ -4,6 +4,7 @@ import {
   formatDate,
   formatDateTime,
   formatDateTimeSr,
+  formatEuro,
   formatFileSize,
   formatKilometers,
   formatMimeType,
@@ -119,5 +120,13 @@ describe('getFileExtension', () => {
   it('returns an empty string when there is no extension', () => {
     expect(getFileExtension('README')).toBe('');
     expect(getFileExtension('.env')).toBe('');
+  });
+});
+
+describe('formatEuro', () => {
+  it('formats euros with Serbian separators and a dash for missing values', () => {
+    expect(formatEuro(2_143)).toMatch(/^2\.143,00\s€$/);
+    expect(formatEuro(null)).toBe('—');
+    expect(formatEuro(Number.NaN)).toBe('—');
   });
 });

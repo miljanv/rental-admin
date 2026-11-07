@@ -130,6 +130,21 @@ export const formatMoney = (amount: number | null | undefined): string => {
   return moneyFormatter.format(amount);
 };
 
+const euroFormatter = new Intl.NumberFormat('sr-Latn', {
+  style: 'currency',
+  currency: 'EUR',
+  maximumFractionDigits: 2,
+});
+
+/** Euro amount, for example "2.143,00 €". */
+export const formatEuro = (amount: number | null | undefined): string => {
+  if (amount == null || !Number.isFinite(amount)) {
+    return '—';
+  }
+
+  return euroFormatter.format(amount);
+};
+
 const compactMoneyFormatter = new Intl.NumberFormat('sr-Latn', {
   notation: 'compact',
   maximumFractionDigits: 1,

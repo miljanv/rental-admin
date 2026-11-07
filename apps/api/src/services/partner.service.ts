@@ -18,6 +18,7 @@ import { conflict, notFound } from '../utils/app-error';
 import { buildPaginationMeta } from '../utils/api-response';
 import { logger } from '../utils/logger';
 import { toPartnerDto, type PartnerRecord } from '../utils/partner-mapper';
+import { paymentSideAmount } from '../utils/transaction-mapper';
 import { requireOrganizationId } from '../utils/tenant-context';
 
 type PartnerOrderBy = Partial<Record<PartnerSortField, SortOrder>>;
@@ -405,6 +406,7 @@ export const getPartnerLedger = async (
     .map((payment): PaymentLedgerDraft | null => {
       const postedAt = toIsoDate(payment.occurredAt);
       const allocationsForPayment = allocationsByTransaction.get(payment.id) ?? [];
+      // Payment-side dinars: an EUR payment's own value, exchange difference included.
       const allocationCredit = roundMoney(
         allocationsForPayment.reduce((sum, allocation) => {
           const key = invoiceTargetKey(
@@ -412,7 +414,7 @@ export const getPartnerLedger = async (
             allocation.targetId,
           );
 
-          return targetKeys.has(key) ? sum + allocation.amount : sum;
+          return targetKeys.has(key) ? sum + paymentSideAmount(allocation) : sum;
         }, 0),
       );
       const matchedByPartner =
@@ -457,6 +459,45 @@ export const getPartnerLedger = async (
       };
     })
     .filter((entry): entry is PaymentLedgerDraft => Boolean(entry));
+
+  // The invoice is closed at its own rate, the payment is credited at the payment rate. The
+  // exchange difference evens the two out, so a fully paid EUR invoice leaves no fake debt.
+  const paymentDates = new Map(payments.map((payment) => [payment.id, payment.occurredAt]));
+  const exchangeDrafts: PaymentLedgerDraft[] = allocations
+    .filter(
+      (allocation) =>
+        Math.abs(allocation.exchangeDifference ?? 0) > MONEY_EPSILON &&
+        paymentDates.has(allocation.transactionId),
+    )
+    .map((allocation) => {
+      const difference = roundMoney(allocation.exchangeDifference ?? 0);
+      const postedAt = toIsoDate(paymentDates.get(allocation.transactionId)!);
+      const document = targetLabelByKey.get(
+        invoiceTargetKey(
+          allocation.targetType as 'TRIP_INVOICE' | 'TRIP_SERIES_INVOICE',
+          allocation.targetId,
+        ),
+      );
+
+      return {
+        id: `exchange:${allocation.id}`,
+        type: 'EXCHANGE_DIFFERENCE',
+        postedAt,
+        sortDate: postedAt,
+        documentType: difference > 0 ? 'Pozitivna kursna razlika' : 'Negativna kursna razlika',
+        documentNumber: null,
+        externalDocumentNumber: document ?? null,
+        description: `Kursna razlika za ${allocation.currencyAmount ?? 0} EUR`,
+        dueDate: null,
+        remainingAmount: null,
+        daysOverdue: null,
+        debit: difference > 0 ? difference : 0,
+        credit: difference < 0 ? -difference : 0,
+        sourceType: 'FINANCE_TRANSACTION',
+        sourceId: allocation.transactionId,
+      };
+    });
+  paymentDrafts.push(...exchangeDrafts);
 
   const openingDraftEntries: PaymentLedgerDraft[] = (
     await openingLedgerEntries({ partyType: 'PARTNER', partyId: id })

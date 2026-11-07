@@ -25,6 +25,9 @@ const record: FinanceTransactionRecord = {
   sourceId: null,
   statementNumber: null,
   bankReference: null,
+  currency: 'RSD',
+  currencyAmount: null,
+  exchangeRate: null,
   paymentAllocations: [],
   createdAt: new Date('2026-08-15T10:00:00.000Z'),
   updatedAt: new Date('2026-08-15T10:00:00.000Z'),
@@ -57,7 +60,10 @@ describe('toTransactionDto', () => {
       toTransactionDto({
         ...record,
         amount: 100_000,
-        paymentAllocations: [{ amount: 30_000 }, { amount: 20_000 }],
+        paymentAllocations: [
+          { amount: 30_000, currencyAmount: null, exchangeDifference: null },
+          { amount: 20_000, currencyAmount: null, exchangeDifference: null },
+        ],
       }),
     ).toMatchObject({
       allocatedAmount: 50_000,

@@ -15,7 +15,7 @@ import {
   usePaymentAllocations,
   useReverseAllocation,
 } from '../hooks/use-payment-settlement';
-import { formatDate, formatMoney } from '@/lib/format';
+import { formatDate, formatEuro, formatMoney } from '@/lib/format';
 
 const auditLabels: Record<string, string> = {
   ALLOCATION_CREATED: 'Povezan račun',
@@ -154,94 +154,103 @@ export function PaymentSettlementControls({
           </Button>
         </div>
       ) : null}
-      <div className="space-y-3">
-        <h3 className="font-semibold">Rasporedi po najstarijim dugovanjima stranke</h3>
+      {transaction.currency !== 'RSD' ? (
         <p className="text-sm text-muted-foreground">
-          {linkedId ? (
-            <>
-              Raspoređuje se do {formatMoney(transaction.unallocatedAmount)} samo na otvorena
-              dugovanja stranke <strong>{isIncome ? transaction.partner : transaction.supplier}</strong>.
-              Račun može biti delimično plaćen; višak ostaje dostupan za kasnije.
-            </>
-          ) : (
-            <>
-              Prvo izaberite i povežite kupca ili dobavljača. Raspored se nikada ne pravi preko
-              dugovanja različitih stranaka.
-            </>
-          )}
+          Uplata u EUR se povezuje ručno, ispod, sa fakturom u EUR. Raspored po starosti važi samo
+          za dinarske uplate.
         </p>
-        {transaction.note?.includes('Poziv ') ? (
-          <label className="flex items-start gap-2 text-sm">
-            <Checkbox
-              checked={ignoreReference}
-              disabled={busy}
-              onCheckedChange={(value) => {
-                setIgnoreReference(value === true);
-                preview.reset();
-              }}
-            />
-            Potvrđujem raspoređivanje po starosti bez obzira na poziv na broj
-          </label>
-        ) : null}
-        <Button
-          variant="outline"
-          disabled={!linkedId || transaction.unallocatedAmount <= 0.005 || busy}
-          onClick={() => {
-            preview.reset();
-            preview.mutate({ id: transaction.id, body: { ignoreReference } });
-          }}
-        >
-          {preview.isPending
-            ? 'Priprema…'
-            : linkedId
-              ? 'Prikaži predlog'
-              : 'Prvo povežite stranku'}
-        </Button>
-        {plan ? (
-          <div className="space-y-3 rounded-md bg-muted p-3">
-            {plan.allocations.length ? (
-              plan.allocations.map((row) => (
-                <div
-                  key={`${row.targetType}:${row.targetId}`}
-                  className="flex justify-between gap-3 text-sm"
-                >
-                  <span>
-                    {row.label} · {formatDate(row.issuedAt)}
-                    <span className="block text-muted-foreground">
-                      Ostaje na računu: {formatMoney(Math.max(0, row.remainingAmount - row.amount))}
-                    </span>
-                  </span>
-                  <strong>{formatMoney(row.amount)}</strong>
-                </div>
-              ))
+      ) : (
+        <div className="space-y-3">
+          <h3 className="font-semibold">Rasporedi po najstarijim dugovanjima stranke</h3>
+          <p className="text-sm text-muted-foreground">
+            {linkedId ? (
+              <>
+                Raspoređuje se do {formatMoney(transaction.unallocatedAmount)} samo na otvorena
+                dugovanja stranke{' '}
+                <strong>{isIncome ? transaction.partner : transaction.supplier}</strong>. Račun može
+                biti delimično plaćen; višak ostaje dostupan za kasnije.
+              </>
             ) : (
-              <p className="text-sm">
-                Nema odgovarajućih dugovanja.{' '}
-                {plan.reference && !plan.ignoreReference
-                  ? 'Proverite poziv na broj ili izričito odobrite raspored po starosti.'
-                  : 'Iznos ostaje neraspoređen.'}
-              </p>
+              <>
+                Prvo izaberite i povežite kupca ili dobavljača. Raspored se nikada ne pravi preko
+                dugovanja različitih stranaka.
+              </>
             )}
-            <p className="text-sm">
-              Ukupno za raspoređivanje: {formatMoney(plan.allocatedAmount)} · Neraspoređeno:{' '}
-              {formatMoney(plan.remainingAmount)}
-            </p>
-            <Button
-              disabled={busy || !plan.allocations.length}
-              onClick={() =>
-                void change(() =>
-                  confirm.mutateAsync({
-                    id: transaction.id,
-                    body: { ignoreReference: plan.ignoreReference, token: plan.token },
-                  }),
-                )
-              }
-            >
-              {confirm.isPending ? 'Čuvanje…' : 'Potvrdi ovaj raspored'}
-            </Button>
-          </div>
-        ) : null}
-      </div>
+          </p>
+          {transaction.note?.includes('Poziv ') ? (
+            <label className="flex items-start gap-2 text-sm">
+              <Checkbox
+                checked={ignoreReference}
+                disabled={busy}
+                onCheckedChange={(value) => {
+                  setIgnoreReference(value === true);
+                  preview.reset();
+                }}
+              />
+              Potvrđujem raspoređivanje po starosti bez obzira na poziv na broj
+            </label>
+          ) : null}
+          <Button
+            variant="outline"
+            disabled={!linkedId || transaction.unallocatedAmount <= 0.005 || busy}
+            onClick={() => {
+              preview.reset();
+              preview.mutate({ id: transaction.id, body: { ignoreReference } });
+            }}
+          >
+            {preview.isPending
+              ? 'Priprema…'
+              : linkedId
+                ? 'Prikaži predlog'
+                : 'Prvo povežite stranku'}
+          </Button>
+          {plan ? (
+            <div className="space-y-3 rounded-md bg-muted p-3">
+              {plan.allocations.length ? (
+                plan.allocations.map((row) => (
+                  <div
+                    key={`${row.targetType}:${row.targetId}`}
+                    className="flex justify-between gap-3 text-sm"
+                  >
+                    <span>
+                      {row.label} · {formatDate(row.issuedAt)}
+                      <span className="block text-muted-foreground">
+                        Ostaje na računu:{' '}
+                        {formatMoney(Math.max(0, row.remainingAmount - row.amount))}
+                      </span>
+                    </span>
+                    <strong>{formatMoney(row.amount)}</strong>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm">
+                  Nema odgovarajućih dugovanja.{' '}
+                  {plan.reference && !plan.ignoreReference
+                    ? 'Proverite poziv na broj ili izričito odobrite raspored po starosti.'
+                    : 'Iznos ostaje neraspoređen.'}
+                </p>
+              )}
+              <p className="text-sm">
+                Ukupno za raspoređivanje: {formatMoney(plan.allocatedAmount)} · Neraspoređeno:{' '}
+                {formatMoney(plan.remainingAmount)}
+              </p>
+              <Button
+                disabled={busy || !plan.allocations.length}
+                onClick={() =>
+                  void change(() =>
+                    confirm.mutateAsync({
+                      id: transaction.id,
+                      body: { ignoreReference: plan.ignoreReference, token: plan.token },
+                    }),
+                  )
+                }
+              >
+                {confirm.isPending ? 'Čuvanje…' : 'Potvrdi ovaj raspored'}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      )}
       <div className="space-y-3">
         <h3 className="font-semibold">Postojeća povezivanja</h3>
         {history.isPending ? (
@@ -274,6 +283,12 @@ export function PaymentSettlementControls({
                   <div key={row.id} className="flex items-center justify-between gap-3 text-sm">
                     <span>
                       {row.label} · {formatMoney(row.amount)}
+                      {row.currencyAmount != null ? ` (${formatEuro(row.currencyAmount)})` : ''}
+                      {row.exchangeDifference ? (
+                        <span className="text-muted-foreground block text-xs">
+                          Kursna razlika: {formatMoney(row.exchangeDifference)}
+                        </span>
+                      ) : null}
                     </span>
                     <Button
                       size="sm"

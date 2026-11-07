@@ -1,6 +1,6 @@
 import {
   buildTripStats,
-  computeSplitTransportFare,
+  computeCurrencyTransportFare,
   defaultTripStatsRange,
   invoiceMonthBounds,
   seriesInvoiceGroupId,
@@ -184,12 +184,33 @@ const syncSeriesInvoiceRevenue = async (groupId: string): Promise<void> => {
   );
 };
 
-const fareForInvoice = (input: TripInvoiceWriteRequest): TransportVatResult =>
-  computeSplitTransportFare({
+const isForeignCurrencyInvoice = (input: TripInvoiceWriteRequest): boolean =>
+  input.currency !== 'RSD' && input.paymentMethod === 'ACCOUNT' && input.exchangeRate !== null;
+
+/** Typed fares are in the invoice currency; finance and VAT always use the dinar figures. */
+const currencyFareForInvoice = (input: TripInvoiceWriteRequest) =>
+  computeCurrencyTransportFare({
     domesticAmount: input.domesticPrice ?? 0,
     domesticIncludesVat: input.paymentMethod === 'CASH' ? false : input.priceIncludesVat,
     foreignAmount: input.foreignPrice ?? 0,
+    exchangeRate: isForeignCurrencyInvoice(input) ? input.exchangeRate : null,
   });
+
+const fareForInvoice = (input: TripInvoiceWriteRequest): TransportVatResult =>
+  currencyFareForInvoice(input).dinars;
+
+const invoiceCurrencyColumns = (input: TripInvoiceWriteRequest) =>
+  isForeignCurrencyInvoice(input)
+    ? {
+        invoiceCurrency: input.currency,
+        invoiceExchangeRate: input.exchangeRate,
+        invoiceCurrencyGrossAmount: currencyFareForInvoice(input).currencyGrossAmount,
+      }
+    : {
+        invoiceCurrency: 'RSD' as const,
+        invoiceExchangeRate: null,
+        invoiceCurrencyGrossAmount: null,
+      };
 
 const invoiceColumns = (
   input: TripInvoiceWriteRequest,
@@ -200,6 +221,7 @@ const invoiceColumns = (
     price: fare.grossAmount,
     paymentMethod: input.paymentMethod,
     referenceNumber: input.referenceNumber,
+    ...invoiceCurrencyColumns(input),
   };
 
   if (input.paymentMethod === 'CASH') {

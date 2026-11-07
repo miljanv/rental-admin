@@ -2,15 +2,19 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  CURRENCIES,
+  CURRENCY_LABELS,
   TRANSACTION_CATEGORIES,
   TRANSACTION_CATEGORY_LABELS,
   TRANSACTION_TYPE_LABELS,
   TRANSACTION_TYPES,
   PAYMENT_METHOD_LABELS,
+  toDinars,
   type PaymentMethod,
   type TransactionDto,
   type TransactionWriteRequest,
 } from '@rental-admin/shared';
+import { useEffect } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 
 import { DateField } from '@/components/common/date-field';
@@ -38,6 +42,7 @@ import {
 } from '@/features/transactions/schemas/transaction-form-schema';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
 import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
+import { formatMoney } from '@/lib/format';
 import { sortAlphabetically } from '@/lib/sort-options';
 import { cn } from '@/lib/utils';
 
@@ -67,6 +72,9 @@ function Field({ id, label, error, children }: FieldProps) {
 }
 
 const NONE = 'none';
+
+const positiveNumber = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
 
 export function TransactionForm({
   transaction,
@@ -116,6 +124,9 @@ export function TransactionForm({
           driverId: transaction.driver?.id ?? '',
           contractId: transaction.contractId ?? '',
           isAdvance: transaction.isAdvance,
+          currency: transaction.currency,
+          currencyAmount: transaction.currencyAmount ?? '',
+          exchangeRate: transaction.exchangeRate ?? '',
         }
       : {
           ...EMPTY_TRANSACTION_FORM,
@@ -124,12 +135,36 @@ export function TransactionForm({
   });
 
   const isAdvance = useWatch({ control: form.control, name: 'isAdvance' });
+  const currency = useWatch({ control: form.control, name: 'currency' }) ?? 'RSD';
+  const currencyAmount = positiveNumber(
+    useWatch({ control: form.control, name: 'currencyAmount' }),
+  );
+  const exchangeRate = positiveNumber(useWatch({ control: form.control, name: 'exchangeRate' }));
+  const isForeign = currency !== 'RSD';
+  const canUseForeign = !isAdvance && fixedPaymentMethod !== 'CASH';
+  const dinarValue =
+    isForeign && currencyAmount && exchangeRate ? toDinars(currencyAmount, exchangeRate) : null;
   const errors = form.formState.errors;
 
+  // EUR payments: the dinar amount always follows the EUR amount and the payment-day rate.
+  useEffect(() => {
+    if (dinarValue != null) {
+      form.setValue('amount', dinarValue, { shouldValidate: form.formState.isSubmitted });
+    }
+  }, [dinarValue, form]);
+
+  // Advances and cash stay in dinars.
+  useEffect(() => {
+    if (!canUseForeign && isForeign) {
+      form.setValue('currency', 'RSD');
+    }
+  }, [canUseForeign, isForeign, form]);
+
   const onSubmit = form.handleSubmit(async (values) => {
+    const inCurrency = canUseForeign ? values : { ...values, currency: 'RSD' as const };
     const withPaymentMethod = fixedPaymentMethod
-      ? { ...values, paymentMethod: fixedPaymentMethod }
-      : values;
+      ? { ...inCurrency, paymentMethod: fixedPaymentMethod }
+      : inCurrency;
     const payload: TransactionWriteRequest = isAdvance
       ? { ...withPaymentMethod, type: 'EXPENSE' }
       : withPaymentMethod;
@@ -229,17 +264,89 @@ export function TransactionForm({
               />
             </Field>
 
-            <Field id="amount" label="Iznos (RSD)" error={errors.amount?.message}>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                inputMode="decimal"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.amount)}
-                {...form.register('amount', { valueAsNumber: true })}
+            {canUseForeign ? (
+              <Controller
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <Field id="currency" label="Valuta" error={errors.currency?.message}>
+                    <Select
+                      value={field.value ?? 'RSD'}
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        if (value !== 'RSD') {
+                          form.setValue('paymentMethod', 'ACCOUNT');
+                        }
+                      }}
+                      disabled={isPending}
+                    >
+                      <SelectTrigger id="currency" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CURRENCIES.map((value) => (
+                          <SelectItem key={value} value={value}>
+                            {CURRENCY_LABELS[value]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
               />
-            </Field>
+            ) : null}
+
+            {isForeign && canUseForeign ? (
+              <>
+                <Field
+                  id="currencyAmount"
+                  label="Iznos (EUR)"
+                  error={errors.currencyAmount?.message ?? errors.amount?.message}
+                >
+                  <Input
+                    id="currencyAmount"
+                    type="number"
+                    step="0.01"
+                    inputMode="decimal"
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.currencyAmount)}
+                    {...form.register('currencyAmount', { valueAsNumber: true })}
+                  />
+                </Field>
+                <Field
+                  id="exchangeRate"
+                  label="Kurs na dan uplate"
+                  error={errors.exchangeRate?.message}
+                >
+                  <Input
+                    id="exchangeRate"
+                    type="number"
+                    step="0.0001"
+                    inputMode="decimal"
+                    placeholder="npr. 117,2000"
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.exchangeRate)}
+                    {...form.register('exchangeRate', { valueAsNumber: true })}
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    U dinarima: {dinarValue != null ? formatMoney(dinarValue) : '—'}. Evri ostaju na
+                    deviznom računu.
+                  </p>
+                </Field>
+              </>
+            ) : (
+              <Field id="amount" label="Iznos (RSD)" error={errors.amount?.message}>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  inputMode="decimal"
+                  disabled={isPending}
+                  aria-invalid={Boolean(errors.amount)}
+                  {...form.register('amount', { valueAsNumber: true })}
+                />
+              </Field>
+            )}
 
             {fixedPaymentMethod ? (
               <Field id="paymentMethod" label="Način plaćanja">

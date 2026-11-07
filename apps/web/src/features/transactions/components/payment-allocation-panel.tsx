@@ -2,6 +2,7 @@
 
 import {
   SETTLEMENT_TARGET_TYPE_LABELS,
+  toDinars,
   type PaymentAllocationWriteRequest,
   type SettlementTargetDto,
   type TransactionDto,
@@ -18,7 +19,7 @@ import { Label } from '@/components/ui/label';
 import { PaymentSettlementControls } from './payment-settlement-controls';
 import { useCreatePaymentAllocation } from '@/features/transactions/hooks/use-create-payment-allocation';
 import { useSettlementTargets } from '@/features/transactions/hooks/use-settlement-targets';
-import { formatDate, formatMoney } from '@/lib/format';
+import { formatDate, formatEuro, formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 interface PaymentAllocationPanelProps {
@@ -69,26 +70,61 @@ export function PaymentAllocationPanel({
       normalizeSearchText(`${target.counterparty} ${target.label}`).includes(normalizedSearch),
     );
   }, [search, targetsQuery.data?.targets]);
+  const isForeign = transaction.currency !== 'RSD';
+  const freeCurrency = transaction.unallocatedCurrencyAmount ?? 0;
   const suggested = selectedTarget
-    ? Math.min(transaction.unallocatedAmount, selectedTarget.remainingAmount)
+    ? isForeign
+      ? Math.min(freeCurrency, selectedTarget.currencyRemainingAmount ?? 0)
+      : Math.min(transaction.unallocatedAmount, selectedTarget.remainingAmount)
     : 0;
   const amount =
     amountOverride ??
     (selectedTarget ? String(Math.max(0, Math.round(suggested * 100) / 100)) : '');
+  const typedAmount = Number(amount);
 
-  const canSubmit = Boolean(selectedTarget) && Number(amount) > 0 && !mutation.isPending;
+  // Mirrors the API: the invoice closes at its own rate, the payment counts at its rate.
+  const foreignPreview =
+    isForeign && selectedTarget && typedAmount > 0
+      ? (() => {
+          const coversInvoice =
+            Math.abs(typedAmount - (selectedTarget.currencyRemainingAmount ?? 0)) < 0.005;
+          const usesPayment = Math.abs(typedAmount - freeCurrency) < 0.005;
+          const invoiceSide = coversInvoice
+            ? selectedTarget.remainingAmount
+            : toDinars(typedAmount, selectedTarget.exchangeRate ?? 0);
+          const paymentSide = usesPayment
+            ? transaction.unallocatedAmount
+            : toDinars(typedAmount, transaction.exchangeRate ?? 0);
+
+          return {
+            invoiceSide,
+            paymentSide,
+            difference: Math.round((paymentSide - invoiceSide) * 100) / 100,
+          };
+        })()
+      : null;
+
+  const canSubmit = Boolean(selectedTarget) && typedAmount > 0 && !mutation.isPending;
 
   const submit = async () => {
     if (!selectedTarget) {
       return;
     }
 
-    const body: PaymentAllocationWriteRequest = {
-      targetType: selectedTarget.targetType,
-      targetId: selectedTarget.targetId,
-      amount: Number(amount),
-      note,
-    };
+    const body: PaymentAllocationWriteRequest = foreignPreview
+      ? {
+          targetType: selectedTarget.targetType,
+          targetId: selectedTarget.targetId,
+          amount: foreignPreview.invoiceSide,
+          currencyAmount: typedAmount,
+          note,
+        }
+      : {
+          targetType: selectedTarget.targetType,
+          targetId: selectedTarget.targetId,
+          amount: typedAmount,
+          note,
+        };
 
     try {
       await mutation.mutateAsync({ transactionId: transaction.id, body });
@@ -106,8 +142,19 @@ export function PaymentAllocationPanel({
           Rasknjižavanje
         </CardTitle>
         <CardDescription>
-          {formatMoney(transaction.unallocatedAmount)} je nerasknjiženo od transakcije{' '}
-          {formatMoney(transaction.amount)} od {formatDate(transaction.occurredAt)}.
+          {isForeign ? (
+            <>
+              {formatEuro(freeCurrency)} je nerasknjiženo od uplate{' '}
+              {formatEuro(transaction.currencyAmount)} ({formatMoney(transaction.amount)} po kursu{' '}
+              {transaction.exchangeRate}) od {formatDate(transaction.occurredAt)}. Uplata u EUR
+              zatvara samo fakture u EUR.
+            </>
+          ) : (
+            <>
+              {formatMoney(transaction.unallocatedAmount)} je nerasknjiženo od transakcije{' '}
+              {formatMoney(transaction.amount)} od {formatDate(transaction.occurredAt)}.
+            </>
+          )}
           {transaction.type === 'EXPENSE' && transaction.supplier ? (
             <> Prepoznat dobavljač: {transaction.supplier}.</>
           ) : transaction.type === 'INCOME' && transaction.partner ? (
@@ -227,9 +274,13 @@ export function PaymentAllocationPanel({
                     </span>
                   </span>
                   <span className="shrink-0 text-right text-sm font-semibold">
-                    {formatMoney(target.remainingAmount)}
+                    {target.currency !== 'RSD'
+                      ? formatEuro(target.currencyRemainingAmount)
+                      : formatMoney(target.remainingAmount)}
                     <span className="text-muted-foreground block text-xs font-normal">
-                      preostalo
+                      {target.currency !== 'RSD'
+                        ? `preostalo · ${formatMoney(target.remainingAmount)}`
+                        : 'preostalo'}
                     </span>
                   </span>
                 </button>
@@ -256,7 +307,10 @@ export function PaymentAllocationPanel({
               <div className="rounded-lg border p-3 text-sm">
                 <span className="font-medium">{selectedTarget.counterparty}</span>
                 <span className="text-muted-foreground block text-xs">
-                  {selectedTarget.label} · ukupno {formatMoney(selectedTarget.totalAmount)}
+                  {selectedTarget.label} · ukupno{' '}
+                  {selectedTarget.currency !== 'RSD'
+                    ? `${formatEuro(selectedTarget.currencyTotalAmount)} (kurs ${selectedTarget.exchangeRate})`
+                    : formatMoney(selectedTarget.totalAmount)}
                 </span>
               </div>
             ) : (
@@ -267,7 +321,7 @@ export function PaymentAllocationPanel({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="settlement-amount">Iznos</Label>
+            <Label htmlFor="settlement-amount">{isForeign ? 'Iznos (EUR)' : 'Iznos'}</Label>
             <Input
               id="settlement-amount"
               type="number"
@@ -278,6 +332,24 @@ export function PaymentAllocationPanel({
             />
           </div>
         </div>
+
+        {foreignPreview ? (
+          <p className="text-muted-foreground rounded-lg border p-3 text-sm">
+            Faktura se zatvara za {formatMoney(foreignPreview.invoiceSide)} (kurs fakture), a uplata
+            vredi {formatMoney(foreignPreview.paymentSide)} (kurs uplate).{' '}
+            <span
+              className={cn(
+                'font-medium',
+                foreignPreview.difference < 0 && 'text-rose-700 dark:text-rose-300',
+                foreignPreview.difference > 0 && 'text-emerald-700 dark:text-emerald-300',
+              )}
+            >
+              {foreignPreview.difference === 0
+                ? 'Nema kursne razlike.'
+                : `${foreignPreview.difference > 0 ? 'Pozitivna' : 'Negativna'} kursna razlika: ${formatMoney(foreignPreview.difference)}.`}
+            </span>
+          </p>
+        ) : null}
 
         <div className="space-y-1.5">
           <Label htmlFor="settlement-note">Napomena</Label>

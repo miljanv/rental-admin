@@ -30,6 +30,8 @@ const CATEGORY_FILL: Record<TransactionCategory, string> = {
   SUBCONTRACTOR: 'fill-[#9333ea] dark:fill-[#c084fc]',
   BANK: 'fill-[#475569] dark:fill-[#94a3b8]',
   OTHER: 'fill-[#57534e] dark:fill-[#a8a29e]',
+  VAT: 'fill-[#b45309] dark:fill-[#f59e0b]',
+  TRANSFER: 'fill-[#64748b] dark:fill-[#cbd5e1]',
 };
 
 const CATEGORY_BG: Record<TransactionCategory, string> = {
@@ -43,6 +45,8 @@ const CATEGORY_BG: Record<TransactionCategory, string> = {
   SUBCONTRACTOR: 'bg-[#9333ea] dark:bg-[#c084fc]',
   BANK: 'bg-[#475569] dark:bg-[#94a3b8]',
   OTHER: 'bg-[#57534e] dark:bg-[#a8a29e]',
+  VAT: 'bg-[#b45309] dark:bg-[#f59e0b]',
+  TRANSFER: 'bg-[#64748b] dark:bg-[#cbd5e1]',
 };
 
 const polar = (angleDeg: number): { x: number; y: number } => {

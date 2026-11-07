@@ -108,6 +108,9 @@ const trip = {
   clientName: null,
   invoiceGroupId: null,
   invoiceGrossAmount: 100,
+  invoiceCurrency: 'RSD',
+  invoiceExchangeRate: null,
+  invoiceCurrencyGrossAmount: null,
   price: 100,
   invoicedAt: new Date('2026-10-01'),
   invoiceSupplyDate: new Date('2026-10-01'),
@@ -126,6 +129,8 @@ let allocations: Array<{
   targetType: 'COMPANY_EXPENSE' | 'TRIP_INVOICE' | 'TRIP_SERIES_INVOICE';
   targetId: string;
   amount: number;
+  currencyAmount: number | null;
+  exchangeDifference: number | null;
   note: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -187,6 +192,9 @@ beforeEach(() => {
   );
   vi.mocked(prisma.financeTransaction.create).mockImplementation((args) => {
     const row = {
+      currency: 'RSD',
+      currencyAmount: null,
+      exchangeRate: null,
       ...args.data,
       id: `payment-${rows.length + 1}`,
       vehicle: null,
@@ -227,6 +235,8 @@ beforeEach(() => {
       return existing as never;
     }
     const allocation = {
+      currencyAmount: null,
+      exchangeDifference: null,
       ...args.create,
       id: `allocation-${allocations.length + 1}`,
       createdAt: date,
@@ -255,6 +265,7 @@ describe('bank statement posting', () => {
       supplier: supplier.name,
       partnerId: null,
       partner: null,
+      currency: 'RSD',
     } as never);
     vi.mocked(prisma.companyExpense.findMany).mockResolvedValueOnce([
       {
@@ -1101,5 +1112,127 @@ describe('opening balances', () => {
     const entries = await openingLedgerEntries({ partyType: 'SUPPLIER', partyId: supplier.id });
     expect(entries).toHaveLength(2);
     expect(entries.reduce((sum, row) => sum + row.debit - row.credit, 0)).toBe(0);
+  });
+});
+
+describe('EUR invoices and payments', () => {
+  const eurTrip = {
+    ...trip,
+    id: 'trip-eur',
+    invoiceCurrency: 'EUR',
+    invoiceExchangeRate: 117.4007,
+    invoiceCurrencyGrossAmount: 2_143,
+    invoiceGrossAmount: 251_589.7,
+    price: 251_589.7,
+  };
+
+  const createEurPayment = async (currencyAmount: number, exchangeRate: number) =>
+    createTransaction({
+      type: 'INCOME',
+      category: 'CONTRACT',
+      amount: 1,
+      occurredAt: '2026-10-10',
+      paymentMethod: 'ACCOUNT',
+      note: null,
+      supplier: null,
+      partner: partner.companyName,
+      partnerId: partner.id,
+      route: null,
+      vehicleId: null,
+      driverId: null,
+      contractId: null,
+      isAdvance: false,
+      currency: 'EUR',
+      currencyAmount,
+      exchangeRate,
+    });
+
+  beforeEach(() => {
+    vi.mocked(prisma.trip.findMany).mockResolvedValue([eurTrip] as never);
+    vi.mocked(prisma.trip.findUnique).mockResolvedValue(eurTrip as never);
+  });
+
+  it('stores the dinar value of an EUR payment at the payment rate', async () => {
+    const payment = await createEurPayment(2_143, 117.2);
+
+    expect(payment).toMatchObject({
+      currency: 'EUR',
+      currencyAmount: 2_143,
+      exchangeRate: 117.2,
+      amount: 251_159.6,
+      unallocatedCurrencyAmount: 2_143,
+    });
+  });
+
+  it('closes the whole EUR invoice and records the exchange loss', async () => {
+    const payment = await createEurPayment(2_143, 117.2);
+
+    const result = await createPaymentAllocation(payment.id, {
+      targetType: 'TRIP_INVOICE',
+      targetId: eurTrip.id,
+      amount: 1,
+      currencyAmount: 2_143,
+      note: null,
+    });
+
+    expect(result.allocation).toMatchObject({
+      amount: 251_589.7,
+      currencyAmount: 2_143,
+      exchangeDifference: -430.1,
+    });
+    expect(result.transaction).toMatchObject({
+      unallocatedAmount: 0,
+      unallocatedCurrencyAmount: 0,
+    });
+  });
+
+  it('rejects a dinar payment against an EUR invoice', async () => {
+    await importBankStatementXml({
+      xml: xml({ benefit: 'credit', reference: 'unmatched' }),
+      rememberMatchedAccounts: false,
+    });
+
+    await expect(
+      createPaymentAllocation(rows[0]!.id, {
+        targetType: 'TRIP_INVOICE',
+        targetId: eurTrip.id,
+        amount: 100,
+        note: null,
+      }),
+    ).rejects.toThrow('samo uplatom u EUR');
+    expect(allocations).toHaveLength(0);
+  });
+
+  it('rejects covering more euros than the payment holds', async () => {
+    const payment = await createEurPayment(1_000, 117.2);
+
+    await expect(
+      createPaymentAllocation(payment.id, {
+        targetType: 'TRIP_INVOICE',
+        targetId: eurTrip.id,
+        amount: 1,
+        currencyAmount: 1_500,
+        note: null,
+      }),
+    ).rejects.toThrow('uplate u EUR');
+  });
+});
+
+describe('bank statement currency guard', () => {
+  it('refuses a statement that is not in dinars', async () => {
+    const eurStatement = xml().replace('<statement>', '<statement><curdef>EUR</curdef>');
+
+    await expect(
+      importBankStatementXml({ xml: eurStatement, rememberMatchedAccounts: false }),
+    ).rejects.toThrow('valuti EUR');
+    expect(rows).toHaveLength(0);
+  });
+
+  it('accepts a statement that states RSD', async () => {
+    const rsdStatement = xml().replace('<statement>', '<statement><curdef>RSD</curdef>');
+
+    await expect(
+      importBankStatementXml({ xml: rsdStatement, rememberMatchedAccounts: false }),
+    ).resolves.toMatchObject({ imported: 1 });
   });
 });

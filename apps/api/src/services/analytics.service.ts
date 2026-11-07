@@ -9,6 +9,7 @@ import {
 } from '@rental-admin/shared';
 
 import { prisma } from '../config/prisma';
+import { paymentSideAmount } from '../utils/transaction-mapper';
 
 const parseDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`);
 
@@ -277,6 +278,8 @@ export const getBusinessAnalytics = async (
             'TRIP_DRIVER_ADVANCE',
           ],
         },
+        // VAT and own-account transfers are not business with a supplier.
+        category: { notIn: ['VAT', 'TRANSFER'] },
       },
       select: {
         amount: true,
@@ -284,7 +287,7 @@ export const getBusinessAnalytics = async (
         supplierId: true,
         sourceType: true,
         vehicleId: true,
-        paymentAllocations: { select: { amount: true } },
+        paymentAllocations: { select: { amount: true, exchangeDifference: true } },
       },
     }),
     prisma.financeTransaction.findMany({
@@ -293,12 +296,13 @@ export const getBusinessAnalytics = async (
         paymentMethod: 'ACCOUNT',
         occurredAt: { gte: fromDate, lte: toDate },
         sourceType: { in: ['MANUAL', 'BANK_STATEMENT'] },
+        category: { notIn: ['VAT', 'TRANSFER'] },
       },
       select: {
         amount: true,
         partner: true,
         partnerId: true,
-        paymentAllocations: { select: { amount: true } },
+        paymentAllocations: { select: { amount: true, exchangeDifference: true } },
       },
     }),
     prisma.tripDriver.findMany({
@@ -414,7 +418,7 @@ export const getBusinessAnalytics = async (
 
   for (const income of financeIncome) {
     const allocatedAmount = roundMoney(
-      income.paymentAllocations.reduce((sum, allocation) => sum + allocation.amount, 0),
+      income.paymentAllocations.reduce((sum, allocation) => sum + paymentSideAmount(allocation), 0),
     );
     const unallocatedAmount = Math.max(0, roundMoney(income.amount - allocatedAmount));
 
@@ -503,7 +507,10 @@ export const getBusinessAnalytics = async (
   let driverPayouts = 0;
   for (const expense of financeExpenses) {
     const allocatedAmount = roundMoney(
-      expense.paymentAllocations.reduce((sum, allocation) => sum + allocation.amount, 0),
+      expense.paymentAllocations.reduce(
+        (sum, allocation) => sum + paymentSideAmount(allocation),
+        0,
+      ),
     );
     const unallocatedAmount = Math.max(0, roundMoney(expense.amount - allocatedAmount));
 
