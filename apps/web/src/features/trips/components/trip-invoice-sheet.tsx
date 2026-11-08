@@ -45,6 +45,12 @@ import { useInvoiceTrip } from '@/features/trips/hooks/use-invoice-trip';
 import { useTrips } from '@/features/trips/hooks/use-trips';
 import { formatEuro, formatMoney, formatMonthYear, localTodayIso } from '@/lib/format';
 
+/** Kinds of re-invoiced costs; stored as the extra cost description. */
+const DEFAULT_EXTRA_COST = 'Putarina';
+const EXTRA_COST_PRESETS: readonly string[] = [DEFAULT_EXTRA_COST, 'Parking', 'Trajekt'];
+/** Any description outside the presets is a custom one typed by the user. */
+const CUSTOM_EXTRA_COST = 'Ostalo';
+
 interface TripInvoiceSheetProps {
   trip: TripDto | null;
   onOpenChange: (open: boolean) => void;
@@ -115,7 +121,7 @@ const invoiceFormValues = (trip: TripDto | null): TripInvoiceWriteInput => ({
   currency: trip?.invoiceCurrency ?? 'RSD',
   exchangeRate: trip?.invoiceExchangeRate ?? '',
   extraAmount: trip?.invoiceExtraAmount ?? '',
-  extraDescription: trip?.invoiceExtraDescription ?? '',
+  extraDescription: trip?.invoiceExtraDescription ?? DEFAULT_EXTRA_COST,
 });
 
 export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) {
@@ -135,6 +141,8 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
   const domesticPrice = useWatch({ control: form.control, name: 'domesticPrice' });
   const foreignPrice = useWatch({ control: form.control, name: 'foreignPrice' });
   const extraAmountValue = useWatch({ control: form.control, name: 'extraAmount' });
+  const extraDescription = useWatch({ control: form.control, name: 'extraDescription' });
+  const isCustomExtra = !EXTRA_COST_PRESETS.includes(extraDescription ?? '');
   const paymentMethod = useWatch({ control: form.control, name: 'paymentMethod' });
   const currency = useWatch({ control: form.control, name: 'currency' }) ?? 'RSD';
   const exchangeRateValue = useWatch({ control: form.control, name: 'exchangeRate' });
@@ -309,36 +317,120 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
             />
           ) : null}
 
-          {canUseForeign ? (
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Controller
-                control={form.control}
-                name="currency"
-                render={({ field }) => (
-                  <Field
-                    id="invoice-currency"
-                    label="Valuta fakture"
-                    error={errors.currency?.message}
-                  >
-                    <Select
-                      value={field.value ?? 'RSD'}
-                      onValueChange={field.onChange}
-                      disabled={invoiceMutation.isPending}
+          {canUseForeign || !billSeriesMonth ? (
+            <div className="grid grid-cols-3 items-start gap-2">
+              {canUseForeign ? (
+                <Controller
+                  control={form.control}
+                  name="currency"
+                  render={({ field }) => (
+                    <Field
+                      id="invoice-currency"
+                      label="Valuta fakture"
+                      error={errors.currency?.message}
                     >
-                      <SelectTrigger id="invoice-currency" className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CURRENCIES.map((value) => (
-                          <SelectItem key={value} value={value}>
-                            {CURRENCY_LABELS[value]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      <Select
+                        value={field.value ?? 'RSD'}
+                        onValueChange={field.onChange}
+                        disabled={invoiceMutation.isPending}
+                      >
+                        <SelectTrigger id="invoice-currency" className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CURRENCIES.map((value) => (
+                            <SelectItem key={value} value={value}>
+                              {CURRENCY_LABELS[value]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  )}
+                />
+              ) : null}
+              {!billSeriesMonth ? (
+                <>
+                  <Controller
+                    control={form.control}
+                    name="extraDescription"
+                    render={({ field }) => {
+                      const value = EXTRA_COST_PRESETS.includes(field.value ?? '')
+                        ? (field.value ?? DEFAULT_EXTRA_COST)
+                        : CUSTOM_EXTRA_COST;
+
+                      return (
+                        <Field
+                          id="invoice-extra-description"
+                          label="Dodatni troškovi"
+                          error={isCustomExtra ? undefined : errors.extraDescription?.message}
+                        >
+                          <Select
+                            value={value}
+                            onValueChange={(next) =>
+                              field.onChange(next === CUSTOM_EXTRA_COST ? '' : next)
+                            }
+                            disabled={invoiceMutation.isPending}
+                          >
+                            <SelectTrigger id="invoice-extra-description" className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[...EXTRA_COST_PRESETS, CUSTOM_EXTRA_COST].map((option) => (
+                                <SelectItem key={option} value={option}>
+                                  {option}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </Field>
+                      );
+                    }}
+                  />
+                  <Field
+                    id="invoice-extra-amount"
+                    label={`Iznos${isForeign ? ' (EUR)' : ''}`}
+                    error={errors.extraAmount?.message as string | undefined}
+                  >
+                    <Input
+                      id="invoice-extra-amount"
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      placeholder="0,00"
+                      disabled={invoiceMutation.isPending}
+                      aria-invalid={Boolean(errors.extraAmount)}
+                      {...form.register('extraAmount', { valueAsNumber: true })}
+                    />
                   </Field>
-                )}
-              />
+                  {isCustomExtra ? (
+                    <div className="col-span-3">
+                      <Field
+                        id="invoice-extra-custom"
+                        label="Opis dodatnih troškova"
+                        error={errors.extraDescription?.message}
+                      >
+                        <Input
+                          id="invoice-extra-custom"
+                          placeholder="npr. vinjeta, pranje vozila"
+                          value={extraDescription ?? ''}
+                          onChange={(event) =>
+                            form.setValue('extraDescription', event.target.value, {
+                              shouldDirty: true,
+                              shouldValidate: form.formState.isSubmitted,
+                            })
+                          }
+                          disabled={invoiceMutation.isPending}
+                        />
+                      </Field>
+                    </div>
+                  ) : null}
+                  <p className="text-muted-foreground col-span-3 text-xs">
+                    Dodatni troškovi (putarine i sl.) ulaze u iznos fakture i promet, ali ne i u PDV
+                    obračun.
+                  </p>
+                </>
+              ) : null}
               {isForeign ? (
                 <Field
                   id="invoice-exchange-rate"
@@ -460,51 +552,14 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
             </div>
           </div>
 
-          {!billSeriesMonth ? (
-            <div className="grid gap-2 sm:grid-cols-[180px_1fr]">
-              <Field
-                id="invoice-extra-amount"
-                label={`Dodatni troškovi${isForeign ? ' (EUR)' : ''}`}
-                error={errors.extraAmount?.message as string | undefined}
-              >
-                <Input
-                  id="invoice-extra-amount"
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  placeholder="npr. putarina"
-                  disabled={invoiceMutation.isPending}
-                  aria-invalid={Boolean(errors.extraAmount)}
-                  {...form.register('extraAmount', { valueAsNumber: true })}
-                />
-              </Field>
-              <Field
-                id="invoice-extra-description"
-                label="Opis dodatnih troškova"
-                error={errors.extraDescription?.message}
-              >
-                <Input
-                  id="invoice-extra-description"
-                  placeholder="Putarine"
-                  disabled={invoiceMutation.isPending}
-                  {...form.register('extraDescription')}
-                />
-              </Field>
-              <p className="text-muted-foreground text-xs sm:col-span-2">
-                Putarine i slični troškovi koje prefakturišete kupcu: ulaze u iznos fakture i
-                promet, ali ne i u PDV obračun.
-              </p>
-            </div>
-          ) : null}
-
           {isForeign && unitFare ? (
-            <p className="text-muted-foreground text-xs">
+            <p className="border-primary/40 bg-primary/5 text-foreground rounded-lg border px-3 py-2 text-sm font-semibold">
               {dinarFare
                 ? `U dinarima po kursu ${rateFormatter.format(exchangeRate ?? 0)}: osnovica u zemlji ${formatMoney(dinarFare.domesticNet)}, PDV ${TRANSPORT_VAT_RATE}% ${formatMoney(dinarFare.vatAmount)}, inostranstvo ${formatMoney(dinarFare.foreignNet)}${dinarFare.extraAmount > 0 ? `, dodatni troškovi ${formatMoney(dinarFare.extraAmount)} (bez PDV-a)` : ''}, ukupno ${formatMoney(dinarFare.grossAmount)}. Ovi dinarski iznosi idu u PDV obračun i zaduženja.`
                 : 'Unesite kurs sa fakture da biste videli dinarske iznose i PDV.'}
             </p>
           ) : unitFare && !isCash ? (
-            <p className="text-muted-foreground text-xs">
+            <p className="border-primary/40 bg-primary/5 text-foreground rounded-lg border px-3 py-2 text-sm font-semibold">
               PDV {TRANSPORT_VAT_RATE}% na zemlju: {formatMoney(unitFare.vatAmount)}. Ukupno je
               zemlja sa PDV-om ({formatMoney(unitFare.domesticGross)}) + inostranstvo (
               {formatMoney(unitFare.foreignNet)})
