@@ -52,6 +52,8 @@ export interface PartnerDto {
   pib: string | null;
   registrationNumber: string | null;
   personalId: string | null;
+  /** Listed first in partner pickers. */
+  isFavorite: boolean;
   bankAccounts: PartnerBankAccountDto[];
   createdAt: string;
   updatedAt: string;

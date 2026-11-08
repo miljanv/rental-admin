@@ -65,6 +65,13 @@ import {
 } from './finance-export-document';
 import { buildFinanceReportPdf } from './pdf/finance-report-pdf';
 import {
+  listVatReturnsByMonth,
+  settledByVatReturn,
+  vatReturnLabel,
+  vatReturnMonthKey,
+  vatReturnPeriodEnd,
+} from './vat-return.service';
+import {
   findSupplierByBankAccount,
   findSupplierIdByName,
   rememberSupplierBankAccount,
@@ -636,8 +643,8 @@ export const listTransactions = async (
     LEFT JOIN payment_allocations a ON a."transactionId" = t.id
     WHERE t."sourceType" = 'BANK_STATEMENT'
       AND t."organizationId" = ${requireOrganizationId()}
-      -- UNALLOCATABLE_TRANSACTION_CATEGORIES: VAT and own-account transfers are never linked.
-      AND t.category::text NOT IN ('VAT', 'TRANSFER')
+      -- UNALLOCATABLE_TRANSACTION_CATEGORIES: own-account transfers are never linked.
+      AND t.category::text NOT IN ('TRANSFER')
     GROUP BY t.id
     HAVING t.amount - COALESCE(SUM(a.amount + COALESCE(a."exchangeDifference", 0)), 0) > 0.005
   `
@@ -1582,8 +1589,48 @@ export const toPaymentAllocationDto = (record: {
 
 const targetTypeForTransactionType = (type: 'INCOME' | 'EXPENSE'): SettlementTargetType[] =>
   type === 'EXPENSE'
-    ? ['COMPANY_EXPENSE', 'OPENING_BALANCE']
-    : ['TRIP_INVOICE', 'TRIP_SERIES_INVOICE', 'OPENING_BALANCE'];
+    ? ['COMPANY_EXPENSE', 'OPENING_BALANCE', 'VAT_RETURN']
+    : ['TRIP_INVOICE', 'TRIP_SERIES_INVOICE', 'OPENING_BALANCE', 'VAT_RETURN'];
+
+/** A VAT payment pays a "za uplatu" return; a VAT refund closes a "za povraćaj" return. */
+const vatReturnKindForTransactionType = (type: TransactionType) =>
+  type === 'EXPENSE' ? ('PAYABLE' as const) : ('REFUND' as const);
+
+const listVatReturnTargets = async (
+  type: TransactionType,
+  search: string | undefined,
+): Promise<SettlementTargetDto[]> => {
+  const records = await prisma.vatReturn.findMany({
+    where: { kind: vatReturnKindForTransactionType(type) },
+    orderBy: [{ year: 'asc' }, { month: 'asc' }],
+  });
+  const settled = await settledByVatReturn(records.map((record) => record.id));
+  const needle = search ? normalizeMatchText(search) : '';
+
+  return records
+    .map((record): SettlementTargetDto => {
+      const allocatedAmount = roundMoney(settled.get(record.id) ?? 0);
+
+      return {
+        targetType: 'VAT_RETURN',
+        targetId: record.id,
+        counterpartyId: null,
+        recommended: false,
+        label: vatReturnLabel(record),
+        counterparty: 'Poreska uprava',
+        issuedAt: toIsoDate(record.filedAt ?? vatReturnPeriodEnd(record)),
+        totalAmount: record.amount,
+        allocatedAmount,
+        remainingAmount: roundMoney(record.amount - allocatedAmount),
+        ...DINAR_TARGET,
+      };
+    })
+    .filter(
+      (target) =>
+        target.remainingAmount > MONEY_EPSILON &&
+        (!needle || normalizeMatchText(`${target.label} ${target.counterparty}`).includes(needle)),
+    );
+};
 
 const allocatedByTarget = async (
   targetType: SettlementTargetType,
@@ -1978,6 +2025,7 @@ export const listSettlementTargets = async (
         partnerId: true,
         partner: true,
         currency: true,
+        category: true,
       },
     });
 
@@ -1987,6 +2035,11 @@ export const listSettlementTargets = async (
 
     type = transaction.type;
     currency = transaction.currency;
+
+    // A VAT payment or refund is settled only against a filed VAT return.
+    if (transaction.category === 'VAT') {
+      return { targets: await listVatReturnTargets(transaction.type, query.search) };
+    }
 
     // An EUR payment can only close an EUR trip invoice.
     if (currency !== 'RSD') {
@@ -2037,6 +2090,24 @@ export const getSettlementTarget = async (
 ): Promise<SettlementTargetDto> => {
   const allocated = await allocatedByTarget(targetType, [targetId], tx);
   const allocatedAmount = roundMoney(allocated.get(targetId) ?? 0);
+
+  if (targetType === 'VAT_RETURN') {
+    const record = await tx.vatReturn.findUnique({ where: { id: targetId } });
+    if (!record) throw notFound('PDV prijava nije pronađena.');
+    return {
+      targetType,
+      targetId,
+      counterpartyId: null,
+      recommended: false,
+      label: vatReturnLabel(record),
+      counterparty: 'Poreska uprava',
+      issuedAt: toIsoDate(record.filedAt ?? vatReturnPeriodEnd(record)),
+      totalAmount: record.amount,
+      allocatedAmount,
+      remainingAmount: roundMoney(record.amount - allocatedAmount),
+      ...DINAR_TARGET,
+    };
+  }
 
   if (targetType === 'OPENING_BALANCE') {
     const record = await tx.openingBalance.findUnique({
@@ -2172,7 +2243,7 @@ export const refreshTargetPaidAt = async (
   paidAt: Date,
   tx: TransactionClient = prisma,
 ): Promise<void> => {
-  if (targetType === 'OPENING_BALANCE') return;
+  if (targetType === 'OPENING_BALANCE' || targetType === 'VAT_RETURN') return;
   const allocated = await allocatedByTarget(targetType, [targetId], tx);
   const allocatedAmount = allocated.get(targetId) ?? 0;
   const latest = await tx.paymentAllocation.findFirst({
@@ -2302,14 +2373,31 @@ export const applyPaymentAllocation = async (
   }
 
   if (isUnallocatableCategory(transaction.category)) {
-    throw conflict('PDV i prenos između računa se ne povezuju sa računima.');
+    throw conflict('Prenos između računa se ne povezuje sa računima.');
+  }
+
+  if ((transaction.category === 'VAT') !== (input.targetType === 'VAT_RETURN')) {
+    throw conflict(
+      input.targetType === 'VAT_RETURN'
+        ? 'PDV prijava se zatvara samo transakcijom kategorije PDV.'
+        : 'Transakcija kategorije PDV se povezuje samo sa PDV prijavom.',
+    );
   }
 
   if (!targetTypeForTransactionType(transaction.type).includes(input.targetType)) {
     throw badRequest('Izabrano zaduženje ne odgovara smeru transakcije.');
   }
 
-  if (input.targetType === 'OPENING_BALANCE') {
+  if (input.targetType === 'VAT_RETURN') {
+    const vatReturn = await tx.vatReturn.findUnique({ where: { id: input.targetId } });
+    if (!vatReturn) throw notFound('PDV prijava nije pronađena.');
+    if (vatReturn.kind !== vatReturnKindForTransactionType(transaction.type))
+      throw conflict(
+        vatReturn.kind === 'PAYABLE'
+          ? 'Prijava za uplatu se zatvara rashodom (uplatom državi).'
+          : 'Prijava za povraćaj se zatvara prihodom (povraćajem od države).',
+      );
+  } else if (input.targetType === 'OPENING_BALANCE') {
     const opening = await tx.openingBalance.findUnique({ where: { id: input.targetId } });
     if (!opening || opening.status !== 'CONFIRMED' || opening.kind !== 'DEBT')
       throw conflict('Početni dug nije dostupan.');
@@ -2792,11 +2880,13 @@ export const getVatReport = async (query: FinanceReportQueryRequest): Promise<Va
     }
   }
 
+  const vatReturns = await listVatReturnsByMonth(from, to);
   const monthly = [...byMonth.values()].map((row) => ({
     ...row,
     inputVat: roundMoney(row.inputVat),
     outputVat: roundMoney(row.outputVat),
     balance: roundMoney(row.outputVat - row.inputVat),
+    vatReturn: vatReturns.get(vatReturnMonthKey(row.year, row.month)) ?? null,
   }));
   const totals = monthly.reduce(
     (sum, row) => ({

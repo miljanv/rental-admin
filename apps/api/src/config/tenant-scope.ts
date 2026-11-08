@@ -36,6 +36,7 @@ export const OWNED_MODELS = [
   'AlarmThreshold',
   'TripSeries',
   'Trip',
+  'VatReturn',
 ] as const;
 
 /** Relation names from a child model up to the owned model that decides its tenant. */
@@ -74,6 +75,7 @@ export const CREATED_BY_MODELS: ReadonlySet<string> = new Set([
   'Contract',
   'FinanceTransaction',
   'Trip',
+  'VatReturn',
 ]);
 
 const OWNED_SET: ReadonlySet<string> = new Set(OWNED_MODELS);

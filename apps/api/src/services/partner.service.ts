@@ -21,7 +21,7 @@ import { toPartnerDto, type PartnerRecord } from '../utils/partner-mapper';
 import { paymentSideAmount } from '../utils/transaction-mapper';
 import { requireOrganizationId } from '../utils/tenant-context';
 
-type PartnerOrderBy = Partial<Record<PartnerSortField, SortOrder>>;
+type PartnerOrderBy = Partial<Record<PartnerSortField | 'isFavorite', SortOrder>>;
 
 const partnerInclude = {
   bankAccounts: {
@@ -116,7 +116,8 @@ const isForeignKeyRestriction = (error: unknown): boolean => {
 export const listPartners = async (
   query: ListPartnersQuery,
 ): Promise<{ partners: PartnerDto[]; pagination: PaginationMeta }> => {
-  const orderBy: PartnerOrderBy = { [query.sortBy]: query.sortOrder };
+  // Favorites always come first so they top every picker that loads the first page.
+  const orderBy: PartnerOrderBy[] = [{ isFavorite: 'desc' }, { [query.sortBy]: query.sortOrder }];
 
   const where = {
     ...(query.type ? { type: query.type } : {}),
@@ -150,6 +151,19 @@ export const listPartners = async (
     partners: records.map((record: PartnerRecord) => toPartnerDto(record)),
     pagination: buildPaginationMeta({ page: query.page, limit: query.limit, total }),
   };
+};
+
+export const setPartnerFavorite = async (id: string, isFavorite: boolean): Promise<PartnerDto> => {
+  await getPartner(id);
+
+  const record = await prisma.partner.update({
+    where: { id },
+    data: { isFavorite },
+    include: partnerInclude,
+  });
+  logger.info('Partner favorite changed', { partnerId: id, isFavorite });
+
+  return toPartnerDto(record);
 };
 
 export const getPartner = async (id: string): Promise<PartnerDto> => {

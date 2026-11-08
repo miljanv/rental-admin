@@ -5,6 +5,8 @@ import {
   type PartnerWriteRequest,
 } from '@rental-admin/shared';
 
+import { sortAlphabetically } from '@/lib/sort-options';
+
 export const partnerLabel = (partner: PartnerDto): string => partnerDisplayName(partner);
 
 export const toPartnerFormValues = (partner: PartnerDto): PartnerWriteRequest => ({
@@ -46,3 +48,17 @@ export const findPartnerByName = (
     ),
   );
 };
+
+/** Picker order: favorites first, each group alphabetical by the label the picker shows. */
+export const sortPartnersForPicker = (partners: PartnerDto[]): PartnerDto[] => {
+  const sorted = sortAlphabetically(partners, partnerSelectLabel);
+
+  return [
+    ...sorted.filter((partner) => partner.isFavorite),
+    ...sorted.filter((partner) => !partner.isFavorite),
+  ];
+};
+
+/** Picker label, starred for favorites. */
+export const partnerPickerLabel = (partner: PartnerDto): string =>
+  `${partner.isFavorite ? '★ ' : ''}${partnerSelectLabel(partner)}`;

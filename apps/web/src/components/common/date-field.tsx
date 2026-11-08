@@ -6,7 +6,13 @@ import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 const WEEKDAY_HEADER = ['Pon', 'Uto', 'Sre', 'Čet', 'Pet', 'Sub', 'Ned'];
@@ -112,9 +118,11 @@ const buildMonthGrid = (year: number, month: number): Date[] => {
 interface DateFieldCalendarProps {
   value: string;
   onSelect: (isoDate: string) => void;
+  /** Earliest selectable ISO date; earlier days are shown but cannot be picked. */
+  min?: string;
 }
 
-function DateFieldCalendar({ value, onSelect }: DateFieldCalendarProps) {
+function DateFieldCalendar({ value, onSelect, min }: DateFieldCalendarProps) {
   const today = useMemo(() => new Date(), []);
   const selected = useMemo(() => parseIsoDate(value), [value]);
   const [year, setYear] = useState(() => (selected ?? today).getUTCFullYear());
@@ -213,14 +221,17 @@ function DateFieldCalendar({ value, onSelect }: DateFieldCalendarProps) {
           const isCurrentMonth = date.getUTCMonth() === month;
           const isSelected = iso === value;
           const isToday = iso === todayIso;
+          const isBeforeMin = Boolean(min && iso < min);
 
           return (
             <button
               key={iso}
               type="button"
               onClick={() => onSelect(iso)}
+              disabled={isBeforeMin}
               className={cn(
                 'hover:bg-muted flex size-8 items-center justify-center rounded-md text-sm transition-colors',
+                'disabled:text-muted-foreground/30 disabled:pointer-events-none disabled:line-through',
                 !isCurrentMonth && 'text-muted-foreground/50',
                 isToday && !isSelected && 'text-primary font-semibold',
                 isSelected && 'bg-primary text-primary-foreground hover:bg-primary',
@@ -233,10 +244,23 @@ function DateFieldCalendar({ value, onSelect }: DateFieldCalendarProps) {
       </div>
 
       <div className="flex gap-2 pt-1">
-        <Button type="button" variant="outline" size="sm" className="flex-1" onClick={() => onSelect(todayIso)}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="flex-1"
+          disabled={Boolean(min && todayIso < min)}
+          onClick={() => onSelect(todayIso)}
+        >
           Danas
         </Button>
-        <Button type="button" variant="outline" size="sm" className="flex-1" onClick={() => onSelect('')}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="flex-1"
+          onClick={() => onSelect('')}
+        >
           Obriši
         </Button>
       </div>
@@ -253,6 +277,8 @@ export interface DateFieldProps {
   'aria-invalid'?: boolean;
   placeholder?: string;
   className?: string;
+  /** Earliest ISO date the calendar offers (e.g. the departure date for a return date). */
+  min?: string;
 }
 
 /**
@@ -267,6 +293,7 @@ export function DateField({
   disabled,
   placeholder = 'dd.mm.gggg.',
   className,
+  min,
   ...rest
 }: DateFieldProps) {
   const [text, setText] = useState(() => isoToMasked(value));
@@ -347,7 +374,7 @@ export function DateField({
         </div>
       </PopoverAnchor>
       <PopoverContent className="w-auto p-3" align="start">
-        <DateFieldCalendar value={value} onSelect={handleSelect} />
+        <DateFieldCalendar value={value} onSelect={handleSelect} min={min || undefined} />
       </PopoverContent>
     </Popover>
   );

@@ -13,6 +13,7 @@ const validSeries = {
   referenceNumber: 'RN-COKA',
   origin: 'Čoka',
   destination: 'OŠ Čoka',
+  partnerId: 'partner_1',
 } as const;
 
 describe('generateTripSeriesSchema', () => {
@@ -125,6 +126,7 @@ describe('bulkUpdateTripSeriesSchema', () => {
 describe('editTripSeriesSchema', () => {
   it('requires the route and applies the same vehicles to every day', () => {
     const result = editTripSeriesSchema.safeParse({
+      partnerId: 'partner_1',
       origin: 'Čoka',
       destination: 'OŠ Čoka',
       country: 'Srbija',
@@ -142,6 +144,7 @@ describe('editTripSeriesSchema', () => {
 
   it('keeps an empty driver payment as “do not change”', () => {
     const result = editTripSeriesSchema.safeParse({
+      partnerId: 'partner_1',
       origin: 'Sakule',
       destination: 'Baranda',
       driverPay: '',
@@ -155,6 +158,7 @@ describe('editTripSeriesSchema', () => {
 
   it('accepts one driver payment for every day', () => {
     const result = editTripSeriesSchema.safeParse({
+      partnerId: 'partner_1',
       origin: 'Sakule',
       destination: 'Baranda',
       driverPay: 6000,
@@ -170,6 +174,36 @@ describe('editTripSeriesSchema', () => {
     const result = editTripSeriesSchema.safeParse({
       origin: 'Čoka',
       destination: '',
+    });
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('series client requirement', () => {
+  it('rejects a new series without a customer', () => {
+    const result = generateTripSeriesSchema.safeParse({ ...validSeries, partnerId: '' });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((issue) => issue.path.join('.'))).toContain('partnerId');
+  });
+
+  it('accepts a free-text client name instead of a partner', () => {
+    expect(
+      generateTripSeriesSchema.safeParse({
+        ...validSeries,
+        partnerId: '',
+        clientName: 'OŠ Čoka',
+      }).success,
+    ).toBe(true);
+  });
+
+  it('rejects a series edit that clears the customer', () => {
+    const result = editTripSeriesSchema.safeParse({
+      origin: 'Čoka',
+      destination: 'OŠ Čoka',
+      partnerId: '',
+      clientName: '',
     });
 
     expect(result.success).toBe(false);

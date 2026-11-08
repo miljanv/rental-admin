@@ -260,13 +260,15 @@ export function TransactionsTable({
                             : formatMoney(transaction.unallocatedAmount)}
                         </span>
                         <span className="block">
-                          {transaction.type === 'INCOME'
-                            ? transaction.partnerId
-                              ? 'Čeka povezivanje sa fakturom'
-                              : 'Kupac nije povezan'
-                            : transaction.supplierId
-                              ? 'Čeka povezivanje sa računom'
-                              : 'Dobavljač nije povezan'}
+                          {transaction.category === 'VAT'
+                            ? 'Čeka povezivanje sa PDV prijavom'
+                            : transaction.type === 'INCOME'
+                              ? transaction.partnerId
+                                ? 'Čeka povezivanje sa fakturom'
+                                : 'Kupac nije povezan'
+                              : transaction.supplierId
+                                ? 'Čeka povezivanje sa računom'
+                                : 'Dobavljač nije povezan'}
                         </span>
                         <Button
                           size="sm"

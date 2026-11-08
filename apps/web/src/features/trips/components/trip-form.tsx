@@ -6,7 +6,6 @@ import {
   contractRouteLabel,
   MAX_TRIP_DRIVERS,
   MAX_TRIP_VEHICLES,
-  partnerSelectLabel,
   TRIP_STATUS_LABELS,
   TRIP_STATUSES,
   type TripDto,
@@ -36,10 +35,15 @@ import { useDrivers } from '@/features/drivers/hooks/use-drivers';
 import { usePartners } from '@/features/partners/hooks/use-partners';
 import { ExistingPartnerHint } from '@/features/partners/components/existing-partner-hint';
 import { PartnerNameInput } from '@/features/partners/components/partner-name-input';
-import { findPartnerByName } from '@/features/partners/lib/partner';
+import {
+  findPartnerByName,
+  partnerPickerLabel,
+  sortPartnersForPicker,
+} from '@/features/partners/lib/partner';
 import { useCreateTrip } from '@/features/trips/hooks/use-create-trip';
 import { useUpdateTrip } from '@/features/trips/hooks/use-update-trip';
 import { toTripFormValues } from '@/features/trips/lib/trip';
+import { revealTripFormErrors } from '@/features/trips/lib/trip-form-errors';
 import {
   EMPTY_TRIP_FORM,
   tripFormSchema,
@@ -90,6 +94,7 @@ export function TripForm({ trip }: TripFormProps) {
   const vehicleIds = useWatch({ control: form.control, name: 'vehicleIds' }) ?? [];
   const driverIds = useWatch({ control: form.control, name: 'driverIds' }) ?? [];
   const clientName = useWatch({ control: form.control, name: 'clientName' });
+  const departureDate = useWatch({ control: form.control, name: 'departureDate' });
 
   const vehiclesQuery = useVehicles({
     page: 1,
@@ -120,7 +125,7 @@ export function TripForm({ trip }: TripFormProps) {
     value: driver.id,
     label: `${driver.firstName} ${driver.lastName}`,
   }));
-  const partners = sortAlphabetically(partnersQuery.data?.partners ?? [], partnerSelectLabel);
+  const partners = sortPartnersForPicker(partnersQuery.data?.partners ?? []);
   const contracts = contractsQuery.data?.contracts ?? [];
   const matchedPartner = useFreeTextClient ? findPartnerByName(partners, clientName) : undefined;
 
@@ -130,19 +135,22 @@ export function TripForm({ trip }: TripFormProps) {
     form.setValue('partnerId', partnerId, { shouldDirty: true });
   };
 
-  const onSubmit = form.handleSubmit(async (values) => {
-    // A typed name that matches a registered partner is saved as that partner,
-    // otherwise reports would show the same client twice.
-    const match = useFreeTextClient ? findPartnerByName(partners, values.clientName) : undefined;
-    const payload = match ? { ...values, partnerId: match.id, clientName: null } : values;
+  const onSubmit = form.handleSubmit(
+    async (values) => {
+      // A typed name that matches a registered partner is saved as that partner,
+      // otherwise reports would show the same client twice.
+      const match = useFreeTextClient ? findPartnerByName(partners, values.clientName) : undefined;
+      const payload = match ? { ...values, partnerId: match.id, clientName: null } : values;
 
-    if (isEdit) {
-      await updateMutation.mutateAsync(payload);
-      return;
-    }
+      if (isEdit) {
+        await updateMutation.mutateAsync(payload);
+        return;
+      }
 
-    await createMutation.mutateAsync(payload);
-  });
+      await createMutation.mutateAsync(payload);
+    },
+    (errors) => revealTripFormErrors(errors),
+  );
 
   const cancelHref = trip ? `/trips/${trip.id}` : '/trips';
 
@@ -233,7 +241,7 @@ export function TripForm({ trip }: TripFormProps) {
                         <SelectItem value={NONE}>Nije izabran</SelectItem>
                         {partners.map((partner) => (
                           <SelectItem key={partner.id} value={partner.id}>
-                            {partnerSelectLabel(partner)}
+                            {partnerPickerLabel(partner)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -394,9 +402,17 @@ export function TripForm({ trip }: TripFormProps) {
                       const currentReturn = form.getValues('returnDate');
                       field.onChange(value);
                       // Same-day return is the default; keep a later zaključni dan
-                      // if the user already moved it off the previous departure.
-                      if (!currentReturn || currentReturn === previousDeparture) {
-                        form.setValue('returnDate', value, { shouldDirty: true });
+                      // if the user already moved it off the previous departure, but
+                      // never leave it before the new departure.
+                      if (
+                        !currentReturn ||
+                        currentReturn === previousDeparture ||
+                        (value && currentReturn < value)
+                      ) {
+                        form.setValue('returnDate', value, {
+                          shouldDirty: true,
+                          shouldValidate: form.formState.isSubmitted,
+                        });
                       }
                     }}
                     disabled={isPending}
@@ -418,7 +434,12 @@ export function TripForm({ trip }: TripFormProps) {
                     <DateField
                       id="returnDate"
                       value={field.value ?? ''}
-                      onChange={field.onChange}
+                      onChange={(value) => {
+                        field.onChange(value);
+                        // Show "povratak pre polaska" right away, not only on save.
+                        void form.trigger('returnDate');
+                      }}
+                      min={departureDate}
                       disabled={isPending}
                       aria-invalid={Boolean(errors.returnDate)}
                     />

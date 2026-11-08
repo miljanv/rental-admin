@@ -22,6 +22,7 @@ interface PartnerNameInputProps {
 interface PartnerNameOption {
   label: string;
   partnerId: string;
+  isFavorite: boolean;
 }
 
 const partnerNameOptions = (partners: PartnerDto[]): PartnerNameOption[] => {
@@ -37,12 +38,18 @@ const partnerNameOptions = (partners: PartnerDto[]): PartnerNameOption[] => {
 
     for (const label of labels) {
       if (!byLabel.has(label)) {
-        byLabel.set(label, { label, partnerId: partner.id });
+        byLabel.set(label, { label, partnerId: partner.id, isFavorite: partner.isFavorite });
       }
     }
   }
 
-  return sortAlphabetically([...byLabel.values()], (option) => option.label);
+  // Favorites first, so the suggestions the office uses most are at the top.
+  const sorted = sortAlphabetically([...byLabel.values()], (option) => option.label);
+
+  return [
+    ...sorted.filter((option) => option.isFavorite),
+    ...sorted.filter((option) => !option.isFavorite),
+  ];
 };
 
 export function PartnerNameInput({
@@ -57,9 +64,10 @@ export function PartnerNameInput({
   onPartnerIdChange,
 }: PartnerNameInputProps) {
   const partnersQuery = usePartners({ page: 1, limit: 100, sortBy: 'type', sortOrder: 'asc' });
-  const options = useMemo(() => partnerNameOptions(partnersQuery.data?.partners ?? []), [
-    partnersQuery.data?.partners,
-  ]);
+  const options = useMemo(
+    () => partnerNameOptions(partnersQuery.data?.partners ?? []),
+    [partnersQuery.data?.partners],
+  );
   const syncPartnerId = (nextValue: string) => {
     const exact = options.find((option) => option.label === nextValue.trim());
     onPartnerIdChange?.(exact?.partnerId ?? '');

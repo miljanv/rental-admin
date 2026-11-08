@@ -89,6 +89,25 @@ export const optionalPositiveInt = (label: string, max: number) =>
       .nullable(),
   );
 
+const CLIENT_REQUIRED_MESSAGE = 'Izaberite kupca ili upišite naziv naručioca.';
+
+/**
+ * A trip without a customer cannot be invoiced or tracked in receivables, so either a registered
+ * partner or a free-text client name is required. The issue is set on both fields because the
+ * form shows only one of them at a time.
+ */
+export const refineClientRequired = (
+  value: { partnerId: string | null; clientName: string | null },
+  ctx: z.RefinementCtx,
+): void => {
+  if (value.partnerId || value.clientName) {
+    return;
+  }
+
+  ctx.addIssue({ code: 'custom', path: ['partnerId'], message: CLIENT_REQUIRED_MESSAGE });
+  ctx.addIssue({ code: 'custom', path: ['clientName'], message: CLIENT_REQUIRED_MESSAGE });
+};
+
 export const tripWriteSchema = z
   .object({
     // Assigned once invoicing happens — not a condition for creating a trip.
@@ -135,6 +154,8 @@ export const tripWriteSchema = z
       .default([]),
   })
   .superRefine((value, ctx) => {
+    refineClientRequired(value, ctx);
+
     if (value.returnDate && value.returnDate < value.departureDate) {
       ctx.addIssue({
         code: 'custom',

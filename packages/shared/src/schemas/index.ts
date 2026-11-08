@@ -28,3 +28,4 @@ export * from './vehicle-maintenance';
 export * from './vehicle-safety-equipment';
 export * from './user-admin';
 export * from './finance-settlement';
+export * from './vat-return';

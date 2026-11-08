@@ -6,7 +6,6 @@ import {
   PARTNER_TYPE_LABELS,
   PARTNER_TYPES,
   partnerFullAddress,
-  partnerSelectLabel,
   PIB_LENGTH,
   REGISTRATION_NUMBER_LENGTH,
   type ContractWriteRequest,
@@ -31,7 +30,7 @@ import {
 import { QuickCreatePartnerSheet } from '@/features/contracts/components/quick-create-partner-sheet';
 import type { ContractFormValues } from '@/features/contracts/schemas/contract-form-schema';
 import { usePartners } from '@/features/partners/hooks/use-partners';
-import { sortAlphabetically } from '@/lib/sort-options';
+import { partnerPickerLabel, sortPartnersForPicker } from '@/features/partners/lib/partner';
 
 interface FieldProps {
   id: string;
@@ -76,12 +75,15 @@ export function WizardStepPartner() {
   const partnerId = useWatch({ control: form.control, name: 'partnerId' });
   const clientType = useWatch({ control: form.control, name: 'clientType' });
   const clientPib = useWatch({ control: form.control, name: 'clientPib' });
-  const clientRegistrationNumber = useWatch({ control: form.control, name: 'clientRegistrationNumber' });
+  const clientRegistrationNumber = useWatch({
+    control: form.control,
+    name: 'clientRegistrationNumber',
+  });
   const clientPersonalId = useWatch({ control: form.control, name: 'clientPersonalId' });
   const isLegalEntity = isLegalEntityPartnerType(clientType);
 
   const partnersQuery = usePartners({ page: 1, limit: 100, sortBy: 'type', sortOrder: 'asc' });
-  const partners = sortAlphabetically(partnersQuery.data?.partners ?? [], partnerSelectLabel);
+  const partners = sortPartnersForPicker(partnersQuery.data?.partners ?? []);
 
   return (
     <div className="space-y-6">
@@ -114,7 +116,7 @@ export function WizardStepPartner() {
                     <SelectContent>
                       {partners.map((partner) => (
                         <SelectItem key={partner.id} value={partner.id}>
-                          {partnerSelectLabel(partner)} — {PARTNER_TYPE_LABELS[partner.type]}
+                          {partnerPickerLabel(partner)} — {PARTNER_TYPE_LABELS[partner.type]}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -125,7 +127,11 @@ export function WizardStepPartner() {
             {partnersQuery.isError ? (
               <p className="text-destructive mt-1.5 text-xs">
                 Lista partnera nije učitana.{' '}
-                <button type="button" className="underline" onClick={() => void partnersQuery.refetch()}>
+                <button
+                  type="button"
+                  className="underline"
+                  onClick={() => void partnersQuery.refetch()}
+                >
                   Pokušaj ponovo
                 </button>
               </p>
@@ -237,7 +243,9 @@ export function WizardStepPartner() {
                   id="clientPersonalId"
                   label="JMBG"
                   error={errors.clientPersonalId?.message}
-                  hint={<CharacterCounter current={(clientPersonalId ?? '').length} max={JMBG_LENGTH} />}
+                  hint={
+                    <CharacterCounter current={(clientPersonalId ?? '').length} max={JMBG_LENGTH} />
+                  }
                 >
                   <Input
                     id="clientPersonalId"

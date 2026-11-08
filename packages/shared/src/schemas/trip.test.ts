@@ -8,6 +8,7 @@ const validTrip = {
   origin: 'Novi Sad',
   destination: 'Zlatibor',
   status: 'PLANNED',
+  partnerId: 'partner_1',
   vehicleIds: ['vehicle_1'],
   driverIds: ['driver_1'],
 } as const;
@@ -17,7 +18,7 @@ describe('tripWriteSchema', () => {
     const result = tripWriteSchema.safeParse(validTrip);
 
     expect(result.success).toBe(true);
-    expect(result.data?.partnerId).toBeNull();
+    expect(result.data?.partnerId).toBe('partner_1');
     expect(result.data?.clientName).toBeNull();
     expect(result.data?.price).toBeNull();
   });
@@ -116,5 +117,23 @@ describe('listTripsQuerySchema', () => {
       sortBy: 'departureDate',
       sortOrder: 'desc',
     });
+  });
+});
+
+describe('tripWriteSchema client requirement', () => {
+  it('rejects a trip without a partner or a client name', () => {
+    const result = tripWriteSchema.safeParse({ ...validTrip, partnerId: '', clientName: '' });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((issue) => issue.path.join('.'))).toEqual(
+      expect.arrayContaining(['partnerId', 'clientName']),
+    );
+  });
+
+  it('accepts a free-text client name instead of a partner', () => {
+    expect(
+      tripWriteSchema.safeParse({ ...validTrip, partnerId: '', clientName: 'Rvački savez' })
+        .success,
+    ).toBe(true);
   });
 });

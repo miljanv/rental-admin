@@ -60,6 +60,14 @@ export const updatePartner = async (id: string, body: PartnerWriteRequest): Prom
   return unwrap(response.data);
 };
 
+export const setPartnerFavorite = async (id: string, isFavorite: boolean): Promise<PartnerDto> => {
+  const response = await apiClient.patch<ApiResponse<PartnerDto>>(`/partners/${id}/favorite`, {
+    isFavorite,
+  });
+
+  return unwrap(response.data);
+};
+
 export const deletePartner = async (id: string): Promise<DeletePartnerResult> => {
   const response = await apiClient.delete<ApiResponse<DeletePartnerResult>>(`/partners/${id}`);
 

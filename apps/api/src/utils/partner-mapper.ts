@@ -12,6 +12,7 @@ export interface PartnerRecord {
   pib: string | null;
   registrationNumber: string | null;
   personalId: string | null;
+  isFavorite: boolean;
   bankAccounts: Array<{ id: string; accountNumber: string }>;
   createdAt: Date;
   updatedAt: Date;
@@ -29,6 +30,7 @@ export const toPartnerDto = (record: PartnerRecord): PartnerDto => ({
   pib: record.pib,
   registrationNumber: record.registrationNumber,
   personalId: record.personalId,
+  isFavorite: record.isFavorite,
   bankAccounts: record.bankAccounts.map((account) => ({
     id: account.id,
     accountNumber: account.accountNumber,

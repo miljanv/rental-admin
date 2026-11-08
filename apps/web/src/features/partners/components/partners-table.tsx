@@ -1,7 +1,7 @@
 'use client';
 
 import { PARTNER_TYPE_LABELS, partnerFullAddress, type PartnerDto } from '@rental-admin/shared';
-import { MoreHorizontal, Pencil, Trash2, Users } from 'lucide-react';
+import { MoreHorizontal, Pencil, Star, Trash2, Users } from 'lucide-react';
 import Link from 'next/link';
 
 import { EmptyState } from '@/components/common/empty-state';
@@ -21,7 +21,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useSetPartnerFavorite } from '@/features/partners/hooks/use-set-partner-favorite';
 import { partnerLabel } from '@/features/partners/lib/partner';
+import { cn } from '@/lib/utils';
 
 const COLUMN_COUNT = 4;
 
@@ -42,6 +44,8 @@ export function PartnersTable({
   onRequestDelete,
   emptyAction,
 }: PartnersTableProps) {
+  const favoriteMutation = useSetPartnerFavorite();
+
   if (!isLoading && partners.length === 0) {
     return hasSearch ? (
       <EmptyState
@@ -75,19 +79,48 @@ export function PartnersTable({
         ) : (
           partners.map((partner) => (
             <TableRow key={partner.id}>
-              <TableCell className="max-w-[280px]">
-                <button
-                  type="button"
-                  onClick={() => onOpenLedger(partner)}
-                  className="hover:text-primary block max-w-full text-left"
-                >
-                  <span className="block truncate font-medium">{partnerLabel(partner)}</span>
-                  {partner.nickname ? (
-                    <span className="text-muted-foreground block truncate text-xs">
-                      {partner.nickname}
-                    </span>
-                  ) : null}
-                </button>
+              <TableCell className="max-w-[320px]">
+                <div className="flex items-start gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 shrink-0"
+                    aria-pressed={partner.isFavorite}
+                    aria-label={
+                      partner.isFavorite
+                        ? `Ukloni ${partnerLabel(partner)} iz omiljenih`
+                        : `Označi ${partnerLabel(partner)} kao omiljenog`
+                    }
+                    title={partner.isFavorite ? 'Omiljeni partner' : 'Označi kao omiljenog'}
+                    disabled={favoriteMutation.isPending}
+                    onClick={() =>
+                      favoriteMutation.mutate({ id: partner.id, isFavorite: !partner.isFavorite })
+                    }
+                  >
+                    <Star
+                      className={cn(
+                        'size-4',
+                        partner.isFavorite
+                          ? 'fill-amber-400 text-amber-500'
+                          : 'text-muted-foreground',
+                      )}
+                      aria-hidden
+                    />
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => onOpenLedger(partner)}
+                    className="hover:text-primary block min-w-0 max-w-full text-left"
+                  >
+                    <span className="block truncate font-medium">{partnerLabel(partner)}</span>
+                    {partner.nickname ? (
+                      <span className="text-muted-foreground block truncate text-xs">
+                        {partner.nickname}
+                      </span>
+                    ) : null}
+                  </button>
+                </div>
               </TableCell>
               <TableCell>{PARTNER_TYPE_LABELS[partner.type]}</TableCell>
               <TableCell className="text-muted-foreground max-w-[280px] truncate">

@@ -6,7 +6,6 @@ import {
   MAX_TRIP_VEHICLES,
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS,
-  partnerSelectLabel,
   type EditTripSeriesInput,
   type EditTripSeriesRequest,
   type PaymentMethod,
@@ -34,9 +33,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { useDrivers } from '@/features/drivers/hooks/use-drivers';
 import { ExistingPartnerHint } from '@/features/partners/components/existing-partner-hint';
 import { PartnerNameInput } from '@/features/partners/components/partner-name-input';
-import { findPartnerByName } from '@/features/partners/lib/partner';
+import {
+  findPartnerByName,
+  partnerPickerLabel,
+  sortPartnersForPicker,
+} from '@/features/partners/lib/partner';
 import { usePartners } from '@/features/partners/hooks/use-partners';
 import { useEditTripSeries } from '@/features/trips/hooks/use-edit-trip-series';
+import { revealTripFormErrors } from '@/features/trips/lib/trip-form-errors';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
 import { vehicleSelectLabel } from '@/features/vehicles/lib/vehicle';
 import { sortAlphabetically } from '@/lib/sort-options';
@@ -142,7 +146,7 @@ export function TripSeriesEditForm({
     value: driver.id,
     label: `${driver.firstName} ${driver.lastName}`,
   }));
-  const partners = sortAlphabetically(partnersQuery.data?.partners ?? [], partnerSelectLabel);
+  const partners = sortPartnersForPicker(partnersQuery.data?.partners ?? []);
   const matchedPartner = useFreeTextClient ? findPartnerByName(partners, clientName) : undefined;
 
   const linkPartner = (partnerId: string): void => {
@@ -161,9 +165,13 @@ export function TripSeriesEditForm({
   };
   const isPending = mutation.isPending;
 
-  const onSubmit = form.handleSubmit(async (values) => {
-    await mutation.mutateAsync(withMatchedPartner(values));
-  });
+  const onSubmit = form.handleSubmit(
+    async (values) => {
+      await mutation.mutateAsync(withMatchedPartner(values));
+    },
+    (errors) =>
+      revealTripFormErrors(errors, { partnerId: 'series-partner', clientName: 'series-client' }),
+  );
 
   return (
     <Card className="shadow-none">
@@ -369,7 +377,7 @@ export function TripSeriesEditForm({
                         <SelectItem value={NONE}>Nije izabran</SelectItem>
                         {partners.map((partner) => (
                           <SelectItem key={partner.id} value={partner.id}>
-                            {partnerSelectLabel(partner)}
+                            {partnerPickerLabel(partner)}
                           </SelectItem>
                         ))}
                       </SelectContent>

@@ -175,6 +175,10 @@ export const partnerBankAccountWriteSchema = z.object({
     }),
 });
 
+export const partnerFavoriteSchema = z.object({ isFavorite: z.boolean() });
+
+export type PartnerFavoriteRequest = z.infer<typeof partnerFavoriteSchema>;
+
 export const partnerWriteSchema = z
   .object({
     type: partnerTypeSchema,

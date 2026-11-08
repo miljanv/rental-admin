@@ -1,3 +1,4 @@
+import type { VatReturnDto } from './vat-return';
 import type {
   PaymentMethod,
   TransactionCategory,
@@ -77,6 +78,8 @@ export interface VatMonthlyPoint {
   inputVat: number;
   outputVat: number;
   balance: number;
+  /** The return as filed for this month, when it has been entered. */
+  vatReturn: VatReturnDto | null;
 }
 
 export interface VatReportDto {

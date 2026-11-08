@@ -38,6 +38,7 @@ vi.mock('../config/prisma', () => {
       fuelLog: model(),
       vehicleMaintenance: model(),
       trip: model(),
+      vatReturn: model(),
     },
   };
 });
@@ -155,6 +156,7 @@ const xml = ({
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(prisma.openingBalance.findMany).mockResolvedValue([]);
+  vi.mocked(prisma.vatReturn.findMany).mockResolvedValue([]);
   rows = [];
   allocations = [];
   vi.mocked(prisma.$transaction).mockImplementation((callback) => {
@@ -1234,5 +1236,123 @@ describe('bank statement currency guard', () => {
     await expect(
       importBankStatementXml({ xml: rsdStatement, rememberMatchedAccounts: false }),
     ).resolves.toMatchObject({ imported: 1 });
+  });
+});
+
+describe('VAT returns', () => {
+  const payableReturn = {
+    id: 'vat-2026-09',
+    year: 2026,
+    month: 9,
+    kind: 'PAYABLE',
+    amount: 120_000,
+    documentNumber: 'PP-09',
+    filedAt: new Date('2026-10-15'),
+    note: null,
+    createdAt: date,
+    updatedAt: date,
+  };
+
+  const createVatPayment = async (type: 'INCOME' | 'EXPENSE', category: 'VAT' | 'OTHER' = 'VAT') =>
+    createTransaction({
+      type,
+      category,
+      amount: 120_000,
+      occurredAt: '2026-10-15',
+      paymentMethod: 'ACCOUNT',
+      note: null,
+      supplier: null,
+      partner: null,
+      partnerId: null,
+      route: null,
+      vehicleId: null,
+      driverId: null,
+      contractId: null,
+      isAdvance: false,
+      currency: 'RSD',
+      currencyAmount: null,
+      exchangeRate: null,
+    });
+
+  beforeEach(() => {
+    vi.mocked(prisma.vatReturn.findUnique).mockResolvedValue(payableReturn as never);
+  });
+
+  it('settles a VAT payment against the payable return', async () => {
+    const payment = await createVatPayment('EXPENSE');
+
+    const result = await createPaymentAllocation(payment.id, {
+      targetType: 'VAT_RETURN',
+      targetId: payableReturn.id,
+      amount: 120_000,
+      note: null,
+    });
+
+    expect(result.allocation).toMatchObject({ targetType: 'VAT_RETURN', amount: 120_000 });
+    expect(result.transaction.unallocatedAmount).toBe(0);
+  });
+
+  it('does not let a VAT refund close a payable return', async () => {
+    const refund = await createVatPayment('INCOME');
+
+    await expect(
+      createPaymentAllocation(refund.id, {
+        targetType: 'VAT_RETURN',
+        targetId: payableReturn.id,
+        amount: 100,
+        note: null,
+      }),
+    ).rejects.toThrow('rashodom');
+  });
+
+  it('keeps VAT and ordinary payments apart', async () => {
+    const vatPayment = await createVatPayment('EXPENSE');
+    const ordinary = await createVatPayment('EXPENSE', 'OTHER');
+
+    await expect(
+      createPaymentAllocation(vatPayment.id, {
+        targetType: 'COMPANY_EXPENSE',
+        targetId: expense.id,
+        amount: 100,
+        note: null,
+      }),
+    ).rejects.toThrow('samo sa PDV prijavom');
+    await expect(
+      createPaymentAllocation(ordinary.id, {
+        targetType: 'VAT_RETURN',
+        targetId: payableReturn.id,
+        amount: 100,
+        note: null,
+      }),
+    ).rejects.toThrow('kategorije PDV');
+    expect(allocations).toHaveLength(0);
+  });
+
+  it('shows the filed return and its open amount on the VAT report month', async () => {
+    vi.mocked(prisma.companyExpense.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.trip.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.vatReturn.findMany).mockResolvedValue([payableReturn] as never);
+    allocations.push({
+      id: 'allocation-vat',
+      transactionId: 'payment-x',
+      targetType: 'VAT_RETURN' as never,
+      targetId: payableReturn.id,
+      amount: 20_000,
+      currencyAmount: null,
+      exchangeDifference: null,
+      note: null,
+      createdAt: date,
+      updatedAt: date,
+    });
+
+    const report = await getVatReport({ from: '2026-09-01', to: '2026-09-30' });
+
+    expect(report.monthly[0]?.vatReturn).toMatchObject({
+      kind: 'PAYABLE',
+      amount: 120_000,
+      settledAmount: 20_000,
+      openAmount: 100_000,
+      filedAt: '2026-10-15',
+    });
   });
 });

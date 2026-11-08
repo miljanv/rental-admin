@@ -40,12 +40,11 @@ export const TRANSACTION_CATEGORY_LABELS: Record<TransactionCategory, string> = 
 };
 
 /**
- * Categories that are never matched to an invoice: VAT settled with the tax authority and money
- * moved between the company's own accounts. They stay out of the unallocated-payments queue and
- * out of customer/supplier analytics. TRANSFER is also left out of income/expense totals.
+ * Money moved between the company's own accounts is never matched to anything and stays out of
+ * the unallocated-payments queue. (VAT payments are matched, but only to a VAT return.) Both VAT
+ * and TRANSFER stay out of customer/supplier analytics; TRANSFER is also out of income/expense.
  */
 export const UNALLOCATABLE_TRANSACTION_CATEGORIES = [
-  'VAT',
   'TRANSFER',
 ] as const satisfies readonly TransactionCategory[];
 
@@ -124,6 +123,7 @@ export const SETTLEMENT_TARGET_TYPES = [
   'COMPANY_EXPENSE',
   'TRIP_INVOICE',
   'TRIP_SERIES_INVOICE',
+  'VAT_RETURN',
 ] as const;
 
 export type SettlementTargetType = (typeof SETTLEMENT_TARGET_TYPES)[number];
@@ -133,6 +133,7 @@ export const SETTLEMENT_TARGET_TYPE_LABELS: Record<SettlementTargetType, string>
   COMPANY_EXPENSE: 'Račun dobavljača',
   TRIP_INVOICE: 'Faktura vožnje',
   TRIP_SERIES_INVOICE: 'Mesečna faktura serije',
+  VAT_RETURN: 'PDV prijava',
 };
 
 export const FINANCE_EXPORT_FORMATS = ['pdf', 'xlsx'] as const;

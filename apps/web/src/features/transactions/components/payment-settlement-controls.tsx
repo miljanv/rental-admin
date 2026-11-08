@@ -58,6 +58,8 @@ export function PaymentSettlementControls({
   const reverse = useReverseAllocation();
   const history = usePaymentAllocations(transaction.id);
   const isIncome = transaction.type === 'INCOME';
+  // VAT payments have no customer or supplier; they are linked to a VAT return below.
+  const isVat = transaction.category === 'VAT';
   const linkedId = isIncome ? transaction.partnerId : transaction.supplierId;
   const busy = link.isPending || preview.isPending || confirm.isPending || reverse.isPending;
   const options = isIncome
@@ -76,7 +78,7 @@ export function PaymentSettlementControls({
   };
   return (
     <div className="space-y-5 rounded-lg border p-4">
-      {transaction.sourceType !== 'OPENING_BALANCE' ? (
+      {transaction.sourceType !== 'OPENING_BALANCE' && !isVat ? (
         <div className="space-y-3">
           <h3 className="font-semibold">{isIncome ? 'Kupac uplate' : 'Dobavljač uplate'}</h3>
           <p className="text-muted-foreground text-sm">
@@ -154,7 +156,12 @@ export function PaymentSettlementControls({
           </Button>
         </div>
       ) : null}
-      {transaction.currency !== 'RSD' ? (
+      {isVat ? (
+        <p className="text-muted-foreground text-sm">
+          Transakcija kategorije PDV se povezuje ručno, ispod, sa PDV prijavom za mesec: uplata sa
+          prijavom „za uplatu“, povraćaj sa prijavom „za povraćaj“.
+        </p>
+      ) : transaction.currency !== 'RSD' ? (
         <p className="text-sm text-muted-foreground">
           Uplata u EUR se povezuje ručno, ispod, sa fakturom u EUR. Raspored po starosti važi samo
           za dinarske uplate.

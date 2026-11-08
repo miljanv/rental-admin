@@ -14,6 +14,7 @@ const record: PartnerRecord = {
   pib: '123456789',
   registrationNumber: '20123456',
   personalId: null,
+  isFavorite: false,
   bankAccounts: [{ id: 'acct_1', accountNumber: '190-0000000146210-88' }],
   createdAt: new Date('2026-08-14T10:00:00.000Z'),
   updatedAt: new Date('2026-08-14T10:00:00.000Z'),

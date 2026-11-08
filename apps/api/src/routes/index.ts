@@ -18,6 +18,7 @@ import { supplierRouter } from './supplier.routes';
 import { transactionRouter } from './transaction.routes';
 import { tripRouter } from './trip.routes';
 import { userRouter } from './user.routes';
+import { vatReturnRouter } from './vat-return.routes';
 import { vehicleRouter } from './vehicle.routes';
 
 /** Everything below is mounted under `/api/v1`. */
@@ -40,4 +41,5 @@ apiRouter.use('/suppliers', requireAuth, supplierRouter);
 apiRouter.use('/transactions', requireAuth, transactionRouter);
 apiRouter.use('/trips', requireAuth, tripRouter);
 apiRouter.use('/users', requireAuth, requireRole('SUPERADMIN'), userRouter);
+apiRouter.use('/vat-returns', requireAuth, vatReturnRouter);
 apiRouter.use('/vehicles', requireAuth, vehicleRouter);

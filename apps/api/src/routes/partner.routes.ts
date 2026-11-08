@@ -4,6 +4,7 @@ import * as partnerController from '../controllers/partner.controller';
 import { validateRequest } from '../middleware/validate-request';
 import {
   listPartnersQuerySchema,
+  partnerFavoriteSchema,
   partnerLedgerQuerySchema,
   partnerIdParamsSchema,
   partnerWriteSchema,
@@ -40,6 +41,12 @@ partnerRouter.patch(
   '/:id',
   validateRequest({ params: partnerIdParamsSchema, body: partnerWriteSchema }),
   asyncHandler(partnerController.updatePartner),
+);
+
+partnerRouter.patch(
+  '/:id/favorite',
+  validateRequest({ params: partnerIdParamsSchema, body: partnerFavoriteSchema }),
+  asyncHandler(partnerController.setPartnerFavorite),
 );
 
 partnerRouter.delete(

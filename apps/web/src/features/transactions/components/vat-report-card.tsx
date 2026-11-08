@@ -1,6 +1,10 @@
 'use client';
 
-import { defaultFinanceReportRange } from '@rental-admin/shared';
+import {
+  VAT_RETURN_KIND_LABELS,
+  defaultFinanceReportRange,
+  type VatMonthlyPoint,
+} from '@rental-admin/shared';
 import { RefreshCw } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -18,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { VatReturnSheet } from '@/features/transactions/components/vat-return-sheet';
 import { useVatReport } from '@/features/transactions/hooks/use-vat-report';
 import { formatMoney, formatMonthYear } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -45,12 +50,24 @@ function VatBalance({ balance }: { balance: number | undefined }) {
   );
 }
 
+/** Signed open amount of a filed return: positive is still owed to the state, negative is owed back. */
+const signedOpen = (row: VatMonthlyPoint): number =>
+  row.vatReturn
+    ? row.vatReturn.kind === 'PAYABLE'
+      ? row.vatReturn.openAmount
+      : -row.vatReturn.openAmount
+    : 0;
+
+const COLUMN_COUNT = 8;
+
 export function VatReportCard() {
   const defaults = useMemo(() => defaultFinanceReportRange(), []);
   const [from, setFrom] = useState(defaults.from);
   const [to, setTo] = useState(defaults.to);
   const query = useVatReport(from, to);
   const report = query.data;
+  const [selectedMonth, setSelectedMonth] = useState<VatMonthlyPoint | null>(null);
+  const totalOpen = (report?.monthly ?? []).reduce((sum, row) => sum + signedOpen(row), 0);
 
   return (
     <div className="space-y-6">
@@ -113,14 +130,23 @@ export function VatReportCard() {
                     <TableHead className="text-right">Izlazni PDV</TableHead>
                     <TableHead className="text-right">Ulazni PDV</TableHead>
                     <TableHead className="text-right">Razlika</TableHead>
+                    <TableHead className="text-right">Po prijavi</TableHead>
+                    <TableHead className="text-right">Plaćeno / vraćeno</TableHead>
+                    <TableHead className="text-right">Otvoreno</TableHead>
+                    <TableHead className="w-0">
+                      <span className="sr-only">Prijava</span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {query.isPending ? (
-                    <TableSkeleton rows={4} columns={4} />
+                    <TableSkeleton rows={4} columns={COLUMN_COUNT} />
                   ) : (report?.monthly ?? []).length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-muted-foreground text-center">
+                      <TableCell
+                        colSpan={COLUMN_COUNT}
+                        className="text-muted-foreground text-center"
+                      >
                         Nema meseci u izabranom periodu.
                       </TableCell>
                     </TableRow>
@@ -133,6 +159,36 @@ export function VatReportCard() {
                           <TableCell className="text-right">{formatMoney(row.inputVat)}</TableCell>
                           <TableCell className="text-right">
                             <VatBalance balance={row.balance} />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {row.vatReturn ? (
+                              <>
+                                {formatMoney(row.vatReturn.amount)}
+                                <span className="text-muted-foreground block text-xs">
+                                  {VAT_RETURN_KIND_LABELS[row.vatReturn.kind].toLowerCase()}
+                                  {row.vatReturn.documentNumber
+                                    ? ` · ${row.vatReturn.documentNumber}`
+                                    : ''}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {row.vatReturn ? formatMoney(row.vatReturn.settledAmount) : '—'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {row.vatReturn ? <VatBalance balance={signedOpen(row)} /> : '—'}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant={row.vatReturn ? 'ghost' : 'outline'}
+                              onClick={() => setSelectedMonth(row)}
+                            >
+                              {row.vatReturn ? 'Izmeni' : 'Unesi prijavu'}
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -147,6 +203,12 @@ export function VatReportCard() {
                         <TableCell className="text-right">
                           <VatBalance balance={report?.totals.balance} />
                         </TableCell>
+                        <TableCell />
+                        <TableCell />
+                        <TableCell className="text-right">
+                          <VatBalance balance={totalOpen} />
+                        </TableCell>
+                        <TableCell />
                       </TableRow>
                     </>
                   )}
@@ -158,10 +220,20 @@ export function VatReportCard() {
       </Card>
 
       <p className="text-muted-foreground text-sm">
-        Uplatu PDV-a državi ili povraćaj od države knjižite kao transakciju sa kategorijom „PDV“. Ne
-        vezuje se ni za jednog kupca ni dobavljača. Kako se PDV zvanično prijavljuje i da li se
-        preplata vraća ili prenosi, potvrdite sa knjigovođom.
+        Za svaki mesec unesite iznos sa podnete poreske prijave. Uplatu državi ili povraćaj od
+        države iz izvoda označite kategorijom „PDV“ i preko „Poveži / rasporedi“ povežite sa
+        prijavom; kolona „Otvoreno“ pokazuje šta je još ostalo. Kako se PDV zvanično prijavljuje i
+        da li se preplata vraća ili prenosi, potvrdite sa knjigovođom.
       </p>
+
+      <VatReturnSheet
+        month={selectedMonth}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedMonth(null);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import type {
   ListPartnersQuery,
+  PartnerFavoriteRequest,
   PartnerIdParams,
   PartnerLedgerQuery,
   PartnerWriteRequest,
@@ -45,6 +46,13 @@ export const updatePartner = async (req: Request, res: Response): Promise<void> 
   const partner = await partnerService.updatePartner(id, body);
 
   sendSuccess(res, partner);
+};
+
+export const setPartnerFavorite = async (req: Request, res: Response): Promise<void> => {
+  const { id } = validated<PartnerIdParams>(req, 'params');
+  const { isFavorite } = validated<PartnerFavoriteRequest>(req, 'body');
+
+  sendSuccess(res, await partnerService.setPartnerFavorite(id, isFavorite));
 };
 
 export const deletePartner = async (req: Request, res: Response): Promise<void> => {

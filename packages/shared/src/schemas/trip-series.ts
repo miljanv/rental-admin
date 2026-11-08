@@ -8,6 +8,7 @@ import {
   optionalNonNegative,
   optionalPositiveInt,
   optionalText,
+  refineClientRequired,
   requiredText,
   tripStatusSchema,
 } from './trip';
@@ -81,6 +82,8 @@ export const generateTripSeriesSchema = z
     pauses: z.array(tripSeriesPauseSchema).max(20, 'Najviše 20 pauza.').default([]),
   })
   .superRefine((value, ctx) => {
+    refineClientRequired(value, ctx);
+
     if (value.endDate < value.startDate) {
       ctx.addIssue({
         code: 'custom',
@@ -200,6 +203,7 @@ export const editTripSeriesSchema = z
       .max(MAX_TRIP_DRIVERS, `Najviše ${MAX_TRIP_DRIVERS} vozača po vožnji.`)
       .default([]),
   })
+  .superRefine(refineClientRequired)
   .transform((value) => ({
     ...value,
     vehicleCount: Math.max(value.vehicleCount, value.vehicleIds.length, 1),

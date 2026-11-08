@@ -202,6 +202,7 @@ model Organization {
   updatedAt DateTime @updatedAt
 
   openingBalances      OpeningBalance[]
+  vatReturns           VatReturn[]
   financeAuditEvents   FinanceAuditEvent[]
   users                User[]
   fileObjects          FileObject[]
@@ -237,6 +238,7 @@ model User {
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
   createdOpeningBalances OpeningBalance[]
+  createdVatReturns      VatReturn[]
   financeAuditEvents     FinanceAuditEvent[]
   createdDrivers         Driver[]
   createdVehicles        Vehicle[]
@@ -645,6 +647,8 @@ model Partner {
   pib                String?
   registrationNumber String?
   personalId         String?
+  /// Partners the office works with most; listed first in every partner picker.
+  isFavorite         Boolean     @default(false)
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
@@ -882,6 +886,7 @@ enum SettlementTargetType {
   COMPANY_EXPENSE
   TRIP_INVOICE
   TRIP_SERIES_INVOICE
+  VAT_RETURN
 }
 
 /// A bookkeeping row. Field names are English; the admin UI presents Serbian
@@ -1353,4 +1358,37 @@ model FinanceAuditEvent {
 
   @@index([organizationId, entityId, createdAt])
   @@map("finance_audit_events")
+}
+
+enum VatReturnKind {
+  /// Output VAT exceeded input VAT: the company owes the difference.
+  PAYABLE
+  /// Input VAT exceeded output VAT: the state refunds the difference.
+  REFUND
+}
+
+/// The VAT return as filed for one month: what the company owes the tax authority or is owed
+/// back. Payments and refunds (transactions with category VAT) are allocated against it.
+model VatReturn {
+  id             String        @id @default(cuid())
+  organizationId String
+  createdById    String?
+  year           Int
+  month          Int
+  kind           VatReturnKind
+  /// Always positive; `kind` says who pays whom.
+  amount         Float
+  documentNumber String?
+  filedAt        DateTime?     @db.Date
+  note           String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, year, month])
+  @@index([organizationId])
+  @@index([createdById])
+  @@map("vat_returns")
 }

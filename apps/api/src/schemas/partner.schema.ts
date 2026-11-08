@@ -1,5 +1,6 @@
 import {
   listPartnersQuerySchema,
+  partnerFavoriteSchema,
   partnerIdParamsSchema,
   partnerLedgerQuerySchema,
   partnerWriteSchema,
@@ -7,6 +8,7 @@ import {
 
 export {
   listPartnersQuerySchema,
+  partnerFavoriteSchema,
   partnerIdParamsSchema,
   partnerLedgerQuerySchema,
   partnerWriteSchema,
