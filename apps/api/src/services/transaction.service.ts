@@ -12,6 +12,8 @@ import type {
   FinanceReportQueryRequest,
   ListTransactionsQuery,
   ListSettlementTargetsQuery,
+  MissingSupplyDatesDto,
+  OpenItemsTotalsDto,
   PaginationMeta,
   PaymentMethod,
   PaymentAllocationDto,
@@ -1981,6 +1983,76 @@ export const listAllSettlementTargets = async (
   return [...(await listOpeningDebtTargets(type, null)), ...invoices];
 };
 
+/** Bills and account invoices that have no supply date yet, oldest first. */
+export const getMissingSupplyDates = async (): Promise<MissingSupplyDatesDto> => {
+  const [expenses, trips] = await Promise.all([
+    prisma.companyExpense.findMany({
+      where: { supplyDate: null },
+      select: {
+        id: true,
+        issuedAt: true,
+        invoiceNumber: true,
+        supplier: true,
+        description: true,
+        amountWithVat: true,
+      },
+      orderBy: [{ issuedAt: 'asc' }, { createdAt: 'asc' }],
+    }),
+    prisma.trip.findMany({
+      where: { invoicedAt: { not: null }, invoiceSupplyDate: null, paymentMethod: 'ACCOUNT' },
+      include: {
+        partner: { select: { type: true, companyName: true, firstName: true, lastName: true } },
+      },
+      orderBy: [{ invoicedAt: 'asc' }, { departureDate: 'asc' }],
+    }),
+  ]);
+  const seenGroups = new Set<string>();
+  const invoices: MissingSupplyDatesDto['invoices'] = [];
+
+  for (const trip of trips) {
+    if (trip.invoiceGroupId) {
+      if (seenGroups.has(trip.invoiceGroupId)) continue;
+      seenGroups.add(trip.invoiceGroupId);
+    }
+
+    invoices.push({
+      tripId: trip.id,
+      invoicedAt: toIsoDate(trip.invoicedAt!),
+      referenceNumber: trip.referenceNumber,
+      client: tripCounterparty(trip),
+      route: `${trip.origin} – ${trip.destination}`,
+      amount: trip.invoiceGroupId
+        ? roundMoney(
+            trips
+              .filter((row) => row.invoiceGroupId === trip.invoiceGroupId)
+              .reduce((sum, row) => sum + (row.invoiceGrossAmount ?? row.price ?? 0), 0),
+          )
+        : (trip.invoiceGrossAmount ?? trip.price ?? 0),
+      isSeriesInvoice: Boolean(trip.invoiceGroupId),
+    });
+  }
+
+  return {
+    expenses: expenses.map((expense) => ({ ...expense, issuedAt: toIsoDate(expense.issuedAt) })),
+    invoices,
+  };
+};
+
+const openItemsTotal = (targets: SettlementTargetDto[]) => ({
+  total: roundMoney(targets.reduce((sum, target) => sum + target.remainingAmount, 0)),
+  count: targets.length,
+});
+
+/** Totals of every open customer invoice and supplier bill, across all periods. */
+export const getOpenItemsTotals = async (): Promise<OpenItemsTotalsDto> => {
+  const [receivables, payables] = await Promise.all([
+    listAllSettlementTargets('INCOME'),
+    listAllSettlementTargets('EXPENSE'),
+  ]);
+
+  return { receivables: openItemsTotal(receivables), payables: openItemsTotal(payables) };
+};
+
 const listOpeningDebtTargets = async (
   type: TransactionType,
   preferred: PreferredSettlementCounterparty | null,
@@ -2717,7 +2789,11 @@ export const getFinanceReport = async (
     }),
     prisma.companyExpense.findMany({
       where: {
-        issuedAt: { gte: parseDate(from), lte: parseDate(to) },
+        // Supply date is the main date; older bills without one fall back to the invoice date.
+        OR: [
+          { supplyDate: { gte: parseDate(from), lte: parseDate(to) } },
+          { supplyDate: null, issuedAt: { gte: parseDate(from), lte: parseDate(to) } },
+        ],
         ...(query.paymentMethod ? { paymentMethod: query.paymentMethod } : {}),
       },
       include: {
@@ -2770,7 +2846,7 @@ export const getFinanceReport = async (
         type: 'EXPENSE' as const,
         category: companyExpenseFinanceCategory(expense.description, expense.scope),
         amount: expense.amountWithVat,
-        occurredAt: toIsoDate(expense.issuedAt),
+        occurredAt: toIsoDate(expense.supplyDate ?? expense.issuedAt),
         paymentMethod: expense.paymentMethod,
         vehicle: expense.vehicle,
         partner: null,

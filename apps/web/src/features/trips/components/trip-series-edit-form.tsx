@@ -187,6 +187,93 @@ export function TripSeriesEditForm({
       </CardHeader>
       <CardContent>
         <form onSubmit={(event) => void onSubmit(event)} className="space-y-4">
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={useFreeTextClient ? 'outline' : 'default'}
+                disabled={isPending}
+                onClick={() => {
+                  setUseFreeTextClient(false);
+                  form.setValue('clientName', '');
+                }}
+              >
+                Partner iz evidencije
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={useFreeTextClient ? 'default' : 'outline'}
+                disabled={isPending}
+                onClick={() => {
+                  setUseFreeTextClient(true);
+                  form.setValue('partnerId', '');
+                }}
+              >
+                Slobodan unos
+              </Button>
+            </div>
+            {useFreeTextClient ? (
+              <Field
+                id="series-client"
+                label="Naziv / ime naručioca"
+                error={errors.clientName?.message as string | undefined}
+              >
+                <Controller
+                  control={form.control}
+                  name="clientName"
+                  render={({ field }) => (
+                    <PartnerNameInput
+                      id="series-client"
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      disabled={isPending}
+                    />
+                  )}
+                />
+              </Field>
+            ) : (
+              <Controller
+                control={form.control}
+                name="partnerId"
+                render={({ field }) => (
+                  <Field
+                    id="series-partner"
+                    label="Partner"
+                    error={errors.partnerId?.message as string | undefined}
+                  >
+                    <Select
+                      value={field.value || NONE}
+                      onValueChange={(value) => field.onChange(value === NONE ? '' : value)}
+                      disabled={isPending || partnersQuery.isPending}
+                    >
+                      <SelectTrigger id="series-partner" className="w-full">
+                        <SelectValue placeholder="Izaberite partnera" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE}>Nije izabran</SelectItem>
+                        {partners.map((partner) => (
+                          <SelectItem key={partner.id} value={partner.id}>
+                            {partnerPickerLabel(partner)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
+              />
+            )}
+            {matchedPartner ? (
+              <ExistingPartnerHint
+                partner={matchedPartner}
+                onLink={() => linkPartner(matchedPartner.id)}
+                disabled={isPending}
+              />
+            ) : null}
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <Field
               id="series-name"
@@ -307,93 +394,6 @@ export function TripSeriesEditForm({
               </Field>
             )}
           />
-
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant={useFreeTextClient ? 'outline' : 'default'}
-                disabled={isPending}
-                onClick={() => {
-                  setUseFreeTextClient(false);
-                  form.setValue('clientName', '');
-                }}
-              >
-                Partner iz evidencije
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={useFreeTextClient ? 'default' : 'outline'}
-                disabled={isPending}
-                onClick={() => {
-                  setUseFreeTextClient(true);
-                  form.setValue('partnerId', '');
-                }}
-              >
-                Slobodan unos
-              </Button>
-            </div>
-            {useFreeTextClient ? (
-              <Field
-                id="series-client"
-                label="Naziv / ime naručioca"
-                error={errors.clientName?.message as string | undefined}
-              >
-                <Controller
-                  control={form.control}
-                  name="clientName"
-                  render={({ field }) => (
-                    <PartnerNameInput
-                      id="series-client"
-                      value={field.value ?? ''}
-                      onChange={field.onChange}
-                      onBlur={field.onBlur}
-                      disabled={isPending}
-                    />
-                  )}
-                />
-              </Field>
-            ) : (
-              <Controller
-                control={form.control}
-                name="partnerId"
-                render={({ field }) => (
-                  <Field
-                    id="series-partner"
-                    label="Partner"
-                    error={errors.partnerId?.message as string | undefined}
-                  >
-                    <Select
-                      value={field.value || NONE}
-                      onValueChange={(value) => field.onChange(value === NONE ? '' : value)}
-                      disabled={isPending || partnersQuery.isPending}
-                    >
-                      <SelectTrigger id="series-partner" className="w-full">
-                        <SelectValue placeholder="Izaberite partnera" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={NONE}>Nije izabran</SelectItem>
-                        {partners.map((partner) => (
-                          <SelectItem key={partner.id} value={partner.id}>
-                            {partnerPickerLabel(partner)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                )}
-              />
-            )}
-            {matchedPartner ? (
-              <ExistingPartnerHint
-                partner={matchedPartner}
-                onLink={() => linkPartner(matchedPartner.id)}
-                disabled={isPending}
-              />
-            ) : null}
-          </div>
 
           <Field
             id="series-vehicle-count"

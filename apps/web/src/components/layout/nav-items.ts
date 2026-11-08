@@ -66,7 +66,7 @@ export const NAV_ITEMS: NavItem[] = [
     description: 'Računi, keš i zajednički troškovi firme',
   },
   {
-    title: 'Partneri',
+    title: 'Partneri - Kupci',
     href: '/partners',
     icon: Users,
     description: 'Naručioci prevoza',

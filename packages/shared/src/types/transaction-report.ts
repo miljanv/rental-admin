@@ -82,6 +82,34 @@ export interface VatMonthlyPoint {
   vatReturn: VatReturnDto | null;
 }
 
+/** Documents that still have no supply date; the bookkeeper fills these in by hand. */
+export interface MissingSupplyDatesDto {
+  expenses: Array<{
+    id: string;
+    issuedAt: string;
+    invoiceNumber: string | null;
+    supplier: string;
+    description: string;
+    amountWithVat: number;
+  }>;
+  /** One row per invoice: a monthly series invoice is listed once, through its first day. */
+  invoices: Array<{
+    tripId: string;
+    invoicedAt: string;
+    referenceNumber: string | null;
+    client: string;
+    route: string;
+    amount: number;
+    isSeriesInvoice: boolean;
+  }>;
+}
+
+/** Everything still open today, with no period and no row limit. */
+export interface OpenItemsTotalsDto {
+  receivables: { total: number; count: number };
+  payables: { total: number; count: number };
+}
+
 export interface VatReportDto {
   from: string;
   to: string;

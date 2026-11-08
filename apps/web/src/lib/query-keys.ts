@@ -1,6 +1,7 @@
 import type {
   CounterpartyRequest,
   ContractSortField,
+  CompanyExpenseDateField,
   CompanyExpenseSortField,
   CompanyExpenseScope,
   CashTripPaymentStatus,
@@ -88,6 +89,8 @@ export interface CompanyExpenseListQueryParams {
   supplier?: string;
   from?: string;
   to?: string;
+  dateField?: CompanyExpenseDateField;
+  missingSupplyDate?: boolean;
   paymentMethod?: PaymentMethod;
   sortBy?: CompanyExpenseSortField;
   sortOrder?: SortOrder;
@@ -100,6 +103,8 @@ export interface CompanyExpenseSummaryParams {
   supplier?: string;
   from?: string;
   to?: string;
+  dateField?: CompanyExpenseDateField;
+  missingSupplyDate?: boolean;
   paymentMethod?: PaymentMethod;
 }
 
@@ -326,6 +331,8 @@ export const queryKeys = {
     reports: (from?: string, to?: string, paymentMethod?: PaymentMethod) =>
       ['transactions', 'reports', from, to, paymentMethod] as const,
     vatReport: (from?: string, to?: string) => ['transactions', 'vat-report', from, to] as const,
+    openItems: ['transactions', 'open-items'] as const,
+    missingSupplyDates: ['transactions', 'missing-supply-dates'] as const,
   },
   trips: {
     all: ['trips'] as const,

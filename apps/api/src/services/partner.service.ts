@@ -210,12 +210,22 @@ export const getPartnerLedger = async (
 
   const trips = await prisma.trip.findMany({
     where: {
-      invoicedAt: {
-        not: null,
-        ...(toDate ? { lte: toDate } : {}),
-      },
+      invoicedAt: { not: null },
       paymentMethod: 'ACCOUNT',
       OR: [{ partnerId: id }, ...legacyClientMatches],
+      // An invoice belongs to the period of its supply date (invoice date when it has none).
+      ...(toDate
+        ? {
+            AND: [
+              {
+                OR: [
+                  { invoiceSupplyDate: { lte: toDate } },
+                  { invoiceSupplyDate: null, invoicedAt: { lte: toDate } },
+                ],
+              },
+            ],
+          }
+        : {}),
     },
     select: {
       id: true,
@@ -225,6 +235,7 @@ export const getPartnerLedger = async (
       destination: true,
       price: true,
       invoicedAt: true,
+      invoiceSupplyDate: true,
       invoiceDescription: true,
       invoiceGrossAmount: true,
       invoiceGroupId: true,
@@ -251,7 +262,7 @@ export const getPartnerLedger = async (
         return null;
       }
 
-      const postedAt = toIsoDate(trip.invoicedAt);
+      const postedAt = toIsoDate(trip.invoiceSupplyDate ?? trip.invoicedAt);
       const amount = trip.invoiceGrossAmount ?? trip.price ?? 0;
 
       if (amount <= MONEY_EPSILON) {
@@ -287,7 +298,7 @@ export const getPartnerLedger = async (
       continue;
     }
 
-    const postedAt = toIsoDate(first.invoicedAt);
+    const postedAt = toIsoDate(first.invoiceSupplyDate ?? first.invoicedAt);
     const amount = roundMoney(
       group.reduce((sum, trip) => sum + (trip.invoiceGrossAmount ?? trip.price ?? 0), 0),
     );

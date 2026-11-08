@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { MissingSupplyDatesCard } from '@/features/transactions/components/missing-supply-dates-card';
 import { VatReturnSheet } from '@/features/transactions/components/vat-return-sheet';
 import { useVatReport } from '@/features/transactions/hooks/use-vat-report';
 import { formatMoney, formatMonthYear } from '@/lib/format';
@@ -225,6 +226,8 @@ export function VatReportCard() {
         prijavom; kolona „Otvoreno“ pokazuje šta je još ostalo. Kako se PDV zvanično prijavljuje i
         da li se preplata vraća ili prenosi, potvrdite sa knjigovođom.
       </p>
+
+      <MissingSupplyDatesCard />
 
       <VatReturnSheet
         month={selectedMonth}

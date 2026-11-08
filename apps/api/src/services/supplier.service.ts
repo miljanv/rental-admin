@@ -223,6 +223,7 @@ export const getSupplierLedger = async (
       select: {
         id: true,
         issuedAt: true,
+        supplyDate: true,
         invoiceNumber: true,
         description: true,
         amountWithVat: true,
@@ -275,7 +276,8 @@ export const getSupplierLedger = async (
     ...companyExpenses.map((expense) => ({
       id: `company-expense:${expense.id}`,
       type: 'COMPANY_EXPENSE' as const,
-      postedAt: expense.issuedAt,
+      // Booked on the supply date; older bills without one use the invoice date.
+      postedAt: expense.supplyDate ?? expense.issuedAt,
       documentNumber: expense.invoiceNumber,
       description: expense.description,
       debit: expense.amountWithVat,

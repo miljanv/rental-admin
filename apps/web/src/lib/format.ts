@@ -118,10 +118,11 @@ export const formatDateTime = (isoDate: string | null): string => {
 const moneyFormatter = new Intl.NumberFormat('sr-Latn', {
   style: 'currency',
   currency: 'RSD',
+  minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
 
-/** Serbian dinar amount, for example "12.500,00 RSD". */
+/** Serbian dinar amount, always with two decimals, for example "1.000.000,00 RSD". */
 export const formatMoney = (amount: number | null | undefined): string => {
   if (amount == null || !Number.isFinite(amount)) {
     return '—';
@@ -133,6 +134,7 @@ export const formatMoney = (amount: number | null | undefined): string => {
 const euroFormatter = new Intl.NumberFormat('sr-Latn', {
   style: 'currency',
   currency: 'EUR',
+  minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
 

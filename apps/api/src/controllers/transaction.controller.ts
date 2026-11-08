@@ -53,6 +53,14 @@ export const getVatReport = async (req: Request, res: Response): Promise<void> =
   sendSuccess(res, report);
 };
 
+export const getMissingSupplyDates = async (_req: Request, res: Response): Promise<void> => {
+  sendSuccess(res, await transactionService.getMissingSupplyDates());
+};
+
+export const getOpenItemsTotals = async (_req: Request, res: Response): Promise<void> => {
+  sendSuccess(res, await transactionService.getOpenItemsTotals());
+};
+
 export const exportFinanceReport = async (req: Request, res: Response): Promise<void> => {
   const query = validated<FinanceExportQueryRequest>(req, 'query');
   const file = await transactionService.exportFinanceReport(query);

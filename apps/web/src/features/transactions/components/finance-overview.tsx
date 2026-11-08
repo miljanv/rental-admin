@@ -96,8 +96,8 @@ export function FinanceOverview({ onSettleAdvance }: FinanceOverviewProps) {
             <CardHeader>
               <CardTitle>Prihod i rashod po mesecima</CardTitle>
               <CardDescription>
-                Računi ulaze u rashod na datum izdavanja; uplata iz izvoda ih zatvara bez
-                dupliranja. Keš je izdvojen u poseban tab.
+                Računi ulaze u rashod na datum prometa (stariji bez njega na datum izdavanja);
+                uplata iz izvoda ih zatvara bez dupliranja. Keš je izdvojen u poseban tab.
               </CardDescription>
             </CardHeader>
             <CardContent>

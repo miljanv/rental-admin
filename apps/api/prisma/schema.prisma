@@ -1111,6 +1111,10 @@ model Trip {
   invoiceExchangeRate        Float?
   /// Amount due in `invoiceCurrency` when it is not RSD.
   invoiceCurrencyGrossAmount Float?
+  /// Tolls and similar costs passed on to the customer, as typed (invoice currency). Included in
+  /// the gross amount and in revenue, outside VAT.
+  invoiceExtraAmount         Float?
+  invoiceExtraDescription    String?
   /// Internal holder/recipient for off-ledger cash collected for this trip.
   cashRecipient              String?
   /// Internal cash-ledger date. Cash trips never set invoicedAt.

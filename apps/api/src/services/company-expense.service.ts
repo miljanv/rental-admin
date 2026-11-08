@@ -65,6 +65,22 @@ const toWriteData = async (input: CompanyExpenseWriteRequest) => {
   };
 };
 
+const expensePeriodWhere = (query: ListCompanyExpensesQuery | CompanyExpenseSummaryQuery) => {
+  if (!query.from && !query.to) {
+    return {};
+  }
+
+  const range = {
+    ...(query.from ? { gte: parseDate(query.from) } : {}),
+    ...(query.to ? { lte: parseDate(query.to) } : {}),
+  };
+
+  // Older bills without a supply date are counted on their invoice date, as in the VAT report.
+  return query.dateField === 'supplyDate'
+    ? { OR: [{ supplyDate: range }, { supplyDate: null, issuedAt: range }] }
+    : { issuedAt: range };
+};
+
 const expenseListWhere = (query: ListCompanyExpensesQuery | CompanyExpenseSummaryQuery) => ({
   ...(query.vehicleId ? { vehicleId: query.vehicleId } : {}),
   ...(query.commonOnly ? { scope: 'COMMON' as const } : {}),
@@ -73,14 +89,8 @@ const expenseListWhere = (query: ListCompanyExpensesQuery | CompanyExpenseSummar
     ? { supplier: { contains: query.supplier, mode: 'insensitive' as const } }
     : {}),
   ...(query.paymentMethod ? { paymentMethod: query.paymentMethod } : {}),
-  ...(query.from || query.to
-    ? {
-        issuedAt: {
-          ...(query.from ? { gte: parseDate(query.from) } : {}),
-          ...(query.to ? { lte: parseDate(query.to) } : {}),
-        },
-      }
-    : {}),
+  ...(query.missingSupplyDate ? { supplyDate: null } : {}),
+  ...expensePeriodWhere(query),
 });
 
 const bumpVehicleMileage = async (
@@ -105,7 +115,14 @@ export const listCompanyExpenses = async (
   const records = await prisma.companyExpense.findMany({
     where: expenseListWhere(query),
     include: companyExpenseInclude,
-    orderBy: [{ [query.sortBy]: query.sortOrder }, { createdAt: query.sortOrder }],
+    orderBy:
+      query.sortBy === 'supplyDate'
+        ? [
+            { supplyDate: { sort: query.sortOrder, nulls: 'last' as const } },
+            { issuedAt: query.sortOrder },
+            { createdAt: query.sortOrder },
+          ]
+        : [{ [query.sortBy]: query.sortOrder }, { createdAt: query.sortOrder }],
   });
 
   return records.map((record: CompanyExpenseRecord) => toCompanyExpenseDto(record));

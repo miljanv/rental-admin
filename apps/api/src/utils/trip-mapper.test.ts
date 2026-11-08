@@ -28,6 +28,8 @@ const record: TripRecord = {
   invoiceCurrency: 'RSD',
   invoiceExchangeRate: null,
   invoiceCurrencyGrossAmount: null,
+  invoiceExtraAmount: null,
+  invoiceExtraDescription: null,
   cashRecipient: null,
   cashRecordedAt: null,
   cashAmount: null,

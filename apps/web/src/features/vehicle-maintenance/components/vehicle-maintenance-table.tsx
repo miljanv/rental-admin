@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatMoney } from '@/lib/format';
 
 const COLUMN_COUNT = 7;
 
@@ -78,7 +78,7 @@ export function VehicleMaintenanceTable({
                 {record.odometerKm.toLocaleString('sr-RS')} km
               </TableCell>
               <TableCell className="text-right font-medium tabular-nums">
-                {record.cost.toLocaleString('sr-RS')} RSD
+                {formatMoney(record.cost)}
               </TableCell>
               <TableCell className="text-right">
                 <DropdownMenu>

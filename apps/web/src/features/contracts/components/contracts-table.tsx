@@ -1,6 +1,10 @@
 'use client';
 
-import { contractClientDisplayName, contractRouteLabel, type ContractDto } from '@rental-admin/shared';
+import {
+  contractClientDisplayName,
+  contractRouteLabel,
+  type ContractDto,
+} from '@rental-admin/shared';
 import { FileText, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -22,7 +26,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ContractStatusBadge } from '@/features/contracts/components/contract-status-badge';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatMoney } from '@/lib/format';
 
 const COLUMN_COUNT = 5;
 
@@ -89,7 +93,7 @@ export function ContractsTable({
                 {formatDate(contract.serviceStartDate)} – {formatDate(contract.serviceEndDate)}
               </TableCell>
               <TableCell className="text-muted-foreground tabular-nums">
-                {contract.price.toLocaleString('sr-RS')} RSD
+                {formatMoney(contract.price)}
               </TableCell>
               <TableCell>
                 <ContractStatusBadge status={contract.status} />

@@ -7,6 +7,11 @@ export interface SplitTransportFareInput {
   domesticIncludesVat: boolean;
   /** Foreign fare. Always net. VAT is never added. */
   foreignAmount: number;
+  /**
+   * Extra costs passed on to the customer (tolls). Part of the amount due and of revenue, but
+   * outside VAT: no VAT is added and it is not in the VAT base.
+   */
+  extraAmount?: number;
 }
 
 export interface TransportVatResult {
@@ -18,7 +23,9 @@ export interface TransportVatResult {
   vatBase: number;
   vatRate: number;
   vatAmount: number;
-  /** Domestic gross plus the untaxed foreign fare. */
+  /** Extra costs (tolls), outside VAT. */
+  extraAmount: number;
+  /** Domestic gross plus the untaxed foreign fare plus extra costs. */
   grossAmount: number;
 }
 
@@ -31,6 +38,7 @@ const roundMoney = (value: number): number => Math.round(value * 100) / 100;
 export const computeSplitTransportFare = (input: SplitTransportFareInput): TransportVatResult => {
   const rate = TRANSPORT_VAT_RATE / 100;
   const foreignNet = roundMoney(Math.max(0, input.foreignAmount));
+  const extraAmount = roundMoney(Math.max(0, input.extraAmount ?? 0));
   const typedDomestic = roundMoney(Math.max(0, input.domesticAmount));
 
   const domesticNet = input.domesticIncludesVat
@@ -44,14 +52,15 @@ export const computeSplitTransportFare = (input: SplitTransportFareInput): Trans
     : roundMoney(domesticNet + vatAmount);
 
   return {
-    netAmount: roundMoney(domesticNet + foreignNet),
+    netAmount: roundMoney(domesticNet + foreignNet + extraAmount),
     domesticNet,
     foreignNet,
     domesticGross,
     vatBase: domesticNet,
     vatRate: TRANSPORT_VAT_RATE,
     vatAmount,
-    grossAmount: roundMoney(domesticGross + foreignNet),
+    extraAmount,
+    grossAmount: roundMoney(domesticGross + foreignNet + extraAmount),
   };
 };
 
@@ -82,6 +91,7 @@ export const computeCurrencyTransportFare = (
       domesticAmount: roundMoney(Math.max(0, input.domesticAmount) * rate),
       domesticIncludesVat: input.domesticIncludesVat,
       foreignAmount: roundMoney(Math.max(0, input.foreignAmount) * rate),
+      extraAmount: roundMoney(Math.max(0, input.extraAmount ?? 0) * rate),
     }),
     currencyGrossAmount: inCurrency.grossAmount,
   };
@@ -99,6 +109,7 @@ export const scaleTransportFare = (fare: TransportVatResult, days: number): Tran
     domesticGross: scale(fare.domesticGross),
     vatBase: scale(fare.vatBase),
     vatAmount: scale(fare.vatAmount),
+    extraAmount: scale(fare.extraAmount),
     grossAmount: scale(fare.grossAmount),
   };
 };

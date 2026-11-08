@@ -24,6 +24,7 @@ describe('computeSplitTransportFare', () => {
       vatBase: 511_280,
       vatRate: 10,
       vatAmount: 51_128,
+      extraAmount: 0,
       grossAmount: 799_568,
     });
   });
@@ -54,6 +55,7 @@ describe('computeSplitTransportFare', () => {
       domesticNet: 20_000,
       foreignNet: 0,
       vatAmount: 2_000,
+      extraAmount: 0,
       grossAmount: 22_000,
     });
   });
@@ -67,6 +69,7 @@ describe('computeSplitTransportFare', () => {
       }),
     ).toMatchObject({
       vatAmount: 0,
+      extraAmount: 0,
       grossAmount: 237_160,
     });
   });
@@ -123,5 +126,36 @@ describe('computeCurrencyTransportFare', () => {
 
     expect(fare.currencyGrossAmount).toBe(1_600);
     expect(fare.dinars.grossAmount).toBe(1_600);
+  });
+});
+
+describe('extra costs (tolls)', () => {
+  it('adds tolls to the amount due without VAT', () => {
+    const fare = computeSplitTransportFare({
+      domesticAmount: 142_100,
+      domesticIncludesVat: false,
+      foreignAmount: 116_800,
+      extraAmount: 14_380,
+    });
+
+    expect(fare.vatBase).toBe(142_100);
+    expect(fare.vatAmount).toBe(14_210);
+    expect(fare.extraAmount).toBe(14_380);
+    expect(fare.grossAmount).toBe(287_490);
+  });
+
+  it('converts EUR tolls at the invoice rate, still outside VAT', () => {
+    const fare = computeCurrencyTransportFare({
+      domesticAmount: 430,
+      domesticIncludesVat: false,
+      foreignAmount: 1_670,
+      extraAmount: 50,
+      exchangeRate: 117.4007,
+    });
+
+    expect(fare.currencyGrossAmount).toBe(2_193);
+    expect(fare.dinars.vatAmount).toBe(5_048.23);
+    expect(fare.dinars.extraAmount).toBe(5_870.04);
+    expect(fare.dinars.grossAmount).toBe(257_459.74);
   });
 });

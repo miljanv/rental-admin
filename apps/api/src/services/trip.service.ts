@@ -193,6 +193,7 @@ const currencyFareForInvoice = (input: TripInvoiceWriteRequest) =>
     domesticAmount: input.domesticPrice ?? 0,
     domesticIncludesVat: input.paymentMethod === 'CASH' ? false : input.priceIncludesVat,
     foreignAmount: input.foreignPrice ?? 0,
+    extraAmount: input.extraAmount ?? 0,
     exchangeRate: isForeignCurrencyInvoice(input) ? input.exchangeRate : null,
   });
 
@@ -222,6 +223,9 @@ const invoiceColumns = (
     paymentMethod: input.paymentMethod,
     referenceNumber: input.referenceNumber,
     ...invoiceCurrencyColumns(input),
+    invoiceExtraAmount: input.extraAmount && input.extraAmount > 0 ? input.extraAmount : null,
+    invoiceExtraDescription:
+      input.extraAmount && input.extraAmount > 0 ? input.extraDescription : null,
   };
 
   if (input.paymentMethod === 'CASH') {

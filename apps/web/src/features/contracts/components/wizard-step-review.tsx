@@ -16,7 +16,7 @@ import { useDrivers } from '@/features/drivers/hooks/use-drivers';
 import { driverFullName } from '@/features/drivers/lib/driver';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
 import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatMoney } from '@/lib/format';
 
 interface SummaryRowProps {
   label: string;
@@ -79,19 +79,16 @@ export function WizardStepReview() {
           <SummaryRow label="Međunarodna ruta" value={values.isInternational ? 'Da' : 'Ne'} />
           <SummaryRow label="Vozilo" value={vehicle ? vehicleLabel(vehicle) : 'Nije određeno'} />
           <SummaryRow label="Vozač" value={driver ? driverFullName(driver) : 'Nije određeno'} />
-          <SummaryRow label="Ukupna cena" value={`${price.toLocaleString('sr-RS')} RSD`} />
+          <SummaryRow label="Ukupna cena" value={formatMoney(price)} />
           <SummaryRow
             label={`Avans (${advancePercentage}%)`}
-            value={`${computeAdvanceAmount(price, advancePercentage).toLocaleString('sr-RS')} RSD`}
+            value={formatMoney(computeAdvanceAmount(price, advancePercentage))}
           />
           <SummaryRow
             label="Preostali iznos"
-            value={`${computeRemainderAmount(price, advancePercentage).toLocaleString('sr-RS')} RSD`}
+            value={formatMoney(computeRemainderAmount(price, advancePercentage))}
           />
-          <SummaryRow
-            label="Status"
-            value={CONTRACT_STATUS_LABELS[values.status ?? 'DRAFT']}
-          />
+          <SummaryRow label="Status" value={CONTRACT_STATUS_LABELS[values.status ?? 'DRAFT']} />
         </dl>
         {vehiclesQuery.isError || driversQuery.isError ? (
           <p className="text-destructive mt-3 text-xs">

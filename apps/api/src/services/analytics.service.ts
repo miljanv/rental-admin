@@ -228,7 +228,11 @@ export const getBusinessAnalytics = async (
     }),
     prisma.trip.findMany({
       where: {
-        invoicedAt: { gte: fromDate, lte: toDate },
+        // Supply date is the main date; older invoices without one fall back to the invoice date.
+        OR: [
+          { invoiceSupplyDate: { gte: fromDate, lte: toDate } },
+          { invoiceSupplyDate: null, invoicedAt: { gte: fromDate, lte: toDate } },
+        ],
         invoiceGrossAmount: { not: null },
         paymentMethod: 'ACCOUNT',
       },
@@ -243,7 +247,13 @@ export const getBusinessAnalytics = async (
       },
     }),
     prisma.companyExpense.findMany({
-      where: { issuedAt: { gte: fromDate, lte: toDate }, paymentMethod: 'ACCOUNT' },
+      where: {
+        OR: [
+          { supplyDate: { gte: fromDate, lte: toDate } },
+          { supplyDate: null, issuedAt: { gte: fromDate, lte: toDate } },
+        ],
+        paymentMethod: 'ACCOUNT',
+      },
       select: {
         id: true,
         supplier: true,

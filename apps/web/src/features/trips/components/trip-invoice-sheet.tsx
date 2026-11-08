@@ -114,6 +114,8 @@ const invoiceFormValues = (trip: TripDto | null): TripInvoiceWriteInput => ({
   cashRecipient: trip?.cashRecipient ?? '',
   currency: trip?.invoiceCurrency ?? 'RSD',
   exchangeRate: trip?.invoiceExchangeRate ?? '',
+  extraAmount: trip?.invoiceExtraAmount ?? '',
+  extraDescription: trip?.invoiceExtraDescription ?? '',
 });
 
 export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) {
@@ -132,6 +134,7 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
   const priceIncludesVat = useWatch({ control: form.control, name: 'priceIncludesVat' });
   const domesticPrice = useWatch({ control: form.control, name: 'domesticPrice' });
   const foreignPrice = useWatch({ control: form.control, name: 'foreignPrice' });
+  const extraAmountValue = useWatch({ control: form.control, name: 'extraAmount' });
   const paymentMethod = useWatch({ control: form.control, name: 'paymentMethod' });
   const currency = useWatch({ control: form.control, name: 'currency' }) ?? 'RSD';
   const exchangeRateValue = useWatch({ control: form.control, name: 'exchangeRate' });
@@ -164,6 +167,11 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
   const dayCount = billSeriesMonth ? seriesDays : 1;
   const typedDomestic = typeof domesticPrice === 'number' ? domesticPrice : 0;
   const typedForeign = typeof foreignPrice === 'number' ? foreignPrice : 0;
+  // Tolls are a per-invoice amount; a monthly series invoice has none.
+  const typedExtra =
+    !billSeriesMonth && typeof extraAmountValue === 'number' && Number.isFinite(extraAmountValue)
+      ? Math.max(0, extraAmountValue)
+      : 0;
   const unitFare =
     (Number.isFinite(typedDomestic) && typedDomestic > 0) ||
     (Number.isFinite(typedForeign) && typedForeign > 0)
@@ -171,6 +179,7 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
           domesticAmount: Number.isFinite(typedDomestic) ? typedDomestic : 0,
           domesticIncludesVat: isCash ? false : Boolean(priceIncludesVat),
           foreignAmount: Number.isFinite(typedForeign) ? typedForeign : 0,
+          extraAmount: typedExtra,
         })
       : null;
   const preview = unitFare && dayCount > 0 ? scaleTransportFare(unitFare, dayCount) : null;
@@ -181,6 +190,7 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
           domesticAmount: Number.isFinite(typedDomestic) ? typedDomestic : 0,
           domesticIncludesVat: Boolean(priceIncludesVat),
           foreignAmount: Number.isFinite(typedForeign) ? typedForeign : 0,
+          extraAmount: typedExtra,
           exchangeRate,
         }).dinars
       : null;
@@ -438,7 +448,11 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
                 {unitFare ? formatTyped(unitFare.grossAmount) : '—'}
               </div>
               <p className="text-muted-foreground text-xs leading-tight">
-                {dinarFare ? `= ${formatMoney(dinarFare.grossAmount)}` : 'Zbir te dve cene'}
+                {dinarFare
+                  ? `= ${formatMoney(dinarFare.grossAmount)}`
+                  : typedExtra > 0
+                    ? 'Zbir cena i dodatnih troškova'
+                    : 'Zbir te dve cene'}
               </p>
               {billSeriesMonth && dayCount > 0 ? (
                 <p className="text-muted-foreground text-xs">{dayCount} dana</p>
@@ -446,17 +460,58 @@ export function TripInvoiceSheet({ trip, onOpenChange }: TripInvoiceSheetProps) 
             </div>
           </div>
 
+          {!billSeriesMonth ? (
+            <div className="grid gap-2 sm:grid-cols-[180px_1fr]">
+              <Field
+                id="invoice-extra-amount"
+                label={`Dodatni troškovi${isForeign ? ' (EUR)' : ''}`}
+                error={errors.extraAmount?.message as string | undefined}
+              >
+                <Input
+                  id="invoice-extra-amount"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  placeholder="npr. putarina"
+                  disabled={invoiceMutation.isPending}
+                  aria-invalid={Boolean(errors.extraAmount)}
+                  {...form.register('extraAmount', { valueAsNumber: true })}
+                />
+              </Field>
+              <Field
+                id="invoice-extra-description"
+                label="Opis dodatnih troškova"
+                error={errors.extraDescription?.message}
+              >
+                <Input
+                  id="invoice-extra-description"
+                  placeholder="Putarine"
+                  disabled={invoiceMutation.isPending}
+                  {...form.register('extraDescription')}
+                />
+              </Field>
+              <p className="text-muted-foreground text-xs sm:col-span-2">
+                Putarine i slični troškovi koje prefakturišete kupcu: ulaze u iznos fakture i
+                promet, ali ne i u PDV obračun.
+              </p>
+            </div>
+          ) : null}
+
           {isForeign && unitFare ? (
             <p className="text-muted-foreground text-xs">
               {dinarFare
-                ? `U dinarima po kursu ${rateFormatter.format(exchangeRate ?? 0)}: osnovica u zemlji ${formatMoney(dinarFare.domesticNet)}, PDV ${TRANSPORT_VAT_RATE}% ${formatMoney(dinarFare.vatAmount)}, inostranstvo ${formatMoney(dinarFare.foreignNet)}, ukupno ${formatMoney(dinarFare.grossAmount)}. Ovi dinarski iznosi idu u PDV obračun i zaduženja.`
+                ? `U dinarima po kursu ${rateFormatter.format(exchangeRate ?? 0)}: osnovica u zemlji ${formatMoney(dinarFare.domesticNet)}, PDV ${TRANSPORT_VAT_RATE}% ${formatMoney(dinarFare.vatAmount)}, inostranstvo ${formatMoney(dinarFare.foreignNet)}${dinarFare.extraAmount > 0 ? `, dodatni troškovi ${formatMoney(dinarFare.extraAmount)} (bez PDV-a)` : ''}, ukupno ${formatMoney(dinarFare.grossAmount)}. Ovi dinarski iznosi idu u PDV obračun i zaduženja.`
                 : 'Unesite kurs sa fakture da biste videli dinarske iznose i PDV.'}
             </p>
           ) : unitFare && !isCash ? (
             <p className="text-muted-foreground text-xs">
               PDV {TRANSPORT_VAT_RATE}% na zemlju: {formatMoney(unitFare.vatAmount)}. Ukupno je
               zemlja sa PDV-om ({formatMoney(unitFare.domesticGross)}) + inostranstvo (
-              {formatMoney(unitFare.foreignNet)}).
+              {formatMoney(unitFare.foreignNet)})
+              {unitFare.extraAmount > 0
+                ? ` + dodatni troškovi (${formatMoney(unitFare.extraAmount)}, bez PDV-a)`
+                : ''}
+              .
               {billSeriesMonth && preview && dayCount > 1
                 ? ` Za ${dayCount} dana: ${formatMoney(preview.grossAmount)}.`
                 : ''}

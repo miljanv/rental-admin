@@ -73,6 +73,8 @@ import {
   createTransaction,
   deleteTransaction,
   getFinanceReport,
+  getMissingSupplyDates,
+  getOpenItemsTotals,
   getVatReport,
   importBankStatementXml,
   listSettlementTargets,
@@ -685,7 +687,7 @@ describe('bank statement posting', () => {
 });
 
 describe('finance report invoice recognition', () => {
-  it('shows old entered invoices by issue month and does not count their bank payment twice', async () => {
+  it('books bills by supply month (issue month without one) and does not count their payment twice', async () => {
     vi.mocked(prisma.financeTransaction.findMany).mockResolvedValue([
       {
         type: 'EXPENSE',
@@ -725,7 +727,8 @@ describe('finance report invoice recognition', () => {
         scope: 'SUBCONTRACTOR',
         paymentMethod: 'ACCOUNT',
         vehicle: null,
-        issuedAt: new Date('2026-05-15'),
+        issuedAt: new Date('2026-06-02'),
+        supplyDate: new Date('2026-05-31'),
       },
       {
         ...expense,
@@ -736,6 +739,7 @@ describe('finance report invoice recognition', () => {
         paymentMethod: 'ACCOUNT',
         vehicle: null,
         issuedAt: new Date('2026-06-15'),
+        supplyDate: null,
       },
     ] as never);
     vi.mocked(prisma.partner.findMany).mockResolvedValue([]);
@@ -1354,5 +1358,45 @@ describe('VAT returns', () => {
       openAmount: 100_000,
       filedAt: '2026-10-15',
     });
+  });
+});
+
+describe('open items totals', () => {
+  it('counts every open bill, not only the first 100', async () => {
+    const bills = Array.from({ length: 150 }, (_, index) => ({
+      ...expense,
+      id: `bill-${index}`,
+      createdAt: date,
+    }));
+    vi.mocked(prisma.companyExpense.findMany).mockResolvedValue(bills as never);
+    vi.mocked(prisma.trip.findMany).mockResolvedValue([] as never);
+
+    const totals = await getOpenItemsTotals();
+
+    expect(totals.payables).toEqual({ total: 15_000, count: 150 });
+    expect(totals.receivables).toEqual({ total: 0, count: 0 });
+  });
+});
+
+describe('documents missing a supply date', () => {
+  it('lists bills and invoices without one, a series invoice only once', async () => {
+    vi.mocked(prisma.companyExpense.findMany).mockResolvedValue([
+      { ...expense, supplyDate: null, description: 'Gorivo', createdAt: date },
+    ] as never);
+    vi.mocked(prisma.trip.findMany).mockResolvedValue([
+      { ...trip, id: 'single', origin: 'NS', destination: 'BG' },
+      { ...trip, id: 'day-1', invoiceGroupId: 'series:a:2026-09', invoiceGrossAmount: 50 },
+      { ...trip, id: 'day-2', invoiceGroupId: 'series:a:2026-09', invoiceGrossAmount: 70 },
+    ] as never);
+
+    const result = await getMissingSupplyDates();
+
+    expect(result.expenses).toEqual([
+      expect.objectContaining({ id: expense.id, issuedAt: '2026-10-01', description: 'Gorivo' }),
+    ]);
+    expect(result.invoices).toEqual([
+      expect.objectContaining({ tripId: 'single', route: 'NS – BG', isSeriesInvoice: false }),
+      expect.objectContaining({ tripId: 'day-1', amount: 120, isSeriesInvoice: true }),
+    ]);
   });
 });

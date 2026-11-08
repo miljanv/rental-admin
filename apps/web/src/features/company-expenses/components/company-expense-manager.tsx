@@ -2,6 +2,7 @@
 
 import {
   COMPANY_EXPENSE_SCOPE_LABELS,
+  type CompanyExpenseDateField,
   type CompanyExpenseDto,
   type CompanyExpenseScope,
 } from '@rental-admin/shared';
@@ -41,6 +42,9 @@ const isScopeFilter = (value: string): value is CompanyExpenseScope =>
 export function CompanyExpenseManager() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  // Supply date is the main date for every bill.
+  const [dateField, setDateField] = useState<CompanyExpenseDateField>('supplyDate');
+  const [missingSupplyOnly, setMissingSupplyOnly] = useState(false);
   const [vehicleFilter, setVehicleFilter] = useState(ALL);
   const [supplierFilter, setSupplierFilter] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -61,7 +65,9 @@ export function CompanyExpenseManager() {
     ...(supplierFilter.trim() ? { supplier: supplierFilter.trim() } : {}),
     ...(from ? { from } : {}),
     ...(to ? { to } : {}),
-    sortBy: 'issuedAt' as const,
+    dateField,
+    ...(missingSupplyOnly ? { missingSupplyDate: true } : {}),
+    sortBy: dateField,
     sortOrder: 'desc' as const,
   };
   const query = useCompanyExpenses(params);
@@ -127,6 +133,23 @@ export function CompanyExpenseManager() {
 
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
         <div className="space-y-1.5">
+          <Label htmlFor="expense-date-field" className="text-xs">
+            Period po
+          </Label>
+          <Select
+            value={dateField}
+            onValueChange={(value) => setDateField(value as CompanyExpenseDateField)}
+          >
+            <SelectTrigger id="expense-date-field" className="w-full sm:w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="supplyDate">Datumu prometa</SelectItem>
+              <SelectItem value="issuedAt">Datumu računa</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
           <Label htmlFor="expense-from" className="text-xs">
             Od
           </Label>
@@ -172,6 +195,15 @@ export function CompanyExpenseManager() {
             className="w-full sm:w-48"
           />
         </div>
+        <label className="flex h-9 items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="accent-primary size-4"
+            checked={missingSupplyOnly}
+            onChange={(event) => setMissingSupplyOnly(event.target.checked)}
+          />
+          Samo bez datuma prometa
+        </label>
       </div>
 
       {isFormOpen ? (
@@ -207,6 +239,7 @@ export function CompanyExpenseManager() {
               expenses={expenses}
               isLoading={query.isPending}
               showVehicle
+              groupBySupplyMonth={dateField === 'supplyDate'}
               onEdit={(expense) => {
                 setEditing(expense);
                 setIsFormOpen(true);

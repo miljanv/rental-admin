@@ -13,6 +13,7 @@ import { VehicleMaintenanceForm } from '@/features/vehicle-maintenance/component
 import { VehicleMaintenanceTable } from '@/features/vehicle-maintenance/components/vehicle-maintenance-table';
 import { useMaintenanceCostSummary } from '@/features/vehicle-maintenance/hooks/use-maintenance-cost-summary';
 import { useVehicleMaintenance } from '@/features/vehicle-maintenance/hooks/use-vehicle-maintenance';
+import { formatMoney } from '@/lib/format';
 
 interface VehicleMaintenanceTabProps {
   vehicleId: string;
@@ -43,7 +44,7 @@ export function VehicleMaintenanceTab({ vehicleId }: VehicleMaintenanceTabProps)
             <Skeleton className="h-9 w-40" />
           ) : (
             <p className="text-3xl font-semibold">
-              {(costSummaryQuery.data?.total ?? 0).toLocaleString('sr-RS')} RSD
+              {formatMoney(costSummaryQuery.data?.total ?? 0)}
               <span className="text-muted-foreground ml-2 text-sm font-normal">
                 ({costSummaryQuery.data?.count ?? 0}{' '}
                 {costSummaryQuery.data?.count === 1 ? 'zapis' : 'zapisa'})

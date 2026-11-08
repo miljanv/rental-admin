@@ -79,7 +79,7 @@ export function PartnersList() {
   return (
     <>
       <PageHeader
-        title="Partneri"
+        title="Partneri - Kupci"
         description="Naručioci prevoza — turističke agencije, sportski klubovi, KUD-ovi i fizička lica."
         actions={
           <Button asChild>

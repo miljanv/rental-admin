@@ -251,6 +251,9 @@ export interface TripDto {
   invoiceCurrency: Currency;
   invoiceExchangeRate: number | null;
   invoiceCurrencyGrossAmount: number | null;
+  /** Tolls passed on to the customer, as typed; in the amount due, outside VAT. */
+  invoiceExtraAmount: number | null;
+  invoiceExtraDescription: string | null;
   /** Person who receives/holds cash for this internal cash trip. */
   cashRecipient: string | null;
   /** Date and amount recorded only in the internal cash ledger. */

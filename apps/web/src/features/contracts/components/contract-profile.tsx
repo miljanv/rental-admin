@@ -28,7 +28,7 @@ import { PassengerListsTab } from '@/features/passenger-lists/components/passeng
 import { TravelPermitsTab } from '@/features/travel-permits/components/travel-permits-tab';
 import { useVehicle } from '@/features/vehicles/hooks/use-vehicle';
 import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 const PROFILE_TABS = [
@@ -70,7 +70,9 @@ function ContractOverview({ contract }: { contract: ContractDto }) {
       <Card className="shadow-none">
         <CardHeader>
           <CardTitle>Naručilac posla</CardTitle>
-          <CardDescription>Podaci onako kako su bili u trenutku zaključenja ugovora.</CardDescription>
+          <CardDescription>
+            Podaci onako kako su bili u trenutku zaključenja ugovora.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -123,12 +125,12 @@ function ContractOverview({ contract }: { contract: ContractDto }) {
         </CardHeader>
         <CardContent>
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <DetailItem label="Ukupna cena" value={`${contract.price.toLocaleString('sr-RS')} RSD`} />
+            <DetailItem label="Ukupna cena" value={formatMoney(contract.price)} />
             <DetailItem
               label={`Avans (${contract.advancePercentage}%)`}
-              value={`${advanceAmount.toLocaleString('sr-RS')} RSD`}
+              value={formatMoney(advanceAmount)}
             />
-            <DetailItem label="Preostali iznos" value={`${remainderAmount.toLocaleString('sr-RS')} RSD`} />
+            <DetailItem label="Preostali iznos" value={formatMoney(remainderAmount)} />
           </dl>
         </CardContent>
       </Card>

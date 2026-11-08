@@ -68,6 +68,8 @@ export interface TripRecord {
   invoiceCurrency: Currency;
   invoiceExchangeRate: number | null;
   invoiceCurrencyGrossAmount: number | null;
+  invoiceExtraAmount: number | null;
+  invoiceExtraDescription: string | null;
   cashRecipient: string | null;
   cashRecordedAt: Date | null;
   cashAmount: number | null;
@@ -160,6 +162,8 @@ export const toTripDto = (record: TripRecord): TripDto => ({
   invoiceCurrency: record.invoiceCurrency,
   invoiceExchangeRate: record.invoiceExchangeRate,
   invoiceCurrencyGrossAmount: record.invoiceCurrencyGrossAmount,
+  invoiceExtraAmount: record.invoiceExtraAmount,
+  invoiceExtraDescription: record.invoiceExtraDescription,
   cashRecipient: record.cashRecipient,
   cashRecordedAt: record.cashRecordedAt ? toIsoDate(record.cashRecordedAt) : null,
   cashAmount: record.cashAmount,

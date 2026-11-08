@@ -3,6 +3,8 @@ import type {
   ApiResponse,
   BankStatementImportResult,
   BankStatementPreviewResult,
+  MissingSupplyDatesDto,
+  OpenItemsTotalsDto,
   BankStatementXmlImportRequest,
   BankStatementEntryWriteRequest,
   CreatePaymentAllocationResult,
@@ -184,6 +186,26 @@ export const fetchFinanceReport = async (
     params,
     signal,
   });
+
+  return unwrap(response.data);
+};
+
+export const fetchMissingSupplyDates = async (
+  signal?: AbortSignal,
+): Promise<MissingSupplyDatesDto> => {
+  const response = await apiClient.get<ApiResponse<MissingSupplyDatesDto>>(
+    '/transactions/reports/missing-supply-dates',
+    { signal },
+  );
+
+  return unwrap(response.data);
+};
+
+export const fetchOpenItemsTotals = async (signal?: AbortSignal): Promise<OpenItemsTotalsDto> => {
+  const response = await apiClient.get<ApiResponse<OpenItemsTotalsDto>>(
+    '/transactions/reports/open-items',
+    { signal },
+  );
 
   return unwrap(response.data);
 };

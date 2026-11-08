@@ -135,7 +135,17 @@ export const companyExpenseWriteSchema = z
 export type CompanyExpenseWriteInput = z.input<typeof companyExpenseWriteSchema>;
 export type CompanyExpenseWriteRequest = z.output<typeof companyExpenseWriteSchema>;
 
-export const COMPANY_EXPENSE_SORT_FIELDS = ['issuedAt', 'amount', 'createdAt'] as const;
+export const COMPANY_EXPENSE_SORT_FIELDS = [
+  'issuedAt',
+  'supplyDate',
+  'amount',
+  'createdAt',
+] as const;
+
+/** Which date the period filter uses: the invoice date, or the supply date used for VAT. */
+export const COMPANY_EXPENSE_DATE_FIELDS = ['issuedAt', 'supplyDate'] as const;
+
+export type CompanyExpenseDateField = (typeof COMPANY_EXPENSE_DATE_FIELDS)[number];
 
 export type CompanyExpenseSortField = (typeof COMPANY_EXPENSE_SORT_FIELDS)[number];
 
@@ -160,6 +170,13 @@ const companyExpenseQueryBaseSchema = z.object({
     .transform((value) => (value ? value : undefined)),
   from: isoDateSchema.optional(),
   to: isoDateSchema.optional(),
+  /** Supply date falls back to the invoice date for older bills that have none, as in VAT. */
+  dateField: z.enum(COMPANY_EXPENSE_DATE_FIELDS).default('issuedAt'),
+  /** Only bills still missing a supply date, so they can be filled in. */
+  missingSupplyDate: z
+    .union([z.literal('true'), z.literal('false'), z.boolean()])
+    .optional()
+    .transform((value) => (value === undefined ? undefined : value === true || value === 'true')),
   paymentMethod: paymentMethodSchema.optional(),
 });
 

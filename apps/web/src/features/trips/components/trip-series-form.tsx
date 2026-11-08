@@ -202,6 +202,131 @@ export function TripSeriesForm() {
       <form onSubmit={onSubmit} noValidate className="space-y-6">
         <Card className="shadow-none">
           <CardHeader>
+            <CardTitle>Naručilac</CardTitle>
+            <CardDescription>Registrovan partner ili slobodan unos imena.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={useFreeTextClient ? 'outline' : 'default'}
+                onClick={() => {
+                  setUseFreeTextClient(false);
+                  form.setValue('clientName', '');
+                }}
+                disabled={isPending}
+              >
+                Partner iz evidencije
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={useFreeTextClient ? 'default' : 'outline'}
+                onClick={() => {
+                  setUseFreeTextClient(true);
+                  form.setValue('partnerId', '');
+                }}
+                disabled={isPending}
+              >
+                Slobodan unos
+              </Button>
+            </div>
+
+            {useFreeTextClient ? (
+              <Field
+                id="clientName"
+                label="Naziv / ime naručioca"
+                error={errors.clientName?.message as string | undefined}
+              >
+                <Controller
+                  control={form.control}
+                  name="clientName"
+                  render={({ field }) => (
+                    <PartnerNameInput
+                      id="clientName"
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      disabled={isPending}
+                    />
+                  )}
+                />
+              </Field>
+            ) : (
+              <Controller
+                control={form.control}
+                name="partnerId"
+                render={({ field }) => (
+                  <Field
+                    id="partnerId"
+                    label="Partner"
+                    error={errors.partnerId?.message as string | undefined}
+                  >
+                    <Select
+                      value={field.value || NONE}
+                      onValueChange={(value) => field.onChange(value === NONE ? '' : value)}
+                      disabled={isPending || partnersQuery.isPending}
+                    >
+                      <SelectTrigger id="partnerId" className="w-full">
+                        <SelectValue placeholder="Izaberite partnera" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE}>Nije izabran</SelectItem>
+                        {partners.map((partner) => (
+                          <SelectItem key={partner.id} value={partner.id}>
+                            {partnerPickerLabel(partner)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
+              />
+            )}
+
+            {matchedPartner ? (
+              <ExistingPartnerHint
+                partner={matchedPartner}
+                onLink={() => linkPartner(matchedPartner.id)}
+                disabled={isPending}
+              />
+            ) : null}
+
+            <Controller
+              control={form.control}
+              name="contractId"
+              render={({ field }) => (
+                <Field
+                  id="contractId"
+                  label="Povezan ugovor (opciono)"
+                  error={errors.contractId?.message as string | undefined}
+                >
+                  <Select
+                    value={field.value || NONE}
+                    onValueChange={(value) => field.onChange(value === NONE ? '' : value)}
+                    disabled={isPending || contractsQuery.isPending}
+                  >
+                    <SelectTrigger id="contractId" className="w-full">
+                      <SelectValue placeholder="Nije povezano" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>Nije povezano</SelectItem>
+                      {contracts.map((contract) => (
+                        <SelectItem key={contract.id} value={contract.id}>
+                          {contractRouteLabel(contract)} — {CONTRACT_STATUS_LABELS[contract.status]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              )}
+            />
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-none">
+          <CardHeader>
             <CardTitle>Ponavljanje</CardTitle>
             <CardDescription>Period i učestalost generisanja.</CardDescription>
           </CardHeader>
@@ -503,131 +628,6 @@ export function TripSeriesForm() {
                 <Textarea id="notes" rows={3} disabled={isPending} {...form.register('notes')} />
               </Field>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle>Naručilac</CardTitle>
-            <CardDescription>Registrovan partner ili slobodan unos imena.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant={useFreeTextClient ? 'outline' : 'default'}
-                onClick={() => {
-                  setUseFreeTextClient(false);
-                  form.setValue('clientName', '');
-                }}
-                disabled={isPending}
-              >
-                Partner iz evidencije
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={useFreeTextClient ? 'default' : 'outline'}
-                onClick={() => {
-                  setUseFreeTextClient(true);
-                  form.setValue('partnerId', '');
-                }}
-                disabled={isPending}
-              >
-                Slobodan unos
-              </Button>
-            </div>
-
-            {useFreeTextClient ? (
-              <Field
-                id="clientName"
-                label="Naziv / ime naručioca"
-                error={errors.clientName?.message as string | undefined}
-              >
-                <Controller
-                  control={form.control}
-                  name="clientName"
-                  render={({ field }) => (
-                    <PartnerNameInput
-                      id="clientName"
-                      value={field.value ?? ''}
-                      onChange={field.onChange}
-                      onBlur={field.onBlur}
-                      disabled={isPending}
-                    />
-                  )}
-                />
-              </Field>
-            ) : (
-              <Controller
-                control={form.control}
-                name="partnerId"
-                render={({ field }) => (
-                  <Field
-                    id="partnerId"
-                    label="Partner"
-                    error={errors.partnerId?.message as string | undefined}
-                  >
-                    <Select
-                      value={field.value || NONE}
-                      onValueChange={(value) => field.onChange(value === NONE ? '' : value)}
-                      disabled={isPending || partnersQuery.isPending}
-                    >
-                      <SelectTrigger id="partnerId" className="w-full">
-                        <SelectValue placeholder="Izaberite partnera" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={NONE}>Nije izabran</SelectItem>
-                        {partners.map((partner) => (
-                          <SelectItem key={partner.id} value={partner.id}>
-                            {partnerPickerLabel(partner)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                )}
-              />
-            )}
-
-            {matchedPartner ? (
-              <ExistingPartnerHint
-                partner={matchedPartner}
-                onLink={() => linkPartner(matchedPartner.id)}
-                disabled={isPending}
-              />
-            ) : null}
-
-            <Controller
-              control={form.control}
-              name="contractId"
-              render={({ field }) => (
-                <Field
-                  id="contractId"
-                  label="Povezan ugovor (opciono)"
-                  error={errors.contractId?.message as string | undefined}
-                >
-                  <Select
-                    value={field.value || NONE}
-                    onValueChange={(value) => field.onChange(value === NONE ? '' : value)}
-                    disabled={isPending || contractsQuery.isPending}
-                  >
-                    <SelectTrigger id="contractId" className="w-full">
-                      <SelectValue placeholder="Nije povezano" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE}>Nije povezano</SelectItem>
-                      {contracts.map((contract) => (
-                        <SelectItem key={contract.id} value={contract.id}>
-                          {contractRouteLabel(contract)} — {CONTRACT_STATUS_LABELS[contract.status]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              )}
-            />
           </CardContent>
         </Card>
 

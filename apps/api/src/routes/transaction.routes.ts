@@ -83,6 +83,16 @@ transactionRouter.get(
 );
 
 transactionRouter.get(
+  '/reports/open-items',
+  asyncHandler(transactionController.getOpenItemsTotals),
+);
+
+transactionRouter.get(
+  '/reports/missing-supply-dates',
+  asyncHandler(transactionController.getMissingSupplyDates),
+);
+
+transactionRouter.get(
   '/reports/export',
   validateRequest({ query: financeExportQuerySchema }),
   asyncHandler(transactionController.exportFinanceReport),

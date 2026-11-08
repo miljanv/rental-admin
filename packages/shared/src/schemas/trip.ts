@@ -190,6 +190,9 @@ export const tripInvoiceWriteSchema = z
     foreignPrice: optionalNonNegative('Cena u inostranstvu', 100_000_000_000_000),
     /** When true, `domesticPrice` was typed already including 10% VAT. */
     priceIncludesVat: z.boolean().default(false),
+    /** Tolls and similar costs passed on to the customer: in the amount due, outside VAT. */
+    extraAmount: optionalNonNegative('Dodatni troškovi', 100_000_000_000),
+    extraDescription: optionalText(200),
     /** Worker transport: both prices are per day, and every trip of this series in the departure month is one invoice. */
     billSeriesMonth: z.boolean().default(false),
     paymentMethod: paymentMethodSchema,
@@ -223,6 +226,14 @@ export const tripInvoiceWriteSchema = z
           message: 'Mesečna faktura serije se izdaje samo u dinarima.',
         });
       }
+    }
+
+    if (value.billSeriesMonth && (value.extraAmount ?? 0) > 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['extraAmount'],
+        message: 'Dodatni troškovi se unose na pojedinačnu fakturu, ne na mesečnu fakturu serije.',
+      });
     }
 
     if ((value.domesticPrice ?? 0) <= 0 && (value.foreignPrice ?? 0) <= 0) {
