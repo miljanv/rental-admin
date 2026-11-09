@@ -35,6 +35,16 @@ describe('assertWithinLimit', () => {
     });
   });
 
+  it('counts only enabled vehicles against the vehicle limit', async () => {
+    tx.$queryRaw.mockResolvedValue(limits(3, null));
+    tx.vehicle.count.mockResolvedValue(2);
+
+    await assertWithinLimit(tx as never, 'org-1', 'vehicles');
+    expect(tx.vehicle.count).toHaveBeenCalledWith({
+      where: { organizationId: 'org-1', isEnabled: true },
+    });
+  });
+
   it('counts only active regular users against the user limit', async () => {
     tx.$queryRaw.mockResolvedValue(limits(null, 2));
     tx.user.count.mockResolvedValue(2);

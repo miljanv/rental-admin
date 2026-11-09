@@ -98,6 +98,13 @@ describe('listVehiclesQuerySchema', () => {
       search: undefined,
       status: undefined,
       type: undefined,
+      enabled: undefined,
     });
+  });
+
+  it('parses the enabled filter from the query string', () => {
+    expect(listVehiclesQuerySchema.parse({ enabled: 'true' }).enabled).toBe(true);
+    expect(listVehiclesQuerySchema.parse({ enabled: 'false' }).enabled).toBe(false);
+    expect(listVehiclesQuerySchema.safeParse({ enabled: 'yes' }).success).toBe(false);
   });
 });

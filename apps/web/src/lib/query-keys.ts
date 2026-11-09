@@ -55,6 +55,7 @@ export interface VehicleListQueryParams {
   sortOrder: SortOrder;
   status?: VehicleStatus;
   type?: VehicleType;
+  enabled?: boolean;
 }
 
 export interface FuelLogListQueryParams {

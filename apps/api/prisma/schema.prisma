@@ -306,6 +306,10 @@ model Vehicle {
   fuelType           VehicleFuelType
   tachographType     TachographType
   status             VehicleStatus   @default(ACTIVE)
+  /// Administrative switch, changed only by a superadmin. A disabled vehicle keeps its history but
+  /// is not offered for new records and does not count against the organization's vehicle limit.
+  /// Separate from `status`, which is the fleet's own operational state.
+  isEnabled          Boolean         @default(true)
   /// Odometer reading at the moment the vehicle entered the fleet — set once
   /// at creation and never changed again. The baseline for "km driven since
   /// intake" statistics; `currentMileage` is the one that moves.
@@ -334,6 +338,7 @@ model Vehicle {
   @@index([type])
   @@index([make, model])
   @@index([organizationId])
+  @@index([organizationId, isEnabled])
   @@index([createdById])
   @@map("vehicles")
 }

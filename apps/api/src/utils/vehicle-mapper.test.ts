@@ -20,6 +20,7 @@ const record: VehicleRecord = {
   fuelType: 'DIESEL',
   tachographType: 'DIGITAL',
   status: 'ACTIVE',
+  isEnabled: false,
   currentMileage: 120_000,
   createdAt: new Date('2026-08-14T10:00:00.000Z'),
   updatedAt: new Date('2026-08-14T10:00:00.000Z'),
@@ -32,6 +33,7 @@ describe('toVehicleDto', () => {
       make: 'Mercedes-Benz',
       vin: 'WDB9066331R123456',
       status: 'ACTIVE',
+      isEnabled: false,
       createdAt: '2026-08-14T10:00:00.000Z',
     });
   });

@@ -30,6 +30,7 @@ import {
   type FuelLogBulkRowValues,
 } from '@/features/fuel-logs/schemas/fuel-log-bulk-form-schema';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
+import { selectableVehicles } from '@/features/vehicles/lib/vehicle';
 import { sortAlphabetically } from '@/lib/sort-options';
 
 interface FuelBulkFormProps {
@@ -65,7 +66,7 @@ export function FuelBulkForm({ onDone }: FuelBulkFormProps) {
     (driver) => `${driver.firstName} ${driver.lastName}`,
   );
   const vehicles = sortAlphabetically(
-    vehiclesQuery.data?.vehicles ?? [],
+    selectableVehicles(vehiclesQuery.data?.vehicles ?? []),
     (vehicle) => vehicle.licensePlate,
   );
 

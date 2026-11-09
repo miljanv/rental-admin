@@ -59,6 +59,8 @@ export interface VehicleDto {
   fuelType: VehicleFuelType;
   tachographType: TachographType;
   status: VehicleStatus;
+  /** Superadmin switch. Disabled vehicles keep their history but are not offered for new records. */
+  isEnabled: boolean;
   /** Odometer reading at the moment this vehicle entered the fleet. Set once, immutable after. */
   initialMileageKm: number;
   currentMileage: number;

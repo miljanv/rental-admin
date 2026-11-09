@@ -51,7 +51,7 @@ import {
 } from '@/features/trips/schemas/trip-series-form-schema';
 import { revealTripFormErrors } from '@/features/trips/lib/trip-form-errors';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
-import { vehicleSelectLabel } from '@/features/vehicles/lib/vehicle';
+import { selectableVehicles, vehicleSelectLabel } from '@/features/vehicles/lib/vehicle';
 import { formatDate } from '@/lib/format';
 import { sortAlphabetically } from '@/lib/sort-options';
 import { cn } from '@/lib/utils';
@@ -114,7 +114,7 @@ export function TripSeriesForm() {
   });
 
   const vehicleOptions = sortAlphabetically(
-    vehiclesQuery.data?.vehicles ?? [],
+    selectableVehicles(vehiclesQuery.data?.vehicles ?? []),
     (vehicle) => vehicle.licensePlate,
   ).map((vehicle) => ({
     value: vehicle.id,

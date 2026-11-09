@@ -50,7 +50,7 @@ import {
   type TripFormValues,
 } from '@/features/trips/schemas/trip-form-schema';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
-import { vehicleSelectLabel } from '@/features/vehicles/lib/vehicle';
+import { selectableVehicles, vehicleSelectLabel } from '@/features/vehicles/lib/vehicle';
 import { sortAlphabetically } from '@/lib/sort-options';
 
 interface TripFormProps {
@@ -112,7 +112,10 @@ export function TripForm({ trip }: TripFormProps) {
   });
 
   const vehicleOptions = sortAlphabetically(
-    vehiclesQuery.data?.vehicles ?? [],
+    selectableVehicles(
+      vehiclesQuery.data?.vehicles ?? [],
+      trip?.vehicles.map((vehicle) => vehicle.id),
+    ),
     (vehicle) => vehicle.licensePlate,
   ).map((vehicle) => ({
     value: vehicle.id,

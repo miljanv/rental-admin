@@ -17,7 +17,7 @@ import { useContractAvailability } from '@/features/contracts/hooks/use-contract
 import type { ContractFormValues } from '@/features/contracts/schemas/contract-form-schema';
 import { driverFullName } from '@/features/drivers/lib/driver';
 import { useDrivers } from '@/features/drivers/hooks/use-drivers';
-import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
+import { selectableVehicles, vehicleLabel } from '@/features/vehicles/lib/vehicle';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
 import { sortAlphabetically } from '@/lib/sort-options';
 
@@ -57,7 +57,12 @@ export function WizardStepResources({ excludeContractId }: WizardStepResourcesPr
 
   const vehiclesQuery = useVehicles({ page: 1, limit: 100, sortBy: 'make', sortOrder: 'asc' });
   const driversQuery = useDrivers({ page: 1, limit: 100, sortBy: 'lastName', sortOrder: 'asc' });
-  const vehicles = sortAlphabetically(vehiclesQuery.data?.vehicles ?? [], vehicleLabel);
+  const vehicles = sortAlphabetically(
+    selectableVehicles(vehiclesQuery.data?.vehicles ?? [], [
+      form.formState.defaultValues?.vehicleId,
+    ]),
+    vehicleLabel,
+  );
   const drivers = sortAlphabetically(driversQuery.data?.drivers ?? [], driverFullName);
 
   const availabilityQuery = useContractAvailability({

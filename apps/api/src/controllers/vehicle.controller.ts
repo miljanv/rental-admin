@@ -1,4 +1,9 @@
-import type { ListVehiclesQuery, VehicleIdParams, VehicleWriteRequest } from '@rental-admin/shared';
+import type {
+  ListVehiclesQuery,
+  VehicleEnabledWriteRequest,
+  VehicleIdParams,
+  VehicleWriteRequest,
+} from '@rental-admin/shared';
 import type { Request, Response } from 'express';
 
 import { validated } from '../middleware/validate-request';
@@ -30,6 +35,14 @@ export const updateVehicle = async (req: Request, res: Response): Promise<void> 
   const { id } = validated<VehicleIdParams>(req, 'params');
   const body = validated<VehicleWriteRequest>(req, 'body');
   const vehicle = await vehicleService.updateVehicle(id, body);
+
+  sendSuccess(res, vehicle);
+};
+
+export const setVehicleEnabled = async (req: Request, res: Response): Promise<void> => {
+  const { id } = validated<VehicleIdParams>(req, 'params');
+  const { isEnabled } = validated<VehicleEnabledWriteRequest>(req, 'body');
+  const vehicle = await vehicleService.setVehicleEnabled(id, isEnabled);
 
   sendSuccess(res, vehicle);
 };

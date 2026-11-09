@@ -23,6 +23,7 @@ import { toFuelLogDto, type FuelLogRecord } from '../utils/fuel-log-mapper';
 import { logger } from '../utils/logger';
 import { findSupplierIdByName, listSupplierNames } from './supplier.service';
 import { deleteOperationalTransaction, upsertOperationalExpense } from './transaction.service';
+import { assertVehiclesEnabled } from './vehicle-enabled.service';
 
 const parseDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`);
 
@@ -149,6 +150,7 @@ export const createFuelLog = async (
   previousOdometerOverride?: number | null,
 ): Promise<FuelLogDto> => {
   await assertVehicleExists(input.vehicleId);
+  await assertVehiclesEnabled([input.vehicleId]);
   await assertDriverExists(input.driverId);
 
   const previousFromDb = await findPreviousOdometerKm(input.vehicleId, input.odometerKm);
@@ -223,6 +225,8 @@ export const createFuelLogsBulk = async (input: FuelLogBulkWriteRequest): Promis
     throw badRequest('Jedno ili više vozila ne postoji.');
   }
 
+  await assertVehiclesEnabled(vehicleIds);
+
   const created: FuelLogDto[] = [];
   const lastOdometerByVehicle = new Map<string, number>();
   const sortedRows = [...input.rows].sort((left, right) => {
@@ -269,6 +273,7 @@ export const updateFuelLog = async (
   }
 
   await assertVehicleExists(input.vehicleId);
+  await assertVehiclesEnabled([input.vehicleId], [existing.vehicleId]);
   await assertDriverExists(input.driverId);
 
   const previousOdometerKm = await findPreviousOdometerKm(

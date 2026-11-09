@@ -48,6 +48,14 @@ export const updateVehicle = async (
   return unwrap(response.data);
 };
 
+export const setVehicleEnabled = async (id: string, isEnabled: boolean): Promise<VehicleDto> => {
+  const response = await apiClient.patch<ApiResponse<VehicleDto>>(`/vehicles/${id}/enabled`, {
+    isEnabled,
+  });
+
+  return unwrap(response.data);
+};
+
 export const deleteVehicle = async (id: string): Promise<DeleteVehicleResult> => {
   const response = await apiClient.delete<ApiResponse<DeleteVehicleResult>>(`/vehicles/${id}`);
 

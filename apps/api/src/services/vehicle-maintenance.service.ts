@@ -17,6 +17,7 @@ import {
 } from '../utils/vehicle-maintenance-mapper';
 import { findSupplierIdByName } from './supplier.service';
 import { deleteOperationalTransaction, upsertOperationalExpense } from './transaction.service';
+import { assertVehiclesEnabled } from './vehicle-enabled.service';
 
 const parseDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`);
 
@@ -99,6 +100,7 @@ export const createVehicleMaintenance = async (
   input: VehicleMaintenanceWriteRequest,
 ): Promise<VehicleMaintenanceDto> => {
   await assertVehicleExists(vehicleId);
+  await assertVehiclesEnabled([vehicleId]);
 
   const record = await prisma.vehicleMaintenance.create({
     data: { vehicleId, ...(await toWriteData(input)) },

@@ -9,7 +9,7 @@ import { getTenantContext } from '../utils/tenant-context';
 export const LIMITED_USER_WHERE = { isActive: true, role: 'USER' } as const;
 
 /** Vehicles that take a place in the organization's vehicle limit. */
-export const LIMITED_VEHICLE_WHERE = {} as const;
+export const LIMITED_VEHICLE_WHERE = { isEnabled: true } as const;
 
 export type LimitedResource = 'vehicles' | 'users';
 

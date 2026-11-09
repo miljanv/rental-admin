@@ -33,7 +33,7 @@ import {
 } from '@/features/fuel-logs/schemas/fuel-log-form-schema';
 import { PaymentMethodSelect } from '@/features/transactions/components/payment-method-select';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
-import { vehicleLabel } from '@/features/vehicles/lib/vehicle';
+import { selectableVehicles, vehicleLabel } from '@/features/vehicles/lib/vehicle';
 import { sortAlphabetically } from '@/lib/sort-options';
 
 interface FuelLogFormProps {
@@ -84,7 +84,10 @@ export function FuelLogForm({ fuelLog, defaultVehicleId, onDone }: FuelLogFormPr
     driversQuery.data?.drivers ?? [],
     (driver) => `${driver.firstName} ${driver.lastName}`,
   );
-  const vehicles = sortAlphabetically(vehiclesQuery.data?.vehicles ?? [], vehicleLabel);
+  const vehicles = sortAlphabetically(
+    selectableVehicles(vehiclesQuery.data?.vehicles ?? [], [fuelLog?.vehicleId]),
+    vehicleLabel,
+  );
 
   const form = useForm<FuelLogFormValues, unknown, FuelLogCreateRequest>({
     resolver: zodResolver(fuelLogFormSchema),

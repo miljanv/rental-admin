@@ -6,7 +6,7 @@ import {
   VEHICLE_TYPE_LABELS,
   type VehicleDto,
 } from '@rental-admin/shared';
-import { Clock, Pencil, Trash2 } from 'lucide-react';
+import { Clock, Pencil, Power, PowerOff, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -24,9 +24,14 @@ import { VehicleInspectionsTab } from '@/features/vehicle-inspections/components
 import { VehicleMaintenanceTab } from '@/features/vehicle-maintenance/components/vehicle-maintenance-tab';
 import { VehicleSafetyEquipmentTab } from '@/features/vehicle-safety-equipment/components/vehicle-safety-equipment-tab';
 import { DeleteVehicleDialog } from '@/features/vehicles/components/delete-vehicle-dialog';
-import { VehicleStatusBadge } from '@/features/vehicles/components/vehicle-status-badge';
+import {
+  VehicleDisabledBadge,
+  VehicleStatusBadge,
+} from '@/features/vehicles/components/vehicle-status-badge';
+import { useSetVehicleEnabled } from '@/features/vehicles/hooks/use-set-vehicle-enabled';
 import { useVehicle } from '@/features/vehicles/hooks/use-vehicle';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/providers/auth-provider';
 
 const PROFILE_TABS = [
   { id: 'overview', label: 'Osnovni podaci' },
@@ -149,6 +154,8 @@ export function VehicleProfile({ vehicleId }: VehicleProfileProps) {
   const query = useVehicle(vehicleId);
   const [activeTab, setActiveTab] = useState<ProfileTabId>('overview');
   const [vehicleToDelete, setVehicleToDelete] = useState<VehicleDto | null>(null);
+  const { user } = useAuth();
+  const setEnabled = useSetVehicleEnabled();
 
   if (query.isPending) {
     return (
@@ -186,6 +193,21 @@ export function VehicleProfile({ vehicleId }: VehicleProfileProps) {
         actions={
           <div className="flex items-center gap-2">
             <VehicleStatusBadge status={vehicle.status} />
+            {vehicle.isEnabled ? null : <VehicleDisabledBadge />}
+            {user?.role === 'SUPERADMIN' ? (
+              <Button
+                variant="outline"
+                onClick={() => setEnabled.mutate(vehicle)}
+                disabled={setEnabled.isPending}
+              >
+                {vehicle.isEnabled ? (
+                  <PowerOff className="size-4" aria-hidden />
+                ) : (
+                  <Power className="size-4" aria-hidden />
+                )}
+                {vehicle.isEnabled ? 'Deaktiviraj' : 'Aktiviraj'}
+              </Button>
+            ) : null}
             <Button variant="outline" asChild>
               <Link href={`/vehicles/${vehicle.id}/edit`}>
                 <Pencil className="size-4" aria-hidden />

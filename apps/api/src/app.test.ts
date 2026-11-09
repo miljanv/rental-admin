@@ -186,4 +186,14 @@ describe('API request pipeline', () => {
     expect(response.status).toBe(403);
     expect(response.body.error.code).toBe('FORBIDDEN');
   });
+
+  it('does not let a regular user enable or disable a vehicle', async () => {
+    const response = await request(app)
+      .patch('/api/v1/vehicles/veh-1/enabled')
+      .set(auth)
+      .send({ isEnabled: false });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('FORBIDDEN');
+  });
 });

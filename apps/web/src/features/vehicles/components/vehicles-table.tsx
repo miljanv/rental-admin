@@ -1,7 +1,7 @@
 'use client';
 
 import { VEHICLE_TYPE_LABELS, VEHICLE_FUEL_TYPE_LABELS, type VehicleDto } from '@rental-admin/shared';
-import { MoreHorizontal, Pencil, Trash2, Truck } from 'lucide-react';
+import { MoreHorizontal, Pencil, Power, PowerOff, Trash2, Truck } from 'lucide-react';
 import Link from 'next/link';
 
 import { EmptyState } from '@/components/common/empty-state';
@@ -22,7 +22,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { VehicleStatusBadge } from '@/features/vehicles/components/vehicle-status-badge';
+import {
+  VehicleDisabledBadge,
+  VehicleStatusBadge,
+} from '@/features/vehicles/components/vehicle-status-badge';
 
 const COLUMN_COUNT = 6;
 
@@ -31,6 +34,8 @@ interface VehiclesTableProps {
   isLoading: boolean;
   hasSearch: boolean;
   onRequestDelete: (vehicle: VehicleDto) => void;
+  /** Superadmin only; omit to hide the enable / disable action. */
+  onToggleEnabled?: (vehicle: VehicleDto) => void;
   emptyAction?: React.ReactNode;
 }
 
@@ -39,6 +44,7 @@ export function VehiclesTable({
   isLoading,
   hasSearch,
   onRequestDelete,
+  onToggleEnabled,
   emptyAction,
 }: VehiclesTableProps) {
   if (!isLoading && vehicles.length === 0) {
@@ -92,7 +98,10 @@ export function VehiclesTable({
                 {vehicle.currentMileage.toLocaleString('sr-RS')} km
               </TableCell>
               <TableCell>
-                <VehicleStatusBadge status={vehicle.status} />
+                <div className="flex flex-wrap gap-1">
+                  <VehicleStatusBadge status={vehicle.status} />
+                  {vehicle.isEnabled ? null : <VehicleDisabledBadge />}
+                </div>
               </TableCell>
               <TableCell className="text-right">
                 <DropdownMenu>
@@ -118,6 +127,16 @@ export function VehiclesTable({
                         Izmeni
                       </Link>
                     </DropdownMenuItem>
+                    {onToggleEnabled ? (
+                      <DropdownMenuItem onClick={() => onToggleEnabled(vehicle)} className="gap-2">
+                        {vehicle.isEnabled ? (
+                          <PowerOff className="size-4" aria-hidden />
+                        ) : (
+                          <Power className="size-4" aria-hidden />
+                        )}
+                        {vehicle.isEnabled ? 'Deaktiviraj' : 'Aktiviraj'}
+                      </DropdownMenuItem>
+                    ) : null}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       variant="destructive"

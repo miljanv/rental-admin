@@ -23,6 +23,7 @@ export interface VehicleRecord {
   fuelType: VehicleFuelType;
   tachographType: TachographType;
   status: VehicleStatus;
+  isEnabled: boolean;
   initialMileageKm: number;
   currentMileage: number;
   createdAt: Date;
@@ -46,6 +47,7 @@ export const toVehicleDto = (record: VehicleRecord): VehicleDto => ({
   fuelType: record.fuelType,
   tachographType: record.tachographType,
   status: record.status,
+  isEnabled: record.isEnabled,
   initialMileageKm: record.initialMileageKm,
   currentMileage: record.currentMileage,
   createdAt: record.createdAt.toISOString(),

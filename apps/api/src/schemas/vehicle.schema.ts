@@ -1,7 +1,13 @@
 import {
   listVehiclesQuerySchema,
+  vehicleEnabledWriteSchema,
   vehicleIdParamsSchema,
   vehicleWriteSchema,
 } from '@rental-admin/shared';
 
-export { listVehiclesQuerySchema, vehicleIdParamsSchema, vehicleWriteSchema };
+export {
+  listVehiclesQuerySchema,
+  vehicleEnabledWriteSchema,
+  vehicleIdParamsSchema,
+  vehicleWriteSchema,
+};

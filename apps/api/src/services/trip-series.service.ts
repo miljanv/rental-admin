@@ -21,6 +21,7 @@ import { toTripDto, toTripSeriesDto, type TripRecord } from '../utils/trip-mappe
 import { requireOrganizationId } from '../utils/tenant-context';
 import { syncTripDriverPayouts } from './trip-expense.service';
 import { assertDriversExist, assertVehiclesExist, parseDate, tripInclude } from './trip.service';
+import { assertVehiclesEnabled } from './vehicle-enabled.service';
 
 /** Safety cap on how many trips one generation call can create in a single transaction. */
 const MAX_SERIES_INSTANCES = 400;
@@ -52,10 +53,21 @@ const assertReferencesExist = async (
   await assertDriversExist(input.driverIds);
 };
 
+const seriesVehicleIds = async (seriesId: string): Promise<string[]> => {
+  const rows = await prisma.tripVehicle.findMany({
+    where: { trip: { seriesId } },
+    select: { vehicleId: true },
+    distinct: ['vehicleId'],
+  });
+
+  return rows.map((row) => row.vehicleId);
+};
+
 export const generateTripSeries = async (
   input: GenerateTripSeriesRequest,
 ): Promise<GenerateTripSeriesResult> => {
   await assertReferencesExist(input);
+  await assertVehiclesEnabled(input.vehicleIds);
 
   const dates = buildTripSeriesOccurrenceDates(input);
 
@@ -183,6 +195,7 @@ export const bulkUpdateTripSeries = async (
 
   if (input.vehicleIds !== undefined) {
     await assertVehiclesExist(input.vehicleIds);
+    await assertVehiclesEnabled(input.vehicleIds, await seriesVehicleIds(seriesId));
   }
 
   if (input.driverIds !== undefined) {
@@ -382,6 +395,7 @@ export const editTripSeries = async (
   }
 
   await assertVehiclesExist(input.vehicleIds);
+  await assertVehiclesEnabled(input.vehicleIds, await seriesVehicleIds(seriesId));
   await assertDriversExist(input.driverIds);
 
   const trips = await prisma.trip.findMany({

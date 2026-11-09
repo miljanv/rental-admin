@@ -31,6 +31,7 @@ import { logger } from '../utils/logger';
 import { requireOrganizationId } from '../utils/tenant-context';
 import { deleteAttachedFile } from './file-attachment.service';
 import { deleteOperationalTransaction } from './transaction.service';
+import { assertVehiclesEnabled } from './vehicle-enabled.service';
 
 type SortOrder = ListTripsQuery['sortOrder'];
 type TripOrderBy = Partial<Record<TripSortField, SortOrder>>;
@@ -325,6 +326,7 @@ export const getTrip = async (id: string): Promise<TripDto> => {
 
 export const createTrip = async (input: TripWriteRequest): Promise<TripDto> => {
   await assertReferencesExist(input);
+  await assertVehiclesEnabled(input.vehicleIds);
 
   const record = await prisma.$transaction(async (tx) => {
     const trip = await tx.trip.create({
@@ -386,6 +388,10 @@ export const updateTrip = async (id: string, input: TripWriteRequest): Promise<T
       paymentMethod: input.paymentMethod,
     });
   await assertReferencesExist(input);
+  await assertVehiclesEnabled(
+    input.vehicleIds,
+    current.vehicles.map((vehicle) => vehicle.id),
+  );
 
   const record = await prisma.$transaction(async (tx) => {
     await tx.trip.update({

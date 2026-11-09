@@ -21,3 +21,11 @@ export function VehicleStatusBadge({ status, className }: VehicleStatusBadgeProp
     </Badge>
   );
 }
+
+export function VehicleDisabledBadge({ className }: { className?: string }) {
+  return (
+    <Badge variant="outline" className={cn('border-dashed text-muted-foreground', className)}>
+      Deaktivirano
+    </Badge>
+  );
+}

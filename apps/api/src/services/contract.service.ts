@@ -18,6 +18,7 @@ import { toContractDto, type ContractRecord } from '../utils/contract-mapper';
 import { logger } from '../utils/logger';
 import { requireOrganizationId } from '../utils/tenant-context';
 import { deleteAttachedFile } from './file-attachment.service';
+import { assertVehiclesEnabled } from './vehicle-enabled.service';
 
 /** Contracts in these statuses don't hold a real claim on the vehicle/driver's calendar. */
 const NON_BLOCKING_STATUSES = ['CANCELLED'] as const;
@@ -127,6 +128,7 @@ export const getContract = async (id: string): Promise<ContractDto> => {
 
 export const createContract = async (input: ContractWriteRequest): Promise<ContractDto> => {
   await assertReferencesExist(input);
+  await assertVehiclesEnabled(input.vehicleId ? [input.vehicleId] : []);
 
   const record = await prisma.contract.create({
     data: { ...toWriteData(input), organizationId: requireOrganizationId() },
@@ -140,8 +142,12 @@ export const updateContract = async (
   id: string,
   input: ContractWriteRequest,
 ): Promise<ContractDto> => {
-  await getContract(id);
+  const current = await getContract(id);
   await assertReferencesExist(input);
+  await assertVehiclesEnabled(
+    input.vehicleId ? [input.vehicleId] : [],
+    current.vehicleId ? [current.vehicleId] : [],
+  );
 
   const record = await prisma.contract.update({ where: { id }, data: toWriteData(input) });
   logger.info('Contract updated', { contractId: record.id });

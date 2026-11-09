@@ -42,7 +42,7 @@ import { usePartners } from '@/features/partners/hooks/use-partners';
 import { useEditTripSeries } from '@/features/trips/hooks/use-edit-trip-series';
 import { revealTripFormErrors } from '@/features/trips/lib/trip-form-errors';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
-import { vehicleSelectLabel } from '@/features/vehicles/lib/vehicle';
+import { selectableVehicles, vehicleSelectLabel } from '@/features/vehicles/lib/vehicle';
 import { sortAlphabetically } from '@/lib/sort-options';
 
 const NONE = 'none';
@@ -133,7 +133,10 @@ export function TripSeriesEditForm({
   const partnersQuery = usePartners({ page: 1, limit: 100, sortBy: 'type', sortOrder: 'asc' });
 
   const vehicleOptions = sortAlphabetically(
-    vehiclesQuery.data?.vehicles ?? [],
+    selectableVehicles(
+      vehiclesQuery.data?.vehicles ?? [],
+      trip.vehicles.map((vehicle) => vehicle.id),
+    ),
     (vehicle) => vehicle.licensePlate,
   ).map((vehicle) => ({
     value: vehicle.id,

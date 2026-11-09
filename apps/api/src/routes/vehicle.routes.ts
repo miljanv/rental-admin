@@ -8,6 +8,7 @@ import * as vehicleDocumentController from '../controllers/vehicle-document.cont
 import * as vehicleMaintenanceController from '../controllers/vehicle-maintenance.controller';
 import * as vehicleSafetyEquipmentController from '../controllers/vehicle-safety-equipment.controller';
 import * as vehicleController from '../controllers/vehicle.controller';
+import { requireRole } from '../middleware/require-auth';
 import { validateRequest } from '../middleware/validate-request';
 import {
   companyExpenseParamsSchema,
@@ -45,6 +46,7 @@ import {
 } from '../schemas/vehicle-safety-equipment.schema';
 import {
   listVehiclesQuerySchema,
+  vehicleEnabledWriteSchema,
   vehicleIdParamsSchema,
   vehicleWriteSchema,
 } from '../schemas/vehicle.schema';
@@ -298,6 +300,13 @@ vehicleRouter.patch(
   '/:id',
   validateRequest({ params: vehicleIdParamsSchema, body: vehicleWriteSchema }),
   asyncHandler(vehicleController.updateVehicle),
+);
+
+vehicleRouter.patch(
+  '/:id/enabled',
+  requireRole('SUPERADMIN'),
+  validateRequest({ params: vehicleIdParamsSchema, body: vehicleEnabledWriteSchema }),
+  asyncHandler(vehicleController.setVehicleEnabled),
 );
 
 vehicleRouter.delete(

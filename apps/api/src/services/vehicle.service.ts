@@ -95,6 +95,7 @@ export const listVehicles = async (
   const where = {
     ...(query.status ? { status: query.status } : {}),
     ...(query.type ? { type: query.type } : {}),
+    ...(query.enabled !== undefined ? { isEnabled: query.enabled } : {}),
     ...(query.search
       ? {
           OR: [
@@ -168,6 +169,27 @@ export const updateVehicle = async (
   } catch (error) {
     return throwOnConflict(error);
   }
+};
+
+export const setVehicleEnabled = async (id: string, isEnabled: boolean): Promise<VehicleDto> => {
+  const organizationId = requireOrganizationId();
+
+  const record = await prisma.$transaction(async (tx) => {
+    const current = await tx.vehicle.findUnique({ where: { id }, select: { isEnabled: true } });
+
+    if (!current) {
+      throw notFound('Vozilo nije pronađeno.');
+    }
+
+    if (isEnabled && !current.isEnabled) {
+      await assertWithinLimit(tx, organizationId, 'vehicles');
+    }
+
+    return tx.vehicle.update({ where: { id }, data: { isEnabled } });
+  });
+
+  logger.info(isEnabled ? 'Vehicle enabled' : 'Vehicle disabled', { vehicleId: id });
+  return toVehicleDto(record);
 };
 
 export const deleteVehicle = async (id: string): Promise<DeleteVehicleResult> => {

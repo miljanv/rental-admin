@@ -20,6 +20,15 @@ export const vehicleSelectLabel = (
     ` — ${vehicle.make} ${vehicle.model}`,
   );
 
+/**
+ * Vehicles a picker may offer: enabled ones, plus disabled vehicles the edited record already uses
+ * so that an old record still shows and saves its vehicle.
+ */
+export const selectableVehicles = <TVehicle extends Pick<VehicleDto, 'id' | 'isEnabled'>>(
+  vehicles: readonly TVehicle[],
+  linkedIds: readonly (string | null | undefined)[] = [],
+): TVehicle[] => vehicles.filter((vehicle) => vehicle.isEnabled || linkedIds.includes(vehicle.id));
+
 export const toVehicleFormValues = (vehicle: VehicleDto): VehicleWriteRequest => ({
   make: vehicle.make,
   model: vehicle.model,

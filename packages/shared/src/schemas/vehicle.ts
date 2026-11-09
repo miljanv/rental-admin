@@ -141,7 +141,16 @@ export const listVehiclesQuerySchema = z.object({
   sortOrder: z.enum(SORT_ORDERS).default('asc'),
   status: vehicleStatusSchema.optional(),
   type: vehicleTypeSchema.optional(),
+  /** Omitted lists every vehicle; `true` / `false` keeps only enabled / disabled ones. */
+  enabled: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((value) => (value === undefined ? undefined : value === 'true')),
 });
 
 export type ListVehiclesQuery = z.output<typeof listVehiclesQuerySchema>;
+
+export const vehicleEnabledWriteSchema = z.object({ isEnabled: z.boolean() });
+
+export type VehicleEnabledWriteRequest = z.infer<typeof vehicleEnabledWriteSchema>;
 export type ListVehiclesQueryInput = z.input<typeof listVehiclesQuerySchema>;

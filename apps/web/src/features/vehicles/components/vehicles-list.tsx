@@ -33,14 +33,23 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useOrganizationUsage } from '@/features/auth/hooks/use-organization-usage';
 import { DeleteVehicleDialog } from '@/features/vehicles/components/delete-vehicle-dialog';
 import { VehiclesTable } from '@/features/vehicles/components/vehicles-table';
+import { useSetVehicleEnabled } from '@/features/vehicles/hooks/use-set-vehicle-enabled';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/providers/auth-provider';
 
 const PAGE_SIZE = 10;
 const VEHICLE_LIMIT_MESSAGE = 'Dostignut je limit vozila. Obratite se administratoru.';
 const SEARCH_DEBOUNCE_MS = 350;
 const ALL_STATUSES = 'all';
 const ALL_TYPES = 'all';
+
+const ENABLED_FILTERS = {
+  all: 'Sva vozila',
+  enabled: 'Aktivna',
+  disabled: 'Deaktivirana',
+} as const;
+type EnabledFilter = keyof typeof ENABLED_FILTERS;
 
 const SORT_OPTIONS: { value: `${VehicleSortField}:${SortOrder}`; label: string }[] = [
   { value: 'make:asc', label: 'Marka A–Š' },
@@ -59,12 +68,16 @@ export function VehiclesList() {
     ALL_STATUSES,
   );
   const [typeFilter, setTypeFilter] = useState<typeof ALL_TYPES | VehicleType>(ALL_TYPES);
+  const [enabledFilter, setEnabledFilter] = useState<EnabledFilter>('all');
   const [sort, setSort] = useState<`${VehicleSortField}:${SortOrder}`>('make:asc');
   const [vehicleToDelete, setVehicleToDelete] = useState<VehicleDto | null>(null);
+  const { user } = useAuth();
+  const setEnabled = useSetVehicleEnabled();
 
   const [sortBy, sortOrder] = sort.split(':') as [VehicleSortField, SortOrder];
   const status = statusFilter === ALL_STATUSES ? undefined : statusFilter;
   const type = typeFilter === ALL_TYPES ? undefined : typeFilter;
+  const enabled = enabledFilter === 'all' ? undefined : enabledFilter === 'enabled';
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -83,6 +96,7 @@ export function VehiclesList() {
     ...(search ? { search } : {}),
     ...(status ? { status } : {}),
     ...(type ? { type } : {}),
+    ...(enabled !== undefined ? { enabled } : {}),
   });
 
   const usageQuery = useOrganizationUsage();
@@ -218,6 +232,30 @@ export function VehiclesList() {
             </div>
 
             <div className="space-y-1.5">
+              <Label htmlFor="vehicle-enabled" className="text-xs">
+                Aktivnost
+              </Label>
+              <Select
+                value={enabledFilter}
+                onValueChange={(value) => {
+                  setEnabledFilter(value as EnabledFilter);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger id="vehicle-enabled" className="w-full lg:w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(ENABLED_FILTERS) as EnabledFilter[]).map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {ENABLED_FILTERS[value]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
               <Label htmlFor="vehicle-sort" className="text-xs">
                 Sortiranje
               </Label>
@@ -265,8 +303,13 @@ export function VehiclesList() {
             <VehiclesTable
               vehicles={vehicles}
               isLoading={query.isPending}
-              hasSearch={search.length > 0 || Boolean(status) || Boolean(type)}
+              hasSearch={
+                search.length > 0 || Boolean(status) || Boolean(type) || enabled !== undefined
+              }
               onRequestDelete={setVehicleToDelete}
+              {...(user?.role === 'SUPERADMIN'
+                ? { onToggleEnabled: (vehicle: VehicleDto) => setEnabled.mutate(vehicle) }
+                : {})}
               emptyAction={
                 atVehicleLimit ? null : (
                   <Button size="sm" asChild>
