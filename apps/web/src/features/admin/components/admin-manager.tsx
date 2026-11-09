@@ -1,7 +1,7 @@
 'use client';
 
 import type { ManagedUserDto, OrganizationDto } from '@rental-admin/shared';
-import { Plus, RefreshCw, ShieldCheck, UserPlus } from 'lucide-react';
+import { Plus, RefreshCw, Search, ShieldCheck, UserPlus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -10,6 +10,7 @@ import { ErrorState } from '@/components/common/error-state';
 import { PageHeader } from '@/components/common/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -18,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { AdminSummaryCards } from '@/features/admin/components/admin-summary-cards';
 import { DeleteOrganizationDialog } from '@/features/admin/components/delete-organization-dialog';
 import { DeleteUserDialog } from '@/features/admin/components/delete-user-dialog';
 import { OrganizationDialog } from '@/features/admin/components/organization-dialog';
@@ -29,6 +31,11 @@ import { UserDialog } from '@/features/admin/components/user-dialog';
 import { UsersTable } from '@/features/admin/components/users-table';
 import { useOrganizations } from '@/features/admin/hooks/use-organizations';
 import { useUsers } from '@/features/admin/hooks/use-users';
+import {
+  matchesOrganization,
+  ORGANIZATION_FILTERS,
+  type OrganizationFilter,
+} from '@/features/admin/lib/organization-health';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -41,6 +48,10 @@ function AdminScreen({ currentUserId }: { currentUserId: string }) {
   const router = useRouter();
   const { activeOrganizationId, selectOrganization } = useAuth();
   const [organizationFilter, setOrganizationFilter] = useState(ALL_ORGANIZATIONS);
+  const [organizationSearch, setOrganizationSearch] = useState('');
+  const [organizationStatus, setOrganizationStatus] = useState<OrganizationFilter>('all');
+  // One reference time per visit, so "last activity" does not shift between renders.
+  const [now] = useState(() => new Date());
   const [organizationDialog, setOrganizationDialog] = useState<DialogTarget<OrganizationDto>>(null);
   const [organizationToDelete, setOrganizationToDelete] = useState<OrganizationDto | null>(null);
   const [organizationToToggle, setOrganizationToToggle] = useState<OrganizationDto | null>(null);
@@ -55,6 +66,15 @@ function AdminScreen({ currentUserId }: { currentUserId: string }) {
 
   const organizations = organizationsQuery.data ?? [];
   const users = usersQuery.data ?? [];
+  const isOrganizationListFiltered =
+    organizationSearch.trim() !== '' || organizationStatus !== 'all';
+  const visibleOrganizations = organizations.filter((organization) =>
+    matchesOrganization(
+      organization,
+      { search: organizationSearch, filter: organizationStatus },
+      now,
+    ),
+  );
 
   const openOrganization = (organization: OrganizationDto) => {
     selectOrganization(organization.id);
@@ -86,6 +106,8 @@ function AdminScreen({ currentUserId }: { currentUserId: string }) {
       />
 
       <div className="space-y-6">
+        <AdminSummaryCards />
+
         <Card className="shadow-none">
           <CardHeader>
             <CardTitle>Firme</CardTitle>
@@ -95,7 +117,49 @@ function AdminScreen({ currentUserId }: { currentUserId: string }) {
                 : `${organizations.length} ${organizations.length === 1 ? 'firma' : 'firmi'}. Kliknite na firmu da otvorite njen detalj.`}
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-0">
+          <CardContent className="space-y-4 px-0">
+            <div className="flex flex-col gap-3 px-6 sm:flex-row sm:items-end">
+              <div className="space-y-1.5 sm:w-64">
+                <Label htmlFor="organization-search" className="text-xs">
+                  Pretraga
+                </Label>
+                <div className="relative">
+                  <Search
+                    className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
+                    aria-hidden
+                  />
+                  <Input
+                    id="organization-search"
+                    type="search"
+                    placeholder="Naziv firme"
+                    className="pl-8"
+                    value={organizationSearch}
+                    onChange={(event) => setOrganizationSearch(event.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="organization-status-filter" className="text-xs">
+                  Status
+                </Label>
+                <Select
+                  value={organizationStatus}
+                  onValueChange={(value) => setOrganizationStatus(value as OrganizationFilter)}
+                >
+                  <SelectTrigger id="organization-status-filter" className="w-full sm:w-56">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(ORGANIZATION_FILTERS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             {organizationsQuery.isError ? (
               <ErrorState
                 error={organizationsQuery.error}
@@ -107,9 +171,11 @@ function AdminScreen({ currentUserId }: { currentUserId: string }) {
               />
             ) : (
               <OrganizationsTable
-                organizations={organizations}
+                organizations={visibleOrganizations}
                 isLoading={organizationsQuery.isPending}
                 activeOrganizationId={activeOrganizationId}
+                now={now}
+                isFiltered={isOrganizationListFiltered}
                 onOpen={openOrganization}
                 onEdit={(organization) => setOrganizationDialog({ record: organization })}
                 onRequestToggleActive={setOrganizationToToggle}

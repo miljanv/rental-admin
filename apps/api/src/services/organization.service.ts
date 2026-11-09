@@ -10,7 +10,7 @@ import { prisma, prismaUnscoped } from '../config/prisma';
 import { conflict, notFound } from '../utils/app-error';
 import { logger } from '../utils/logger';
 import { isUniqueViolation } from '../utils/prisma-errors';
-import { toOrganizationDto } from '../utils/user-admin-mapper';
+import { toOrganizationDto, type OrganizationRecord } from '../utils/user-admin-mapper';
 import {
   countLimited,
   LIMITED_USER_WHERE,
@@ -32,13 +32,35 @@ const organizationInclude = {
 
 const NAME_TAKEN_MESSAGE = 'Firma sa tim nazivom već postoji.';
 
+/** Latest sign-in per organization, in one query however many organizations there are. */
+const findLastActivity = async (organizationIds: string[]): Promise<Map<string, Date | null>> => {
+  const groups = await prismaUnscoped.user.groupBy({
+    by: ['organizationId'],
+    where: { organizationId: { in: organizationIds } },
+    _max: { lastLoginAt: true },
+  });
+
+  return new Map(
+    groups.flatMap((group) =>
+      group.organizationId === null ? [] : [[group.organizationId, group._max.lastLoginAt]],
+    ),
+  );
+};
+
+const toDtoWithActivity = async (record: OrganizationRecord): Promise<OrganizationDto> => {
+  const lastActivity = await findLastActivity([record.id]);
+
+  return toOrganizationDto(record, lastActivity.get(record.id) ?? null);
+};
+
 export const listOrganizations = async (): Promise<OrganizationDto[]> => {
   const records = await prisma.organization.findMany({
     include: organizationInclude,
     orderBy: { name: 'asc' },
   });
+  const lastActivity = await findLastActivity(records.map((record) => record.id));
 
-  return records.map(toOrganizationDto);
+  return records.map((record) => toOrganizationDto(record, lastActivity.get(record.id) ?? null));
 };
 
 export const getOrganization = async (id: string): Promise<OrganizationDto> => {
@@ -51,7 +73,7 @@ export const getOrganization = async (id: string): Promise<OrganizationDto> => {
     throw notFound('Firma nije pronađena.');
   }
 
-  return toOrganizationDto(record);
+  return toDtoWithActivity(record);
 };
 
 export const createOrganization = async (
@@ -124,7 +146,7 @@ export const updateOrganization = async (
       maxUsers: record.maxUsers,
     });
 
-    return toOrganizationDto(record);
+    return await toDtoWithActivity(record);
   } catch (error) {
     if (isUniqueViolation(error)) {
       throw conflict(NAME_TAKEN_MESSAGE);
@@ -147,7 +169,7 @@ export const updateOrganizationProfile = async (
   });
   logger.info('Organization profile updated', { organizationId: id });
 
-  return toOrganizationDto(record);
+  return toDtoWithActivity(record);
 };
 
 const countByFlag = (groups: { flag: boolean; count: number }[], flag: boolean): number =>
@@ -158,7 +180,7 @@ export const getOrganizationOverview = async (id: string): Promise<OrganizationO
   const organization = await getOrganization(id);
   const where = { organizationId: id };
 
-  const [vehicleGroups, userGroups, drivers, trips, invoices, files, users] = await Promise.all([
+  const [vehicleGroups, userGroups, drivers, trips, invoices, files] = await Promise.all([
     prismaUnscoped.vehicle.groupBy({ by: ['isEnabled'], where, _count: { _all: true } }),
     prismaUnscoped.user.groupBy({
       by: ['isActive'],
@@ -173,7 +195,6 @@ export const getOrganizationOverview = async (id: string): Promise<OrganizationO
       _count: { _all: true },
       _sum: { size: true },
     }),
-    prismaUnscoped.user.aggregate({ where, _max: { lastLoginAt: true } }),
   ]);
 
   const vehicleCounts = vehicleGroups.map((group) => ({
@@ -202,7 +223,6 @@ export const getOrganizationOverview = async (id: string): Promise<OrganizationO
     invoices,
     files: files._count._all,
     storageBytes: files._sum.size ?? 0,
-    lastActivityAt: users._max.lastLoginAt?.toISOString() ?? null,
   };
 };
 

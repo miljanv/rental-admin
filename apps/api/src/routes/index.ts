@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { openingBalanceRouter } from './opening-balance.routes';
 
 import { requireAuth, requireRole } from '../middleware/require-auth';
+import { adminRouter } from './admin.routes';
 import { alarmRouter } from './alarm.routes';
 import { analyticsRouter } from './analytics.routes';
 import { authRouter } from './auth.routes';
@@ -26,6 +27,7 @@ export const apiRouter = Router();
 
 apiRouter.use('/health', healthRouter);
 apiRouter.use('/auth', authRouter);
+apiRouter.use('/admin', requireAuth, requireRole('SUPERADMIN'), adminRouter);
 apiRouter.use('/alarms', requireAuth, alarmRouter);
 apiRouter.use('/analytics', requireAuth, analyticsRouter);
 apiRouter.use('/expenses', requireAuth, companyExpenseRouter);

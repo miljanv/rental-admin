@@ -12,6 +12,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 import { EmptyState } from '@/components/common/empty-state';
 import { TableSkeleton } from '@/components/common/table-skeleton';
@@ -31,17 +32,56 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Progress } from '@/components/ui/progress';
+import {
+  formatLastActivity,
+  isInactive,
+  limitLevel,
+  type LimitLevel,
+} from '@/features/admin/lib/organization-health';
+import { usagePercent } from '@/features/admin/lib/usage';
+import { cn } from '@/lib/utils';
 
-const COLUMN_COUNT = 6;
+const COLUMN_COUNT = 8;
 
 /** "3/5" against a limit, plain "3" without one. */
 const formatUsage = (used: number, max: number | null): string =>
   max === null ? String(used) : `${used}/${max}`;
 
+const LEVEL_TEXT: Record<LimitLevel, string> = {
+  ok: '',
+  near: 'text-amber-600 dark:text-amber-400',
+  full: 'text-destructive',
+};
+
+const LEVEL_BAR: Record<LimitLevel, string> = {
+  ok: '',
+  near: '[&_[data-slot=progress-indicator]]:bg-amber-500',
+  full: '[&_[data-slot=progress-indicator]]:bg-destructive',
+};
+
+function UsageCell({ used, max }: { used: number; max: number | null }) {
+  const percent = usagePercent(used, max);
+  const level = limitLevel(used, max);
+
+  return (
+    <div className="ml-auto w-20 space-y-1 text-right">
+      <span className={cn('tabular-nums', LEVEL_TEXT[level])}>{formatUsage(used, max)}</span>
+      {percent === null ? null : (
+        <Progress value={percent} className={LEVEL_BAR[level]} aria-hidden />
+      )}
+    </div>
+  );
+}
+
 interface OrganizationsTableProps {
   organizations: OrganizationDto[];
   isLoading: boolean;
   activeOrganizationId: string | null;
+  /** Reference time for "last activity" and the inactivity mark. */
+  now: Date;
+  /** Set when a search or filter hides every organization. */
+  isFiltered?: boolean;
   onOpen: (organization: OrganizationDto) => void;
   onEdit: (organization: OrganizationDto) => void;
   onRequestToggleActive: (organization: OrganizationDto) => void;
@@ -53,12 +93,26 @@ export function OrganizationsTable({
   organizations,
   isLoading,
   activeOrganizationId,
+  now,
+  isFiltered = false,
   onOpen,
   onEdit,
   onRequestToggleActive,
   onRequestDelete,
   emptyAction,
 }: OrganizationsTableProps) {
+  const router = useRouter();
+
+  if (!isLoading && organizations.length === 0 && isFiltered) {
+    return (
+      <EmptyState
+        icon={Building2}
+        title="Nema firmi za prikaz"
+        description="Nijedna firma ne odgovara pretrazi ili filteru."
+      />
+    );
+  }
+
   if (!isLoading && organizations.length === 0) {
     return (
       <EmptyState
@@ -75,10 +129,12 @@ export function OrganizationsTable({
       <TableHeader>
         <TableRow>
           <TableHead>Firma</TableHead>
-          <TableHead className="text-right">Korisnici</TableHead>
           <TableHead className="text-right">Vozila</TableHead>
+          <TableHead className="text-right">Korisnici</TableHead>
           <TableHead className="text-right">Zaposleni</TableHead>
           <TableHead className="text-right">Vožnje</TableHead>
+          <TableHead>Zadnja aktivnost</TableHead>
+          <TableHead>Status</TableHead>
           <TableHead className="w-[60px] text-right">Akcije</TableHead>
         </TableRow>
       </TableHeader>
@@ -87,30 +143,52 @@ export function OrganizationsTable({
           <TableSkeleton rows={4} columns={COLUMN_COUNT} />
         ) : (
           organizations.map((organization) => (
-            <TableRow key={organization.id}>
+            <TableRow
+              key={organization.id}
+              className="cursor-pointer"
+              onClick={() => router.push(`/admin/organizations/${organization.id}`)}
+            >
               <TableCell>
                 <div className="flex flex-wrap items-center gap-2">
                   <Link
                     href={`/admin/organizations/${organization.id}`}
                     className="hover:text-primary text-left font-medium"
+                    onClick={(event) => event.stopPropagation()}
                   >
                     {organization.name}
                   </Link>
                   {organization.id === activeOrganizationId ? (
                     <Badge variant="secondary">Izabrana</Badge>
                   ) : null}
-                  {organization.isActive ? null : <Badge variant="destructive">Suspendovana</Badge>}
                 </div>
               </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatUsage(organization.usage.users, organization.usage.maxUsers)}
+              <TableCell>
+                <UsageCell
+                  used={organization.usage.vehicles}
+                  max={organization.usage.maxVehicles}
+                />
               </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatUsage(organization.usage.vehicles, organization.usage.maxVehicles)}
+              <TableCell>
+                <UsageCell used={organization.usage.users} max={organization.usage.maxUsers} />
               </TableCell>
               <TableCell className="text-right tabular-nums">{organization.driverCount}</TableCell>
               <TableCell className="text-right tabular-nums">{organization.tripCount}</TableCell>
-              <TableCell className="text-right">
+              <TableCell className="text-muted-foreground whitespace-nowrap">
+                {formatLastActivity(organization.lastActivityAt, now)}
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1">
+                  {organization.isActive ? (
+                    <Badge variant="outline">Aktivna</Badge>
+                  ) : (
+                    <Badge variant="destructive">Suspendovana</Badge>
+                  )}
+                  {isInactive(organization, now) ? (
+                    <Badge variant="secondary">Neaktivna</Badge>
+                  ) : null}
+                </div>
+              </TableCell>
+              <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button

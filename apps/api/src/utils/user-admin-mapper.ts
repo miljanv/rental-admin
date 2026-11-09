@@ -32,7 +32,10 @@ export interface ManagedUserRecord {
   _count: { createdVehicles: number };
 }
 
-export const toOrganizationDto = (record: OrganizationRecord): OrganizationDto => ({
+export const toOrganizationDto = (
+  record: OrganizationRecord,
+  lastActivityAt: Date | null = null,
+): OrganizationDto => ({
   id: record.id,
   name: record.name,
   isActive: record.isActive,
@@ -54,6 +57,7 @@ export const toOrganizationDto = (record: OrganizationRecord): OrganizationDto =
   vehicleCount: record._count.vehicles,
   driverCount: record._count.drivers,
   tripCount: record._count.trips,
+  lastActivityAt: lastActivityAt?.toISOString() ?? null,
   createdAt: record.createdAt.toISOString(),
   updatedAt: record.updatedAt.toISOString(),
 });

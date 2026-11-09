@@ -32,6 +32,8 @@ export interface OrganizationDto {
   vehicleCount: number;
   driverCount: number;
   tripCount: number;
+  /** Latest sign-in of any of its users; null when nobody has signed in yet. */
+  lastActivityAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -49,8 +51,16 @@ export interface OrganizationOverviewDto {
   /** Uploaded files and the bytes they take in storage. */
   files: number;
   storageBytes: number;
-  /** Latest sign-in of any of its users. */
-  lastActivityAt: string | null;
+}
+
+/** Headline numbers across every organization, for the top of the admin screen. */
+export interface AdminSummaryDto {
+  activeOrganizations: number;
+  suspendedOrganizations: number;
+  /** Vehicles that count against limits, i.e. enabled ones. */
+  enabledVehicles: number;
+  /** Active regular users; superadmins do not count. */
+  activeUsers: number;
 }
 
 export interface ManagedUserDto {

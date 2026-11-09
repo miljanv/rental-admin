@@ -236,6 +236,8 @@ export const queryKeys = {
     all: ['organizations'] as const,
     list: () => ['organizations', 'list'] as const,
     overview: (id: string) => ['organizations', 'overview', id] as const,
+    /** Under `organizations` so every organization, user and vehicle change refreshes it. */
+    summary: () => ['organizations', 'summary'] as const,
     vehicles: (id: string, page: number) => ['organizations', 'vehicles', id, page] as const,
   },
   /** Limits and usage of the organization the session currently works in. */

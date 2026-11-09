@@ -122,7 +122,9 @@ function OverviewCards({
           <CardTitle>Statistika</CardTitle>
           <CardDescription>
             Poslednja aktivnost:{' '}
-            {overview.lastActivityAt ? formatDateTime(overview.lastActivityAt) : 'nikad'}
+            {overview.organization.lastActivityAt
+              ? formatDateTime(overview.organization.lastActivityAt)
+              : 'nikad'}
           </CardDescription>
         </CardHeader>
         <CardContent>

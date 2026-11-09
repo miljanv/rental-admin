@@ -11,7 +11,7 @@ vi.mock('../config/prisma', () => {
   const unscoped = {
     organization: model(),
     alarmThreshold: model(),
-    user: { count: vi.fn(), groupBy: vi.fn(), aggregate: vi.fn() },
+    user: { count: vi.fn(), groupBy: vi.fn() },
     vehicle: { count: vi.fn(), groupBy: vi.fn() },
     driver: { count: vi.fn() },
     trip: { count: vi.fn() },
@@ -70,7 +70,8 @@ const emptyCounts = {
 };
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
+  vi.mocked(prismaUnscoped.user.groupBy).mockResolvedValue([] as never);
 });
 
 describe('listOrganizations', () => {
@@ -100,9 +101,30 @@ describe('listOrganizations', () => {
         vehicleCount: 14,
         driverCount: 9,
         tripCount: 120,
+        lastActivityAt: null,
         createdAt: date.toISOString(),
         updatedAt: date.toISOString(),
       },
+    ]);
+  });
+});
+
+describe('listOrganizations activity', () => {
+  it('reads every last sign-in in one query', async () => {
+    vi.mocked(prisma.organization.findMany).mockResolvedValue([
+      organizationRecord(),
+      organizationRecord({ id: 'org-2', name: 'Druga' }),
+    ] as never);
+    vi.mocked(prismaUnscoped.user.groupBy).mockResolvedValue([
+      { organizationId: 'org-1', _max: { lastLoginAt: date } },
+    ] as never);
+
+    const organizations = await listOrganizations();
+
+    expect(prismaUnscoped.user.groupBy).toHaveBeenCalledTimes(1);
+    expect(organizations.map((organization) => organization.lastActivityAt)).toEqual([
+      date.toISOString(),
+      null,
     ]);
   });
 });
@@ -114,9 +136,6 @@ describe('getOrganizationOverview', () => {
       { isEnabled: true, _count: { _all: 14 } },
       { isEnabled: false, _count: { _all: 3 } },
     ] as never);
-    vi.mocked(prismaUnscoped.user.groupBy).mockResolvedValue([
-      { isActive: true, _count: { _all: 2 } },
-    ] as never);
     vi.mocked(prismaUnscoped.driver.count).mockResolvedValue(9);
     vi.mocked(prismaUnscoped.trip.count).mockResolvedValue(120);
     vi.mocked(prismaUnscoped.tripBillingDocument.count).mockResolvedValue(40);
@@ -124,9 +143,10 @@ describe('getOrganizationOverview', () => {
       _count: { _all: 6 },
       _sum: { size: 3_145_728 },
     } as never);
-    vi.mocked(prismaUnscoped.user.aggregate).mockResolvedValue({
-      _max: { lastLoginAt: date },
-    } as never);
+    vi.mocked(prismaUnscoped.user.groupBy).mockImplementation((async (args: { by: string[] }) =>
+      args.by[0] === 'organizationId'
+        ? [{ organizationId: 'org-1', _max: { lastLoginAt: date } }]
+        : [{ isActive: true, _count: { _all: 2 } }]) as never);
   });
 
   it('adds up usage, statistics, storage and the last sign-in', async () => {
@@ -140,8 +160,8 @@ describe('getOrganizationOverview', () => {
       invoices: 40,
       files: 6,
       storageBytes: 3_145_728,
-      lastActivityAt: date.toISOString(),
     });
+    expect(overview.organization.lastActivityAt).toBe(date.toISOString());
   });
 
   it('counts only this organization, and only issued invoices and uploaded files', async () => {
@@ -166,15 +186,11 @@ describe('getOrganizationOverview', () => {
       _count: { _all: 0 },
       _sum: { size: null },
     } as never);
-    vi.mocked(prismaUnscoped.user.aggregate).mockResolvedValue({
-      _max: { lastLoginAt: null },
-    } as never);
-
     await expect(getOrganizationOverview('org-1')).resolves.toMatchObject({
       vehicles: { enabled: 0, disabled: 0 },
       users: { active: 0, inactive: 0 },
       storageBytes: 0,
-      lastActivityAt: null,
+      organization: { lastActivityAt: null },
     });
   });
 
