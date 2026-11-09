@@ -16,6 +16,7 @@ vi.mock('./services/auth.service', async (importOriginal) => ({
     role: 'USER' as const,
     organizationId: 'org-test',
     organizationName: 'Test firma',
+    mustChangePassword: false,
   })),
 }));
 

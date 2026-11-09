@@ -237,6 +237,9 @@ model User {
   organizationId String?
   /// Copied into every access token. Raising it signs the user out everywhere.
   tokenVersion   Int      @default(0)
+  /// Set for new and reset accounts; everything but choosing a password is refused until cleared.
+  mustChangePassword Boolean   @default(false)
+  lastLoginAt        DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

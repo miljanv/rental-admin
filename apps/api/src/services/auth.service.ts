@@ -1,10 +1,16 @@
-import type { AuthUserDto, LoginRequest, LoginResult } from '@rental-admin/shared';
+import type {
+  AuthUserDto,
+  ChangePasswordRequest,
+  LoginRequest,
+  LoginResult,
+} from '@rental-admin/shared';
 import bcrypt from 'bcryptjs';
 
 import { prisma } from '../config/prisma';
-import { organizationSuspended, unauthorized } from '../utils/app-error';
+import { badRequest, notFound, organizationSuspended, unauthorized } from '../utils/app-error';
 import { signAccessToken } from '../utils/access-token';
 import { logger } from '../utils/logger';
+import { hashPassword } from './user.service';
 
 /**
  * A real bcrypt hash so a missing user still spends the same time in
@@ -18,6 +24,7 @@ const authUserSelect = {
   role: true,
   isActive: true,
   tokenVersion: true,
+  mustChangePassword: true,
   organization: { select: { id: true, name: true, isActive: true } },
 } as const;
 
@@ -27,6 +34,7 @@ interface AuthUserRecord {
   role: AuthUserDto['role'];
   isActive: boolean;
   tokenVersion: number;
+  mustChangePassword: boolean;
   organization: { id: string; name: string; isActive: boolean } | null;
 }
 
@@ -36,6 +44,7 @@ const toAuthUserDto = (user: AuthUserRecord): AuthUserDto => ({
   role: user.role,
   organizationId: user.organization?.id ?? null,
   organizationName: user.organization?.name ?? null,
+  mustChangePassword: user.mustChangePassword,
 });
 
 /** Throws when the user's organization is suspended. A superadmin has no organization. */
@@ -65,9 +74,46 @@ export const login = async (input: LoginRequest): Promise<LoginResult> => {
 
   assertOrganizationActive(user);
 
+  await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   logger.info('User signed in', { userId: user.id, username: user.username });
 
   return { token: signAccessToken(user), user: toAuthUserDto(user) };
+};
+
+/**
+ * Replaces the signed-in user's password. Every older token stops working, so the
+ * caller gets a fresh one for the current device.
+ */
+export const changePassword = async (
+  userId: string,
+  input: ChangePasswordRequest,
+): Promise<LoginResult> => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { passwordHash: true },
+  });
+
+  if (!user) {
+    throw notFound('Korisnik nije pronađen.');
+  }
+
+  // 400, not 401: a wrong current password must not sign the user out.
+  if (!(await bcrypt.compare(input.currentPassword, user.passwordHash))) {
+    throw badRequest('Trenutna lozinka nije ispravna.');
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      passwordHash: await hashPassword(input.newPassword),
+      mustChangePassword: false,
+      tokenVersion: { increment: 1 },
+    },
+    select: authUserSelect,
+  });
+  logger.info('User changed password', { userId });
+
+  return { token: signAccessToken(updated), user: toAuthUserDto(updated) };
 };
 
 /**

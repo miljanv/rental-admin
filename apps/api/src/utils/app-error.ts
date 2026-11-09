@@ -60,6 +60,13 @@ export const organizationSuspended = (): AppError =>
     'Nalog firme je suspendovan. Obratite se administratoru.',
   );
 
+export const passwordChangeRequired = (): AppError =>
+  new AppError(
+    403,
+    API_ERROR_CODES.PASSWORD_CHANGE_REQUIRED,
+    'Pre nastavka morate promeniti lozinku.',
+  );
+
 export const notFound = (message: string, options?: AppErrorOptions): AppError =>
   new AppError(404, API_ERROR_CODES.NOT_FOUND, message, options);
 

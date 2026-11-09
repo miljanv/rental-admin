@@ -4,6 +4,7 @@ import {
   organizationWriteSchema,
   userCreateSchema,
   userIdParamsSchema,
+  userPasswordResetSchema,
   userUpdateSchema,
 } from '@rental-admin/shared';
 
@@ -13,5 +14,6 @@ export {
   organizationWriteSchema,
   userCreateSchema,
   userIdParamsSchema,
+  userPasswordResetSchema,
   userUpdateSchema,
 };

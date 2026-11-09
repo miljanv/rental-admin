@@ -2,6 +2,7 @@ import type {
   ListUsersQuery,
   UserCreateRequest,
   UserIdParams,
+  UserPasswordResetRequest,
   UserUpdateRequest,
 } from '@rental-admin/shared';
 import type { Request, Response } from 'express';
@@ -34,6 +35,13 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
   const body = validated<UserUpdateRequest>(req, 'body');
 
   sendSuccess(res, await userService.updateUser(id, body, currentUser(req).id));
+};
+
+export const resetUserPassword = async (req: Request, res: Response): Promise<void> => {
+  const { id } = validated<UserIdParams>(req, 'params');
+  const { password } = validated<UserPasswordResetRequest>(req, 'body');
+
+  sendSuccess(res, await userService.resetUserPassword(id, password));
 };
 
 export const revokeUserSessions = async (req: Request, res: Response): Promise<void> => {

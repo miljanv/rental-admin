@@ -1,7 +1,7 @@
 'use client';
 
 import { USER_ROLE_LABELS, type ManagedUserDto } from '@rental-admin/shared';
-import { LogOut, MoreHorizontal, Pencil, Trash2, Users } from 'lucide-react';
+import { KeyRound, LogOut, MoreHorizontal, Pencil, Trash2, Users } from 'lucide-react';
 
 import { EmptyState } from '@/components/common/empty-state';
 import { TableSkeleton } from '@/components/common/table-skeleton';
@@ -21,8 +21,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { formatDateTime } from '@/lib/format';
 
-const COLUMN_COUNT = 6;
+const COLUMN_COUNT = 7;
 
 interface UsersTableProps {
   users: ManagedUserDto[];
@@ -30,6 +31,7 @@ interface UsersTableProps {
   isFiltered: boolean;
   currentUserId: string;
   onEdit: (user: ManagedUserDto) => void;
+  onRequestResetPassword: (user: ManagedUserDto) => void;
   onRequestRevokeSessions: (user: ManagedUserDto) => void;
   onRequestDelete: (user: ManagedUserDto) => void;
   emptyAction?: React.ReactNode;
@@ -41,6 +43,7 @@ export function UsersTable({
   isFiltered,
   currentUserId,
   onEdit,
+  onRequestResetPassword,
   onRequestRevokeSessions,
   onRequestDelete,
   emptyAction,
@@ -71,6 +74,7 @@ export function UsersTable({
           <TableHead>Uloga</TableHead>
           <TableHead>Firma</TableHead>
           <TableHead className="text-right">Kreirao vozila</TableHead>
+          <TableHead>Zadnja prijava</TableHead>
           <TableHead>Status</TableHead>
           <TableHead className="w-[60px] text-right">Akcije</TableHead>
         </TableRow>
@@ -96,10 +100,18 @@ export function UsersTable({
                 {user.organizationName ?? '—'}
               </TableCell>
               <TableCell className="text-right tabular-nums">{user.vehiclesCreated}</TableCell>
+              <TableCell className="text-muted-foreground whitespace-nowrap">
+                {user.lastLoginAt ? formatDateTime(user.lastLoginAt) : 'Nikad'}
+              </TableCell>
               <TableCell>
-                <Badge variant={user.isActive ? 'outline' : 'destructive'}>
-                  {user.isActive ? 'Aktivan' : 'Deaktiviran'}
-                </Badge>
+                <div className="flex flex-wrap gap-1">
+                  <Badge variant={user.isActive ? 'outline' : 'destructive'}>
+                    {user.isActive ? 'Aktivan' : 'Deaktiviran'}
+                  </Badge>
+                  {user.mustChangePassword ? (
+                    <Badge variant="secondary">Privremena lozinka</Badge>
+                  ) : null}
+                </div>
               </TableCell>
               <TableCell className="text-right">
                 <DropdownMenu>
@@ -117,6 +129,15 @@ export function UsersTable({
                       <Pencil className="size-4" aria-hidden />
                       Izmeni
                     </DropdownMenuItem>
+                    {user.id === currentUserId ? null : (
+                      <DropdownMenuItem
+                        onClick={() => onRequestResetPassword(user)}
+                        className="gap-2"
+                      >
+                        <KeyRound className="size-4" aria-hidden />
+                        Resetuj lozinku
+                      </DropdownMenuItem>
+                    )}
                     {user.id === currentUserId ? null : (
                       <DropdownMenuItem
                         onClick={() => onRequestRevokeSessions(user)}

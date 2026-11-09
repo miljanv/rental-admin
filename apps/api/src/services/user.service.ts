@@ -18,6 +18,9 @@ import { assertWithinLimit } from './organization-limit.service';
 /** Same cost as the bootstrap admin hash created by the first migration. */
 const BCRYPT_COST = 12;
 
+export const hashPassword = (password: string): Promise<string> =>
+  bcrypt.hash(password, BCRYPT_COST);
+
 const userSelect = {
   id: true,
   username: true,
@@ -27,6 +30,8 @@ const userSelect = {
   createdAt: true,
   updatedAt: true,
   organization: { select: { name: true } },
+  mustChangePassword: true,
+  lastLoginAt: true,
   _count: { select: { createdVehicles: true } },
 } as const;
 
@@ -82,7 +87,7 @@ export const createUser = async (input: UserCreateRequest): Promise<ManagedUserD
     await assertOrganizationExists(input.organizationId);
   }
 
-  const passwordHash = await bcrypt.hash(input.password, BCRYPT_COST);
+  const passwordHash = await hashPassword(input.password);
   const limitedOrganizationId = takesUserSeat(input) ? input.organizationId : null;
 
   try {
@@ -95,6 +100,7 @@ export const createUser = async (input: UserCreateRequest): Promise<ManagedUserD
         data: {
           username: input.username,
           passwordHash,
+          mustChangePassword: true,
           role: input.role,
           isActive: input.isActive,
           organizationId: input.organizationId,
@@ -170,7 +176,7 @@ export const updateUser = async (
       ? organizationId
       : null;
   const passwordHash =
-    input.password !== undefined ? await bcrypt.hash(input.password, BCRYPT_COST) : undefined;
+    input.password !== undefined ? await hashPassword(input.password) : undefined;
   const revokesSessions = passwordHash !== undefined || (existing.isActive && !isActive);
 
   try {
@@ -183,7 +189,8 @@ export const updateUser = async (
         where: { id },
         data: {
           ...(input.username !== undefined ? { username: input.username } : {}),
-          ...(passwordHash !== undefined ? { passwordHash } : {}),
+          // A password the superadmin set is temporary, as with a reset.
+          ...(passwordHash !== undefined ? { passwordHash, mustChangePassword: true } : {}),
           ...(revokesSessions ? { tokenVersion: { increment: 1 } } : {}),
           role,
           isActive,
@@ -207,6 +214,28 @@ export const updateUser = async (
 
     throw error;
   }
+};
+
+/** Sets a temporary password, signs the user out everywhere and forces a new password. */
+export const resetUserPassword = async (id: string, password: string): Promise<ManagedUserDto> => {
+  const existing = await prisma.user.findUnique({ where: { id }, select: { id: true } });
+
+  if (!existing) {
+    throw notFound('Korisnik nije pronađen.');
+  }
+
+  const record = await prisma.user.update({
+    where: { id },
+    data: {
+      passwordHash: await hashPassword(password),
+      mustChangePassword: true,
+      tokenVersion: { increment: 1 },
+    },
+    select: userSelect,
+  });
+  logger.info('User password reset', { userId: id });
+
+  return toManagedUserDto(record);
 };
 
 /** Signs the user out on every device: all tokens issued so far stop working. */

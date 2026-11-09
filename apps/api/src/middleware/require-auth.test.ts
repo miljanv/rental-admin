@@ -12,7 +12,7 @@ import { signAccessToken } from '../utils/access-token';
 import { organizationSuspended } from '../utils/app-error';
 import { getTenantContext } from '../utils/tenant-context';
 import { errorHandler } from './error-handler';
-import { requireAuth, requireRole } from './require-auth';
+import { requireAuth, requireAuthAllowingPasswordChange, requireRole } from './require-auth';
 
 const regularUser: AuthUserDto = {
   id: 'user-1',
@@ -20,6 +20,7 @@ const regularUser: AuthUserDto = {
   role: 'USER',
   organizationId: 'org-1',
   organizationName: 'Firma 1',
+  mustChangePassword: false,
 };
 const otherUser: AuthUserDto = {
   id: 'user-2',
@@ -27,6 +28,7 @@ const otherUser: AuthUserDto = {
   role: 'USER',
   organizationId: 'org-2',
   organizationName: 'Firma 2',
+  mustChangePassword: false,
 };
 const superadmin: AuthUserDto = {
   id: 'admin-1',
@@ -34,6 +36,7 @@ const superadmin: AuthUserDto = {
   role: 'SUPERADMIN',
   organizationId: null,
   organizationName: null,
+  mustChangePassword: false,
 };
 
 const bearer = (user: AuthUserDto, tokenVersion = 0): { Authorization: string } => ({
@@ -45,6 +48,9 @@ const app = express();
 app.get('/context', requireAuth, async (_req, res) => {
   await new Promise((resolve) => setTimeout(resolve, 5));
   res.json({ context: getTenantContext() ?? null });
+});
+app.get('/me', requireAuthAllowingPasswordChange, (_req, res) => {
+  res.json({ ok: true });
 });
 app.get('/admin', requireAuth, requireRole('SUPERADMIN'), (_req, res) => {
   res.json({ ok: true });
@@ -146,6 +152,23 @@ describe('requireAuth', () => {
     responses.forEach((response, index) => {
       expect(response.body.context.organizationId).toBe(index % 2 === 0 ? 'org-1' : 'org-2');
     });
+  });
+
+  it('blocks a user who must change their password', async () => {
+    vi.mocked(findActiveAuthUser).mockResolvedValue({ ...regularUser, mustChangePassword: true });
+
+    const response = await request(app).get('/context').set(bearer(regularUser));
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('PASSWORD_CHANGE_REQUIRED');
+  });
+
+  it('lets a user who must change their password reach the allowed routes', async () => {
+    vi.mocked(findActiveAuthUser).mockResolvedValue({ ...regularUser, mustChangePassword: true });
+
+    const response = await request(app).get('/me').set(bearer(regularUser));
+
+    expect(response.status).toBe(200);
   });
 
   it('has no tenant context outside a request', () => {

@@ -3,6 +3,7 @@ import type {
   DeleteUserResult,
   ManagedUserDto,
   UserCreateRequest,
+  UserPasswordResetRequest,
   UserUpdateRequest,
 } from '@rental-admin/shared';
 
@@ -29,6 +30,18 @@ export const createUser = async (body: UserCreateRequest): Promise<ManagedUserDt
 
 export const updateUser = async (id: string, body: UserUpdateRequest): Promise<ManagedUserDto> => {
   const response = await apiClient.patch<ApiResponse<ManagedUserDto>>(`/users/${id}`, body);
+
+  return unwrap(response.data);
+};
+
+export const resetUserPassword = async (
+  id: string,
+  body: UserPasswordResetRequest,
+): Promise<ManagedUserDto> => {
+  const response = await apiClient.post<ApiResponse<ManagedUserDto>>(
+    `/users/${id}/reset-password`,
+    body,
+  );
 
   return unwrap(response.data);
 };

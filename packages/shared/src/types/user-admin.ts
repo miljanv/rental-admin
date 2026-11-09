@@ -32,6 +32,8 @@ export interface ManagedUserDto {
   organizationName: string | null;
   /** How many vehicles this user personally added. */
   vehiclesCreated: number;
+  mustChangePassword: boolean;
+  lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -1,4 +1,10 @@
-import type { AuthUserDto, LoginRequest, OrganizationUsageDto } from '@rental-admin/shared';
+import type {
+  AuthUserDto,
+  ChangePasswordRequest,
+  LoginRequest,
+  LoginResult,
+  OrganizationUsageDto,
+} from '@rental-admin/shared';
 import type { Request, Response } from 'express';
 
 import { currentUser } from '../middleware/require-auth';
@@ -12,6 +18,12 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   const result = await authService.login(body);
 
   sendSuccess(res, result);
+};
+
+export const changePassword = async (req: Request, res: Response): Promise<void> => {
+  const body = validated<ChangePasswordRequest>(req, 'body');
+
+  sendSuccess<LoginResult>(res, await authService.changePassword(currentUser(req).id, body));
 };
 
 export const me = async (req: Request, res: Response): Promise<void> => {

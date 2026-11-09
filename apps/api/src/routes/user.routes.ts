@@ -6,6 +6,7 @@ import {
   listUsersQuerySchema,
   userCreateSchema,
   userIdParamsSchema,
+  userPasswordResetSchema,
   userUpdateSchema,
 } from '../schemas/user-admin.schema';
 import { asyncHandler } from '../utils/async-handler';
@@ -34,6 +35,12 @@ userRouter.patch(
   '/:id',
   validateRequest({ params: userIdParamsSchema, body: userUpdateSchema }),
   asyncHandler(userController.updateUser),
+);
+
+userRouter.post(
+  '/:id/reset-password',
+  validateRequest({ params: userIdParamsSchema, body: userPasswordResetSchema }),
+  asyncHandler(userController.resetUserPassword),
 );
 
 userRouter.post(

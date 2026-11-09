@@ -79,6 +79,8 @@ describe('request mapping', () => {
       organizationId: null,
       organizationName: null,
       vehiclesCreated: 0,
+      mustChangePassword: false,
+      lastLoginAt: null,
       createdAt: '2026-10-14T00:00:00.000Z',
       updatedAt: '2026-10-14T00:00:00.000Z',
     });

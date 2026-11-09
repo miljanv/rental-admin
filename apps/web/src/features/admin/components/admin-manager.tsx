@@ -22,6 +22,7 @@ import { DeleteOrganizationDialog } from '@/features/admin/components/delete-org
 import { DeleteUserDialog } from '@/features/admin/components/delete-user-dialog';
 import { OrganizationDialog } from '@/features/admin/components/organization-dialog';
 import { OrganizationsTable } from '@/features/admin/components/organizations-table';
+import { ResetPasswordDialog } from '@/features/admin/components/reset-password-dialog';
 import { RevokeSessionsDialog } from '@/features/admin/components/revoke-sessions-dialog';
 import { SuspendOrganizationDialog } from '@/features/admin/components/suspend-organization-dialog';
 import { UserDialog } from '@/features/admin/components/user-dialog';
@@ -46,6 +47,7 @@ function AdminScreen({ currentUserId }: { currentUserId: string }) {
   const [userDialog, setUserDialog] = useState<DialogTarget<ManagedUserDto>>(null);
   const [userToDelete, setUserToDelete] = useState<ManagedUserDto | null>(null);
   const [userToSignOut, setUserToSignOut] = useState<ManagedUserDto | null>(null);
+  const [userToResetPassword, setUserToResetPassword] = useState<ManagedUserDto | null>(null);
 
   const isFiltered = organizationFilter !== ALL_ORGANIZATIONS;
   const organizationsQuery = useOrganizations();
@@ -182,6 +184,7 @@ function AdminScreen({ currentUserId }: { currentUserId: string }) {
                 isFiltered={isFiltered}
                 currentUserId={currentUserId}
                 onEdit={(user) => setUserDialog({ record: user })}
+                onRequestResetPassword={setUserToResetPassword}
                 onRequestRevokeSessions={setUserToSignOut}
                 onRequestDelete={setUserToDelete}
                 emptyAction={
@@ -220,6 +223,12 @@ function AdminScreen({ currentUserId }: { currentUserId: string }) {
         currentUserId={currentUserId}
         onOpenChange={(isOpen) => {
           if (!isOpen) setUserDialog(null);
+        }}
+      />
+      <ResetPasswordDialog
+        user={userToResetPassword}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setUserToResetPassword(null);
         }}
       />
       <RevokeSessionsDialog

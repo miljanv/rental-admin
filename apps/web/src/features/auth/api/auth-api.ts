@@ -1,6 +1,7 @@
 import type {
   ApiResponse,
   AuthUserDto,
+  ChangePasswordRequest,
   LoginRequest,
   LoginResult,
   OrganizationUsageDto,
@@ -10,6 +11,12 @@ import { apiClient, unwrap } from '@/lib/api-client';
 
 export const login = async (body: LoginRequest): Promise<LoginResult> => {
   const response = await apiClient.post<ApiResponse<LoginResult>>('/auth/login', body);
+
+  return unwrap(response.data);
+};
+
+export const changePassword = async (body: ChangePasswordRequest): Promise<LoginResult> => {
+  const response = await apiClient.post<ApiResponse<LoginResult>>('/auth/change-password', body);
 
   return unwrap(response.data);
 };

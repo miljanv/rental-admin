@@ -2,6 +2,7 @@
 
 import { AppShell } from '@/components/layout/app-shell';
 import { OrganizationGuard } from '@/components/layout/organization-guard';
+import { ChangePasswordScreen } from '@/features/auth/components/change-password-screen';
 import { LoginScreen } from '@/features/auth/components/login-screen';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -18,6 +19,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return <LoginScreen />;
+  }
+
+  if (user.mustChangePassword) {
+    return <ChangePasswordScreen />;
   }
 
   return (

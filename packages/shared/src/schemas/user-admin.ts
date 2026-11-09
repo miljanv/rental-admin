@@ -51,7 +51,7 @@ const usernameSchema = z
   .min(3, 'Korisničko ime mora imati najmanje 3 karaktera.')
   .max(64, 'Korisničko ime sme imati najviše 64 karaktera.');
 
-const passwordSchema = z
+export const passwordSchema = z
   .string()
   .min(8, 'Lozinka mora imati najmanje 8 karaktera.')
   .max(128, 'Lozinka sme imati najviše 128 karaktera.');
@@ -124,6 +124,11 @@ export const userUpdateSchema = z
   .superRefine(checkRoleOrganizationChange);
 
 export type UserUpdateRequest = z.infer<typeof userUpdateSchema>;
+
+/** A temporary password set by a superadmin; the user must replace it at the next sign-in. */
+export const userPasswordResetSchema = z.object({ password: passwordSchema });
+
+export type UserPasswordResetRequest = z.infer<typeof userPasswordResetSchema>;
 
 export const listUsersQuerySchema = z.object({
   organizationId: z.string().trim().min(1).max(64).optional(),

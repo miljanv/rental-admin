@@ -3,7 +3,7 @@ import type { Request, RequestHandler } from 'express';
 
 import { prisma } from '../config/prisma';
 import { findActiveAuthUser } from '../services/auth.service';
-import { forbidden, notFound, unauthorized } from '../utils/app-error';
+import { forbidden, notFound, passwordChangeRequired, unauthorized } from '../utils/app-error';
 import { verifyAccessToken } from '../utils/access-token';
 import { runWithTenant } from '../utils/tenant-context';
 
@@ -82,15 +82,30 @@ const authenticate = async (
  * context, so business data is limited to one organization automatically.
  * Public routes (health, login) must not mount this middleware.
  */
-export const requireAuth: RequestHandler = (req, _res, next) => {
-  authenticate(req).then(
-    ({ user, organizationId }) => {
-      req.authUser = user;
-      runWithTenant({ userId: user.id, organizationId }, () => next());
-    },
-    (error: unknown) => next(error),
-  );
-};
+const createRequireAuth =
+  (allowPendingPasswordChange: boolean): RequestHandler =>
+  (req, _res, next) => {
+    authenticate(req).then(
+      ({ user, organizationId }) => {
+        if (user.mustChangePassword && !allowPendingPasswordChange) {
+          next(passwordChangeRequired());
+          return;
+        }
+
+        req.authUser = user;
+        runWithTenant({ userId: user.id, organizationId }, () => next());
+      },
+      (error: unknown) => next(error),
+    );
+  };
+
+export const requireAuth: RequestHandler = createRequireAuth(false);
+
+/**
+ * `requireAuth` that also lets in a user who still has to replace a temporary
+ * password. Only for `/auth/me` and the password change itself.
+ */
+export const requireAuthAllowingPasswordChange: RequestHandler = createRequireAuth(true);
 
 /** Allows the request only for the given roles. Mount after `requireAuth`. */
 export const requireRole =

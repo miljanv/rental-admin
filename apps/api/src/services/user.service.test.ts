@@ -23,7 +23,13 @@ vi.mock('../config/prisma', () => {
 });
 
 import { prisma } from '../config/prisma';
-import { createUser, deleteUser, revokeUserSessions, updateUser } from './user.service';
+import {
+  createUser,
+  deleteUser,
+  resetUserPassword,
+  revokeUserSessions,
+  updateUser,
+} from './user.service';
 
 const date = new Date('2026-10-14T00:00:00Z');
 const record = (overrides: Record<string, unknown> = {}) => ({
@@ -32,6 +38,8 @@ const record = (overrides: Record<string, unknown> = {}) => ({
   role: 'USER',
   isActive: true,
   organizationId: 'org-1',
+  mustChangePassword: false,
+  lastLoginAt: null,
   createdAt: date,
   updatedAt: date,
   organization: { name: 'Firma 1' },
@@ -80,6 +88,14 @@ describe('createUser', () => {
     expect(JSON.stringify(dto)).not.toContain('lozinka123');
     expect(dto).not.toHaveProperty('passwordHash');
     expect(dto.vehiclesCreated).toBe(3);
+  });
+
+  it('makes the new user choose their own password at the first sign-in', async () => {
+    vi.mocked(prisma.user.create).mockResolvedValue(record() as never);
+
+    await createUser(input);
+
+    expect(vi.mocked(prisma.user.create).mock.calls[0]![0].data.mustChangePassword).toBe(true);
   });
 
   it('rejects an organization that does not exist', async () => {
@@ -144,9 +160,9 @@ describe('updateUser', () => {
 
     await updateUser('user-1', { password: 'nova-lozinka' }, 'admin-1');
 
-    expect(vi.mocked(prisma.user.update).mock.calls[0]![0].data.passwordHash).toBe(
-      'hashed:nova-lozinka',
-    );
+    const data = vi.mocked(prisma.user.update).mock.calls[0]![0].data;
+    expect(data.passwordHash).toBe('hashed:nova-lozinka');
+    expect(data.mustChangePassword).toBe(true);
   });
 
   it('signs the user out everywhere after a password change or deactivation', async () => {
@@ -262,6 +278,32 @@ describe('updateUser', () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
 
     await expect(updateUser('nope', {}, 'admin-1')).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
+describe('resetUserPassword', () => {
+  it('sets a temporary password, forces a change and signs the user out', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-1' } as never);
+    vi.mocked(prisma.user.update).mockResolvedValue(record({ mustChangePassword: true }) as never);
+
+    const dto = await resetUserPassword('user-1', 'privremena1');
+
+    expect(vi.mocked(prisma.user.update).mock.calls[0]![0].data).toEqual({
+      passwordHash: 'hashed:privremena1',
+      mustChangePassword: true,
+      tokenVersion: { increment: 1 },
+    });
+    expect(dto.mustChangePassword).toBe(true);
+    expect(JSON.stringify(dto)).not.toContain('privremena1');
+  });
+
+  it('returns 404 for an unknown user', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+
+    await expect(resetUserPassword('nope', 'privremena1')).rejects.toMatchObject({
+      statusCode: 404,
+    });
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 });
 

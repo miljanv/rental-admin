@@ -106,7 +106,11 @@ function UserForm({ user, isSelf, onDone }: UserFormProps) {
           />
           {errors.password ? (
             <p className="text-destructive text-xs">{errors.password.message}</p>
-          ) : null}
+          ) : (
+            <p className="text-muted-foreground text-xs">
+              Privremena je: korisnik je menja pri prvoj prijavi.
+            </p>
+          )}
         </div>
 
         <Controller

@@ -1,10 +1,14 @@
 'use client';
 
-import type { AuthUserDto } from '@rental-admin/shared';
+import type { AuthUserDto, ChangePasswordRequest } from '@rental-admin/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { fetchCurrentUser, login as loginRequest } from '@/features/auth/api/auth-api';
+import {
+  changePassword as changePasswordRequest,
+  fetchCurrentUser,
+  login as loginRequest,
+} from '@/features/auth/api/auth-api';
 import {
   clearActiveOrganizationId,
   getActiveOrganizationId,
@@ -27,6 +31,8 @@ interface AuthContextValue {
   /** Switches a superadmin to another organization (or none) and reloads what is on screen. */
   selectOrganization: (organizationId: string | null) => void;
   login: (input: { username: string; password: string }) => Promise<void>;
+  /** Replaces the signed-in user's password; other devices are signed out. */
+  changePassword: (input: ChangePasswordRequest) => Promise<void>;
   logout: () => void;
 }
 
@@ -122,6 +128,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
   });
 
+  const changePasswordMutation = useMutation({
+    mutationFn: changePasswordRequest,
+    onSuccess: (result) => {
+      // The old token stopped working the moment the password changed.
+      setAccessToken(result.token);
+      setUser(result.user);
+    },
+  });
+
+  const changePassword = useCallback(
+    async (input: ChangePasswordRequest) => {
+      await changePasswordMutation.mutateAsync(input);
+    },
+    [changePasswordMutation],
+  );
+
   const login = useCallback(
     async (input: { username: string; password: string }) => {
       await loginMutation.mutateAsync(input);
@@ -136,9 +158,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       activeOrganizationId,
       selectOrganization,
       login,
+      changePassword,
       logout,
     }),
-    [user, isReady, activeOrganizationId, selectOrganization, login, logout],
+    [user, isReady, activeOrganizationId, selectOrganization, login, changePassword, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

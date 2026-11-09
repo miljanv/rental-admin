@@ -1,12 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { findUnique, compare } = vi.hoisted(() => ({ findUnique: vi.fn(), compare: vi.fn() }));
+const { findUnique, update, compare } = vi.hoisted(() => ({
+  findUnique: vi.fn(),
+  update: vi.fn(),
+  compare: vi.fn(),
+}));
 
-vi.mock('bcryptjs', () => ({ default: { compare } }));
-vi.mock('../config/prisma', () => ({ prisma: { user: { findUnique } } }));
+vi.mock('bcryptjs', () => ({
+  default: { compare, hash: async (password: string) => `hashed:${password}` },
+}));
+vi.mock('../config/prisma', () => ({ prisma: { user: { findUnique, update } } }));
 vi.mock('../utils/access-token', () => ({ signAccessToken: () => 'token' }));
 
-import { findActiveAuthUser, login } from './auth.service';
+import { changePassword, findActiveAuthUser, login } from './auth.service';
 
 const account = (overrides: Record<string, unknown> = {}) => ({
   id: 'user-1',
@@ -14,6 +20,7 @@ const account = (overrides: Record<string, unknown> = {}) => ({
   role: 'USER',
   isActive: true,
   tokenVersion: 2,
+  mustChangePassword: false,
   passwordHash: 'hash',
   organization: { id: 'org-1', name: 'Firma 1', isActive: true },
   ...overrides,
@@ -24,6 +31,7 @@ const suspended = { organization: { id: 'org-1', name: 'Firma 1', isActive: fals
 beforeEach(() => {
   vi.clearAllMocks();
   compare.mockResolvedValue(true);
+  update.mockImplementation(async () => account({ tokenVersion: 3 }));
 });
 
 describe('login', () => {
@@ -61,6 +69,33 @@ describe('login', () => {
 
     await expect(login({ username: 'marko', password: 'secret' })).rejects.toMatchObject({
       statusCode: 401,
+    });
+  });
+
+  it('records the time of a successful sign-in', async () => {
+    findUnique.mockResolvedValue(account());
+
+    await login({ username: 'marko', password: 'secret' });
+
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: { lastLoginAt: expect.any(Date) },
+    });
+  });
+
+  it('does not record a failed sign-in', async () => {
+    findUnique.mockResolvedValue(account());
+    compare.mockResolvedValue(false);
+
+    await expect(login({ username: 'marko', password: 'wrong' })).rejects.toBeDefined();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('tells the client a temporary password must be replaced', async () => {
+    findUnique.mockResolvedValue(account({ mustChangePassword: true }));
+
+    await expect(login({ username: 'marko', password: 'secret' })).resolves.toMatchObject({
+      user: { mustChangePassword: true },
     });
   });
 
@@ -105,5 +140,33 @@ describe('findActiveAuthUser', () => {
     findUnique.mockResolvedValue(account({ isActive: false }));
 
     await expect(findActiveAuthUser('user-1', 2)).resolves.toBeNull();
+  });
+});
+
+describe('changePassword', () => {
+  const input = { currentPassword: 'stara-lozinka', newPassword: 'nova-lozinka' };
+
+  it('stores the new hash, clears the forced change and revokes older tokens', async () => {
+    findUnique.mockResolvedValue(account({ mustChangePassword: true }));
+
+    await expect(changePassword('user-1', input)).resolves.toMatchObject({ token: 'token' });
+
+    expect(compare).toHaveBeenCalledWith('stara-lozinka', 'hash');
+    expect(update.mock.calls[0]![0].data).toEqual({
+      passwordHash: 'hashed:nova-lozinka',
+      mustChangePassword: false,
+      tokenVersion: { increment: 1 },
+    });
+  });
+
+  it('answers 400, not 401, for a wrong current password', async () => {
+    findUnique.mockResolvedValue(account());
+    compare.mockResolvedValue(false);
+
+    await expect(changePassword('user-1', input)).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'Trenutna lozinka nije ispravna.',
+    });
+    expect(update).not.toHaveBeenCalled();
   });
 });

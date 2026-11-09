@@ -20,6 +20,8 @@ export interface AuthUserDto {
   /** The user's own organization. Null for a SUPERADMIN. */
   organizationId: string | null;
   organizationName: string | null;
+  /** Set for a new or reset account: the user must choose a password before doing anything else. */
+  mustChangePassword: boolean;
 }
 
 export interface LoginResult {

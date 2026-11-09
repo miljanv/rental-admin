@@ -18,6 +18,8 @@ export interface ManagedUserRecord {
   role: UserRole;
   isActive: boolean;
   organizationId: string | null;
+  mustChangePassword: boolean;
+  lastLoginAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   organization: { name: string } | null;
@@ -51,6 +53,8 @@ export const toManagedUserDto = (record: ManagedUserRecord): ManagedUserDto => (
   organizationId: record.organizationId,
   organizationName: record.organization?.name ?? null,
   vehiclesCreated: record._count.createdVehicles,
+  mustChangePassword: record.mustChangePassword,
+  lastLoginAt: record.lastLoginAt?.toISOString() ?? null,
   createdAt: record.createdAt.toISOString(),
   updatedAt: record.updatedAt.toISOString(),
 });
