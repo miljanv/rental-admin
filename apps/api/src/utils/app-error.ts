@@ -58,6 +58,9 @@ export const notFound = (message: string, options?: AppErrorOptions): AppError =
 export const conflict = (message: string, options?: AppErrorOptions): AppError =>
   new AppError(409, API_ERROR_CODES.CONFLICT, message, options);
 
+export const limitReached = (message: string, options?: AppErrorOptions): AppError =>
+  new AppError(409, API_ERROR_CODES.LIMIT_REACHED, message, options);
+
 export const payloadTooLarge = (message: string, options?: AppErrorOptions): AppError =>
   new AppError(413, API_ERROR_CODES.PAYLOAD_TOO_LARGE, message, options);
 

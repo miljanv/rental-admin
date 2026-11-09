@@ -19,6 +19,7 @@ export const useUpdateOrganization = () => {
       // Users show their organization's name, so both lists are refreshed.
       await queryClient.invalidateQueries({ queryKey: queryKeys.organizations.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.organizationUsage.all });
     },
     onError: (error) => {
       toast.error('Firma nije sačuvana.', { description: getApiErrorMessage(error) });

@@ -9,9 +9,23 @@ import { conflict, notFound } from '../utils/app-error';
 import { logger } from '../utils/logger';
 import { isUniqueViolation } from '../utils/prisma-errors';
 import { toOrganizationDto } from '../utils/user-admin-mapper';
+import {
+  countLimited,
+  LIMITED_USER_WHERE,
+  LIMITED_VEHICLE_WHERE,
+  lockOrganizationLimits,
+} from './organization-limit.service';
 
+/** User and vehicle counts are the ones that count against the organization's limits. */
 const organizationInclude = {
-  _count: { select: { users: true, vehicles: true, drivers: true, trips: true } },
+  _count: {
+    select: {
+      users: { where: LIMITED_USER_WHERE },
+      vehicles: { where: LIMITED_VEHICLE_WHERE },
+      drivers: true,
+      trips: true,
+    },
+  },
 } as const;
 
 const NAME_TAKEN_MESSAGE = 'Firma sa tim nazivom već postoji.';
@@ -43,7 +57,12 @@ export const createOrganization = async (
 ): Promise<OrganizationDto> => {
   try {
     const record = await prisma.organization.create({
-      data: { name: input.name, isActive: input.isActive },
+      data: {
+        name: input.name,
+        isActive: input.isActive,
+        maxVehicles: input.maxVehicles,
+        maxUsers: input.maxUsers,
+      },
       include: organizationInclude,
     });
     logger.info('Organization created', { organizationId: record.id, name: record.name });
@@ -65,12 +84,43 @@ export const updateOrganization = async (
   await getOrganization(id);
 
   try {
-    const record = await prisma.organization.update({
-      where: { id },
-      data: { name: input.name, isActive: input.isActive },
-      include: organizationInclude,
+    const record = await prismaUnscoped.$transaction(async (tx) => {
+      // Locked so nothing is added between the count and the new, lower limit.
+      await lockOrganizationLimits(tx, id);
+      const [vehicles, users] = await Promise.all([
+        countLimited(tx, id, 'vehicles'),
+        countLimited(tx, id, 'users'),
+      ]);
+
+      if (input.maxVehicles !== null && input.maxVehicles < vehicles) {
+        throw conflict(
+          `Limit vozila ne može biti manji od trenutnog broja vozila (${vehicles}). Prvo deaktivirajte vozila.`,
+        );
+      }
+
+      if (input.maxUsers !== null && input.maxUsers < users) {
+        throw conflict(
+          `Limit korisnika ne može biti manji od broja aktivnih korisnika (${users}). Prvo deaktivirajte korisnike.`,
+        );
+      }
+
+      return tx.organization.update({
+        where: { id },
+        data: {
+          name: input.name,
+          isActive: input.isActive,
+          maxVehicles: input.maxVehicles,
+          maxUsers: input.maxUsers,
+        },
+        include: organizationInclude,
+      });
     });
-    logger.info('Organization updated', { organizationId: id, isActive: record.isActive });
+    logger.info('Organization updated', {
+      organizationId: id,
+      isActive: record.isActive,
+      maxVehicles: record.maxVehicles,
+      maxUsers: record.maxUsers,
+    });
 
     return toOrganizationDto(record);
   } catch (error) {

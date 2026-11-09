@@ -24,6 +24,10 @@ import {
 
 const COLUMN_COUNT = 6;
 
+/** "3/5" against a limit, plain "3" without one. */
+const formatUsage = (used: number, max: number | null): string =>
+  max === null ? String(used) : `${used}/${max}`;
+
 interface OrganizationsTableProps {
   organizations: OrganizationDto[];
   isLoading: boolean;
@@ -87,8 +91,12 @@ export function OrganizationsTable({
                   {organization.isActive ? null : <Badge variant="destructive">Neaktivna</Badge>}
                 </div>
               </TableCell>
-              <TableCell className="text-right tabular-nums">{organization.userCount}</TableCell>
-              <TableCell className="text-right tabular-nums">{organization.vehicleCount}</TableCell>
+              <TableCell className="text-right tabular-nums">
+                {formatUsage(organization.usage.users, organization.usage.maxUsers)}
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                {formatUsage(organization.usage.vehicles, organization.usage.maxVehicles)}
+              </TableCell>
               <TableCell className="text-right tabular-nums">{organization.driverCount}</TableCell>
               <TableCell className="text-right tabular-nums">{organization.tripCount}</TableCell>
               <TableCell className="text-right">

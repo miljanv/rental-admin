@@ -128,9 +128,11 @@ describe('services keep to scalar foreign keys', () => {
     );
     const relative = rawSql.map((file) => file.slice(join(__dirname, '..').length + 1)).sort();
 
-    // transaction.service filters by organizationId manually; health only runs SELECT 1.
+    // transaction.service filters by organizationId manually; health only runs SELECT 1;
+    // organization-limit.service locks one organizations row by its id.
     expect(relative).toEqual([
       'controllers/health.controller.ts',
+      'services/organization-limit.service.ts',
       'services/transaction.service.ts',
     ]);
   });

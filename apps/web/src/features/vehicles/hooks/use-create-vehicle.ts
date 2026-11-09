@@ -17,7 +17,10 @@ export const useCreateVehicle = () => {
     mutationFn: createVehicle,
     onSuccess: async (vehicle) => {
       toast.success('Vozilo je dodato.', { description: vehicleLabel(vehicle) });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.organizationUsage.all }),
+      ]);
       router.push('/vehicles');
     },
     onError: (error) => {

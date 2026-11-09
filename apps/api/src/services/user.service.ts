@@ -13,6 +13,7 @@ import { badRequest, conflict, notFound } from '../utils/app-error';
 import { logger } from '../utils/logger';
 import { isUniqueViolation } from '../utils/prisma-errors';
 import { toManagedUserDto } from '../utils/user-admin-mapper';
+import { assertWithinLimit } from './organization-limit.service';
 
 /** Same cost as the bootstrap admin hash created by the first migration. */
 const BCRYPT_COST = 12;
@@ -41,6 +42,14 @@ const assertOrganizationExists = async (organizationId: string): Promise<void> =
     throw badRequest('Izabrana firma ne postoji.');
   }
 };
+
+/** Matches `LIMITED_USER_WHERE`: only active regular users count against the user limit. */
+const takesUserSeat = (user: {
+  role: UserRole;
+  isActive: boolean;
+  organizationId: string | null;
+}): user is { role: 'USER'; isActive: true; organizationId: string } =>
+  user.role === 'USER' && user.isActive && user.organizationId !== null;
 
 /** How many OTHER active superadmins there are besides `userId`. */
 const countOtherActiveSuperadmins = (userId: string): Promise<number> =>
@@ -74,17 +83,24 @@ export const createUser = async (input: UserCreateRequest): Promise<ManagedUserD
   }
 
   const passwordHash = await bcrypt.hash(input.password, BCRYPT_COST);
+  const limitedOrganizationId = takesUserSeat(input) ? input.organizationId : null;
 
   try {
-    const record = await prisma.user.create({
-      data: {
-        username: input.username,
-        passwordHash,
-        role: input.role,
-        isActive: input.isActive,
-        organizationId: input.organizationId,
-      },
-      select: userSelect,
+    const record = await prisma.$transaction(async (tx) => {
+      if (limitedOrganizationId) {
+        await assertWithinLimit(tx, limitedOrganizationId, 'users');
+      }
+
+      return tx.user.create({
+        data: {
+          username: input.username,
+          passwordHash,
+          role: input.role,
+          isActive: input.isActive,
+          organizationId: input.organizationId,
+        },
+        select: userSelect,
+      });
     });
     logger.info('User created', { userId: record.id, role: record.role });
 
@@ -147,19 +163,32 @@ export const updateUser = async (
     }
   }
 
+  // A user who already holds a seat in that organization does not take another one.
+  const newSeatOrganizationId =
+    takesUserSeat({ role, isActive, organizationId }) &&
+    !(takesUserSeat(existing) && existing.organizationId === organizationId)
+      ? organizationId
+      : null;
+  const passwordHash =
+    input.password !== undefined ? await bcrypt.hash(input.password, BCRYPT_COST) : undefined;
+
   try {
-    const record = await prisma.user.update({
-      where: { id },
-      data: {
-        ...(input.username !== undefined ? { username: input.username } : {}),
-        ...(input.password !== undefined
-          ? { passwordHash: await bcrypt.hash(input.password, BCRYPT_COST) }
-          : {}),
-        role,
-        isActive,
-        organizationId,
-      },
-      select: userSelect,
+    const record = await prisma.$transaction(async (tx) => {
+      if (newSeatOrganizationId) {
+        await assertWithinLimit(tx, newSeatOrganizationId, 'users');
+      }
+
+      return tx.user.update({
+        where: { id },
+        data: {
+          ...(input.username !== undefined ? { username: input.username } : {}),
+          ...(passwordHash !== undefined ? { passwordHash } : {}),
+          role,
+          isActive,
+          organizationId,
+        },
+        select: userSelect,
+      });
     });
     logger.info('User updated', { userId: id, role: record.role, isActive: record.isActive });
 

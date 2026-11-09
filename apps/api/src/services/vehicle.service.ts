@@ -14,6 +14,7 @@ import { buildPaginationMeta } from '../utils/api-response';
 import { logger } from '../utils/logger';
 import { toVehicleDto, type VehicleRecord } from '../utils/vehicle-mapper';
 import { requireOrganizationId } from '../utils/tenant-context';
+import { assertWithinLimit } from './organization-limit.service';
 import { deleteFilesForVehicle as deleteCalibrationFiles } from './tachograph-calibration.service';
 import { deleteFilesForVehicle as deleteDocumentFiles } from './vehicle-document.service';
 import { deleteFilesForVehicle as deleteInspectionFiles } from './vehicle-inspection.service';
@@ -133,13 +134,19 @@ export const getVehicle = async (id: string): Promise<VehicleDto> => {
 };
 
 export const createVehicle = async (input: VehicleWriteRequest): Promise<VehicleDto> => {
+  const organizationId = requireOrganizationId();
+
   try {
-    const record = await prisma.vehicle.create({
-      data: {
-        ...toWriteData(input),
-        initialMileageKm: input.initialMileageKm,
-        organizationId: requireOrganizationId(),
-      },
+    const record = await prisma.$transaction(async (tx) => {
+      await assertWithinLimit(tx, organizationId, 'vehicles');
+
+      return tx.vehicle.create({
+        data: {
+          ...toWriteData(input),
+          initialMileageKm: input.initialMileageKm,
+          organizationId,
+        },
+      });
     });
     logger.info('Vehicle created', { vehicleId: record.id, licensePlate: record.licensePlate });
     return toVehicleDto(record);

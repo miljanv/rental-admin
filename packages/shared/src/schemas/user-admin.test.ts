@@ -6,11 +6,31 @@ describe('organizationWriteSchema', () => {
   it('trims the name and defaults to active', () => {
     const result = organizationWriteSchema.parse({ name: '  Rental Travel  ' });
 
-    expect(result).toEqual({ name: 'Rental Travel', isActive: true });
+    expect(result).toEqual({
+      name: 'Rental Travel',
+      isActive: true,
+      maxVehicles: null,
+      maxUsers: null,
+    });
   });
 
   it('rejects a blank name', () => {
     expect(organizationWriteSchema.safeParse({ name: ' ' }).success).toBe(false);
+  });
+
+  it('reads blank or cleared limits as "no limit"', () => {
+    const result = organizationWriteSchema.parse({ name: 'Firma', maxVehicles: '', maxUsers: NaN });
+
+    expect(result.maxVehicles).toBeNull();
+    expect(result.maxUsers).toBeNull();
+  });
+
+  it('accepts whole, non-negative limits only', () => {
+    expect(organizationWriteSchema.parse({ name: 'Firma', maxVehicles: 0 }).maxVehicles).toBe(0);
+    expect(organizationWriteSchema.safeParse({ name: 'Firma', maxVehicles: -1 }).success).toBe(
+      false,
+    );
+    expect(organizationWriteSchema.safeParse({ name: 'Firma', maxUsers: 2.5 }).success).toBe(false);
   });
 });
 

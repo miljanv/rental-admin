@@ -144,9 +144,7 @@ describe('API request pipeline', () => {
   });
 
   it('rejects an expiring-documents window outside the allowed range', async () => {
-    const response = await request(app)
-      .get('/api/v1/drivers/expiring-documents?days=0')
-      .set(auth);
+    const response = await request(app).get('/api/v1/drivers/expiring-documents?days=0').set(auth);
 
     expect(response.status).toBe(400);
     expect(response.body.error.code).toBe('VALIDATION_ERROR');
@@ -177,5 +175,15 @@ describe('API request pipeline', () => {
 
     expect(response.status).toBe(400);
     expect(response.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('does not let a regular user change organization limits', async () => {
+    const response = await request(app)
+      .patch('/api/v1/organizations/org-test')
+      .set(auth)
+      .send({ name: 'Test firma', isActive: true, maxVehicles: 1000, maxUsers: 1000 });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('FORBIDDEN');
   });
 });

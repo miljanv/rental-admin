@@ -14,6 +14,24 @@ export const userIdParamsSchema = z.object({
 
 export type UserIdParams = z.infer<typeof userIdParamsSchema>;
 
+/** Blank (or a cleared number input) means "no limit". */
+const optionalLimitSchema = (label: string) =>
+  z.preprocess(
+    (value) =>
+      value === '' ||
+      value === undefined ||
+      value === null ||
+      (typeof value === 'number' && Number.isNaN(value))
+        ? null
+        : value,
+    z
+      .number()
+      .int(`${label} mora biti ceo broj.`)
+      .min(0, `${label} ne može biti negativan.`)
+      .max(10_000, `${label} nije ispravan.`)
+      .nullable(),
+  );
+
 export const organizationWriteSchema = z.object({
   name: z
     .string()
@@ -21,6 +39,8 @@ export const organizationWriteSchema = z.object({
     .min(2, 'Naziv firme je obavezan.')
     .max(120, 'Naziv firme sme imati najviše 120 karaktera.'),
   isActive: z.boolean().default(true),
+  maxVehicles: optionalLimitSchema('Maks. broj vozila'),
+  maxUsers: optionalLimitSchema('Maks. broj korisnika'),
 });
 
 export type OrganizationWriteRequest = z.infer<typeof organizationWriteSchema>;

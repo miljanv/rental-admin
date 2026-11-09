@@ -196,10 +196,13 @@ enum UserRole {
 /// organization; users of the same organization share all of its data.
 model Organization {
   id        String   @id @default(cuid())
-  name      String   @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  name        String   @unique
+  isActive    Boolean  @default(true)
+  /// Most vehicles / active users the organization may have. Null means no limit.
+  maxVehicles Int?
+  maxUsers    Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   openingBalances      OpeningBalance[]
   vatReturns           VatReturn[]

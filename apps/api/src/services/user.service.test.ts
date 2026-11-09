@@ -12,7 +12,14 @@ vi.mock('../config/prisma', () => {
       ]),
     );
 
-  return { prisma: { user: model(), organization: model() } };
+  const client: Record<string, unknown> = {
+    user: model(),
+    organization: model(),
+    $queryRaw: vi.fn(),
+  };
+  client.$transaction = vi.fn((callback: (tx: unknown) => unknown) => callback(client));
+
+  return { prisma: client };
 });
 
 import { prisma } from '../config/prisma';
@@ -46,7 +53,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(prisma.organization.findUnique).mockResolvedValue({ id: 'org-1' } as never);
   vi.mocked(prisma.user.count).mockResolvedValue(1);
+  vi.mocked(prisma.$queryRaw).mockResolvedValue([{ maxVehicles: null, maxUsers: null }] as never);
 });
+
+const userLimit = (maxUsers: number, activeUsers: number): void => {
+  vi.mocked(prisma.$queryRaw).mockResolvedValue([{ maxVehicles: null, maxUsers }] as never);
+  vi.mocked(prisma.user.count).mockResolvedValue(activeUsers);
+};
 
 describe('createUser', () => {
   const input = {
@@ -80,6 +93,33 @@ describe('createUser', () => {
     vi.mocked(prisma.user.create).mockRejectedValue({ code: 'P2002' });
 
     await expect(createUser(input)).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it('creates a user while the organization is below its user limit', async () => {
+    userLimit(3, 2);
+    vi.mocked(prisma.user.create).mockResolvedValue(record() as never);
+
+    await expect(createUser(input)).resolves.toMatchObject({ id: 'user-1' });
+  });
+
+  it('refuses a new active user once the organization is at its limit', async () => {
+    userLimit(3, 3);
+
+    await expect(createUser(input)).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'LIMIT_REACHED',
+    });
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it('lets a deactivated user in even at the limit, since it takes no seat', async () => {
+    userLimit(3, 3);
+    vi.mocked(prisma.user.create).mockResolvedValue(record({ isActive: false }) as never);
+
+    await expect(createUser({ ...input, isActive: false })).resolves.toMatchObject({
+      isActive: false,
+    });
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
   });
 });
 
@@ -167,6 +207,34 @@ describe('updateUser', () => {
     await expect(updateUser('admin-2', { isActive: false }, 'admin-1')).resolves.toMatchObject({
       isActive: false,
     });
+  });
+
+  it('refuses to reactivate a user when the organization is at its limit', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ ...regular, isActive: false } as never);
+    userLimit(2, 2);
+
+    await expect(updateUser('user-1', { isActive: true }, 'admin-1')).rejects.toMatchObject({
+      code: 'LIMIT_REACHED',
+    });
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses to move a user into an organization that is at its limit', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(regular as never);
+    userLimit(2, 2);
+
+    await expect(
+      updateUser('user-1', { organizationId: 'org-2' }, 'admin-1'),
+    ).rejects.toMatchObject({ code: 'LIMIT_REACHED' });
+  });
+
+  it('edits a user who already holds a seat without checking the limit again', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(regular as never);
+    userLimit(2, 2);
+    vi.mocked(prisma.user.update).mockResolvedValue(record() as never);
+
+    await expect(updateUser('user-1', { username: 'novo' }, 'admin-1')).resolves.toBeDefined();
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
   });
 
   it('answers 404 for an unknown user', async () => {

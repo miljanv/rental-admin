@@ -17,6 +17,7 @@ import { useEffect, useState } from 'react';
 
 import { ErrorState } from '@/components/common/error-state';
 import { PageHeader } from '@/components/common/page-header';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -28,12 +29,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useOrganizationUsage } from '@/features/auth/hooks/use-organization-usage';
 import { DeleteVehicleDialog } from '@/features/vehicles/components/delete-vehicle-dialog';
 import { VehiclesTable } from '@/features/vehicles/components/vehicles-table';
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles';
 import { cn } from '@/lib/utils';
 
 const PAGE_SIZE = 10;
+const VEHICLE_LIMIT_MESSAGE = 'Dostignut je limit vozila. Obratite se administratoru.';
 const SEARCH_DEBOUNCE_MS = 350;
 const ALL_STATUSES = 'all';
 const ALL_TYPES = 'all';
@@ -81,6 +85,10 @@ export function VehiclesList() {
     ...(type ? { type } : {}),
   });
 
+  const usageQuery = useOrganizationUsage();
+  const maxVehicles = usageQuery.data?.maxVehicles ?? null;
+  const atVehicleLimit = maxVehicles !== null && (usageQuery.data?.vehicles ?? 0) >= maxVehicles;
+
   const vehicles = query.data?.vehicles ?? [];
   const pagination = query.data?.pagination;
   const totalPages = pagination?.totalPages ?? 0;
@@ -92,12 +100,39 @@ export function VehiclesList() {
         title="Vozila"
         description="Vozni park, status vozila i osnovni podaci."
         actions={
-          <Button asChild>
-            <Link href="/vehicles/new">
-              <Plus className="size-4" aria-hidden />
-              Novo vozilo
-            </Link>
-          </Button>
+          <div className="flex items-center gap-3">
+            {maxVehicles !== null ? (
+              <Badge
+                variant={atVehicleLimit ? 'destructive' : 'secondary'}
+                className="tabular-nums"
+              >
+                Vozila {usageQuery.data?.vehicles ?? 0}/{maxVehicles}
+              </Badge>
+            ) : null}
+            {atVehicleLimit ? (
+              <TooltipProvider delayDuration={250}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    {/* A disabled button fires no pointer events, so the wrapper carries the tooltip. */}
+                    <span tabIndex={0}>
+                      <Button disabled>
+                        <Plus className="size-4" aria-hidden />
+                        Novo vozilo
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>{VEHICLE_LIMIT_MESSAGE}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <Button asChild>
+                <Link href="/vehicles/new">
+                  <Plus className="size-4" aria-hidden />
+                  Novo vozilo
+                </Link>
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -233,9 +268,11 @@ export function VehiclesList() {
               hasSearch={search.length > 0 || Boolean(status) || Boolean(type)}
               onRequestDelete={setVehicleToDelete}
               emptyAction={
-                <Button size="sm" asChild>
-                  <Link href="/vehicles/new">Dodaj vozilo</Link>
-                </Button>
+                atVehicleLimit ? null : (
+                  <Button size="sm" asChild>
+                    <Link href="/vehicles/new">Dodaj vozilo</Link>
+                  </Button>
+                )
               }
             />
           )}

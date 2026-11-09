@@ -37,6 +37,8 @@ function OrganizationForm({ organization, onDone }: OrganizationFormProps) {
     defaultValues: {
       name: organization?.name ?? '',
       isActive: organization?.isActive ?? true,
+      maxVehicles: organization?.usage.maxVehicles ?? '',
+      maxUsers: organization?.usage.maxUsers ?? '',
     },
   });
   const errors = form.formState.errors;
@@ -76,6 +78,46 @@ function OrganizationForm({ organization, onDone }: OrganizationFormProps) {
           />
           {errors.name ? <p className="text-destructive text-xs">{errors.name.message}</p> : null}
         </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="organization-max-vehicles">Maks. broj vozila</Label>
+            <Input
+              id="organization-max-vehicles"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              step={1}
+              placeholder="Neograničeno"
+              disabled={isPending}
+              aria-invalid={Boolean(errors.maxVehicles)}
+              {...form.register('maxVehicles', { valueAsNumber: true })}
+            />
+            {errors.maxVehicles ? (
+              <p className="text-destructive text-xs">{errors.maxVehicles.message}</p>
+            ) : null}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="organization-max-users">Maks. broj korisnika</Label>
+            <Input
+              id="organization-max-users"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              step={1}
+              placeholder="Neograničeno"
+              disabled={isPending}
+              aria-invalid={Boolean(errors.maxUsers)}
+              {...form.register('maxUsers', { valueAsNumber: true })}
+            />
+            {errors.maxUsers ? (
+              <p className="text-destructive text-xs">{errors.maxUsers.message}</p>
+            ) : null}
+          </div>
+        </div>
+        <p className="text-muted-foreground -mt-2 text-xs">
+          Prazno polje znači bez limita. Računaju se samo aktivni korisnici.
+        </p>
 
         <Controller
           control={form.control}

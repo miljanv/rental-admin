@@ -8,13 +8,25 @@ vi.mock('../config/prisma', () => {
         vi.fn(),
       ]),
     );
-  const unscoped = { organization: model(), alarmThreshold: model(), $transaction: vi.fn() };
+  const unscoped = {
+    organization: model(),
+    alarmThreshold: model(),
+    user: { count: vi.fn() },
+    vehicle: { count: vi.fn() },
+    $queryRaw: vi.fn(),
+    $transaction: vi.fn(),
+  };
 
   return { prisma: { organization: model() }, prismaUnscoped: unscoped };
 });
 
 import { prisma, prismaUnscoped } from '../config/prisma';
-import { createOrganization, deleteOrganization, listOrganizations } from './organization.service';
+import {
+  createOrganization,
+  deleteOrganization,
+  listOrganizations,
+  updateOrganization,
+} from './organization.service';
 
 const date = new Date('2026-10-14T00:00:00Z');
 const emptyCounts = {
@@ -42,6 +54,8 @@ describe('listOrganizations', () => {
         id: 'org-1',
         name: 'Rental Travel',
         isActive: true,
+        maxVehicles: 20,
+        maxUsers: null,
         createdAt: date,
         updatedAt: date,
         _count: { users: 2, vehicles: 14, drivers: 9, trips: 120 },
@@ -53,6 +67,7 @@ describe('listOrganizations', () => {
         id: 'org-1',
         name: 'Rental Travel',
         isActive: true,
+        usage: { vehicles: 14, maxVehicles: 20, users: 2, maxUsers: null },
         userCount: 2,
         vehicleCount: 14,
         driverCount: 9,
@@ -69,8 +84,102 @@ describe('createOrganization', () => {
     vi.mocked(prisma.organization.create).mockRejectedValue({ code: 'P2002' });
 
     await expect(
-      createOrganization({ name: 'Rental Travel', isActive: true }),
+      createOrganization({
+        name: 'Rental Travel',
+        isActive: true,
+        maxVehicles: null,
+        maxUsers: null,
+      }),
     ).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it('starts an organization with the given limits', async () => {
+    vi.mocked(prisma.organization.create).mockResolvedValue({
+      id: 'org-1',
+      name: 'Rental Travel',
+      isActive: true,
+      maxVehicles: 5,
+      maxUsers: 3,
+      createdAt: date,
+      updatedAt: date,
+      _count: { users: 0, vehicles: 0, drivers: 0, trips: 0 },
+    } as never);
+
+    await createOrganization({
+      name: 'Rental Travel',
+      isActive: true,
+      maxVehicles: 5,
+      maxUsers: 3,
+    });
+
+    expect(vi.mocked(prisma.organization.create).mock.calls[0]![0].data).toMatchObject({
+      maxVehicles: 5,
+      maxUsers: 3,
+    });
+  });
+});
+
+describe('updateOrganization', () => {
+  const stored = {
+    id: 'org-1',
+    name: 'Rental Travel',
+    isActive: true,
+    maxVehicles: null,
+    maxUsers: null,
+    createdAt: date,
+    updatedAt: date,
+    _count: { users: 3, vehicles: 6, drivers: 0, trips: 0 },
+  };
+  const input = { name: 'Rental Travel', isActive: true, maxVehicles: 10, maxUsers: 3 };
+
+  beforeEach(() => {
+    vi.mocked(prisma.organization.findUnique).mockResolvedValue(stored as never);
+    vi.mocked(prismaUnscoped.$transaction).mockImplementationOnce(((
+      callback: (tx: unknown) => unknown,
+    ) => callback(prismaUnscoped)) as never);
+    vi.mocked(prismaUnscoped.$queryRaw).mockResolvedValue([
+      { maxVehicles: null, maxUsers: null },
+    ] as never);
+    vi.mocked(prismaUnscoped.vehicle.count).mockResolvedValue(6);
+    vi.mocked(prismaUnscoped.user.count).mockResolvedValue(3);
+  });
+
+  it('sets limits at or above what the organization already uses', async () => {
+    vi.mocked(prismaUnscoped.organization.update).mockResolvedValue({
+      ...stored,
+      maxVehicles: 10,
+      maxUsers: 3,
+    } as never);
+
+    await expect(updateOrganization('org-1', input)).resolves.toMatchObject({
+      usage: { vehicles: 6, maxVehicles: 10, users: 3, maxUsers: 3 },
+    });
+  });
+
+  it('refuses a vehicle limit below the current vehicle count', async () => {
+    await expect(updateOrganization('org-1', { ...input, maxVehicles: 5 })).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining('(6)'),
+    });
+    expect(prismaUnscoped.organization.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses a user limit below the active user count', async () => {
+    await expect(updateOrganization('org-1', { ...input, maxUsers: 2 })).rejects.toMatchObject({
+      statusCode: 409,
+    });
+    expect(prismaUnscoped.organization.update).not.toHaveBeenCalled();
+  });
+
+  it('clears the limits when they are left empty', async () => {
+    vi.mocked(prismaUnscoped.organization.update).mockResolvedValue(stored as never);
+
+    await updateOrganization('org-1', { ...input, maxVehicles: null, maxUsers: null });
+
+    expect(vi.mocked(prismaUnscoped.organization.update).mock.calls[0]![0].data).toMatchObject({
+      maxVehicles: null,
+      maxUsers: null,
+    });
   });
 });
 

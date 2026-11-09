@@ -17,3 +17,4 @@ authRouter.post(
 );
 
 authRouter.get('/me', requireAuth, asyncHandler(authController.me));
+authRouter.get('/usage', requireAuth, asyncHandler(authController.usage));

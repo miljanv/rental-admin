@@ -235,6 +235,10 @@ export const queryKeys = {
     all: ['organizations'] as const,
     list: () => ['organizations', 'list'] as const,
   },
+  /** Limits and usage of the organization the session currently works in. */
+  organizationUsage: {
+    all: ['organization-usage'] as const,
+  },
   users: {
     all: ['users'] as const,
     list: (params: UserListQueryParams) => ['users', 'list', params] as const,
