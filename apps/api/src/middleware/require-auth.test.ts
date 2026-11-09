@@ -36,8 +36,8 @@ const superadmin: AuthUserDto = {
   organizationName: null,
 };
 
-const bearer = (user: AuthUserDto): { Authorization: string } => ({
-  Authorization: `Bearer ${signAccessToken(user)}`,
+const bearer = (user: AuthUserDto, tokenVersion = 0): { Authorization: string } => ({
+  Authorization: `Bearer ${signAccessToken({ ...user, tokenVersion })}`,
 });
 
 const app = express();
@@ -72,6 +72,12 @@ describe('requireAuth', () => {
 
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('checks the token version against the account', async () => {
+    await request(app).get('/context').set(bearer(regularUser, 3));
+
+    expect(findActiveAuthUser).toHaveBeenCalledWith('user-1', 3);
   });
 
   it('ends the session with 403 when the organization is suspended', async () => {

@@ -36,6 +36,12 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
   sendSuccess(res, await userService.updateUser(id, body, currentUser(req).id));
 };
 
+export const revokeUserSessions = async (req: Request, res: Response): Promise<void> => {
+  const { id } = validated<UserIdParams>(req, 'params');
+
+  sendSuccess(res, await userService.revokeUserSessions(id));
+};
+
 export const deleteUser = async (req: Request, res: Response): Promise<void> => {
   const { id } = validated<UserIdParams>(req, 'params');
 

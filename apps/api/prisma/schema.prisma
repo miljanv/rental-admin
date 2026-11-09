@@ -235,6 +235,8 @@ model User {
   role           UserRole @default(USER)
   isActive       Boolean  @default(true)
   organizationId String?
+  /// Copied into every access token. Raising it signs the user out everywhere.
+  tokenVersion   Int      @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

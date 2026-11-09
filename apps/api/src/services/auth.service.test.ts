@@ -13,6 +13,7 @@ const account = (overrides: Record<string, unknown> = {}) => ({
   username: 'marko',
   role: 'USER',
   isActive: true,
+  tokenVersion: 2,
   passwordHash: 'hash',
   organization: { id: 'org-1', name: 'Firma 1', isActive: true },
   ...overrides,
@@ -73,10 +74,28 @@ describe('login', () => {
 });
 
 describe('findActiveAuthUser', () => {
+  it('accepts a token with the current version', async () => {
+    findUnique.mockResolvedValue(account());
+
+    await expect(findActiveAuthUser('user-1', 2)).resolves.toMatchObject({ id: 'user-1' });
+  });
+
+  it('rejects a token issued before the sessions were revoked', async () => {
+    findUnique.mockResolvedValue(account());
+
+    await expect(findActiveAuthUser('user-1', 1)).resolves.toBeNull();
+  });
+
+  it('rejects a deleted user', async () => {
+    findUnique.mockResolvedValue(null);
+
+    await expect(findActiveAuthUser('user-1', 2)).resolves.toBeNull();
+  });
+
   it('ends an existing session when the organization is suspended', async () => {
     findUnique.mockResolvedValue(account(suspended));
 
-    await expect(findActiveAuthUser('user-1')).rejects.toMatchObject({
+    await expect(findActiveAuthUser('user-1', 2)).rejects.toMatchObject({
       statusCode: 403,
       code: 'ORGANIZATION_SUSPENDED',
     });
@@ -85,6 +104,6 @@ describe('findActiveAuthUser', () => {
   it('returns null for a deactivated user', async () => {
     findUnique.mockResolvedValue(account({ isActive: false }));
 
-    await expect(findActiveAuthUser('user-1')).resolves.toBeNull();
+    await expect(findActiveAuthUser('user-1', 2)).resolves.toBeNull();
   });
 });

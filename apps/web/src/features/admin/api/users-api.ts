@@ -33,6 +33,14 @@ export const updateUser = async (id: string, body: UserUpdateRequest): Promise<M
   return unwrap(response.data);
 };
 
+export const revokeUserSessions = async (id: string): Promise<ManagedUserDto> => {
+  const response = await apiClient.post<ApiResponse<ManagedUserDto>>(
+    `/users/${id}/revoke-sessions`,
+  );
+
+  return unwrap(response.data);
+};
+
 export const deleteUser = async (id: string): Promise<DeleteUserResult> => {
   const response = await apiClient.delete<ApiResponse<DeleteUserResult>>(`/users/${id}`);
 

@@ -36,6 +36,12 @@ userRouter.patch(
   asyncHandler(userController.updateUser),
 );
 
+userRouter.post(
+  '/:id/revoke-sessions',
+  validateRequest({ params: userIdParamsSchema }),
+  asyncHandler(userController.revokeUserSessions),
+);
+
 userRouter.delete(
   '/:id',
   validateRequest({ params: userIdParamsSchema }),

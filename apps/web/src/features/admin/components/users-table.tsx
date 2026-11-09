@@ -1,7 +1,7 @@
 'use client';
 
 import { USER_ROLE_LABELS, type ManagedUserDto } from '@rental-admin/shared';
-import { MoreHorizontal, Pencil, Trash2, Users } from 'lucide-react';
+import { LogOut, MoreHorizontal, Pencil, Trash2, Users } from 'lucide-react';
 
 import { EmptyState } from '@/components/common/empty-state';
 import { TableSkeleton } from '@/components/common/table-skeleton';
@@ -30,6 +30,7 @@ interface UsersTableProps {
   isFiltered: boolean;
   currentUserId: string;
   onEdit: (user: ManagedUserDto) => void;
+  onRequestRevokeSessions: (user: ManagedUserDto) => void;
   onRequestDelete: (user: ManagedUserDto) => void;
   emptyAction?: React.ReactNode;
 }
@@ -40,6 +41,7 @@ export function UsersTable({
   isFiltered,
   currentUserId,
   onEdit,
+  onRequestRevokeSessions,
   onRequestDelete,
   emptyAction,
 }: UsersTableProps) {
@@ -110,11 +112,20 @@ export function UsersTable({
                       <MoreHorizontal className="size-4" aria-hidden />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuItem onClick={() => onEdit(user)} className="gap-2">
                       <Pencil className="size-4" aria-hidden />
                       Izmeni
                     </DropdownMenuItem>
+                    {user.id === currentUserId ? null : (
+                      <DropdownMenuItem
+                        onClick={() => onRequestRevokeSessions(user)}
+                        className="gap-2"
+                      >
+                        <LogOut className="size-4" aria-hidden />
+                        Odjavi sa svih uređaja
+                      </DropdownMenuItem>
+                    )}
                     {user.id === currentUserId ? null : (
                       <DropdownMenuItem
                         variant="destructive"

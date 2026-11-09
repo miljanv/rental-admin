@@ -171,6 +171,7 @@ export const updateUser = async (
       : null;
   const passwordHash =
     input.password !== undefined ? await bcrypt.hash(input.password, BCRYPT_COST) : undefined;
+  const revokesSessions = passwordHash !== undefined || (existing.isActive && !isActive);
 
   try {
     const record = await prisma.$transaction(async (tx) => {
@@ -183,6 +184,7 @@ export const updateUser = async (
         data: {
           ...(input.username !== undefined ? { username: input.username } : {}),
           ...(passwordHash !== undefined ? { passwordHash } : {}),
+          ...(revokesSessions ? { tokenVersion: { increment: 1 } } : {}),
           role,
           isActive,
           organizationId,
@@ -190,7 +192,12 @@ export const updateUser = async (
         select: userSelect,
       });
     });
-    logger.info('User updated', { userId: id, role: record.role, isActive: record.isActive });
+    logger.info('User updated', {
+      userId: id,
+      role: record.role,
+      isActive: record.isActive,
+      sessionsRevoked: revokesSessions,
+    });
 
     return toManagedUserDto(record);
   } catch (error) {
@@ -200,6 +207,24 @@ export const updateUser = async (
 
     throw error;
   }
+};
+
+/** Signs the user out on every device: all tokens issued so far stop working. */
+export const revokeUserSessions = async (id: string): Promise<ManagedUserDto> => {
+  const existing = await prisma.user.findUnique({ where: { id }, select: { id: true } });
+
+  if (!existing) {
+    throw notFound('Korisnik nije pronađen.');
+  }
+
+  const record = await prisma.user.update({
+    where: { id },
+    data: { tokenVersion: { increment: 1 } },
+    select: userSelect,
+  });
+  logger.info('User sessions revoked', { userId: id });
+
+  return toManagedUserDto(record);
 };
 
 /**

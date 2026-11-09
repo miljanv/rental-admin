@@ -22,6 +22,7 @@ import { DeleteOrganizationDialog } from '@/features/admin/components/delete-org
 import { DeleteUserDialog } from '@/features/admin/components/delete-user-dialog';
 import { OrganizationDialog } from '@/features/admin/components/organization-dialog';
 import { OrganizationsTable } from '@/features/admin/components/organizations-table';
+import { RevokeSessionsDialog } from '@/features/admin/components/revoke-sessions-dialog';
 import { SuspendOrganizationDialog } from '@/features/admin/components/suspend-organization-dialog';
 import { UserDialog } from '@/features/admin/components/user-dialog';
 import { UsersTable } from '@/features/admin/components/users-table';
@@ -44,6 +45,7 @@ function AdminScreen({ currentUserId }: { currentUserId: string }) {
   const [organizationToToggle, setOrganizationToToggle] = useState<OrganizationDto | null>(null);
   const [userDialog, setUserDialog] = useState<DialogTarget<ManagedUserDto>>(null);
   const [userToDelete, setUserToDelete] = useState<ManagedUserDto | null>(null);
+  const [userToSignOut, setUserToSignOut] = useState<ManagedUserDto | null>(null);
 
   const isFiltered = organizationFilter !== ALL_ORGANIZATIONS;
   const organizationsQuery = useOrganizations();
@@ -180,6 +182,7 @@ function AdminScreen({ currentUserId }: { currentUserId: string }) {
                 isFiltered={isFiltered}
                 currentUserId={currentUserId}
                 onEdit={(user) => setUserDialog({ record: user })}
+                onRequestRevokeSessions={setUserToSignOut}
                 onRequestDelete={setUserToDelete}
                 emptyAction={
                   <Button size="sm" onClick={() => setUserDialog({ record: null })}>
@@ -217,6 +220,12 @@ function AdminScreen({ currentUserId }: { currentUserId: string }) {
         currentUserId={currentUserId}
         onOpenChange={(isOpen) => {
           if (!isOpen) setUserDialog(null);
+        }}
+      />
+      <RevokeSessionsDialog
+        user={userToSignOut}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setUserToSignOut(null);
         }}
       />
       <DeleteUserDialog

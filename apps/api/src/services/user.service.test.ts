@@ -23,7 +23,7 @@ vi.mock('../config/prisma', () => {
 });
 
 import { prisma } from '../config/prisma';
-import { createUser, deleteUser, updateUser } from './user.service';
+import { createUser, deleteUser, revokeUserSessions, updateUser } from './user.service';
 
 const date = new Date('2026-10-14T00:00:00Z');
 const record = (overrides: Record<string, unknown> = {}) => ({
@@ -149,6 +149,27 @@ describe('updateUser', () => {
     );
   });
 
+  it('signs the user out everywhere after a password change or deactivation', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(regular as never);
+    vi.mocked(prisma.user.update).mockResolvedValue(record() as never);
+
+    await updateUser('user-1', { password: 'nova-lozinka' }, 'admin-1');
+    await updateUser('user-1', { isActive: false }, 'admin-1');
+
+    for (const [args] of vi.mocked(prisma.user.update).mock.calls) {
+      expect(args.data.tokenVersion).toEqual({ increment: 1 });
+    }
+  });
+
+  it('keeps sessions for a plain rename', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(regular as never);
+    vi.mocked(prisma.user.update).mockResolvedValue(record() as never);
+
+    await updateUser('user-1', { username: 'novo' }, 'admin-1');
+
+    expect(vi.mocked(prisma.user.update).mock.calls[0]![0].data).not.toHaveProperty('tokenVersion');
+  });
+
   it('moves a regular user to another organization', async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue(regular as never);
     vi.mocked(prisma.user.update).mockResolvedValue(record({ organizationId: 'org-2' }) as never);
@@ -241,6 +262,25 @@ describe('updateUser', () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
 
     await expect(updateUser('nope', {}, 'admin-1')).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
+describe('revokeUserSessions', () => {
+  it('raises the token version', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-1' } as never);
+    vi.mocked(prisma.user.update).mockResolvedValue(record() as never);
+
+    await revokeUserSessions('user-1');
+
+    expect(vi.mocked(prisma.user.update).mock.calls[0]![0].data).toEqual({
+      tokenVersion: { increment: 1 },
+    });
+  });
+
+  it('returns 404 for an unknown user', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+
+    await expect(revokeUserSessions('nope')).rejects.toMatchObject({ statusCode: 404 });
   });
 });
 

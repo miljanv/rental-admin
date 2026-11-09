@@ -66,7 +66,7 @@ const authenticate = async (
   }
 
   const subject = verifyAccessToken(token);
-  const user = await findActiveAuthUser(subject.id);
+  const user = await findActiveAuthUser(subject.id, subject.tokenVersion);
 
   if (!user) {
     throw unauthorized('Sesija je istekla. Prijavite se ponovo.');

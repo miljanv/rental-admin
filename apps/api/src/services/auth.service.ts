@@ -17,6 +17,7 @@ const authUserSelect = {
   username: true,
   role: true,
   isActive: true,
+  tokenVersion: true,
   organization: { select: { id: true, name: true, isActive: true } },
 } as const;
 
@@ -25,6 +26,7 @@ interface AuthUserRecord {
   username: string;
   role: AuthUserDto['role'];
   isActive: boolean;
+  tokenVersion: number;
   organization: { id: string; name: string; isActive: boolean } | null;
 }
 
@@ -70,13 +72,17 @@ export const login = async (input: LoginRequest): Promise<LoginResult> => {
 
 /**
  * Loads the account behind a verified token. Returns null when it no longer
- * exists or is deactivated, which `requireAuth` reports as an expired session.
- * A suspended organization throws instead, so the client can say why.
+ * exists, is deactivated, or the token was revoked, which `requireAuth` reports
+ * as an expired session. A suspended organization throws instead, so the client
+ * can say why.
  */
-export const findActiveAuthUser = async (id: string): Promise<AuthUserDto | null> => {
+export const findActiveAuthUser = async (
+  id: string,
+  tokenVersion: number,
+): Promise<AuthUserDto | null> => {
   const user = await prisma.user.findUnique({ where: { id }, select: authUserSelect });
 
-  if (!user || !user.isActive) {
+  if (!user || !user.isActive || user.tokenVersion !== tokenVersion) {
     return null;
   }
 
