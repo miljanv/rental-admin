@@ -77,13 +77,32 @@ export interface AuditEventDto {
   ip: string | null;
 }
 
-/** Labels of the finance log actions written by payment settlement. */
+/** Every action the API writes to the finance log (`recordFinanceAudit`). */
+export const FINANCE_AUDIT_ACTIONS = [
+  'ALLOCATION_CREATED',
+  'ALLOCATION_REVERSED',
+  'ALLOCATION_PLAN_CONFIRMED',
+  'COUNTERPARTY_LINKED',
+  'PAYMENT_DELETED',
+  'OPENING_DRAFT_CREATED',
+  'OPENING_DRAFT_UPDATED',
+  'OPENING_CONFIRMED',
+  'OPENING_REVERSED',
+] as const;
+
+export type FinanceAuditAction = (typeof FINANCE_AUDIT_ACTIONS)[number];
+
 export const FINANCE_AUDIT_ACTION_LABELS: Record<string, string> = {
-  ALLOCATION_CREATED: 'Povezan račun',
-  ALLOCATION_REVERSED: 'Poništeno povezivanje',
-  ALLOCATION_PLAN_CONFIRMED: 'Potvrđen raspored',
-  COUNTERPARTY_LINKED: 'Povezana stranka',
-};
+  ALLOCATION_CREATED: 'Uplata povezana sa računom',
+  ALLOCATION_REVERSED: 'Poništeno povezivanje uplate',
+  ALLOCATION_PLAN_CONFIRMED: 'Potvrđen raspored uplate',
+  COUNTERPARTY_LINKED: 'Uplata povezana sa strankom',
+  PAYMENT_DELETED: 'Obrisana transakcija',
+  OPENING_DRAFT_CREATED: 'Kreiran nacrt početnog stanja',
+  OPENING_DRAFT_UPDATED: 'Izmenjen nacrt početnog stanja',
+  OPENING_CONFIRMED: 'Potvrđeno početno stanje',
+  OPENING_REVERSED: 'Stornirano početno stanje',
+} satisfies Record<FinanceAuditAction, string>;
 
 /** An entry of the finance log kept by transactions, opening balances and settlements. */
 export interface AdminFinanceAuditEventDto {

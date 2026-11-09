@@ -297,10 +297,13 @@ export function AuditEventsView({ organizationId }: AuditEventsViewProps) {
             actor: event.actor?.username ?? null,
             organization: event.organization,
             action: FINANCE_AUDIT_ACTION_LABELS[event.action] ?? event.action,
-            subject: event.reason ? (
-              <span className="text-muted-foreground">{event.reason}</span>
-            ) : (
-              <span className="text-muted-foreground">Transakcija</span>
+            subject: (
+              <div className="space-y-0.5">
+                <div className="text-muted-foreground">
+                  {event.action.startsWith('OPENING_') ? 'Početno stanje' : 'Transakcija'}
+                </div>
+                {event.reason ? <div className="text-xs">Razlog: {event.reason}</div> : null}
+              </div>
             ),
             ip: null,
           }))}

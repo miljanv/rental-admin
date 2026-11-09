@@ -1,3 +1,5 @@
+import type { FinanceAuditAction } from '@rental-admin/shared';
+
 import type { TransactionClient } from '../config/prisma';
 import type { Prisma } from '../generated/prisma/client';
 import { getTenantContext, requireOrganizationId } from './tenant-context';
@@ -5,7 +7,7 @@ import { getTenantContext, requireOrganizationId } from './tenant-context';
 export const recordFinanceAudit = async (
   tx: TransactionClient,
   entityId: string,
-  action: string,
+  action: FinanceAuditAction,
   details: unknown,
   reason?: string,
 ): Promise<void> => {

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  FINANCE_AUDIT_ACTION_LABELS,
   openingBalanceWriteSchema,
   type CounterpartyRequest,
   type OpeningBalanceDto,
@@ -295,12 +296,7 @@ export function OpeningBalancePanel({ party }: { party: CounterpartyRequest }) {
                 .flatMap((row) => row.history)
                 .map((event) => (
                   <li key={event.id}>
-                    {{
-                      OPENING_DRAFT_CREATED: 'Kreiran nacrt',
-                      OPENING_DRAFT_UPDATED: 'Izmenjen nacrt',
-                      OPENING_CONFIRMED: 'Potvrđeno stanje',
-                      OPENING_REVERSED: 'Stornirano stanje',
-                    }[event.action] ?? event.action}{' '}
+                    {FINANCE_AUDIT_ACTION_LABELS[event.action] ?? event.action}{' '}
                     · {event.actor ?? 'Sistem'} ·{' '}
                     {new Date(event.createdAt).toLocaleString('sr-RS')}
                     {event.reason ? ` · ${event.reason}` : ''}
