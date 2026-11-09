@@ -16,7 +16,9 @@ vi.mock('./tachograph-calibration.service', () => ({ deleteFilesForVehicle: vi.f
 vi.mock('./vehicle-document.service', () => ({ deleteFilesForVehicle: vi.fn() }));
 vi.mock('./vehicle-inspection.service', () => ({ deleteFilesForVehicle: vi.fn() }));
 vi.mock('./vehicle-safety-equipment.service', () => ({ deleteFilesForVehicle: vi.fn() }));
+vi.mock('./audit.service', () => ({ recordAuditEvent: vi.fn() }));
 
+import { recordAuditEvent } from './audit.service';
 import { setVehicleEnabled } from './vehicle.service';
 
 const vehicle = prismaMock.vehicle as {
@@ -64,6 +66,9 @@ describe('setVehicleEnabled', () => {
       where: { id: 'veh-1' },
       data: { isEnabled: false },
     });
+    expect(recordAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'VEHICLE_DISABLED', entityId: 'veh-1' }),
+    );
   });
 
   it('checks the vehicle limit before enabling a disabled vehicle', async () => {
@@ -80,6 +85,7 @@ describe('setVehicleEnabled', () => {
 
     await expect(setVehicleEnabled('veh-1', true)).rejects.toThrow('limit');
     expect(vehicle.update).not.toHaveBeenCalled();
+    expect(recordAuditEvent).not.toHaveBeenCalled();
   });
 
   it('returns 404 for an unknown vehicle', async () => {

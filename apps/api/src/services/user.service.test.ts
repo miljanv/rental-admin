@@ -22,7 +22,10 @@ vi.mock('../config/prisma', () => {
   return { prisma: client };
 });
 
+vi.mock('./audit.service', () => ({ recordAuditEvent: vi.fn() }));
+
 import { prisma } from '../config/prisma';
+import { recordAuditEvent } from './audit.service';
 import {
   createUser,
   deleteUser,
@@ -278,6 +281,46 @@ describe('updateUser', () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
 
     await expect(updateUser('nope', {}, 'admin-1')).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
+describe('user audit trail', () => {
+  const regular = { id: 'user-1', role: 'USER', isActive: true, organizationId: 'org-1' };
+
+  it('records a role change and a deactivation separately', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(regular as never);
+    vi.mocked(prisma.user.update).mockResolvedValue(
+      record({ role: 'SUPERADMIN', isActive: false, organizationId: null }) as never,
+    );
+
+    await updateUser('user-1', { role: 'SUPERADMIN', isActive: false }, 'admin-1');
+
+    const actions = vi.mocked(recordAuditEvent).mock.calls.map(([event]) => event.action);
+    expect(actions).toEqual(['USER_ROLE_CHANGED', 'USER_DEACTIVATED']);
+  });
+
+  it('records nothing for a plain rename', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(regular as never);
+    vi.mocked(prisma.user.update).mockResolvedValue(record() as never);
+
+    await updateUser('user-1', { username: 'novo' }, 'admin-1');
+
+    expect(recordAuditEvent).not.toHaveBeenCalled();
+  });
+
+  it('records a password reset against the user and their organization', async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'user-1' } as never);
+    vi.mocked(prisma.user.update).mockResolvedValue(record() as never);
+
+    await resetUserPassword('user-1', 'privremena1');
+
+    expect(recordAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'USER_PASSWORD_RESET',
+        entityId: 'user-1',
+        organizationId: 'org-1',
+      }),
+    );
   });
 });
 

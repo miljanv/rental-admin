@@ -8,6 +8,7 @@ import {
   ReceiptText,
   Route,
   Settings2,
+  ScrollText,
   ShieldCheck,
   Store,
   Truck,
@@ -103,6 +104,13 @@ export const NAV_ITEMS: NavItem[] = [
     access: 'superadmin',
   },
   {
+    title: 'Dnevnik aktivnosti',
+    href: '/admin/audit',
+    icon: ScrollText,
+    description: 'Ko je šta i kada uradio',
+    access: 'superadmin',
+  },
+  {
     title: 'Alarm centar',
     href: '/alarms',
     icon: Bell,
@@ -119,6 +127,15 @@ export const NAV_ITEMS: NavItem[] = [
 
 export const isActiveRoute = (pathname: string, href: string): boolean =>
   href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
+
+/** The nav item for a page; the most specific one wins, so `/admin/audit` is not also `/admin`. */
+export const findActiveNavHref = (pathname: string, items: NavItem[] = NAV_ITEMS): string | null =>
+  items
+    .filter((item) => isActiveRoute(pathname, item.href))
+    .reduce<string | null>(
+      (best, item) => (best === null || item.href.length > best.length ? item.href : best),
+      null,
+    );
 
 export const MAIN_NAV_ITEMS = NAV_ITEMS.filter(
   (item) => item.href !== '/settings' && item.href !== '/alarms',

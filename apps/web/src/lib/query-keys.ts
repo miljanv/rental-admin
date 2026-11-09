@@ -10,6 +10,7 @@ import type {
   DriverStatus,
   FileSortField,
   FuelLogFuelType,
+  ListAuditEventsQueryInput,
   PartnerSortField,
   PartnerType,
   PartnerLedgerQuery,
@@ -235,6 +236,10 @@ export const queryKeys = {
   organizations: {
     all: ['organizations'] as const,
     list: () => ['organizations', 'list'] as const,
+    auditEvents: (params: ListAuditEventsQueryInput) =>
+      ['organizations', 'audit-events', params] as const,
+    financeAuditEvents: (params: ListAuditEventsQueryInput) =>
+      ['organizations', 'finance-audit-events', params] as const,
     overview: (id: string) => ['organizations', 'overview', id] as const,
     /** Under `organizations` so every organization, user and vehicle change refreshes it. */
     summary: () => ['organizations', 'summary'] as const,

@@ -8,6 +8,7 @@ import { env } from './config/env';
 import { errorHandler } from './middleware/error-handler';
 import { notFoundHandler } from './middleware/not-found';
 import { apiRateLimiter } from './middleware/rate-limit';
+import { requestContext } from './middleware/request-context';
 import { requestLogger } from './middleware/request-logger';
 import { apiRouter } from './routes';
 import { forbidden } from './utils/app-error';
@@ -47,6 +48,7 @@ export const createApp = (): Express => {
 
   // Only small JSON payloads reach this server: file bytes go straight to S3.
   app.use(express.json({ limit: '64kb' }));
+  app.use(requestContext);
 
   app.use(API_PREFIX, apiRateLimiter, apiRouter);
 

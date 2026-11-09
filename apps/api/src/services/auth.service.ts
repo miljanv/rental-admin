@@ -10,6 +10,7 @@ import { prisma } from '../config/prisma';
 import { badRequest, notFound, organizationSuspended, unauthorized } from '../utils/app-error';
 import { signAccessToken } from '../utils/access-token';
 import { logger } from '../utils/logger';
+import { recordAuditEvent } from './audit.service';
 import { hashPassword } from './user.service';
 
 /**
@@ -47,6 +48,23 @@ const toAuthUserDto = (user: AuthUserRecord): AuthUserDto => ({
   mustChangePassword: user.mustChangePassword,
 });
 
+type LoginFailure = 'INVALID_CREDENTIALS' | 'USER_INACTIVE' | 'ORGANIZATION_SUSPENDED';
+
+/** Never stores the password that was tried, only who tried and why it failed. */
+const recordLoginFailure = (
+  username: string,
+  reason: LoginFailure,
+  user: { id: string; organization: { id: string } | null } | null,
+): Promise<void> =>
+  recordAuditEvent({
+    action: 'LOGIN_FAILED',
+    entityType: 'User',
+    entityId: user?.id ?? null,
+    actorUserId: user?.id ?? null,
+    organizationId: user?.organization?.id ?? null,
+    metadata: { username, reason },
+  });
+
 /** Throws when the user's organization is suspended. A superadmin has no organization. */
 const assertOrganizationActive = (user: AuthUserRecord): void => {
   if (user.organization !== null && !user.organization.isActive) {
@@ -65,17 +83,31 @@ export const login = async (input: LoginRequest): Promise<LoginResult> => {
   );
 
   if (!user || !passwordMatches) {
+    await recordLoginFailure(input.username, 'INVALID_CREDENTIALS', user);
     throw unauthorized('Pogrešno korisničko ime ili lozinka.');
   }
 
   if (!user.isActive) {
+    await recordLoginFailure(input.username, 'USER_INACTIVE', user);
     throw unauthorized('Nalog je deaktiviran. Obratite se administratoru.');
+  }
+
+  if (user.organization !== null && !user.organization.isActive) {
+    await recordLoginFailure(input.username, 'ORGANIZATION_SUSPENDED', user);
   }
 
   assertOrganizationActive(user);
 
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   logger.info('User signed in', { userId: user.id, username: user.username });
+  await recordAuditEvent({
+    action: 'LOGIN_SUCCEEDED',
+    entityType: 'User',
+    entityId: user.id,
+    actorUserId: user.id,
+    organizationId: user.organization?.id ?? null,
+    metadata: { username: user.username },
+  });
 
   return { token: signAccessToken(user), user: toAuthUserDto(user) };
 };
@@ -112,6 +144,13 @@ export const changePassword = async (
     select: authUserSelect,
   });
   logger.info('User changed password', { userId });
+  await recordAuditEvent({
+    action: 'PASSWORD_CHANGED',
+    entityType: 'User',
+    entityId: userId,
+    actorUserId: userId,
+    organizationId: updated.organization?.id ?? null,
+  });
 
   return { token: signAccessToken(updated), user: toAuthUserDto(updated) };
 };

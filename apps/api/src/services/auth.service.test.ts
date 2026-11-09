@@ -11,7 +11,9 @@ vi.mock('bcryptjs', () => ({
 }));
 vi.mock('../config/prisma', () => ({ prisma: { user: { findUnique, update } } }));
 vi.mock('../utils/access-token', () => ({ signAccessToken: () => 'token' }));
+vi.mock('./audit.service', () => ({ recordAuditEvent: vi.fn() }));
 
+import { recordAuditEvent } from './audit.service';
 import { changePassword, findActiveAuthUser, login } from './auth.service';
 
 const account = (overrides: Record<string, unknown> = {}) => ({
@@ -81,6 +83,48 @@ describe('login', () => {
       where: { id: 'user-1' },
       data: { lastLoginAt: expect.any(Date) },
     });
+  });
+
+  it('logs a successful sign-in', async () => {
+    findUnique.mockResolvedValue(account());
+
+    await login({ username: 'marko', password: 'secret' });
+
+    expect(recordAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'LOGIN_SUCCEEDED',
+        actorUserId: 'user-1',
+        organizationId: 'org-1',
+      }),
+    );
+  });
+
+  it('logs a failed sign-in with the username but never the password', async () => {
+    findUnique.mockResolvedValue(null);
+    compare.mockResolvedValue(false);
+
+    await expect(login({ username: 'nepoznat', password: 'pokusaj123' })).rejects.toBeDefined();
+
+    const event = vi.mocked(recordAuditEvent).mock.calls[0]![0];
+    expect(event).toMatchObject({
+      action: 'LOGIN_FAILED',
+      actorUserId: null,
+      metadata: { username: 'nepoznat', reason: 'INVALID_CREDENTIALS' },
+    });
+    expect(JSON.stringify(event)).not.toContain('pokusaj123');
+  });
+
+  it('logs why a known user was refused', async () => {
+    findUnique.mockResolvedValue(account(suspended));
+
+    await expect(login({ username: 'marko', password: 'secret' })).rejects.toBeDefined();
+
+    expect(recordAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'LOGIN_FAILED',
+        metadata: { username: 'marko', reason: 'ORGANIZATION_SUSPENDED' },
+      }),
+    );
   });
 
   it('does not record a failed sign-in', async () => {

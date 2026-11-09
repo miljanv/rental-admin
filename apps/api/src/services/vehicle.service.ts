@@ -14,6 +14,7 @@ import { buildPaginationMeta } from '../utils/api-response';
 import { logger } from '../utils/logger';
 import { toVehicleDto, type VehicleRecord } from '../utils/vehicle-mapper';
 import { requireOrganizationId } from '../utils/tenant-context';
+import { recordAuditEvent } from './audit.service';
 import { assertWithinLimit } from './organization-limit.service';
 import { deleteFilesForVehicle as deleteCalibrationFiles } from './tachograph-calibration.service';
 import { deleteFilesForVehicle as deleteDocumentFiles } from './vehicle-document.service';
@@ -150,6 +151,12 @@ export const createVehicle = async (input: VehicleWriteRequest): Promise<Vehicle
       });
     });
     logger.info('Vehicle created', { vehicleId: record.id, licensePlate: record.licensePlate });
+    await recordAuditEvent({
+      action: 'VEHICLE_CREATED',
+      entityType: 'Vehicle',
+      entityId: record.id,
+      metadata: { licensePlate: record.licensePlate },
+    });
     return toVehicleDto(record);
   } catch (error) {
     return throwOnConflict(error);
@@ -189,11 +196,17 @@ export const setVehicleEnabled = async (id: string, isEnabled: boolean): Promise
   });
 
   logger.info(isEnabled ? 'Vehicle enabled' : 'Vehicle disabled', { vehicleId: id });
+  await recordAuditEvent({
+    action: isEnabled ? 'VEHICLE_ENABLED' : 'VEHICLE_DISABLED',
+    entityType: 'Vehicle',
+    entityId: id,
+    metadata: { licensePlate: record.licensePlate },
+  });
   return toVehicleDto(record);
 };
 
 export const deleteVehicle = async (id: string): Promise<DeleteVehicleResult> => {
-  await getVehicle(id);
+  const vehicle = await getVehicle(id);
 
   // Attached scans live in S3, not in Postgres — the cascade deletes the rows
   // but can't reach into the bucket, so each sub-resource's files are cleaned
@@ -205,6 +218,12 @@ export const deleteVehicle = async (id: string): Promise<DeleteVehicleResult> =>
 
   await prisma.vehicle.delete({ where: { id } });
   logger.info('Vehicle deleted', { vehicleId: id });
+  await recordAuditEvent({
+    action: 'VEHICLE_DELETED',
+    entityType: 'Vehicle',
+    entityId: id,
+    metadata: { licensePlate: vehicle.licensePlate },
+  });
 
   return { id, deleted: true };
 };

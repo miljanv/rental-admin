@@ -1,6 +1,10 @@
 'use client';
 import { useState } from 'react';
-import { partnerSelectLabel, type TransactionDto } from '@rental-admin/shared';
+import {
+  FINANCE_AUDIT_ACTION_LABELS,
+  partnerSelectLabel,
+  type TransactionDto,
+} from '@rental-admin/shared';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -16,13 +20,6 @@ import {
   useReverseAllocation,
 } from '../hooks/use-payment-settlement';
 import { formatDate, formatEuro, formatMoney } from '@/lib/format';
-
-const auditLabels: Record<string, string> = {
-  ALLOCATION_CREATED: 'Povezan račun',
-  ALLOCATION_REVERSED: 'Poništeno povezivanje',
-  ALLOCATION_PLAN_CONFIRMED: 'Potvrđen raspored',
-  COUNTERPARTY_LINKED: 'Povezana stranka',
-};
 
 export function PaymentSettlementControls({
   transaction,
@@ -319,7 +316,8 @@ export function PaymentSettlementControls({
                 <ul className="mt-2 space-y-2">
                   {history.data.history.map((event) => (
                     <li key={event.id}>
-                      {auditLabels[event.action] ?? event.action} · {event.actor ?? 'Sistem'} ·{' '}
+                      {FINANCE_AUDIT_ACTION_LABELS[event.action] ?? event.action} ·{' '}
+                      {event.actor ?? 'Sistem'} ·{' '}
                       {new Date(event.createdAt).toLocaleString('sr-RS')}
                       {event.reason ? ` · ${event.reason}` : ''}
                     </li>

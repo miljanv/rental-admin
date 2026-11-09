@@ -197,4 +197,14 @@ describe('API request pipeline', () => {
     expect(response.status).toBe(403);
     expect(response.body.error.code).toBe('FORBIDDEN');
   });
+
+  it.each([
+    '/api/v1/admin/audit-events',
+    '/api/v1/admin/finance-audit-events',
+    '/api/v1/admin/summary',
+  ])('keeps %s to the superadmin', async (path) => {
+    const response = await request(app).get(path).set(auth);
+
+    expect(response.status).toBe(403);
+  });
 });

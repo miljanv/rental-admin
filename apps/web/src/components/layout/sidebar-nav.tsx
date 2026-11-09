@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-import { NAV_ITEMS, isActiveRoute, type NavItem } from '@/components/layout/nav-items';
+import { NAV_ITEMS, findActiveNavHref, type NavItem } from '@/components/layout/nav-items';
 import { cn } from '@/lib/utils';
 
 interface SidebarNavProps {
@@ -18,11 +18,12 @@ export function SidebarNav({
   'aria-label': ariaLabel = 'Main navigation',
 }: SidebarNavProps) {
   const pathname = usePathname();
+  const activeHref = findActiveNavHref(pathname);
 
   return (
     <nav aria-label={ariaLabel} className="flex flex-col gap-1 px-3">
       {items.map((item) => {
-        const isActive = isActiveRoute(pathname, item.href);
+        const isActive = item.href === activeHref;
         const Icon = item.icon;
 
         return (

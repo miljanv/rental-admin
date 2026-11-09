@@ -79,7 +79,7 @@ describe('tenant policy covers the whole schema', () => {
 
   it('treats any model with its own organizationId as owned', () => {
     const withColumn = [...models.entries()]
-      .filter(([name, model]) => name !== 'User' && model.fields.has('organizationId'))
+      .filter(([name, model]) => !exempt.has(name) && model.fields.has('organizationId'))
       .map(([name]) => name);
 
     expect(withColumn.filter((name) => !owned.has(name))).toEqual([]);

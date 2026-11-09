@@ -13,6 +13,7 @@ import { badRequest, conflict, notFound } from '../utils/app-error';
 import { logger } from '../utils/logger';
 import { isUniqueViolation } from '../utils/prisma-errors';
 import { toManagedUserDto } from '../utils/user-admin-mapper';
+import { recordAuditEvent } from './audit.service';
 import { assertWithinLimit } from './organization-limit.service';
 
 /** Same cost as the bootstrap admin hash created by the first migration. */
@@ -109,6 +110,13 @@ export const createUser = async (input: UserCreateRequest): Promise<ManagedUserD
       });
     });
     logger.info('User created', { userId: record.id, role: record.role });
+    await recordAuditEvent({
+      action: 'USER_CREATED',
+      entityType: 'User',
+      entityId: record.id,
+      organizationId: record.organizationId,
+      metadata: { username: record.username, role: record.role },
+    });
 
     return toManagedUserDto(record);
   } catch (error) {
@@ -205,6 +213,7 @@ export const updateUser = async (
       isActive: record.isActive,
       sessionsRevoked: revokesSessions,
     });
+    await recordUserChanges(existing, record, passwordHash !== undefined);
 
     return toManagedUserDto(record);
   } catch (error) {
@@ -213,6 +222,49 @@ export const updateUser = async (
     }
 
     throw error;
+  }
+};
+
+/** One audit entry per kind of change an update made. */
+const recordUserChanges = async (
+  before: { role: UserRole; isActive: boolean },
+  after: {
+    id: string;
+    username: string;
+    role: UserRole;
+    isActive: boolean;
+    organizationId: string | null;
+  },
+  passwordSet: boolean,
+): Promise<void> => {
+  const common = {
+    entityType: 'User' as const,
+    entityId: after.id,
+    organizationId: after.organizationId,
+  };
+
+  if (before.role !== after.role) {
+    await recordAuditEvent({
+      ...common,
+      action: 'USER_ROLE_CHANGED',
+      metadata: { username: after.username, from: before.role, to: after.role },
+    });
+  }
+
+  if (before.isActive !== after.isActive) {
+    await recordAuditEvent({
+      ...common,
+      action: after.isActive ? 'USER_ACTIVATED' : 'USER_DEACTIVATED',
+      metadata: { username: after.username },
+    });
+  }
+
+  if (passwordSet) {
+    await recordAuditEvent({
+      ...common,
+      action: 'USER_PASSWORD_RESET',
+      metadata: { username: after.username },
+    });
   }
 };
 
@@ -234,6 +286,13 @@ export const resetUserPassword = async (id: string, password: string): Promise<M
     select: userSelect,
   });
   logger.info('User password reset', { userId: id });
+  await recordAuditEvent({
+    action: 'USER_PASSWORD_RESET',
+    entityType: 'User',
+    entityId: id,
+    organizationId: record.organizationId,
+    metadata: { username: record.username },
+  });
 
   return toManagedUserDto(record);
 };
@@ -252,6 +311,13 @@ export const revokeUserSessions = async (id: string): Promise<ManagedUserDto> =>
     select: userSelect,
   });
   logger.info('User sessions revoked', { userId: id });
+  await recordAuditEvent({
+    action: 'USER_SESSIONS_REVOKED',
+    entityType: 'User',
+    entityId: id,
+    organizationId: record.organizationId,
+    metadata: { username: record.username },
+  });
 
   return toManagedUserDto(record);
 };
@@ -268,8 +334,10 @@ export const deleteUser = async (id: string, actingUserId: string): Promise<Dele
   const existing = await prisma.user.findUnique({
     where: { id },
     select: {
+      username: true,
       role: true,
       isActive: true,
+      organizationId: true,
       _count: {
         select: {
           createdDrivers: true,
@@ -303,6 +371,13 @@ export const deleteUser = async (id: string, actingUserId: string): Promise<Dele
 
   await prisma.user.delete({ where: { id } });
   logger.info('User deleted', { userId: id });
+  await recordAuditEvent({
+    action: 'USER_DELETED',
+    entityType: 'User',
+    entityId: id,
+    organizationId: existing.organizationId,
+    metadata: { username: existing.username, role: existing.role },
+  });
 
   return { id, deleted: true };
 };

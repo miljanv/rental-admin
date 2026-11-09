@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AuditEventsView } from '@/features/admin/components/audit-events-view';
 import { DeleteUserDialog } from '@/features/admin/components/delete-user-dialog';
 import { OrganizationProfileDialog } from '@/features/admin/components/organization-profile-dialog';
 import { OrganizationVehiclesTable } from '@/features/admin/components/organization-vehicles-table';
@@ -341,6 +342,7 @@ function OrganizationDetailScreen({
           <TabsList>
             <TabsTrigger value="users">Korisnici</TabsTrigger>
             <TabsTrigger value="vehicles">Vozila</TabsTrigger>
+            <TabsTrigger value="activity">Aktivnost</TabsTrigger>
           </TabsList>
           <TabsContent value="users">
             <Card className="shadow-none">
@@ -359,6 +361,13 @@ function OrganizationDetailScreen({
             <Card className="shadow-none">
               <CardContent className="px-0">
                 <OrganizationVehiclesTable organizationId={organizationId} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="activity">
+            <Card className="shadow-none">
+              <CardContent className="px-0">
+                <AuditEventsView organizationId={organizationId} />
               </CardContent>
             </Card>
           </TabsContent>

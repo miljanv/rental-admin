@@ -11,6 +11,7 @@ import { conflict, notFound } from '../utils/app-error';
 import { logger } from '../utils/logger';
 import { isUniqueViolation } from '../utils/prisma-errors';
 import { toOrganizationDto, type OrganizationRecord } from '../utils/user-admin-mapper';
+import { recordAuditEvent } from './audit.service';
 import {
   countLimited,
   LIMITED_USER_WHERE,
@@ -90,6 +91,13 @@ export const createOrganization = async (
       include: organizationInclude,
     });
     logger.info('Organization created', { organizationId: record.id, name: record.name });
+    await recordAuditEvent({
+      action: 'ORGANIZATION_CREATED',
+      entityType: 'Organization',
+      entityId: record.id,
+      organizationId: record.id,
+      metadata: { name: record.name },
+    });
 
     return toOrganizationDto(record);
   } catch (error) {
@@ -101,11 +109,48 @@ export const createOrganization = async (
   }
 };
 
+const recordOrganizationChanges = async (
+  before: OrganizationDto,
+  after: {
+    id: string;
+    name: string;
+    isActive: boolean;
+    maxVehicles: number | null;
+    maxUsers: number | null;
+  },
+): Promise<void> => {
+  const common = {
+    entityType: 'Organization' as const,
+    entityId: after.id,
+    organizationId: after.id,
+  };
+
+  if (before.isActive !== after.isActive) {
+    await recordAuditEvent({
+      ...common,
+      action: after.isActive ? 'ORGANIZATION_ACTIVATED' : 'ORGANIZATION_SUSPENDED',
+      metadata: { name: after.name },
+    });
+  }
+
+  if (before.usage.maxVehicles !== after.maxVehicles || before.usage.maxUsers !== after.maxUsers) {
+    await recordAuditEvent({
+      ...common,
+      action: 'ORGANIZATION_LIMITS_CHANGED',
+      metadata: {
+        name: after.name,
+        maxVehicles: { from: before.usage.maxVehicles, to: after.maxVehicles },
+        maxUsers: { from: before.usage.maxUsers, to: after.maxUsers },
+      },
+    });
+  }
+};
+
 export const updateOrganization = async (
   id: string,
   input: OrganizationWriteRequest,
 ): Promise<OrganizationDto> => {
-  await getOrganization(id);
+  const before = await getOrganization(id);
 
   try {
     const record = await prismaUnscoped.$transaction(async (tx) => {
@@ -145,6 +190,7 @@ export const updateOrganization = async (
       maxVehicles: record.maxVehicles,
       maxUsers: record.maxUsers,
     });
+    await recordOrganizationChanges(before, record);
 
     return await toDtoWithActivity(record);
   } catch (error) {
@@ -234,6 +280,7 @@ export const deleteOrganization = async (id: string): Promise<DeleteOrganization
   const record = await prismaUnscoped.organization.findUnique({
     where: { id },
     select: {
+      name: true,
       _count: {
         select: {
           users: true,
@@ -270,6 +317,14 @@ export const deleteOrganization = async (id: string): Promise<DeleteOrganization
     prismaUnscoped.organization.delete({ where: { id } }),
   ]);
   logger.info('Organization deleted', { organizationId: id });
+  // Recorded without the organization: the row it would point to is gone.
+  await recordAuditEvent({
+    action: 'ORGANIZATION_DELETED',
+    entityType: 'Organization',
+    entityId: id,
+    organizationId: null,
+    metadata: { name: record.name },
+  });
 
   return { id, deleted: true };
 };

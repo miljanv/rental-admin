@@ -15,6 +15,7 @@ import { badRequest, notFound } from '../utils/app-error';
 import { toCompanyExpenseDto, type CompanyExpenseRecord } from '../utils/company-expense-mapper';
 import { logger } from '../utils/logger';
 import { requireOrganizationId } from '../utils/tenant-context';
+import { recordAuditEvent } from './audit.service';
 import { findSupplierIdByName, listSupplierNames, mergeSupplierNames } from './supplier.service';
 import { deleteOperationalTransaction } from './transaction.service';
 
@@ -157,6 +158,12 @@ export const createCompanyExpense = async (
   await bumpVehicleMileage(input.vehicleId, input.odometerKm);
 
   logger.info('Company expense created', { expenseId: record.id, vehicleId: record.vehicleId });
+  await recordAuditEvent({
+    action: 'EXPENSE_CREATED',
+    entityType: 'CompanyExpense',
+    entityId: record.id,
+    metadata: { amount: record.amount, vehicleId: record.vehicleId },
+  });
 
   return toCompanyExpenseDto(record);
 };
@@ -201,6 +208,12 @@ export const deleteCompanyExpense = async (
   await deleteOperationalTransaction('COMPANY_EXPENSE', expenseId, { includeSettled: true });
   await prisma.companyExpense.delete({ where: { id: expenseId } });
   logger.info('Company expense deleted', { expenseId, vehicleId: existing.vehicleId });
+  await recordAuditEvent({
+    action: 'EXPENSE_DELETED',
+    entityType: 'CompanyExpense',
+    entityId: expenseId,
+    metadata: { amount: existing.amount, vehicleId: existing.vehicleId },
+  });
 
   return { id: expenseId, deleted: true };
 };

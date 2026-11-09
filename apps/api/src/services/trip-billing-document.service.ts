@@ -10,6 +10,7 @@ import { prisma } from '../config/prisma';
 import { notFound } from '../utils/app-error';
 import { toTripBillingDocumentDto, type TripBillingDocumentRecord } from '../utils/trip-billing-document-mapper';
 import { logger } from '../utils/logger';
+import { recordAuditEvent } from './audit.service';
 import { buildTripBillingDocumentPdf } from './pdf/trip-billing-document-pdf';
 import * as fileService from './file.service';
 
@@ -131,6 +132,15 @@ export const generateTripBillingDocument = async (
       type,
       replaced: Boolean(existing),
     });
+
+    if (type === 'RACUN' && !existing) {
+      await recordAuditEvent({
+        action: 'INVOICE_CREATED',
+        entityType: 'TripBillingDocument',
+        entityId: record.id,
+        metadata: { documentNumber, tripId },
+      });
+    }
 
     return {
       document: toTripBillingDocumentDto(record),

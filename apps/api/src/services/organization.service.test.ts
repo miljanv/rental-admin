@@ -24,7 +24,10 @@ vi.mock('../config/prisma', () => {
   return { prisma: { organization: model() }, prismaUnscoped: unscoped };
 });
 
+vi.mock('./audit.service', () => ({ recordAuditEvent: vi.fn() }));
+
 import { prisma, prismaUnscoped } from '../config/prisma';
+import { recordAuditEvent } from './audit.service';
 import {
   createOrganization,
   deleteOrganization,
@@ -291,6 +294,25 @@ describe('updateOrganization', () => {
     await expect(updateOrganization('org-1', input)).resolves.toMatchObject({
       usage: { vehicles: 6, maxVehicles: 10, users: 3, maxUsers: 3 },
     });
+  });
+
+  it('records a suspension and a change of limits', async () => {
+    vi.mocked(prismaUnscoped.organization.update).mockResolvedValue({
+      ...stored,
+      isActive: false,
+      maxVehicles: 10,
+      maxUsers: 3,
+    } as never);
+
+    await updateOrganization('org-1', { ...input, isActive: false });
+
+    expect(vi.mocked(recordAuditEvent).mock.calls.map(([event]) => event)).toEqual([
+      expect.objectContaining({ action: 'ORGANIZATION_SUSPENDED', organizationId: 'org-1' }),
+      expect.objectContaining({
+        action: 'ORGANIZATION_LIMITS_CHANGED',
+        metadata: expect.objectContaining({ maxVehicles: { from: null, to: 10 } }),
+      }),
+    ]);
   });
 
   it('refuses a vehicle limit below the current vehicle count', async () => {

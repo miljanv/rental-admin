@@ -195,12 +195,12 @@ enum UserRole {
 /// A customer company (tenant). Every business record belongs to exactly one
 /// organization; users of the same organization share all of its data.
 model Organization {
-  id        String   @id @default(cuid())
-  name        String   @unique
-  isActive    Boolean  @default(true)
+  id                 String   @id @default(cuid())
+  name               String   @unique
+  isActive           Boolean  @default(true)
   /// Most vehicles / active users the organization may have. Null means no limit.
-  maxVehicles Int?
-  maxUsers    Int?
+  maxVehicles        Int?
+  maxUsers           Int?
   /// PIB (9 digits) and matični broj (8 digits).
   taxId              String?
   registrationNumber String?
@@ -208,12 +208,13 @@ model Organization {
   contactName        String?
   contactPhone       String?
   contactEmail       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   openingBalances      OpeningBalance[]
   vatReturns           VatReturn[]
   financeAuditEvents   FinanceAuditEvent[]
+  auditEvents          AuditEvent[]
   users                User[]
   fileObjects          FileObject[]
   drivers              Driver[]
@@ -236,25 +237,26 @@ model Organization {
 /// the API. A SUPERADMIN has no organization and manages organizations/users;
 /// every other user belongs to exactly one organization.
 model User {
-  id             String   @id @default(cuid())
-  username       String   @unique
-  passwordHash   String
-  role           UserRole @default(USER)
-  isActive       Boolean  @default(true)
-  organizationId String?
+  id                 String    @id @default(cuid())
+  username           String    @unique
+  passwordHash       String
+  role               UserRole  @default(USER)
+  isActive           Boolean   @default(true)
+  organizationId     String?
   /// Copied into every access token. Raising it signs the user out everywhere.
-  tokenVersion   Int      @default(0)
+  tokenVersion       Int       @default(0)
   /// Set for new and reset accounts; everything but choosing a password is refused until cleared.
   mustChangePassword Boolean   @default(false)
   lastLoginAt        DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
   createdOpeningBalances OpeningBalance[]
   createdVatReturns      VatReturn[]
   financeAuditEvents     FinanceAuditEvent[]
+  auditEvents            AuditEvent[]
   createdDrivers         Driver[]
   createdVehicles        Vehicle[]
   createdCompanyExpenses CompanyExpense[]
@@ -1415,4 +1417,52 @@ model VatReturn {
   @@index([organizationId])
   @@index([createdById])
   @@map("vat_returns")
+}
+
+enum AuditAction {
+  LOGIN_SUCCEEDED
+  LOGIN_FAILED
+  PASSWORD_CHANGED
+  USER_CREATED
+  USER_DELETED
+  USER_ROLE_CHANGED
+  USER_ACTIVATED
+  USER_DEACTIVATED
+  USER_PASSWORD_RESET
+  USER_SESSIONS_REVOKED
+  ORGANIZATION_CREATED
+  ORGANIZATION_DELETED
+  ORGANIZATION_LIMITS_CHANGED
+  ORGANIZATION_SUSPENDED
+  ORGANIZATION_ACTIVATED
+  VEHICLE_CREATED
+  VEHICLE_DELETED
+  VEHICLE_ENABLED
+  VEHICLE_DISABLED
+  INVOICE_CREATED
+  EXPENSE_CREATED
+  EXPENSE_DELETED
+}
+
+/// Who did what and when, across every organization. Written and read only
+/// through the unscoped client: failed sign-ins and superadmin actions have no
+/// tenant. Never holds passwords, tokens or storage keys.
+model AuditEvent {
+  id             String        @id @default(cuid())
+  createdAt      DateTime      @default(now())
+  actorUserId    String?
+  organizationId String?
+  action         AuditAction
+  entityType     String
+  entityId       String?
+  metadata       Json?
+  ip             String?
+  actor          User?         @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_events")
 }
