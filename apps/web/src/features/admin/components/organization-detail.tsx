@@ -1,7 +1,7 @@
 'use client';
 
 import type { ManagedUserDto, OrganizationOverviewDto } from '@rental-admin/shared';
-import { ArrowLeft, LogIn, Pencil, ShieldCheck, UserPlus } from 'lucide-react';
+import { ArrowLeft, Download, LogIn, Pencil, ShieldCheck, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -23,6 +23,7 @@ import { ResetPasswordDialog } from '@/features/admin/components/reset-password-
 import { RevokeSessionsDialog } from '@/features/admin/components/revoke-sessions-dialog';
 import { UserDialog } from '@/features/admin/components/user-dialog';
 import { UsersTable } from '@/features/admin/components/users-table';
+import { useExportOrganization } from '@/features/admin/hooks/use-export-organization';
 import { useOrganizationOverview } from '@/features/admin/hooks/use-organization-overview';
 import { useUsers } from '@/features/admin/hooks/use-users';
 import { isAtLimit, usagePercent } from '@/features/admin/lib/usage';
@@ -264,6 +265,7 @@ function OrganizationDetailScreen({
   const { activeOrganizationId, selectOrganization } = useAuth();
   const query = useOrganizationOverview(organizationId);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const exportMutation = useExportOrganization();
 
   const backLink = (
     <Button variant="outline" asChild>
@@ -310,6 +312,14 @@ function OrganizationDetailScreen({
         actions={
           <>
             {backLink}
+            <Button
+              variant="outline"
+              onClick={() => exportMutation.mutate(organizationId)}
+              disabled={!organization || exportMutation.isPending}
+            >
+              <Download className="size-4" aria-hidden />
+              {exportMutation.isPending ? 'Izvoz…' : 'Izvezi podatke'}
+            </Button>
             <Button onClick={enterOrganization} disabled={!organization}>
               <LogIn className="size-4" aria-hidden />
               Uđi u firmu

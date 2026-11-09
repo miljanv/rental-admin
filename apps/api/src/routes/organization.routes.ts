@@ -31,6 +31,12 @@ organizationRouter.get(
   asyncHandler(organizationController.getOrganizationOverview),
 );
 
+organizationRouter.get(
+  '/:id/export',
+  validateRequest({ params: organizationIdParamsSchema }),
+  asyncHandler(organizationController.exportOrganization),
+);
+
 organizationRouter.patch(
   '/:id/profile',
   validateRequest({ params: organizationIdParamsSchema, body: organizationProfileSchema }),

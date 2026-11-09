@@ -6,8 +6,10 @@ import type {
 import type { Request, Response } from 'express';
 
 import { validated } from '../middleware/validate-request';
+import * as organizationExportService from '../services/organization-export.service';
 import * as organizationService from '../services/organization.service';
 import { sendSuccess } from '../utils/api-response';
+import { buildContentDisposition } from '../utils/storage-key';
 
 export const listOrganizations = async (_req: Request, res: Response): Promise<void> => {
   sendSuccess(res, await organizationService.listOrganizations());
@@ -23,6 +25,15 @@ export const getOrganizationOverview = async (req: Request, res: Response): Prom
   const { id } = validated<OrganizationIdParams>(req, 'params');
 
   sendSuccess(res, await organizationService.getOrganizationOverview(id));
+};
+
+export const exportOrganization = async (req: Request, res: Response): Promise<void> => {
+  const { id } = validated<OrganizationIdParams>(req, 'params');
+  const { fileName } = await organizationExportService.prepareOrganizationExport(id);
+
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', buildContentDisposition(fileName));
+  await organizationExportService.writeOrganizationExport(id, res);
 };
 
 export const updateOrganizationProfile = async (req: Request, res: Response): Promise<void> => {

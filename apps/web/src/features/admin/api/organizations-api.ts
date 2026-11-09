@@ -13,6 +13,7 @@ import {
 
 import type { VehicleListPage } from '@/features/vehicles/api/vehicles-api';
 import { apiClient, unwrap } from '@/lib/api-client';
+import { fileNameFromDisposition, readBlobError } from '@/lib/download';
 
 /** Works in the given organization for this one request, whichever is chosen in the header. */
 const inOrganization = (organizationId: string) => ({
@@ -105,4 +106,28 @@ export const setOrganizationVehicleEnabled = async (
   );
 
   return unwrap(response.data);
+};
+
+/** Long enough for a large organization; the API streams the zip as it reads. */
+const EXPORT_TIMEOUT_MS = 120_000;
+
+export const downloadOrganizationExport = async (
+  organizationId: string,
+): Promise<{ blob: Blob; fileName: string }> => {
+  try {
+    const response = await apiClient.get<Blob>(`/organizations/${organizationId}/export`, {
+      responseType: 'blob',
+      timeout: EXPORT_TIMEOUT_MS,
+    });
+
+    return {
+      blob: response.data,
+      fileName: fileNameFromDisposition(
+        response.headers['content-disposition'] as string | undefined,
+        'firma.zip',
+      ),
+    };
+  } catch (error) {
+    throw await readBlobError(error);
+  }
 };

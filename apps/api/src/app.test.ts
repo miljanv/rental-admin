@@ -202,6 +202,7 @@ describe('API request pipeline', () => {
     '/api/v1/admin/audit-events',
     '/api/v1/admin/finance-audit-events',
     '/api/v1/admin/summary',
+    '/api/v1/organizations/org-test/export',
   ])('keeps %s to the superadmin', async (path) => {
     const response = await request(app).get(path).set(auth);
 
