@@ -1,7 +1,7 @@
 'use client';
 
 import type { OrganizationDto } from '@rental-admin/shared';
-import { Building2, LogIn, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Ban, Building2, CircleCheck, LogIn, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 
 import { EmptyState } from '@/components/common/empty-state';
 import { TableSkeleton } from '@/components/common/table-skeleton';
@@ -34,6 +34,7 @@ interface OrganizationsTableProps {
   activeOrganizationId: string | null;
   onOpen: (organization: OrganizationDto) => void;
   onEdit: (organization: OrganizationDto) => void;
+  onRequestToggleActive: (organization: OrganizationDto) => void;
   onRequestDelete: (organization: OrganizationDto) => void;
   emptyAction?: React.ReactNode;
 }
@@ -44,6 +45,7 @@ export function OrganizationsTable({
   activeOrganizationId,
   onOpen,
   onEdit,
+  onRequestToggleActive,
   onRequestDelete,
   emptyAction,
 }: OrganizationsTableProps) {
@@ -88,7 +90,7 @@ export function OrganizationsTable({
                   {organization.id === activeOrganizationId ? (
                     <Badge variant="secondary">Izabrana</Badge>
                   ) : null}
-                  {organization.isActive ? null : <Badge variant="destructive">Neaktivna</Badge>}
+                  {organization.isActive ? null : <Badge variant="destructive">Suspendovana</Badge>}
                 </div>
               </TableCell>
               <TableCell className="text-right tabular-nums">
@@ -118,6 +120,17 @@ export function OrganizationsTable({
                     <DropdownMenuItem onClick={() => onEdit(organization)} className="gap-2">
                       <Pencil className="size-4" aria-hidden />
                       Izmeni
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => onRequestToggleActive(organization)}
+                      className="gap-2"
+                    >
+                      {organization.isActive ? (
+                        <Ban className="size-4" aria-hidden />
+                      ) : (
+                        <CircleCheck className="size-4" aria-hidden />
+                      )}
+                      {organization.isActive ? 'Suspenduj' : 'Aktiviraj'}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       variant="destructive"

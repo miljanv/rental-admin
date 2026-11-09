@@ -1,8 +1,9 @@
-import { ORGANIZATION_HEADER, type ApiResponse } from '@rental-admin/shared';
+import { API_ERROR_CODES, ORGANIZATION_HEADER, type ApiResponse } from '@rental-admin/shared';
 import axios from 'axios';
 
 import { getActiveOrganizationId } from './active-organization';
-import { clearAccessToken, emitUnauthorized, getAccessToken } from './auth-token';
+import { parseApiError } from './api-error';
+import { clearAccessToken, emitUnauthorized, getAccessToken, setSignOutNotice } from './auth-token';
 import { clientEnv } from './env';
 
 /**
@@ -35,13 +36,29 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error: unknown) => {
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
-      const requestUrl = error.config?.url ?? '';
+    if (!axios.isAxiosError(error)) {
+      return Promise.reject(error);
+    }
 
+    const requestUrl = error.config?.url ?? '';
+
+    if (error.response?.status === 401) {
       if (!requestUrl.includes('/auth/login') && !requestUrl.includes('/auth/me')) {
         clearAccessToken();
         emitUnauthorized();
       }
+    }
+
+    // The login form shows this error itself; anywhere else the session is over.
+    const parsed = parseApiError(error);
+
+    if (
+      parsed.code === API_ERROR_CODES.ORGANIZATION_SUSPENDED &&
+      !requestUrl.includes('/auth/login')
+    ) {
+      clearAccessToken();
+      setSignOutNotice(parsed.message);
+      emitUnauthorized();
     }
 
     return Promise.reject(error);

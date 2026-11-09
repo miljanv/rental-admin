@@ -52,6 +52,14 @@ export const organizationRequired = (): AppError =>
     'Izaberite firmu u kojoj radite da biste nastavili.',
   );
 
+/** The user's organization is suspended. The client signs out and shows this message. */
+export const organizationSuspended = (): AppError =>
+  new AppError(
+    403,
+    API_ERROR_CODES.ORGANIZATION_SUSPENDED,
+    'Nalog firme je suspendovan. Obratite se administratoru.',
+  );
+
 export const notFound = (message: string, options?: AppErrorOptions): AppError =>
   new AppError(404, API_ERROR_CODES.NOT_FOUND, message, options);
 

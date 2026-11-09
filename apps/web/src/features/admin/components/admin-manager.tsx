@@ -22,6 +22,7 @@ import { DeleteOrganizationDialog } from '@/features/admin/components/delete-org
 import { DeleteUserDialog } from '@/features/admin/components/delete-user-dialog';
 import { OrganizationDialog } from '@/features/admin/components/organization-dialog';
 import { OrganizationsTable } from '@/features/admin/components/organizations-table';
+import { SuspendOrganizationDialog } from '@/features/admin/components/suspend-organization-dialog';
 import { UserDialog } from '@/features/admin/components/user-dialog';
 import { UsersTable } from '@/features/admin/components/users-table';
 import { useOrganizations } from '@/features/admin/hooks/use-organizations';
@@ -40,6 +41,7 @@ function AdminScreen({ currentUserId }: { currentUserId: string }) {
   const [organizationFilter, setOrganizationFilter] = useState(ALL_ORGANIZATIONS);
   const [organizationDialog, setOrganizationDialog] = useState<DialogTarget<OrganizationDto>>(null);
   const [organizationToDelete, setOrganizationToDelete] = useState<OrganizationDto | null>(null);
+  const [organizationToToggle, setOrganizationToToggle] = useState<OrganizationDto | null>(null);
   const [userDialog, setUserDialog] = useState<DialogTarget<ManagedUserDto>>(null);
   const [userToDelete, setUserToDelete] = useState<ManagedUserDto | null>(null);
 
@@ -106,6 +108,7 @@ function AdminScreen({ currentUserId }: { currentUserId: string }) {
                 activeOrganizationId={activeOrganizationId}
                 onOpen={openOrganization}
                 onEdit={(organization) => setOrganizationDialog({ record: organization })}
+                onRequestToggleActive={setOrganizationToToggle}
                 onRequestDelete={setOrganizationToDelete}
                 emptyAction={
                   <Button size="sm" onClick={() => setOrganizationDialog({ record: null })}>
@@ -194,6 +197,12 @@ function AdminScreen({ currentUserId }: { currentUserId: string }) {
         organization={organizationDialog?.record ?? null}
         onOpenChange={(isOpen) => {
           if (!isOpen) setOrganizationDialog(null);
+        }}
+      />
+      <SuspendOrganizationDialog
+        organization={organizationToToggle}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setOrganizationToToggle(null);
         }}
       />
       <DeleteOrganizationDialog

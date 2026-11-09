@@ -9,6 +9,7 @@ vi.mock('../config/prisma', () => ({ prisma: { organization: { findUnique: vi.fn
 import { prisma } from '../config/prisma';
 import { findActiveAuthUser } from '../services/auth.service';
 import { signAccessToken } from '../utils/access-token';
+import { organizationSuspended } from '../utils/app-error';
 import { getTenantContext } from '../utils/tenant-context';
 import { errorHandler } from './error-handler';
 import { requireAuth, requireRole } from './require-auth';
@@ -71,6 +72,15 @@ describe('requireAuth', () => {
 
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('ends the session with 403 when the organization is suspended', async () => {
+    vi.mocked(findActiveAuthUser).mockRejectedValue(organizationSuspended());
+
+    const response = await request(app).get('/context').set(bearer(regularUser));
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('ORGANIZATION_SUSPENDED');
   });
 
   it('limits a regular user to their own organization', async () => {

@@ -1,6 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { Button } from '@/components/ui/button';
@@ -9,17 +10,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { loginFormSchema, type LoginFormValues } from '@/features/auth/schemas/login-schema';
 import { getApiErrorMessage } from '@/lib/api-error';
+import { clearSignOutNotice, getSignOutNotice } from '@/lib/auth-token';
 import { APP_DESCRIPTION, APP_INITIALS, APP_NAME } from '@/lib/env';
 import { useAuth } from '@/providers/auth-provider';
 
 export function LoginScreen() {
   const { login } = useAuth();
+  const [signOutNotice, setSignOutNotice] = useState(getSignOutNotice);
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
     defaultValues: { username: '', password: '' },
   });
 
   const onSubmit = form.handleSubmit(async (values) => {
+    clearSignOutNotice();
+    setSignOutNotice(null);
     try {
       await login(values);
     } catch (error) {
@@ -87,9 +92,9 @@ export function LoginScreen() {
                 ) : null}
               </div>
 
-              {rootError ? (
+              {rootError || signOutNotice ? (
                 <p className="text-destructive text-sm" role="alert">
-                  {rootError}
+                  {rootError ?? signOutNotice}
                 </p>
               ) : null}
 

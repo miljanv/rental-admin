@@ -65,7 +65,7 @@ export function OrganizationSwitcher() {
         {(organizationList ?? []).map((organization) => (
           <SelectItem key={organization.id} value={organization.id}>
             {organization.name}
-            {organization.isActive ? '' : ' (neaktivna)'}
+            {organization.isActive ? '' : ' (suspendovana)'}
           </SelectItem>
         ))}
       </SelectContent>

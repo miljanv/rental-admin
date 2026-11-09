@@ -2,7 +2,7 @@ import type { AuthUserDto, LoginRequest, LoginResult } from '@rental-admin/share
 import bcrypt from 'bcryptjs';
 
 import { prisma } from '../config/prisma';
-import { unauthorized } from '../utils/app-error';
+import { organizationSuspended, unauthorized } from '../utils/app-error';
 import { signAccessToken } from '../utils/access-token';
 import { logger } from '../utils/logger';
 
@@ -36,9 +36,12 @@ const toAuthUserDto = (user: AuthUserRecord): AuthUserDto => ({
   organizationName: user.organization?.name ?? null,
 });
 
-/** A deactivated user, or one whose organization is deactivated, cannot sign in. */
-const isBlocked = (user: AuthUserRecord): boolean =>
-  !user.isActive || (user.organization !== null && !user.organization.isActive);
+/** Throws when the user's organization is suspended. A superadmin has no organization. */
+const assertOrganizationActive = (user: AuthUserRecord): void => {
+  if (user.organization !== null && !user.organization.isActive) {
+    throw organizationSuspended();
+  }
+};
 
 export const login = async (input: LoginRequest): Promise<LoginResult> => {
   const user = await prisma.user.findUnique({
@@ -54,9 +57,11 @@ export const login = async (input: LoginRequest): Promise<LoginResult> => {
     throw unauthorized('Pogrešno korisničko ime ili lozinka.');
   }
 
-  if (isBlocked(user)) {
+  if (!user.isActive) {
     throw unauthorized('Nalog je deaktiviran. Obratite se administratoru.');
   }
+
+  assertOrganizationActive(user);
 
   logger.info('User signed in', { userId: user.id, username: user.username });
 
@@ -66,13 +71,16 @@ export const login = async (input: LoginRequest): Promise<LoginResult> => {
 /**
  * Loads the account behind a verified token. Returns null when it no longer
  * exists or is deactivated, which `requireAuth` reports as an expired session.
+ * A suspended organization throws instead, so the client can say why.
  */
 export const findActiveAuthUser = async (id: string): Promise<AuthUserDto | null> => {
   const user = await prisma.user.findUnique({ where: { id }, select: authUserSelect });
 
-  if (!user || isBlocked(user)) {
+  if (!user || !user.isActive) {
     return null;
   }
+
+  assertOrganizationActive(user);
 
   return toAuthUserDto(user);
 };
