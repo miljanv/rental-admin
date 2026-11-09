@@ -493,6 +493,8 @@ export function TripSeriesForm() {
                           value={dateField.value ?? ''}
                           onChange={dateField.onChange}
                           disabled={isPending}
+                          min={startDate}
+                          max={endDate}
                         />
                       )}
                     />
@@ -511,6 +513,8 @@ export function TripSeriesForm() {
                           value={dateField.value ?? ''}
                           onChange={dateField.onChange}
                           disabled={isPending}
+                          min={pauses[index]?.startDate || startDate}
+                          max={endDate}
                         />
                       )}
                     />

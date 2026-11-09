@@ -101,11 +101,25 @@ export const generateTripSeriesSchema = z
     }
 
     value.pauses.forEach((pause, index) => {
+      if (pause.startDate < value.startDate || pause.startDate > value.endDate) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['pauses', index, 'startDate'],
+          message: 'Pauza mora biti u periodu serije.',
+        });
+      }
+
       if (pause.endDate < pause.startDate) {
         ctx.addIssue({
           code: 'custom',
           path: ['pauses', index, 'endDate'],
           message: 'Kraj pauze ne može biti pre početka pauze.',
+        });
+      } else if (pause.endDate > value.endDate) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['pauses', index, 'endDate'],
+          message: 'Pauza mora biti u periodu serije.',
         });
       }
     });

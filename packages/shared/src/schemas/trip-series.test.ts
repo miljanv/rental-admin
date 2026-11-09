@@ -97,6 +97,26 @@ describe('generateTripSeriesSchema', () => {
 
     expect(result.success).toBe(false);
   });
+
+  it('rejects a pause that starts before the series period', () => {
+    const result = generateTripSeriesSchema.safeParse({
+      ...validSeries,
+      pauses: [{ startDate: '2026-08-25', endDate: '2026-09-05' }],
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.path).toEqual(['pauses', 0, 'startDate']);
+  });
+
+  it('rejects a pause that ends after the series period', () => {
+    const result = generateTripSeriesSchema.safeParse({
+      ...validSeries,
+      pauses: [{ startDate: '2026-09-25', endDate: '2026-10-05' }],
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.path).toEqual(['pauses', 0, 'endDate']);
+  });
 });
 
 describe('bulkUpdateTripSeriesSchema', () => {

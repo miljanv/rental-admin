@@ -120,13 +120,26 @@ interface DateFieldCalendarProps {
   onSelect: (isoDate: string) => void;
   /** Earliest selectable ISO date; earlier days are shown but cannot be picked. */
   min?: string;
+  /** Latest selectable ISO date; later days are shown but cannot be picked. */
+  max?: string;
 }
 
-function DateFieldCalendar({ value, onSelect, min }: DateFieldCalendarProps) {
+function DateFieldCalendar({ value, onSelect, min, max }: DateFieldCalendarProps) {
   const today = useMemo(() => new Date(), []);
   const selected = useMemo(() => parseIsoDate(value), [value]);
-  const [year, setYear] = useState(() => (selected ?? today).getUTCFullYear());
-  const [month, setMonth] = useState(() => (selected ?? today).getUTCMonth());
+  // With no value, open on today's month, or on the allowed range when today is outside it.
+  const initial = useMemo(() => {
+    if (selected) {
+      return selected;
+    }
+
+    const todayIso = toIsoDate(today);
+    const bound = min && todayIso < min ? min : max && todayIso > max ? max : null;
+
+    return (bound ? parseIsoDate(bound) : null) ?? today;
+  }, [max, min, selected, today]);
+  const [year, setYear] = useState(() => initial.getUTCFullYear());
+  const [month, setMonth] = useState(() => initial.getUTCMonth());
 
   const days = useMemo(() => buildMonthGrid(year, month), [year, month]);
   const todayIso = toIsoDate(today);
@@ -221,14 +234,14 @@ function DateFieldCalendar({ value, onSelect, min }: DateFieldCalendarProps) {
           const isCurrentMonth = date.getUTCMonth() === month;
           const isSelected = iso === value;
           const isToday = iso === todayIso;
-          const isBeforeMin = Boolean(min && iso < min);
+          const isOutOfRange = Boolean((min && iso < min) || (max && iso > max));
 
           return (
             <button
               key={iso}
               type="button"
               onClick={() => onSelect(iso)}
-              disabled={isBeforeMin}
+              disabled={isOutOfRange}
               className={cn(
                 'hover:bg-muted flex size-8 items-center justify-center rounded-md text-sm transition-colors',
                 'disabled:text-muted-foreground/30 disabled:pointer-events-none disabled:line-through',
@@ -249,7 +262,7 @@ function DateFieldCalendar({ value, onSelect, min }: DateFieldCalendarProps) {
           variant="outline"
           size="sm"
           className="flex-1"
-          disabled={Boolean(min && todayIso < min)}
+          disabled={Boolean((min && todayIso < min) || (max && todayIso > max))}
           onClick={() => onSelect(todayIso)}
         >
           Danas
@@ -279,6 +292,8 @@ export interface DateFieldProps {
   className?: string;
   /** Earliest ISO date the calendar offers (e.g. the departure date for a return date). */
   min?: string;
+  /** Latest ISO date the calendar offers (e.g. the end of a series for its pauses). */
+  max?: string;
 }
 
 /**
@@ -294,6 +309,7 @@ export function DateField({
   placeholder = 'dd.mm.gggg.',
   className,
   min,
+  max,
   ...rest
 }: DateFieldProps) {
   const [text, setText] = useState(() => isoToMasked(value));
@@ -374,7 +390,12 @@ export function DateField({
         </div>
       </PopoverAnchor>
       <PopoverContent className="w-auto p-3" align="start">
-        <DateFieldCalendar value={value} onSelect={handleSelect} min={min || undefined} />
+        <DateFieldCalendar
+          value={value}
+          onSelect={handleSelect}
+          min={min || undefined}
+          max={max || undefined}
+        />
       </PopoverContent>
     </Popover>
   );
