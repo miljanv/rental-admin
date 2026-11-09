@@ -6,6 +6,12 @@ export interface OrganizationRecord {
   isActive: boolean;
   maxVehicles: number | null;
   maxUsers: number | null;
+  taxId: string | null;
+  registrationNumber: string | null;
+  address: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  contactEmail: string | null;
   createdAt: Date;
   updatedAt: Date;
   /** `users` and `vehicles` hold only what counts against the limits. */
@@ -30,6 +36,14 @@ export const toOrganizationDto = (record: OrganizationRecord): OrganizationDto =
   id: record.id,
   name: record.name,
   isActive: record.isActive,
+  profile: {
+    taxId: record.taxId,
+    registrationNumber: record.registrationNumber,
+    address: record.address,
+    contactName: record.contactName,
+    contactPhone: record.contactPhone,
+    contactEmail: record.contactEmail,
+  },
   usage: {
     vehicles: record._count.vehicles,
     maxVehicles: record.maxVehicles,

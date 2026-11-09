@@ -45,6 +45,46 @@ export const organizationWriteSchema = z.object({
 
 export type OrganizationWriteRequest = z.infer<typeof organizationWriteSchema>;
 
+/** Blank means "not entered"; stored as null. */
+const optionalTextSchema = (schema: z.ZodString) =>
+  z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? null : value),
+    schema.nullable().default(null),
+  );
+
+export const organizationProfileSchema = z.object({
+  taxId: optionalTextSchema(
+    z
+      .string()
+      .trim()
+      .regex(/^\d{9}$/, 'PIB mora imati tačno 9 cifara.'),
+  ),
+  registrationNumber: optionalTextSchema(
+    z
+      .string()
+      .trim()
+      .regex(/^\d{8}$/, 'Matični broj mora imati tačno 8 cifara.'),
+  ),
+  address: optionalTextSchema(
+    z.string().trim().max(200, 'Adresa sme imati najviše 200 karaktera.'),
+  ),
+  contactName: optionalTextSchema(
+    z.string().trim().max(120, 'Ime kontakt osobe sme imati najviše 120 karaktera.'),
+  ),
+  contactPhone: optionalTextSchema(
+    z
+      .string()
+      .trim()
+      .max(40, 'Telefon sme imati najviše 40 karaktera.')
+      .regex(/^[+\d\s/()-]+$/, 'Telefon sme sadržati samo cifre, razmake i + / ( ) -.'),
+  ),
+  contactEmail: optionalTextSchema(
+    z.string().trim().max(254).email('Unesite ispravnu e-mail adresu.'),
+  ),
+});
+
+export type OrganizationProfileRequest = z.infer<typeof organizationProfileSchema>;
+
 const usernameSchema = z
   .string()
   .trim()

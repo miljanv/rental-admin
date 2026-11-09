@@ -23,10 +23,11 @@ apiClient.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  // Only a superadmin has one; the API ignores the header for everyone else.
+  // Only a superadmin has one; the API ignores the header for everyone else. A
+  // request may name another organization itself (the admin detail page does).
   const organizationId = getActiveOrganizationId();
 
-  if (organizationId) {
+  if (organizationId && !config.headers.has(ORGANIZATION_HEADER)) {
     config.headers[ORGANIZATION_HEADER] = organizationId;
   }
 

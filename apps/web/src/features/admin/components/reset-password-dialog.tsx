@@ -49,7 +49,7 @@ function ResetPasswordForm({ user, onDone }: { user: ManagedUserDto; onDone: () 
         </DialogDescription>
       </DialogHeader>
 
-      <form className="space-y-4" onSubmit={onSubmit} noValidate>
+      <form className="space-y-4 px-6 pb-6" onSubmit={onSubmit} noValidate>
         <div className="space-y-1.5">
           <Label htmlFor="reset-password">Privremena lozinka</Label>
           <div className="flex gap-2">

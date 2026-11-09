@@ -1,7 +1,17 @@
 'use client';
 
 import type { OrganizationDto } from '@rental-admin/shared';
-import { Ban, Building2, CircleCheck, LogIn, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import {
+  Ban,
+  Building2,
+  CircleCheck,
+  Eye,
+  LogIn,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+} from 'lucide-react';
+import Link from 'next/link';
 
 import { EmptyState } from '@/components/common/empty-state';
 import { TableSkeleton } from '@/components/common/table-skeleton';
@@ -80,13 +90,12 @@ export function OrganizationsTable({
             <TableRow key={organization.id}>
               <TableCell>
                 <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onOpen(organization)}
+                  <Link
+                    href={`/admin/organizations/${organization.id}`}
                     className="hover:text-primary text-left font-medium"
                   >
                     {organization.name}
-                  </button>
+                  </Link>
                   {organization.id === activeOrganizationId ? (
                     <Badge variant="secondary">Izabrana</Badge>
                   ) : null}
@@ -113,9 +122,15 @@ export function OrganizationsTable({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem asChild className="gap-2">
+                      <Link href={`/admin/organizations/${organization.id}`}>
+                        <Eye className="size-4" aria-hidden />
+                        Detalj firme
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onOpen(organization)} className="gap-2">
                       <LogIn className="size-4" aria-hidden />
-                      Otvori podatke firme
+                      Uđi u firmu
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onEdit(organization)} className="gap-2">
                       <Pencil className="size-4" aria-hidden />

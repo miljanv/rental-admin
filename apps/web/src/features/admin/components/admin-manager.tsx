@@ -92,7 +92,7 @@ function AdminScreen({ currentUserId }: { currentUserId: string }) {
             <CardDescription>
               {organizations.length === 0
                 ? 'Još nema unetih firmi.'
-                : `${organizations.length} ${organizations.length === 1 ? 'firma' : 'firmi'}. Kliknite na firmu da otvorite njene podatke.`}
+                : `${organizations.length} ${organizations.length === 1 ? 'firma' : 'firmi'}. Kliknite na firmu da otvorite njen detalj.`}
             </CardDescription>
           </CardHeader>
           <CardContent className="px-0">

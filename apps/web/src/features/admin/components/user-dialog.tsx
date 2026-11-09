@@ -38,10 +38,12 @@ interface UserFormProps {
   user: ManagedUserDto | null;
   /** Your own account: its role and status cannot be changed from here. */
   isSelf: boolean;
+  /** Preselected for a new user, e.g. when adding one from an organization's page. */
+  defaultOrganizationId?: string | undefined;
   onDone: () => void;
 }
 
-function UserForm({ user, isSelf, onDone }: UserFormProps) {
+function UserForm({ user, isSelf, defaultOrganizationId, onDone }: UserFormProps) {
   const isEdit = user !== null;
   const createMutation = useCreateUser();
   const updateMutation = useUpdateUser();
@@ -50,7 +52,9 @@ function UserForm({ user, isSelf, onDone }: UserFormProps) {
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(createUserFormSchema(isEdit ? 'edit' : 'create')),
-    defaultValues: user ? userToFormValues(user) : EMPTY_USER_FORM,
+    defaultValues: user
+      ? userToFormValues(user)
+      : { ...EMPTY_USER_FORM, organizationId: defaultOrganizationId ?? '' },
   });
   const errors = form.formState.errors;
   const role = useWatch({ control: form.control, name: 'role' });
@@ -214,10 +218,17 @@ interface UserDialogProps {
   /** Null creates a new user. */
   user: ManagedUserDto | null;
   currentUserId: string;
+  defaultOrganizationId?: string;
   onOpenChange: (isOpen: boolean) => void;
 }
 
-export function UserDialog({ open, user, currentUserId, onOpenChange }: UserDialogProps) {
+export function UserDialog({
+  open,
+  user,
+  currentUserId,
+  defaultOrganizationId,
+  onOpenChange,
+}: UserDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -227,6 +238,7 @@ export function UserDialog({ open, user, currentUserId, onOpenChange }: UserDial
             key={user?.id ?? 'new'}
             user={user}
             isSelf={user?.id === currentUserId}
+            defaultOrganizationId={defaultOrganizationId}
             onDone={() => onOpenChange(false)}
           />
         ) : null}

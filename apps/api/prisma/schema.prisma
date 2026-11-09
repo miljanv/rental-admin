@@ -201,6 +201,13 @@ model Organization {
   /// Most vehicles / active users the organization may have. Null means no limit.
   maxVehicles Int?
   maxUsers    Int?
+  /// PIB (9 digits) and matični broj (8 digits).
+  taxId              String?
+  registrationNumber String?
+  address            String?
+  contactName        String?
+  contactPhone       String?
+  contactEmail       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

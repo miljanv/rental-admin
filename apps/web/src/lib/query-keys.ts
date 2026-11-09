@@ -235,6 +235,8 @@ export const queryKeys = {
   organizations: {
     all: ['organizations'] as const,
     list: () => ['organizations', 'list'] as const,
+    overview: (id: string) => ['organizations', 'overview', id] as const,
+    vehicles: (id: string, page: number) => ['organizations', 'vehicles', id, page] as const,
   },
   /** Limits and usage of the organization the session currently works in. */
   organizationUsage: {

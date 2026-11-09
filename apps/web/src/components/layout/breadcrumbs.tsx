@@ -28,6 +28,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   finance: 'Finansije',
   alarms: 'Alarm centar',
   fuel: 'Gorivo',
+  organizations: 'Firme',
 };
 
 // "new" is shared across every section's create page — the label depends on
@@ -55,11 +56,13 @@ const buildTrail = (pathname: string): { title: string; href: string }[] => {
     const navItem = NAV_ITEMS.find((item) => item.href === href);
     const previous = segments[index - 1];
     const isDriverId = previous === 'drivers' && segment !== 'new';
+    const isOrganizationId = previous === 'organizations';
 
     return {
       title:
         navItem?.title ??
         (segment === 'new' ? NEW_LABELS[previous ?? ''] : undefined) ??
+        (isOrganizationId ? 'Detalj firme' : undefined) ??
         SEGMENT_LABELS[segment] ??
         (isDriverId ? 'Profil' : toTitleCase(segment)),
       href,

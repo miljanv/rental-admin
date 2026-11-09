@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { organizationWriteSchema, userCreateSchema, userUpdateSchema } from './user-admin';
+import {
+  organizationProfileSchema,
+  organizationWriteSchema,
+  userCreateSchema,
+  userUpdateSchema,
+} from './user-admin';
 
 describe('organizationWriteSchema', () => {
   it('trims the name and defaults to active', () => {
@@ -105,5 +110,40 @@ describe('userUpdateSchema', () => {
 
   it('allows a role change that leaves the stored organization untouched', () => {
     expect(userUpdateSchema.safeParse({ role: 'USER' }).success).toBe(true);
+  });
+});
+
+describe('organizationProfileSchema', () => {
+  it('stores blank fields as null', () => {
+    expect(organizationProfileSchema.parse({ taxId: '  ', address: '' })).toEqual({
+      taxId: null,
+      registrationNumber: null,
+      address: null,
+      contactName: null,
+      contactPhone: null,
+      contactEmail: null,
+    });
+  });
+
+  it('accepts a 9-digit PIB and an 8-digit MB', () => {
+    const result = organizationProfileSchema.parse({
+      taxId: ' 101234567 ',
+      registrationNumber: '07654321',
+      contactPhone: '+381 64 123-4567',
+      contactEmail: 'office@firma.rs',
+    });
+
+    expect(result.taxId).toBe('101234567');
+    expect(result.registrationNumber).toBe('07654321');
+  });
+
+  it.each([
+    ['taxId', '12345678'],
+    ['taxId', '12345678a'],
+    ['registrationNumber', '123456789'],
+    ['contactEmail', 'nije-email'],
+    ['contactPhone', 'zovi me'],
+  ])('rejects %s = %s', (field, value) => {
+    expect(organizationProfileSchema.safeParse({ [field]: value }).success).toBe(false);
   });
 });

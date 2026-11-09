@@ -1,6 +1,8 @@
 import type {
   DeleteOrganizationResult,
   OrganizationDto,
+  OrganizationOverviewDto,
+  OrganizationProfileRequest,
   OrganizationWriteRequest,
 } from '@rental-admin/shared';
 
@@ -130,6 +132,78 @@ export const updateOrganization = async (
 
     throw error;
   }
+};
+
+export const updateOrganizationProfile = async (
+  id: string,
+  input: OrganizationProfileRequest,
+): Promise<OrganizationDto> => {
+  await getOrganization(id);
+
+  const record = await prisma.organization.update({
+    where: { id },
+    data: input,
+    include: organizationInclude,
+  });
+  logger.info('Organization profile updated', { organizationId: id });
+
+  return toOrganizationDto(record);
+};
+
+const countByFlag = (groups: { flag: boolean; count: number }[], flag: boolean): number =>
+  groups.find((group) => group.flag === flag)?.count ?? 0;
+
+/** Counts for one organization's detail page, a fixed handful of queries however much it holds. */
+export const getOrganizationOverview = async (id: string): Promise<OrganizationOverviewDto> => {
+  const organization = await getOrganization(id);
+  const where = { organizationId: id };
+
+  const [vehicleGroups, userGroups, drivers, trips, invoices, files, users] = await Promise.all([
+    prismaUnscoped.vehicle.groupBy({ by: ['isEnabled'], where, _count: { _all: true } }),
+    prismaUnscoped.user.groupBy({
+      by: ['isActive'],
+      where: { ...where, role: 'USER' },
+      _count: { _all: true },
+    }),
+    prismaUnscoped.driver.count({ where }),
+    prismaUnscoped.trip.count({ where }),
+    prismaUnscoped.tripBillingDocument.count({ where: { type: 'RACUN', trip: where } }),
+    prismaUnscoped.fileObject.aggregate({
+      where: { ...where, status: 'UPLOADED' },
+      _count: { _all: true },
+      _sum: { size: true },
+    }),
+    prismaUnscoped.user.aggregate({ where, _max: { lastLoginAt: true } }),
+  ]);
+
+  const vehicleCounts = vehicleGroups.map((group) => ({
+    flag: group.isEnabled,
+    count: group._count._all,
+  }));
+  const userCounts = userGroups.map((group) => ({
+    flag: group.isActive,
+    count: group._count._all,
+  }));
+
+  return {
+    organization,
+    vehicles: {
+      enabled: countByFlag(vehicleCounts, true),
+      disabled: countByFlag(vehicleCounts, false),
+      max: organization.usage.maxVehicles,
+    },
+    users: {
+      active: countByFlag(userCounts, true),
+      inactive: countByFlag(userCounts, false),
+      max: organization.usage.maxUsers,
+    },
+    drivers,
+    trips,
+    invoices,
+    files: files._count._all,
+    storageBytes: files._sum.size ?? 0,
+    lastActivityAt: users._max.lastLoginAt?.toISOString() ?? null,
+  };
 };
 
 /**

@@ -1,6 +1,7 @@
 import {
   listUsersQuerySchema,
   organizationIdParamsSchema,
+  organizationProfileSchema,
   organizationWriteSchema,
   userCreateSchema,
   userIdParamsSchema,
@@ -11,6 +12,7 @@ import {
 export {
   listUsersQuerySchema,
   organizationIdParamsSchema,
+  organizationProfileSchema,
   organizationWriteSchema,
   userCreateSchema,
   userIdParamsSchema,

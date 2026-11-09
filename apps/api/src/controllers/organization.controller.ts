@@ -1,4 +1,8 @@
-import type { OrganizationIdParams, OrganizationWriteRequest } from '@rental-admin/shared';
+import type {
+  OrganizationIdParams,
+  OrganizationProfileRequest,
+  OrganizationWriteRequest,
+} from '@rental-admin/shared';
 import type { Request, Response } from 'express';
 
 import { validated } from '../middleware/validate-request';
@@ -13,6 +17,19 @@ export const getOrganization = async (req: Request, res: Response): Promise<void
   const { id } = validated<OrganizationIdParams>(req, 'params');
 
   sendSuccess(res, await organizationService.getOrganization(id));
+};
+
+export const getOrganizationOverview = async (req: Request, res: Response): Promise<void> => {
+  const { id } = validated<OrganizationIdParams>(req, 'params');
+
+  sendSuccess(res, await organizationService.getOrganizationOverview(id));
+};
+
+export const updateOrganizationProfile = async (req: Request, res: Response): Promise<void> => {
+  const { id } = validated<OrganizationIdParams>(req, 'params');
+  const body = validated<OrganizationProfileRequest>(req, 'body');
+
+  sendSuccess(res, await organizationService.updateOrganizationProfile(id, body));
 };
 
 export const createOrganization = async (req: Request, res: Response): Promise<void> => {
