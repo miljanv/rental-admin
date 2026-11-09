@@ -12,7 +12,8 @@ import { getTenantContext, type TenantContext } from '../utils/tenant-context';
  * - CHILD: has no column of its own; filtered through the relation path to the
  *   nearest owned parent (e.g. a fuel log through its vehicle).
  * - EXEMPT: User and Organization, which are the tenancy model itself, and
- *   AuditEvent, the system-wide log only the superadmin reads (unscoped client).
+ *   AuditEvent, the system-wide log only the superadmin reads, and the
+ *   announcements, which target several organizations at once (unscoped client).
  *
  * What this does NOT do: it cannot validate foreign keys the caller writes
  * (e.g. `vehicleId` taken from a request body), because the extra lookup could
@@ -63,7 +64,14 @@ export const CHILD_SCOPE_PATHS: Readonly<Record<string, readonly string[]>> = {
   TripBillingDocument: ['trip'],
 };
 
-export const EXEMPT_MODELS = ['User', 'Organization', 'AuditEvent'] as const;
+export const EXEMPT_MODELS = [
+  'User',
+  'Organization',
+  'AuditEvent',
+  'Announcement',
+  'AnnouncementOrganization',
+  'AnnouncementDismissal',
+] as const;
 
 /** Owned models that remember which user created each row. */
 export const CREATED_BY_MODELS: ReadonlySet<string> = new Set([

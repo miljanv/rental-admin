@@ -215,6 +215,7 @@ model Organization {
   vatReturns           VatReturn[]
   financeAuditEvents   FinanceAuditEvent[]
   auditEvents          AuditEvent[]
+  announcementTargets  AnnouncementOrganization[]
   users                User[]
   fileObjects          FileObject[]
   drivers              Driver[]
@@ -257,6 +258,8 @@ model User {
   createdVatReturns      VatReturn[]
   financeAuditEvents     FinanceAuditEvent[]
   auditEvents            AuditEvent[]
+  createdAnnouncements   Announcement[]
+  announcementDismissals AnnouncementDismissal[]
   createdDrivers         Driver[]
   createdVehicles        Vehicle[]
   createdCompanyExpenses CompanyExpense[]
@@ -1466,4 +1469,54 @@ model AuditEvent {
   @@index([action])
   @@index([createdAt])
   @@map("audit_events")
+}
+
+enum AnnouncementKind {
+  INFO
+  WARNING
+}
+
+/// A banner the superadmin shows at the top of the app, to every organization
+/// or to the ones listed in `organizations`. Not tenant data: read and written
+/// through the unscoped client and filtered by hand.
+model Announcement {
+  id               String                     @id @default(cuid())
+  message          String
+  kind             AnnouncementKind           @default(INFO)
+  startsAt         DateTime
+  endsAt           DateTime?
+  allOrganizations Boolean                    @default(true)
+  createdById      String?
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+  createdBy        User?                      @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  organizations    AnnouncementOrganization[]
+  dismissals       AnnouncementDismissal[]
+
+  @@index([startsAt, endsAt])
+  @@map("announcements")
+}
+
+model AnnouncementOrganization {
+  announcementId String
+  organizationId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@id([announcementId, organizationId])
+  @@index([organizationId])
+  @@map("announcement_organizations")
+}
+
+/// A user closed the banner; it stays closed on every device they use.
+model AnnouncementDismissal {
+  announcementId String
+  userId         String
+  dismissedAt    DateTime     @default(now())
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([announcementId, userId])
+  @@index([userId])
+  @@map("announcement_dismissals")
 }

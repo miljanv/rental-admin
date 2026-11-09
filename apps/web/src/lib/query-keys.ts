@@ -233,6 +233,12 @@ export interface UserListQueryParams {
  * which covers every list page and related details.
  */
 export const queryKeys = {
+  announcements: {
+    all: ['announcements'] as const,
+    /** What the signed-in user sees; a change of organization resets every query anyway. */
+    active: () => ['announcements', 'active'] as const,
+    list: () => ['announcements', 'list'] as const,
+  },
   organizations: {
     all: ['organizations'] as const,
     list: () => ['organizations', 'list'] as const,

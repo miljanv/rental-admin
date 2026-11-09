@@ -16,7 +16,11 @@ describe('filterNavItems', () => {
   it('gives a superadmin without an organization only the admin screen', () => {
     const audience = { role: 'SUPERADMIN' as const, hasOrganization: false };
 
-    expect(hrefs(filterNavItems(MAIN_NAV_ITEMS, audience))).toEqual(['/admin', '/admin/audit']);
+    expect(hrefs(filterNavItems(MAIN_NAV_ITEMS, audience))).toEqual([
+      '/admin',
+      '/admin/audit',
+      '/admin/announcements',
+    ]);
     expect(filterNavItems(FOOTER_NAV_ITEMS, audience)).toEqual([]);
   });
 

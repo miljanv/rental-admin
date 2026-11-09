@@ -30,6 +30,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   fuel: 'Gorivo',
   organizations: 'Firme',
   audit: 'Dnevnik aktivnosti',
+  announcements: 'Obaveštenja',
 };
 
 // "new" is shared across every section's create page — the label depends on

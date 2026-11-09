@@ -1,5 +1,6 @@
 export * from './alarm';
 export * from './api';
+export * from './announcement';
 export * from './audit';
 export * from './auth';
 export * from './business-analytics';

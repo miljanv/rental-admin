@@ -5,6 +5,7 @@ import {
   FileText,
   Fuel,
   LayoutDashboard,
+  Megaphone,
   ReceiptText,
   Route,
   Settings2,
@@ -108,6 +109,13 @@ export const NAV_ITEMS: NavItem[] = [
     href: '/admin/audit',
     icon: ScrollText,
     description: 'Ko je šta i kada uradio',
+    access: 'superadmin',
+  },
+  {
+    title: 'Obaveštenja',
+    href: '/admin/announcements',
+    icon: Megaphone,
+    description: 'Baneri za korisnike',
     access: 'superadmin',
   },
   {
