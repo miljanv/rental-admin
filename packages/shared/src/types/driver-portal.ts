@@ -1,4 +1,5 @@
 import type { TripExpenseCategory, TripExpensePaymentMethod } from './trip-expense';
+import type { FuelLogFuelType } from './fuel-log';
 import type { TripKmSource } from './trip';
 
 /** Header the driver portal sends the personal link token in. */
@@ -86,7 +87,16 @@ export interface DriverPortalVehicleDto {
   lastKnownKm: number | null;
 }
 
-export interface DriverPortalExpenseDto {
+/** Fill-up details a driver may add to a fuel expense. */
+export interface DriverExpenseFuelDto {
+  vehicleId: string | null;
+  fuelLiters: number | null;
+  fuelType: FuelLogFuelType | null;
+  fuelOdometerKm: number | null;
+  fuelStation: string | null;
+}
+
+export interface DriverPortalExpenseDto extends DriverExpenseFuelDto {
   id: string;
   category: TripExpenseCategory;
   amount: number;
@@ -162,7 +172,7 @@ export const DRIVER_EXPENSE_CATEGORIES = [
 ] as const satisfies readonly TripExpenseCategory[];
 
 /** A driver report as the office reviews it. */
-export interface DriverReportAdminExpenseDto {
+export interface DriverReportAdminExpenseDto extends DriverExpenseFuelDto {
   id: string;
   category: TripExpenseCategory;
   amount: number;
@@ -172,6 +182,34 @@ export interface DriverReportAdminExpenseDto {
   file: { id: string; originalName: string; mimeType: string } | null;
   /** The trip expense created when the office accepted it. */
   tripExpenseId: string | null;
+  /** The fuel log entry created with it, if the office chose to record the fill-up. */
+  fuelLogId: string | null;
+}
+
+/** A fuel expense has enough detail to be recorded in the fuel log as well. */
+export const canRecordFuelLog = (
+  expense: Pick<
+    DriverReportAdminExpenseDto,
+    'category' | 'vehicleId' | 'fuelLiters' | 'fuelOdometerKm'
+  >,
+): boolean =>
+  expense.category === 'FUEL' &&
+  expense.vehicleId !== null &&
+  expense.fuelLiters !== null &&
+  expense.fuelLiters > 0 &&
+  expense.fuelOdometerKm !== null;
+
+export interface DriverReportPendingCountDto {
+  count: number;
+}
+
+/** A finished trip whose driver has a portal link but sent nothing. */
+export interface DriverReportMissingDto {
+  tripId: string;
+  departureDate: string;
+  origin: string;
+  destination: string;
+  driver: { id: string; firstName: string; lastName: string };
 }
 
 export interface DriverReportAdminDto {

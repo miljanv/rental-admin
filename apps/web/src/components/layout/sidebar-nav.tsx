@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 import { NAV_ITEMS, findActiveNavHref, type NavItem } from '@/components/layout/nav-items';
+import { PendingDriverReportsBadge } from '@/features/driver-reports/components/pending-driver-reports-badge';
 import { cn } from '@/lib/utils';
 
 interface SidebarNavProps {
@@ -54,7 +55,8 @@ export function SidebarNav({
               aria-hidden
             />
             <span className="truncate">{item.title}</span>
-            {isActive && item.emphasis !== 'alert' ? (
+            {item.badge === 'pendingDriverReports' ? <PendingDriverReportsBadge /> : null}
+            {isActive && item.emphasis !== 'alert' && !item.badge ? (
               <span className="bg-sidebar-primary ml-auto size-1.5 rounded-full" />
             ) : null}
           </Link>

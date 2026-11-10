@@ -28,6 +28,8 @@ export interface NavItem {
   emphasis?: 'alert';
   /** Shown only to a superadmin. Every other item is a screen of one organization's data. */
   access?: 'superadmin';
+  /** A live count shown next to the title. */
+  badge?: 'pendingDriverReports';
 }
 
 /** Single source of truth for the sidebar and the breadcrumb labels. */
@@ -49,6 +51,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: '/driver-reports',
     icon: ClipboardCheck,
     description: 'Kilometraža i troškovi koje su poslali vozači',
+    badge: 'pendingDriverReports',
   },
   {
     title: 'Zaposleni',

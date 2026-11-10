@@ -8,6 +8,7 @@ import type {
   TripSeriesDto,
   TripSeriesFrequency,
   TripSeriesPauseDto,
+  DriverReportStatus,
   TripKmSource,
   TripStatus,
   TripVehicleDto,
@@ -112,6 +113,8 @@ export interface TripRecord {
   contract: TripContractRecord | null;
   vehicles: TripVehicleAssignmentRecord[];
   drivers: TripDriverAssignmentRecord[];
+  /** Reports drivers sent from the portal, with how many expenses still wait. */
+  driverReports?: Array<{ status: DriverReportStatus; _count: { expenses: number } }>;
 }
 
 export interface TripSeriesPauseRecord {
@@ -200,6 +203,14 @@ export const toTripDto = (record: TripRecord): TripDto => ({
   seriesId: record.seriesId,
   vehicleCount: record.vehicleCount,
   vehicles: record.vehicles.map(toTripVehicleDto),
+  driverReports: {
+    count: record.driverReports?.length ?? 0,
+    pendingExpenses: (record.driverReports ?? []).reduce(
+      (sum, report) => sum + report._count.expenses,
+      0,
+    ),
+    returned: (record.driverReports ?? []).filter((report) => report.status === 'RETURNED').length,
+  },
   drivers: record.drivers.map((assignment): TripDriverDto => ({
     id: assignment.driver.id,
     firstName: assignment.driver.firstName,

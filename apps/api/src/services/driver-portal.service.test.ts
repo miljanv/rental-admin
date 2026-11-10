@@ -54,7 +54,16 @@ const tripRecord = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+const noFuel = {
+  vehicleId: null,
+  fuelLiters: null,
+  fuelType: null,
+  fuelOdometerKm: null,
+  fuelStation: null,
+};
+
 const pendingExpense = {
+  ...noFuel,
   id: 'exp_1',
   category: 'TOLL',
   amount: 1_250,
@@ -168,6 +177,7 @@ describe('submitDriverReport', () => {
         vehicles: [{ vehicleId: 'veh_1', startKm: 184_350, endKm: 184_512 }],
         expenses: [
           {
+            ...noFuel,
             id: null,
             category: 'TOLL',
             amount: 1_250,
@@ -244,6 +254,7 @@ describe('submitDriverReport', () => {
           vehicles: [],
           expenses: [
             {
+              ...noFuel,
               id: 'exp_1',
               category: 'TOLL',
               amount: 9_999,
@@ -311,6 +322,7 @@ describe('submitDriverReport', () => {
           vehicles: [],
           expenses: [
             {
+              ...noFuel,
               id: null,
               category: 'FUEL',
               amount: 18_400,

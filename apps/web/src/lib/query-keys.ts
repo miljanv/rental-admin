@@ -45,6 +45,7 @@ export interface DriverReportListQueryParams {
   limit: number;
   status?: DriverReportStatus;
   driverId?: string;
+  tripId?: string;
   from?: string;
   to?: string;
 }
@@ -295,6 +296,8 @@ export const queryKeys = {
   driverReports: {
     all: ['driver-reports'] as const,
     list: (params: DriverReportListQueryParams) => ['driver-reports', 'list', params] as const,
+    pendingCount: () => ['driver-reports', 'pending-count'] as const,
+    missing: () => ['driver-reports', 'missing'] as const,
   },
   drivers: {
     all: ['drivers'] as const,

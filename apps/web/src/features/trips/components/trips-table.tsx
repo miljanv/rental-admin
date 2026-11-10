@@ -175,6 +175,7 @@ function TripRow({
               Izmeni seriju
             </Link>
           ) : null}
+          <DriverReportHint trip={trip} />
         </div>
       </TableCell>
       <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
@@ -273,6 +274,27 @@ function TripRow({
       </TableCell>
     </TableRow>
   );
+}
+
+/** Whether drivers sent something from the portal and whether the office still has to act. */
+function DriverReportHint({ trip }: { trip: TripDto }) {
+  const { count, pendingExpenses, returned } = trip.driverReports;
+
+  if (pendingExpenses > 0) {
+    return (
+      <span className="block text-xs font-medium text-amber-700 dark:text-amber-400">
+        Troškovi vozača čekaju ({pendingExpenses})
+      </span>
+    );
+  }
+
+  if (returned > 0) {
+    return <span className="text-destructive block text-xs">Vraćeno vozaču</span>;
+  }
+
+  return count > 0 ? (
+    <span className="block text-xs text-emerald-700 dark:text-emerald-400">Vozač poslao</span>
+  ) : null;
 }
 
 export function TripsTable({

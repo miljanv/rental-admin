@@ -26,6 +26,8 @@ export const AUDIT_ACTIONS = [
   'DRIVER_LINK_CREATED',
   'DRIVER_LINK_REVOKED',
   'DRIVER_REPORT_SUBMITTED',
+  'DRIVER_REPORT_ACCEPTED',
+  'DRIVER_REPORT_RETURNED',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -57,6 +59,8 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   DRIVER_LINK_CREATED: 'Napravljen link za vozača',
   DRIVER_LINK_REVOKED: 'Ukinut link za vozača',
   DRIVER_REPORT_SUBMITTED: 'Vozač poslao podatke',
+  DRIVER_REPORT_ACCEPTED: 'Obrađen unos vozača',
+  DRIVER_REPORT_RETURNED: 'Unos vraćen vozaču',
 };
 
 export const AUDIT_ENTITY_TYPES = [

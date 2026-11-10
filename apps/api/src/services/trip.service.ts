@@ -48,6 +48,12 @@ export const tripInclude = {
     include: { vehicle: { select: { id: true, make: true, model: true, licensePlate: true } } },
   },
   drivers: { include: { driver: { select: { id: true, firstName: true, lastName: true } } } },
+  driverReports: {
+    select: {
+      status: true,
+      _count: { select: { expenses: { where: { status: 'PENDING' as const } } } },
+    },
+  },
 } as const;
 
 type TripListFilters = Omit<ListTripsQuery, 'page' | 'limit' | 'sortBy' | 'sortOrder'>;

@@ -3,6 +3,8 @@ import type {
   ApiPaginatedResponse,
   ApiResponse,
   DriverReportAdminDto,
+  DriverReportMissingDto,
+  DriverReportPendingCountDto,
   PaginationMeta,
   ReturnDriverReportRequest,
 } from '@rental-admin/shared';
@@ -46,6 +48,28 @@ export const returnDriverReport = async (
   const response = await apiClient.post<ApiResponse<DriverReportAdminDto>>(
     `/driver-reports/${id}/return`,
     body,
+  );
+
+  return unwrap(response.data);
+};
+
+export const fetchPendingDriverReportsCount = async (
+  signal?: AbortSignal,
+): Promise<DriverReportPendingCountDto> => {
+  const response = await apiClient.get<ApiResponse<DriverReportPendingCountDto>>(
+    '/driver-reports/pending-count',
+    { signal },
+  );
+
+  return unwrap(response.data);
+};
+
+export const fetchMissingDriverReports = async (
+  signal?: AbortSignal,
+): Promise<DriverReportMissingDto[]> => {
+  const response = await apiClient.get<ApiResponse<DriverReportMissingDto[]>>(
+    '/driver-reports/missing',
+    { signal },
   );
 
   return unwrap(response.data);

@@ -83,6 +83,16 @@ describe('API request pipeline', () => {
     expect(response.body.error.code).toBe('UNAUTHORIZED');
   });
 
+  it('rejects the driver portal without a valid link token', async () => {
+    const response = await request(app)
+      .get('/api/v1/driver-portal/trips')
+      .set({ 'X-Driver-Token': 'not-a-token' });
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('DRIVER_LINK_INVALID');
+    expect(JSON.stringify(response.body)).not.toContain('not-a-token');
+  });
+
   it('rejects a malformed access token', async () => {
     const response = await request(app)
       .get('/api/v1/files')

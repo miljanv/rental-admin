@@ -1,7 +1,9 @@
 'use client';
 
 import {
+  canRecordFuelLog,
   DRIVER_REPORT_EXPENSE_STATUS_LABELS,
+  FUEL_LOG_FUEL_TYPE_LABELS,
   DRIVER_REPORT_STATUS_LABELS,
   TRIP_EXPENSE_CATEGORIES,
   TRIP_EXPENSE_CATEGORY_LABELS,
@@ -19,6 +21,7 @@ import { useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -55,6 +58,7 @@ interface ExpenseDraft {
   category: TripExpenseCategory;
   amount: string;
   paymentMethod: TripExpensePaymentMethod;
+  addFuelLog: boolean;
 }
 
 const DECISION_LABELS: Record<Decision, string> = {
@@ -68,7 +72,27 @@ const draftFor = (expense: DriverReportAdminExpenseDto): ExpenseDraft => ({
   category: expense.category,
   amount: String(expense.amount),
   paymentMethod: expense.paymentMethod,
+  addFuelLog: canRecordFuelLog(expense),
 });
+
+const litersFormatter = new Intl.NumberFormat('sr-RS', { maximumFractionDigits: 2 });
+
+/** "210,5 l Dizel · 184.500 km · NIS Čoka", empty parts left out. */
+const fuelSummary = (expense: DriverReportAdminExpenseDto): string | null => {
+  if (expense.category !== 'FUEL' || expense.fuelLiters === null) {
+    return null;
+  }
+
+  return [
+    `${litersFormatter.format(expense.fuelLiters)} l${
+      expense.fuelType ? ` ${FUEL_LOG_FUEL_TYPE_LABELS[expense.fuelType]}` : ''
+    }`,
+    expense.fuelOdometerKm !== null ? formatReportKm(expense.fuelOdometerKm) : null,
+    expense.fuelStation,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+};
 
 interface DriverReportReviewSheetProps {
   report: DriverReportAdminDto | null;
@@ -137,6 +161,8 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
               category: draft.category,
               amount,
               paymentMethod: draft.paymentMethod,
+              addFuelLog:
+                draft.addFuelLog && canRecordFuelLog({ ...expense, category: draft.category }),
             }
           : { id: expense.id, accept: false },
       );
@@ -324,6 +350,31 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
                     </Select>
                   </div>
                 </div>
+                {fuelSummary(expense) ? (
+                  <div className="space-y-2 text-sm">
+                    <p>Točenje: {fuelSummary(expense)}</p>
+                    <label className="flex items-center gap-2">
+                      <Checkbox
+                        checked={
+                          draft.addFuelLog &&
+                          canRecordFuelLog({ ...expense, category: draft.category })
+                        }
+                        onCheckedChange={(checked) =>
+                          updateDraft(expense.id, { addFuelLog: checked === true })
+                        }
+                        disabled={
+                          isPending ||
+                          !isAccepting ||
+                          !canRecordFuelLog({ ...expense, category: draft.category })
+                        }
+                      />
+                      <span>
+                        Upiši i u evidenciju goriva
+                        {canRecordFuelLog(expense) ? '' : ' (nedostaje vozilo ili km na pumpi)'}
+                      </span>
+                    </label>
+                  </div>
+                ) : null}
                 <div className="flex flex-wrap items-center gap-2 text-sm">
                   {expense.note ? (
                     <span className="text-muted-foreground min-w-0 flex-1">{expense.note}</span>
@@ -369,6 +420,11 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
               <Badge variant={expense.status === 'ACCEPTED' ? 'secondary' : 'destructive'}>
                 {DRIVER_REPORT_EXPENSE_STATUS_LABELS[expense.status]}
               </Badge>
+              {expense.fuelLogId ? (
+                <span className="text-muted-foreground w-full text-xs">
+                  Upisano i u evidenciju goriva.
+                </span>
+              ) : null}
             </div>
           ))}
         </section>

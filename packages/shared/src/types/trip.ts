@@ -319,6 +319,8 @@ export interface TripDto {
   vehicleCount: number;
   vehicles: TripVehicleDto[];
   drivers: TripDriverDto[];
+  /** What drivers sent from the driver portal for this trip. */
+  driverReports: { count: number; pendingExpenses: number; returned: number };
   createdAt: string;
   updatedAt: string;
 }

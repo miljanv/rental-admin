@@ -21,6 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useGenerateContractDocument } from '@/features/contract-documents/hooks/use-generate-contract-document';
 import { DeleteTripDialog } from '@/features/trips/components/delete-trip-dialog';
 import { TripInvoiceSheet } from '@/features/trips/components/trip-invoice-sheet';
+import { TripDriverReportsCard } from '@/features/driver-reports/components/trip-driver-reports-card';
 import { TripSettlementSection } from '@/features/trips/components/trip-settlement-section';
 import { TripStatusBadge } from '@/features/trips/components/trip-status-badge';
 import { useTrip } from '@/features/trips/hooks/use-trip';
@@ -152,6 +153,8 @@ function TripOverview({ trip, onInvoice }: { trip: TripDto; onInvoice: () => voi
           </div>
         </CardContent>
       </Card>
+
+      <TripDriverReportsCard trip={trip} />
 
       <Card className="shadow-none">
         <CardHeader className="gap-4 sm:flex-row sm:items-start sm:justify-between">

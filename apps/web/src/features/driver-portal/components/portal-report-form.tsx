@@ -3,6 +3,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   DRIVER_EXPENSE_CATEGORIES,
+  FUEL_LOG_FUEL_TYPE_LABELS,
+  FUEL_LOG_FUEL_TYPES,
   DRIVER_EXPENSE_PAYMENT_METHODS,
   DRIVER_REPORT_EXPENSE_STATUS_LABELS,
   TRIP_EXPENSE_CATEGORY_LABELS,
@@ -59,19 +61,30 @@ const formValues = (trip: DriverPortalTripDto): DriverReportWriteInput => ({
       paymentMethod: expense.paymentMethod === 'COMPANY_CARD' ? 'COMPANY_CARD' : 'CASH',
       note: expense.note ?? '',
       fileId: expense.file?.id ?? '',
+      vehicleId: expense.vehicleId ?? trip.vehicles[0]?.id ?? '',
+      fuelLiters: expense.fuelLiters ?? '',
+      fuelType: expense.fuelType ?? 'DIESEL',
+      fuelOdometerKm: expense.fuelOdometerKm ?? '',
+      fuelStation: expense.fuelStation ?? '',
     })),
   note: trip.report?.note ?? '',
 });
 
-const NEW_EXPENSE: DriverReportWriteInput['expenses'] extends (infer T)[] | undefined ? T : never =
-  {
-    id: '',
-    category: 'TOLL',
-    amount: Number.NaN,
-    paymentMethod: 'CASH',
-    note: '',
-    fileId: '',
-  };
+type ExpenseInput = NonNullable<DriverReportWriteInput['expenses']>[number];
+
+const newExpense = (trip: DriverPortalTripDto): ExpenseInput => ({
+  id: '',
+  category: 'TOLL',
+  amount: Number.NaN,
+  paymentMethod: 'CASH',
+  note: '',
+  fileId: '',
+  vehicleId: trip.vehicles[0]?.id ?? '',
+  fuelLiters: '',
+  fuelType: 'DIESEL',
+  fuelOdometerKm: '',
+  fuelStation: '',
+});
 
 /** Odometer per vehicle and expenses with receipt photos for one trip. */
 export function PortalReportForm({ token, trip }: PortalReportFormProps) {
@@ -197,6 +210,7 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
 
         {expenseFields.fields.map((field, index) => {
           const rowErrors = errors.expenses?.[index];
+          const isFuel = watchedExpenses[index]?.category === 'FUEL';
           const fileId = watchedExpenses[index]?.fileId;
 
           return (
@@ -282,6 +296,104 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
                 )}
               />
 
+              {isFuel ? (
+                <div className="bg-muted/40 space-y-3 rounded-lg border p-3">
+                  <p className="text-muted-foreground text-xs">
+                    Podaci o točenju (opciono) — kancelarija ih upisuje u evidenciju goriva.
+                  </p>
+                  {trip.vehicles.length > 1 ? (
+                    <Controller
+                      control={form.control}
+                      name={`expenses.${index}.vehicleId`}
+                      render={({ field: vehicleField }) => (
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`vehicle-${field.id}`}>Vozilo</Label>
+                          <Select
+                            value={typeof vehicleField.value === 'string' ? vehicleField.value : ''}
+                            onValueChange={vehicleField.onChange}
+                            disabled={isPending}
+                          >
+                            <SelectTrigger id={`vehicle-${field.id}`} className="h-11 w-full">
+                              <SelectValue placeholder="Izaberite vozilo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {trip.vehicles.map((vehicle) => (
+                                <SelectItem key={vehicle.id} value={vehicle.id}>
+                                  {vehicle.licensePlate}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    />
+                  ) : null}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`liters-${field.id}`}>Litara</Label>
+                      <Input
+                        id={`liters-${field.id}`}
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        className="h-11 text-base"
+                        disabled={isPending}
+                        aria-invalid={Boolean(rowErrors?.fuelLiters)}
+                        {...form.register(`expenses.${index}.fuelLiters`, { valueAsNumber: true })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`pump-km-${field.id}`}>Km na pumpi</Label>
+                      <Input
+                        id={`pump-km-${field.id}`}
+                        type="number"
+                        inputMode="numeric"
+                        className="h-11 text-base"
+                        disabled={isPending}
+                        aria-invalid={Boolean(rowErrors?.fuelOdometerKm)}
+                        {...form.register(`expenses.${index}.fuelOdometerKm`, {
+                          valueAsNumber: true,
+                        })}
+                      />
+                    </div>
+                  </div>
+                  {rowErrors?.fuelLiters?.message || rowErrors?.fuelOdometerKm?.message ? (
+                    <p className="text-destructive text-xs">
+                      {rowErrors.fuelLiters?.message ?? rowErrors.fuelOdometerKm?.message}
+                    </p>
+                  ) : null}
+                  <Controller
+                    control={form.control}
+                    name={`expenses.${index}.fuelType`}
+                    render={({ field: typeField }) => (
+                      <div className="grid grid-cols-2 gap-2">
+                        {FUEL_LOG_FUEL_TYPES.map((type) => (
+                          <Button
+                            key={type}
+                            type="button"
+                            className="h-11"
+                            variant={typeField.value === type ? 'default' : 'outline'}
+                            disabled={isPending}
+                            onClick={() => typeField.onChange(type)}
+                          >
+                            {FUEL_LOG_FUEL_TYPE_LABELS[type]}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+                  />
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`station-${field.id}`}>Pumpa</Label>
+                    <Input
+                      id={`station-${field.id}`}
+                      placeholder="npr. NIS Čoka"
+                      disabled={isPending}
+                      {...form.register(`expenses.${index}.fuelStation`)}
+                    />
+                  </div>
+                </div>
+              ) : null}
+
               <div className="space-y-1.5">
                 <Label htmlFor={`receipt-${field.id}`}>Račun</Label>
                 <ReceiptField
@@ -317,7 +429,7 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
           variant="outline"
           className="h-11 w-full"
           disabled={isPending}
-          onClick={() => expenseFields.append({ ...NEW_EXPENSE })}
+          onClick={() => expenseFields.append(newExpense(trip))}
         >
           <Plus className="size-4" aria-hidden />
           Dodaj trošak

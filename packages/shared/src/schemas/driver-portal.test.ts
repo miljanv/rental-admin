@@ -45,3 +45,43 @@ describe('driverReportWriteSchema', () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe('driverReportWriteSchema fuel details', () => {
+  const fuel = { category: 'FUEL', amount: 18_400, paymentMethod: 'COMPANY_CARD' } as const;
+
+  it('treats empty fuel fields as not given', () => {
+    const result = driverReportWriteSchema.parse({
+      expenses: [{ ...fuel, fuelLiters: Number.NaN, fuelOdometerKm: '', fuelType: '' }],
+    });
+
+    expect(result.expenses[0]).toMatchObject({
+      fuelLiters: null,
+      fuelOdometerKm: null,
+      fuelType: null,
+      vehicleId: null,
+      fuelStation: null,
+    });
+  });
+
+  it('keeps valid fuel details and rejects broken ones', () => {
+    expect(
+      driverReportWriteSchema.parse({
+        expenses: [
+          {
+            ...fuel,
+            vehicleId: 'veh_1',
+            fuelLiters: 210.5,
+            fuelType: 'DIESEL',
+            fuelOdometerKm: 184_500,
+          },
+        ],
+      }).expenses[0],
+    ).toMatchObject({ fuelLiters: 210.5, fuelOdometerKm: 184_500, fuelType: 'DIESEL' });
+    expect(
+      driverReportWriteSchema.safeParse({ expenses: [{ ...fuel, fuelLiters: -5 }] }).success,
+    ).toBe(false);
+    expect(
+      driverReportWriteSchema.safeParse({ expenses: [{ ...fuel, fuelOdometerKm: 10.5 }] }).success,
+    ).toBe(false);
+  });
+});

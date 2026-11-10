@@ -34,6 +34,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { DriverReportReviewSheet } from '@/features/driver-reports/components/driver-report-review-sheet';
+import { MissingDriverReportsCard } from '@/features/driver-reports/components/missing-driver-reports-card';
 import { useDriverReports } from '@/features/driver-reports/hooks/use-driver-reports';
 import { driverReportKm, formatReportKm } from '@/features/driver-reports/lib/driver-report';
 import { useDrivers } from '@/features/drivers/hooks/use-drivers';
@@ -237,6 +238,10 @@ export function DriverReportsManager() {
           ) : null}
         </CardContent>
       </Card>
+
+      <div className="mt-6">
+        <MissingDriverReportsCard />
+      </div>
 
       <DriverReportReviewSheet
         report={selected}

@@ -23,6 +23,8 @@ export const useAcceptDriverReport = () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.trips.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all }),
         queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.fuelLogs.all }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.vehicles.all }),
       ]);
     },
     onError: (error) => {

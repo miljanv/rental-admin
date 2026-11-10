@@ -17,6 +17,14 @@ export const listDriverReports = async (req: Request, res: Response): Promise<vo
   sendPaginated(res, reports, pagination);
 };
 
+export const countPendingDriverReports = async (_req: Request, res: Response): Promise<void> => {
+  sendSuccess(res, await driverReportService.countPendingDriverReports());
+};
+
+export const listMissingDriverReports = async (_req: Request, res: Response): Promise<void> => {
+  sendSuccess(res, await driverReportService.listMissingDriverReports());
+};
+
 export const getDriverReport = async (req: Request, res: Response): Promise<void> => {
   const { id } = validated<DriverReportParams>(req, 'params');
 

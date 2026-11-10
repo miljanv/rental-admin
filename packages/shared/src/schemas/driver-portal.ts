@@ -6,6 +6,7 @@ import {
   DRIVER_REPORT_STATUSES,
   MAX_DRIVER_REPORT_EXPENSES,
 } from '../types/driver-portal';
+import { FUEL_LOG_FUEL_TYPES } from '../types/fuel-log';
 import { MAX_TRIP_VEHICLES } from '../types/trip';
 import {
   refineTripVehicleKm,
@@ -27,6 +28,22 @@ const optionalText = (max: number, label: string) =>
     .optional()
     .transform((value) => (value ? value : null));
 
+/** An empty form field (blank, or NaN from a number input) means "not given". */
+const emptyAsNull = <T extends z.ZodType>(schema: T) =>
+  z
+    .preprocess(
+      (value) =>
+        value === '' ||
+        value === undefined ||
+        value === null ||
+        (typeof value === 'number' && Number.isNaN(value))
+          ? null
+          : value,
+      schema.nullable(),
+    )
+    .optional()
+    .transform((value) => value ?? null);
+
 export const driverPortalTripParamsSchema = z.object({ id: tripIdSchema });
 
 export type DriverPortalTripParams = z.infer<typeof driverPortalTripParamsSchema>;
@@ -45,6 +62,23 @@ export const driverReportExpenseSchema = z.object({
   paymentMethod: z.enum(DRIVER_EXPENSE_PAYMENT_METHODS),
   note: optionalText(500, 'Napomena'),
   fileId: optionalFileId,
+  /** Fill-up details; only kept for a FUEL expense. */
+  vehicleId: optionalFileId,
+  fuelLiters: emptyAsNull(
+    z
+      .number()
+      .positive('Broj litara mora biti veći od nule.')
+      .max(2_000, 'Broj litara nije ispravan.'),
+  ),
+  fuelType: emptyAsNull(z.enum(FUEL_LOG_FUEL_TYPES)),
+  fuelOdometerKm: emptyAsNull(
+    z
+      .number()
+      .int('Kilometraža na pumpi mora biti ceo broj.')
+      .min(0, 'Kilometraža ne može biti negativna.')
+      .max(100_000_000_000, 'Kilometraža nije ispravna.'),
+  ),
+  fuelStation: optionalText(120, 'Pumpa'),
 });
 
 export type DriverReportExpenseInput = z.input<typeof driverReportExpenseSchema>;
@@ -107,6 +141,7 @@ export const listDriverReportsQuerySchema = z
       .default(PAGINATION_DEFAULTS.limit),
     status: z.enum(DRIVER_REPORT_STATUSES).optional(),
     driverId: z.string().trim().min(1).max(64).optional(),
+    tripId: z.string().trim().min(1).max(64).optional(),
     /** Inclusive range on the trip's departure date. */
     from: isoDateSchema.optional(),
     to: isoDateSchema.optional(),
@@ -133,6 +168,8 @@ export const acceptDriverReportSchema = z.object({
           .max(100_000_000, 'Iznos nije ispravan.')
           .optional(),
         paymentMethod: tripExpensePaymentMethodSchema.optional(),
+        /** Also record the fill-up in the fuel log (FUEL expenses with liters and km only). */
+        addFuelLog: z.boolean().optional(),
       }),
     )
     .max(MAX_DRIVER_REPORT_EXPENSES)

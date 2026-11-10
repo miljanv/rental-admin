@@ -1,8 +1,12 @@
 import {
+  canRecordFuelLog,
+  DRIVER_PORTAL_DAYS_BACK,
   tripClientDisplayName,
   tripVehicleDistanceKm,
   type AcceptDriverReportRequest,
   type DriverReportAdminDto,
+  type DriverReportMissingDto,
+  type DriverReportPendingCountDto,
   type DriverReportExpenseStatus,
   type DriverReportStatus,
   type ListDriverReportsQuery,
@@ -15,6 +19,9 @@ import { badRequest, conflict, notFound } from '../utils/app-error';
 import { buildPaginationMeta } from '../utils/api-response';
 import { logger } from '../utils/logger';
 import { getTenantContext } from '../utils/tenant-context';
+import { recordAuditEvent } from './audit.service';
+import { addDays, portalTodayIso } from './driver-portal.service';
+import { createFuelLog } from './fuel-log.service';
 import { createTripExpense } from './trip-expense.service';
 
 const reportInclude = {
@@ -99,6 +106,12 @@ export const toDriverReportAdminDto = (record: ReportRecord): DriverReportAdminD
       status: expense.status,
       file: expense.file,
       tripExpenseId: expense.tripExpenseId,
+      vehicleId: expense.vehicleId,
+      fuelLiters: expense.fuelLiters,
+      fuelType: expense.fuelType,
+      fuelOdometerKm: expense.fuelOdometerKm,
+      fuelStation: expense.fuelStation,
+      fuelLogId: expense.fuelLogId,
     })),
     pendingCount: pending.length,
     pendingTotal: Math.round(pending.reduce((sum, expense) => sum + expense.amount, 0) * 100) / 100,
@@ -111,6 +124,7 @@ export const listDriverReports = async (
   const where = {
     ...(query.status ? { status: query.status } : {}),
     ...(query.driverId ? { driverId: query.driverId } : {}),
+    ...(query.tripId ? { tripId: query.tripId } : {}),
     ...(query.from || query.to
       ? {
           trip: {
@@ -153,6 +167,105 @@ const loadReport = async (id: string): Promise<ReportRecord> => {
 export const getDriverReport = async (id: string): Promise<DriverReportAdminDto> =>
   toDriverReportAdminDto(await loadReport(id));
 
+/**
+ * Records an accepted fuel expense in the fuel log as well, for consumption.
+ * The money is already booked through the trip expense, so the fuel log entry
+ * carries no cost. A failure here is logged and does not undo the acceptance.
+ * Returns 1 when an entry was created.
+ */
+const recordFuelLog = async (
+  report: ReportRecord,
+  expense: ReportRecord['expenses'][number],
+): Promise<number> => {
+  if (!expense.vehicleId || expense.fuelLiters === null || expense.fuelOdometerKm === null) {
+    return 0;
+  }
+
+  try {
+    const fuelLog = await createFuelLog({
+      vehicleId: expense.vehicleId,
+      fueledAt: toIsoDate(report.trip.departureDate),
+      location: expense.fuelStation ?? '',
+      driverId: report.driverId,
+      fuelType: expense.fuelType ?? 'DIESEL',
+      litersFilled: expense.fuelLiters,
+      odometerKm: expense.fuelOdometerKm,
+      cost: null,
+      paymentMethod: null,
+      supplier: expense.fuelStation ?? 'Pumpa (unos vozača)',
+      note: 'Iz unosa vozača; trošak je knjižen na vožnji.',
+    });
+
+    await prisma.driverTripReportExpense.update({
+      where: { id: expense.id },
+      data: { fuelLogId: fuelLog.id },
+    });
+
+    return 1;
+  } catch (error) {
+    logger.error('Fuel log from a driver report not recorded', error, {
+      reportId: report.id,
+      expenseId: expense.id,
+    });
+
+    return 0;
+  }
+};
+
+export const countPendingDriverReports = async (): Promise<DriverReportPendingCountDto> => ({
+  count: await prisma.driverTripReport.count({ where: { status: 'SUBMITTED' } }),
+});
+
+/**
+ * Finished trips of the last week where an assigned driver has a portal link
+ * but sent nothing yet, so the office knows whom to call.
+ */
+export const listMissingDriverReports = async (
+  now: Date = new Date(),
+): Promise<DriverReportMissingDto[]> => {
+  const today = portalTodayIso(now);
+  const rows = await prisma.tripDriver.findMany({
+    where: {
+      driver: { accessTokens: { some: { revokedAt: null } } },
+      trip: {
+        status: { notIn: ['CANCELLED', 'FREE'] },
+        departureDate: {
+          gte: new Date(`${addDays(today, -DRIVER_PORTAL_DAYS_BACK)}T00:00:00.000Z`),
+          lte: new Date(`${addDays(today, -1)}T00:00:00.000Z`),
+        },
+      },
+    },
+    orderBy: { trip: { departureDate: 'desc' } },
+    select: {
+      driver: { select: { id: true, firstName: true, lastName: true } },
+      trip: {
+        select: {
+          id: true,
+          departureDate: true,
+          returnDate: true,
+          origin: true,
+          destination: true,
+          driverReports: { select: { driverId: true } },
+        },
+      },
+    },
+  });
+
+  return rows
+    .filter(
+      (row) =>
+        toIsoDate(row.trip.returnDate ?? row.trip.departureDate) < today &&
+        !row.trip.driverReports.some((report) => report.driverId === row.driver.id),
+    )
+    .map((row) => ({
+      tripId: row.trip.id,
+      departureDate: toIsoDate(row.trip.departureDate),
+      origin: row.trip.origin,
+      destination: row.trip.destination,
+      driver: row.driver,
+    }));
+};
+
 /** Status of a report from the state of its expenses after the office handled some. */
 export const reviewedReportStatus = (
   statuses: ReadonlyArray<DriverReportExpenseStatus>,
@@ -187,6 +300,14 @@ export const acceptDriverReport = async (
     if (expense.status !== 'PENDING') {
       throw conflict('Trošak je već obrađen. Osvežite stranicu.');
     }
+
+    if (
+      decision.accept &&
+      decision.addFuelLog &&
+      !canRecordFuelLog({ ...expense, category: decision.category ?? expense.category })
+    ) {
+      throw badRequest('Za upis u evidenciju goriva nedostaju vozilo, litri ili kilometraža.');
+    }
   }
 
   await prisma.$transaction(async (tx) => {
@@ -209,6 +330,8 @@ export const acceptDriverReport = async (
     }
   });
 
+  let fuelLogs = 0;
+
   for (const decision of input.expenses.filter((entry) => entry.accept)) {
     const expense = byId.get(decision.id);
 
@@ -229,6 +352,10 @@ export const acceptDriverReport = async (
         where: { id: expense.id },
         data: { tripExpenseId: created.id },
       });
+
+      if (decision.addFuelLog) {
+        fuelLogs += await recordFuelLog(report, expense);
+      }
     } catch (error) {
       await prisma.driverTripReportExpense
         .update({ where: { id: expense.id }, data: { status: 'PENDING' } })
@@ -252,10 +379,15 @@ export const acceptDriverReport = async (
     },
   });
 
-  logger.info('Driver report reviewed', {
-    reportId: id,
-    accepted: input.expenses.filter((entry) => entry.accept).length,
-    rejected: input.expenses.filter((entry) => !entry.accept).length,
+  const accepted = input.expenses.filter((entry) => entry.accept).length;
+  const rejected = input.expenses.length - accepted;
+
+  logger.info('Driver report reviewed', { reportId: id, accepted, rejected, fuelLogs });
+  await recordAuditEvent({
+    action: 'DRIVER_REPORT_ACCEPTED',
+    entityType: 'Trip',
+    entityId: report.tripId,
+    metadata: { reportId: id, driverId: report.driverId, accepted, rejected, fuelLogs },
   });
 
   return getDriverReport(id);
@@ -266,7 +398,7 @@ export const returnDriverReport = async (
   id: string,
   input: ReturnDriverReportRequest,
 ): Promise<DriverReportAdminDto> => {
-  await loadReport(id);
+  const report = await loadReport(id);
 
   await prisma.driverTripReport.update({
     where: { id },
@@ -279,6 +411,12 @@ export const returnDriverReport = async (
   });
 
   logger.info('Driver report returned', { reportId: id });
+  await recordAuditEvent({
+    action: 'DRIVER_REPORT_RETURNED',
+    entityType: 'Trip',
+    entityId: report.tripId,
+    metadata: { reportId: id, driverId: report.driverId },
+  });
 
   return getDriverReport(id);
 };

@@ -20,6 +20,13 @@ driverReportRouter.get(
 );
 
 driverReportRouter.get(
+  '/pending-count',
+  asyncHandler(driverReportController.countPendingDriverReports),
+);
+
+driverReportRouter.get('/missing', asyncHandler(driverReportController.listMissingDriverReports));
+
+driverReportRouter.get(
   '/:id',
   validateRequest({ params: driverReportParamsSchema }),
   asyncHandler(driverReportController.getDriverReport),

@@ -16,6 +16,7 @@ import {
   type DriverReportExpenseRequest,
   type DriverReportStatus,
   type DriverReportWriteRequest,
+  type FuelLogFuelType,
   type PartnerType,
   type PresignUploadRequest,
   type TripExpenseCategory,
@@ -46,7 +47,7 @@ export const portalTodayIso = (now: Date = new Date()): string =>
     day: '2-digit',
   }).format(now);
 
-const addDays = (isoDate: string, days: number): string => {
+export const addDays = (isoDate: string, days: number): string => {
   const date = new Date(`${isoDate}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
@@ -76,6 +77,11 @@ const reportSelect = {
       status: true,
       fileId: true,
       file: { select: { id: true, originalName: true } },
+      vehicleId: true,
+      fuelLiters: true,
+      fuelType: true,
+      fuelOdometerKm: true,
+      fuelStation: true,
     },
   },
 } as const;
@@ -109,6 +115,11 @@ interface PortalExpenseRecord {
   status: DriverPortalExpenseDto['status'];
   fileId: string | null;
   file: { id: string; originalName: string } | null;
+  vehicleId: string | null;
+  fuelLiters: number | null;
+  fuelType: FuelLogFuelType | null;
+  fuelOdometerKm: number | null;
+  fuelStation: string | null;
 }
 
 interface PortalReportRecord {
@@ -159,6 +170,11 @@ const toReportDto = (report: PortalReportRecord): DriverPortalReportDto => ({
     note: expense.note,
     file: expense.file,
     status: expense.status,
+    vehicleId: expense.vehicleId,
+    fuelLiters: expense.fuelLiters,
+    fuelType: expense.fuelType,
+    fuelOdometerKm: expense.fuelOdometerKm,
+    fuelStation: expense.fuelStation,
   })),
 });
 
@@ -414,12 +430,40 @@ export const mergeDriverReadings = (
       return merged;
     });
 
-const sameExpense = (current: PortalExpenseRecord, next: DriverReportExpenseRequest): boolean =>
-  current.category === next.category &&
-  current.amount === next.amount &&
-  current.paymentMethod === next.paymentMethod &&
-  (current.note ?? null) === next.note &&
-  (current.fileId ?? null) === next.fileId;
+/** Fill-up details are only kept on a fuel expense. */
+export const fuelFields = (expense: DriverReportExpenseRequest) =>
+  expense.category === 'FUEL'
+    ? {
+        vehicleId: expense.vehicleId,
+        fuelLiters: expense.fuelLiters,
+        fuelType: expense.fuelType,
+        fuelOdometerKm: expense.fuelOdometerKm,
+        fuelStation: expense.fuelStation,
+      }
+    : {
+        vehicleId: null,
+        fuelLiters: null,
+        fuelType: null,
+        fuelOdometerKm: null,
+        fuelStation: null,
+      };
+
+const sameExpense = (current: PortalExpenseRecord, next: DriverReportExpenseRequest): boolean => {
+  const fuel = fuelFields(next);
+
+  return (
+    current.category === next.category &&
+    current.amount === next.amount &&
+    current.paymentMethod === next.paymentMethod &&
+    (current.note ?? null) === next.note &&
+    (current.fileId ?? null) === next.fileId &&
+    current.vehicleId === fuel.vehicleId &&
+    current.fuelLiters === fuel.fuelLiters &&
+    current.fuelType === fuel.fuelType &&
+    current.fuelOdometerKm === fuel.fuelOdometerKm &&
+    current.fuelStation === fuel.fuelStation
+  );
+};
 
 const assertReceipt = async (fileId: string): Promise<void> => {
   const file = await prisma.fileObject.findUnique({
@@ -441,6 +485,7 @@ const expenseData = (expense: DriverReportExpenseRequest) => ({
   paymentMethod: expense.paymentMethod,
   note: expense.note,
   fileId: expense.fileId,
+  ...fuelFields(expense),
 });
 
 /**
@@ -466,6 +511,14 @@ export const submitDriverReport = async (
     trip.vehicles.map((row) => [row.vehicle.id, { startKm: row.startKm, endKm: row.endKm }]),
   );
   const readings = mergeDriverReadings(input.vehicles, currentKm, plates);
+
+  for (const expense of input.expenses) {
+    const { vehicleId } = fuelFields(expense);
+
+    if (vehicleId && !plates.has(vehicleId)) {
+      throw badRequest('Vozilo nije dodeljeno ovoj vožnji.');
+    }
+  }
 
   for (const fileId of input.expenses.map((expense) => expense.fileId)) {
     if (fileId) {
