@@ -91,3 +91,41 @@ describe('tripSettlementWriteSchema', () => {
     ).toBe(false);
   });
 });
+
+describe('tripSettlementWriteSchema vehicleKm', () => {
+  it('accepts readings per vehicle, including an unfinished one', () => {
+    const result = tripSettlementWriteSchema.safeParse({
+      vehicleKm: [
+        { vehicleId: 'veh_1', startKm: 100, endKm: 260 },
+        { vehicleId: 'veh_2', startKm: 5_000, endKm: '' },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.vehicleKm?.[1]).toEqual({
+      vehicleId: 'veh_2',
+      startKm: 5_000,
+      endKm: null,
+    });
+  });
+
+  it('rejects an end reading below the start on that vehicle', () => {
+    const result = tripSettlementWriteSchema.safeParse({
+      vehicleKm: [{ vehicleId: 'veh_1', startKm: 260, endKm: 100 }],
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.path).toEqual(['vehicleKm', 0, 'endKm']);
+  });
+
+  it('rejects the same vehicle twice', () => {
+    const result = tripSettlementWriteSchema.safeParse({
+      vehicleKm: [
+        { vehicleId: 'veh_1', startKm: 100, endKm: 200 },
+        { vehicleId: 'veh_1', startKm: 300, endKm: 400 },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
+});

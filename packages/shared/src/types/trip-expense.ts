@@ -1,5 +1,11 @@
 import type { AttachedFileDto } from './file';
-import type { PerDiemCurrency, PerDiemStatus, TripDriverDto, TripPartnerDto } from './trip';
+import type {
+  PerDiemCurrency,
+  PerDiemStatus,
+  TripDriverDto,
+  TripPartnerDto,
+  TripVehicleDto,
+} from './trip';
 import type { PaymentMethod } from './transaction';
 
 export const TRIP_EXPENSE_CATEGORIES = [
@@ -67,6 +73,8 @@ export interface TripSettlementDto {
   startKm: number | null;
   endKm: number | null;
   fuelLiters: number | null;
+  /** The trip's vehicles with their own odometer readings. */
+  vehicles: TripVehicleDto[];
   carrierId: string | null;
   carrier: TripPartnerDto | null;
   revenue: number;

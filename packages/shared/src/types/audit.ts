@@ -23,6 +23,9 @@ export const AUDIT_ACTIONS = [
   'INVOICE_CREATED',
   'EXPENSE_CREATED',
   'EXPENSE_DELETED',
+  'DRIVER_LINK_CREATED',
+  'DRIVER_LINK_REVOKED',
+  'DRIVER_REPORT_SUBMITTED',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -51,6 +54,9 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   INVOICE_CREATED: 'Izdata faktura',
   EXPENSE_CREATED: 'Unet trošak',
   EXPENSE_DELETED: 'Obrisan trošak',
+  DRIVER_LINK_CREATED: 'Napravljen link za vozača',
+  DRIVER_LINK_REVOKED: 'Ukinut link za vozača',
+  DRIVER_REPORT_SUBMITTED: 'Vozač poslao podatke',
 };
 
 export const AUDIT_ENTITY_TYPES = [
@@ -59,6 +65,8 @@ export const AUDIT_ENTITY_TYPES = [
   'Vehicle',
   'TripBillingDocument',
   'CompanyExpense',
+  'Driver',
+  'Trip',
 ] as const;
 
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];

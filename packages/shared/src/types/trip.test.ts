@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { groupTripsByDepartureDate, tripVehicleCountLabel, tripVehicleDisplay } from './trip';
+import {
+  groupTripsByDepartureDate,
+  sumTripVehicleDistanceKm,
+  tripVehicleCountLabel,
+  tripVehicleDisplay,
+  tripVehicleDistanceKm,
+} from './trip';
+
+const noKm = { startKm: null, endKm: null, distanceKm: null, kmSource: null, kmUpdatedAt: null };
 
 describe('groupTripsByDepartureDate', () => {
   it('keeps consecutive same-day trips together in list order', () => {
@@ -34,10 +42,38 @@ describe('tripVehicleDisplay', () => {
       tripVehicleDisplay({
         vehicleCount: 3,
         vehicles: [
-          { id: '1', make: 'Setra', model: 'S', licensePlate: 'NS 890-RT' },
-          { id: '2', make: 'Setra', model: 'S', licensePlate: 'NS 778-RT' },
+          { ...noKm, id: '1', make: 'Setra', model: 'S', licensePlate: 'NS 890-RT' },
+          { ...noKm, id: '2', make: 'Setra', model: 'S', licensePlate: 'NS 778-RT' },
         ],
       }),
     ).toBe('NS 890-RT, NS 778-RT · 3 vozila');
+  });
+});
+
+describe('tripVehicleDistanceKm', () => {
+  it('is the difference of the readings', () => {
+    expect(tripVehicleDistanceKm(184_350, 184_512.4)).toBe(162.4);
+  });
+
+  it('is null while a reading is missing or the end is before the start', () => {
+    expect(tripVehicleDistanceKm(184_350, null)).toBeNull();
+    expect(tripVehicleDistanceKm(184_512, 184_350)).toBeNull();
+  });
+});
+
+describe('sumTripVehicleDistanceKm', () => {
+  it('adds up the vehicles that have both readings', () => {
+    expect(
+      sumTripVehicleDistanceKm([
+        { startKm: 100, endKm: 260 },
+        { startKm: 5_000, endKm: 5_158 },
+        { startKm: 900, endKm: null },
+      ]),
+    ).toBe(318);
+  });
+
+  it('is null when no vehicle has both readings', () => {
+    expect(sumTripVehicleDistanceKm([{ startKm: 100, endKm: null }])).toBeNull();
+    expect(sumTripVehicleDistanceKm([])).toBeNull();
   });
 });

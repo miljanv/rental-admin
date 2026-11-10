@@ -39,6 +39,8 @@ export const OWNED_MODELS = [
   'TripSeries',
   'Trip',
   'VatReturn',
+  'DriverAccessToken',
+  'DriverTripReport',
 ] as const;
 
 /** Relation names from a child model up to the owned model that decides its tenant. */
@@ -62,6 +64,8 @@ export const CHILD_SCOPE_PATHS: Readonly<Record<string, readonly string[]>> = {
   TripDriver: ['trip'],
   TripExpense: ['trip'],
   TripBillingDocument: ['trip'],
+  DriverTripReportVehicle: ['report'],
+  DriverTripReportExpense: ['report'],
 };
 
 export const EXEMPT_MODELS = [
@@ -85,6 +89,7 @@ export const CREATED_BY_MODELS: ReadonlySet<string> = new Set([
   'FinanceTransaction',
   'Trip',
   'VatReturn',
+  'DriverAccessToken',
 ]);
 
 const OWNED_SET: ReadonlySet<string> = new Set(OWNED_MODELS);

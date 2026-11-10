@@ -2,6 +2,8 @@ import type {
   ApiPaginatedResponse,
   ApiResponse,
   DeleteDriverResult,
+  DriverAccessLinkCreatedDto,
+  DriverAccessLinkDto,
   DriverDto,
   DriverStatusOverviewDto,
   DriverWriteRequest,
@@ -60,6 +62,34 @@ export const updateDriver = async (id: string, body: DriverWriteRequest): Promis
 
 export const deleteDriver = async (id: string): Promise<DeleteDriverResult> => {
   const response = await apiClient.delete<ApiResponse<DeleteDriverResult>>(`/drivers/${id}`);
+
+  return unwrap(response.data);
+};
+
+export const fetchDriverAccessLink = async (
+  id: string,
+  signal?: AbortSignal,
+): Promise<DriverAccessLinkDto> => {
+  const response = await apiClient.get<ApiResponse<DriverAccessLinkDto>>(
+    `/drivers/${id}/access-link`,
+    { signal },
+  );
+
+  return unwrap(response.data);
+};
+
+export const createDriverAccessLink = async (id: string): Promise<DriverAccessLinkCreatedDto> => {
+  const response = await apiClient.post<ApiResponse<DriverAccessLinkCreatedDto>>(
+    `/drivers/${id}/access-link`,
+  );
+
+  return unwrap(response.data);
+};
+
+export const revokeDriverAccessLink = async (id: string): Promise<DriverAccessLinkDto> => {
+  const response = await apiClient.delete<ApiResponse<DriverAccessLinkDto>>(
+    `/drivers/${id}/access-link`,
+  );
 
   return unwrap(response.data);
 };

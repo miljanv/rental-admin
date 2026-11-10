@@ -43,6 +43,11 @@ apiClient.interceptors.response.use(
 
     const requestUrl = error.config?.url ?? '';
 
+    // The driver portal has no session; its errors must not sign out an office user.
+    if (requestUrl.startsWith('/driver-portal')) {
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 401) {
       if (!requestUrl.includes('/auth/login') && !requestUrl.includes('/auth/me')) {
         clearAccessToken();

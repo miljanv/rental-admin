@@ -2,6 +2,7 @@ import type { UserRole } from '@rental-admin/shared';
 import {
   Bell,
   ChartNoAxesCombined,
+  ClipboardCheck,
   FileText,
   Fuel,
   LayoutDashboard,
@@ -42,6 +43,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: '/trips',
     icon: Route,
     description: 'Pojedinačne i ponavljajuće vožnje',
+  },
+  {
+    title: 'Unosi vozača',
+    href: '/driver-reports',
+    icon: ClipboardCheck,
+    description: 'Kilometraža i troškovi koje su poslali vozači',
   },
   {
     title: 'Zaposleni',

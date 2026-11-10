@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { MAX_TRIP_DRIVERS } from '../types/trip';
+import { MAX_TRIP_DRIVERS, MAX_TRIP_VEHICLES } from '../types/trip';
 import { ADVANCE_STATUSES, PER_DIEM_CURRENCIES, PER_DIEM_STATUSES } from '../types/trip';
 import { TRIP_EXPENSE_CATEGORIES, TRIP_EXPENSE_PAYMENT_METHODS } from '../types/trip-expense';
 import { driverIdSchema } from './driver';
@@ -75,6 +75,47 @@ export const tripDriverAllowanceSchema = z.object({
   }
 });
 
+const odometerKm = (label: string) => optionalNonNegative(label, 100_000_000_000);
+
+/** Odometer readings of one vehicle on the trip. */
+export const tripVehicleKmSchema = z.object({
+  vehicleId: z.string().trim().min(1, 'Vozilo je obavezno.').max(64),
+  startKm: odometerKm('Početna kilometraža'),
+  endKm: odometerKm('Završna kilometraža'),
+});
+
+export type TripVehicleKmInput = z.input<typeof tripVehicleKmSchema>;
+export type TripVehicleKmRequest = z.output<typeof tripVehicleKmSchema>;
+
+/** Adds the per-vehicle checks shared by the office settlement and the driver portal. */
+export const refineTripVehicleKm = (
+  vehicles: ReadonlyArray<TripVehicleKmRequest>,
+  ctx: z.RefinementCtx,
+  path: ReadonlyArray<string | number>,
+): void => {
+  const seen = new Set<string>();
+
+  vehicles.forEach((vehicle, index) => {
+    if (vehicle.startKm != null && vehicle.endKm != null && vehicle.endKm < vehicle.startKm) {
+      ctx.addIssue({
+        code: 'custom',
+        path: [...path, index, 'endKm'],
+        message: 'Završna kilometraža ne može biti manja od početne.',
+      });
+    }
+
+    if (seen.has(vehicle.vehicleId)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: [...path, index, 'vehicleId'],
+        message: 'Isto vozilo je uneto više puta.',
+      });
+    }
+
+    seen.add(vehicle.vehicleId);
+  });
+};
+
 export const tripSettlementWriteSchema = z
   .object({
     paidAt: optionalIsoDate,
@@ -82,6 +123,11 @@ export const tripSettlementWriteSchema = z
     startKm: optionalNonNegative('Početna kilometraža', 100_000_000_000),
     endKm: optionalNonNegative('Završna kilometraža', 100_000_000_000),
     fuelLiters: optionalNonNegative('Količina goriva', 10_000),
+    /** Per-vehicle readings. When given, they replace `startKm` / `endKm`. */
+    vehicleKm: z
+      .array(tripVehicleKmSchema)
+      .max(MAX_TRIP_VEHICLES, `Najviše ${MAX_TRIP_VEHICLES} vozila po vožnji.`)
+      .optional(),
     drivers: z
       .array(tripDriverAllowanceSchema)
       .max(MAX_TRIP_DRIVERS, `Najviše ${MAX_TRIP_DRIVERS} vozača po vožnji.`)
@@ -95,6 +141,8 @@ export const tripSettlementWriteSchema = z
         message: 'Završna kilometraža ne može biti manja od početne.',
       });
     }
+
+    refineTripVehicleKm(value.vehicleKm ?? [], ctx, ['vehicleKm']);
 
     const driverIds = value.drivers?.map((driver) => driver.driverId) ?? [];
 

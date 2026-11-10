@@ -123,12 +123,61 @@ export const WEEKDAY_SHORT_LABELS: Record<number, string> = {
   6: 'Sub',
 };
 
+export const TRIP_KM_SOURCES = ['ADMIN', 'DRIVER'] as const;
+export type TripKmSource = (typeof TRIP_KM_SOURCES)[number];
+
+export const TRIP_KM_SOURCE_LABELS: Record<TripKmSource, string> = {
+  ADMIN: 'uneo admin',
+  DRIVER: 'uneo vozač',
+};
+
 export interface TripVehicleDto {
   id: string;
   make: string;
   model: string;
   licensePlate: string;
+  /** Odometer of this vehicle at the start / end of the job. */
+  startKm: number | null;
+  endKm: number | null;
+  /** `endKm - startKm`, or null until both readings are known. */
+  distanceKm: number | null;
+  kmSource: TripKmSource | null;
+  kmUpdatedAt: string | null;
 }
+
+const roundKm = (value: number): number => Math.round(value * 10) / 10;
+
+/** Distance of one vehicle on a trip, or null while a reading is missing or inconsistent. */
+export const tripVehicleDistanceKm = (
+  startKm: number | null | undefined,
+  endKm: number | null | undefined,
+): number | null => {
+  if (
+    startKm == null ||
+    endKm == null ||
+    !Number.isFinite(startKm) ||
+    !Number.isFinite(endKm) ||
+    endKm < startKm
+  ) {
+    return null;
+  }
+
+  return roundKm(endKm - startKm);
+};
+
+/**
+ * Trip distance as the sum over its vehicles. Vehicles still missing a reading
+ * are left out; null when no vehicle has both readings yet.
+ */
+export const sumTripVehicleDistanceKm = (
+  vehicles: ReadonlyArray<{ startKm: number | null; endKm: number | null }>,
+): number | null => {
+  const distances = vehicles
+    .map((vehicle) => tripVehicleDistanceKm(vehicle.startKm, vehicle.endKm))
+    .filter((distance): distance is number => distance !== null);
+
+  return distances.length === 0 ? null : roundKm(distances.reduce((sum, km) => sum + km, 0));
+};
 
 /** Hard cap on drivers assigned to one trip (and therefore on per-diem rows). */
 export const MAX_TRIP_DRIVERS = 3;

@@ -8,13 +8,31 @@ import type {
   TripSeriesDto,
   TripSeriesFrequency,
   TripSeriesPauseDto,
+  TripKmSource,
   TripStatus,
   TripVehicleDto,
 } from '@rental-admin/shared';
+import { tripVehicleDistanceKm } from '@rental-admin/shared';
 
 export interface TripVehicleAssignmentRecord {
+  startKm?: number | null;
+  endKm?: number | null;
+  kmSource?: TripKmSource | null;
+  kmUpdatedAt?: Date | null;
   vehicle: { id: string; make: string; model: string; licensePlate: string };
 }
+
+export const toTripVehicleDto = (assignment: TripVehicleAssignmentRecord): TripVehicleDto => ({
+  id: assignment.vehicle.id,
+  make: assignment.vehicle.make,
+  model: assignment.vehicle.model,
+  licensePlate: assignment.vehicle.licensePlate,
+  startKm: assignment.startKm ?? null,
+  endKm: assignment.endKm ?? null,
+  distanceKm: tripVehicleDistanceKm(assignment.startKm, assignment.endKm),
+  kmSource: assignment.kmSource ?? null,
+  kmUpdatedAt: assignment.kmUpdatedAt ? assignment.kmUpdatedAt.toISOString() : null,
+});
 
 export interface TripDriverAssignmentRecord {
   perDiemAmount: number | null;
@@ -181,12 +199,7 @@ export const toTripDto = (record: TripRecord): TripDto => ({
   distanceKm: record.distanceKm,
   seriesId: record.seriesId,
   vehicleCount: record.vehicleCount,
-  vehicles: record.vehicles.map((assignment): TripVehicleDto => ({
-    id: assignment.vehicle.id,
-    make: assignment.vehicle.make,
-    model: assignment.vehicle.model,
-    licensePlate: assignment.vehicle.licensePlate,
-  })),
+  vehicles: record.vehicles.map(toTripVehicleDto),
   drivers: record.drivers.map((assignment): TripDriverDto => ({
     id: assignment.driver.id,
     firstName: assignment.driver.firstName,

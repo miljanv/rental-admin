@@ -40,6 +40,10 @@ import {
 import { useDrivers } from '@/features/drivers/hooks/use-drivers';
 import { useCreateTripExpense } from '@/features/trips/hooks/use-create-trip-expense';
 import { useDeleteTripExpense } from '@/features/trips/hooks/use-delete-trip-expense';
+import {
+  TripVehicleKmFields,
+  toVehicleKmFormValues,
+} from '@/features/trips/components/trip-vehicle-km-fields';
 import { useTripSettlement } from '@/features/trips/hooks/use-trip-settlement';
 import { useUpdateTripSettlement } from '@/features/trips/hooks/use-update-trip-settlement';
 import { formatMoney } from '@/lib/format';
@@ -73,6 +77,7 @@ const emptySettlement = {
   startKm: '' as const,
   endKm: '' as const,
   fuelLiters: '' as const,
+  vehicleKm: [] as TripSettlementWriteInput['vehicleKm'],
   drivers: [] as TripSettlementWriteInput['drivers'],
 };
 
@@ -117,6 +122,7 @@ export function TripSettlementSheet({ trip, onOpenChange }: TripSettlementSheetP
       startKm: settlement.startKm ?? '',
       endKm: settlement.endKm ?? '',
       fuelLiters: settlement.fuelLiters ?? '',
+      vehicleKm: toVehicleKmFormValues(settlement.vehicles),
       drivers: settlement.drivers.map((driver) => ({
         driverId: driver.id,
         perDiemAmount: driver.perDiemAmount ?? '',
@@ -300,34 +306,45 @@ export function TripSettlementSheet({ trip, onOpenChange }: TripSettlementSheetP
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field
-                  id="sheet-startKm"
-                  label="Početni km"
-                  error={errors.startKm?.message as string | undefined}
-                >
-                  <Input
-                    id="sheet-startKm"
-                    type="number"
-                    inputMode="decimal"
-                    step="0.1"
+                {settlement && settlement.vehicles.length > 0 ? (
+                  <TripVehicleKmFields
+                    form={form}
+                    vehicles={settlement.vehicles}
+                    idPrefix="sheet-vehicleKm"
                     disabled={saveMutation.isPending}
-                    {...form.register('startKm', { valueAsNumber: true })}
                   />
-                </Field>
-                <Field
-                  id="sheet-endKm"
-                  label="Završni km"
-                  error={errors.endKm?.message as string | undefined}
-                >
-                  <Input
-                    id="sheet-endKm"
-                    type="number"
-                    inputMode="decimal"
-                    step="0.1"
-                    disabled={saveMutation.isPending}
-                    {...form.register('endKm', { valueAsNumber: true })}
-                  />
-                </Field>
+                ) : (
+                  <>
+                    <Field
+                      id="sheet-startKm"
+                      label="Početni km"
+                      error={errors.startKm?.message as string | undefined}
+                    >
+                      <Input
+                        id="sheet-startKm"
+                        type="number"
+                        inputMode="decimal"
+                        step="0.1"
+                        disabled={saveMutation.isPending}
+                        {...form.register('startKm', { valueAsNumber: true })}
+                      />
+                    </Field>
+                    <Field
+                      id="sheet-endKm"
+                      label="Završni km"
+                      error={errors.endKm?.message as string | undefined}
+                    >
+                      <Input
+                        id="sheet-endKm"
+                        type="number"
+                        inputMode="decimal"
+                        step="0.1"
+                        disabled={saveMutation.isPending}
+                        {...form.register('endKm', { valueAsNumber: true })}
+                      />
+                    </Field>
+                  </>
+                )}
                 <Field
                   id="sheet-fuel"
                   label="Gorivo (l)"

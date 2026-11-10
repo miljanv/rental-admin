@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { toTripDto, type TripRecord } from './trip-mapper';
+import { toTripDto, toTripVehicleDto, type TripRecord } from './trip-mapper';
 
 const record: TripRecord = {
   id: 'trip_1',
@@ -80,6 +80,38 @@ describe('toTripDto', () => {
       carrierId: 'partner_carrier',
       carrier: { id: 'partner_carrier', companyName: 'Drugi prevoznik' },
       drivers: [{ id: 'drv_1', perDiemAmount: 8_000, advanceAmount: 2_000 }],
+    });
+  });
+});
+
+describe('toTripVehicleDto', () => {
+  const vehicle = { id: 'veh_1', make: 'Setra', model: 'S 516', licensePlate: 'BG-123-AA' };
+
+  it('exposes the readings, the distance and who entered them', () => {
+    expect(
+      toTripVehicleDto({
+        vehicle,
+        startKm: 184_350,
+        endKm: 184_512,
+        kmSource: 'DRIVER',
+        kmUpdatedAt: new Date('2026-11-10T08:00:00.000Z'),
+      }),
+    ).toEqual({
+      ...vehicle,
+      startKm: 184_350,
+      endKm: 184_512,
+      distanceKm: 162,
+      kmSource: 'DRIVER',
+      kmUpdatedAt: '2026-11-10T08:00:00.000Z',
+    });
+  });
+
+  it('has no distance until both readings are known', () => {
+    expect(toTripVehicleDto({ vehicle, startKm: 184_350 })).toMatchObject({
+      startKm: 184_350,
+      endKm: null,
+      distanceKm: null,
+      kmSource: null,
     });
   });
 });

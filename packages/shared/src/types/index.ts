@@ -9,6 +9,7 @@ export * from './contract';
 export * from './contract-document';
 export * from './dashboard';
 export * from './driver';
+export * from './driver-portal';
 export * from './driver-document';
 export * from './driver-status';
 export * from './driver-work';

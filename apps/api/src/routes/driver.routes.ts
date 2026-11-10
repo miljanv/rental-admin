@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import * as absenceAttestationController from '../controllers/absence-attestation.controller';
+import * as driverAccessController from '../controllers/driver-access.controller';
 import * as driverDocumentController from '../controllers/driver-document.controller';
 import * as driverController from '../controllers/driver.controller';
 import * as driverWorkController from '../controllers/driver-work.controller';
@@ -47,6 +48,24 @@ driverRouter.post(
   '/',
   validateRequest({ body: driverWriteSchema }),
   asyncHandler(driverController.createDriver),
+);
+
+driverRouter.get(
+  '/:id/access-link',
+  validateRequest({ params: driverIdParamsSchema }),
+  asyncHandler(driverAccessController.getDriverAccessLink),
+);
+
+driverRouter.post(
+  '/:id/access-link',
+  validateRequest({ params: driverIdParamsSchema }),
+  asyncHandler(driverAccessController.createDriverAccessLink),
+);
+
+driverRouter.delete(
+  '/:id/access-link',
+  validateRequest({ params: driverIdParamsSchema }),
+  asyncHandler(driverAccessController.revokeDriverAccessLink),
 );
 
 driverRouter.get(

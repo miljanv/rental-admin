@@ -38,6 +38,10 @@ import { usePartners } from '@/features/partners/hooks/use-partners';
 import { DeleteTripExpenseDialog } from '@/features/trips/components/delete-trip-expense-dialog';
 import { TripExpenseForm } from '@/features/trips/components/trip-expense-form';
 import { TripExpensesTable } from '@/features/trips/components/trip-expenses-table';
+import {
+  TripVehicleKmFields,
+  toVehicleKmFormValues,
+} from '@/features/trips/components/trip-vehicle-km-fields';
 import { useTripSettlement } from '@/features/trips/hooks/use-trip-settlement';
 import { useUpdateTripSettlement } from '@/features/trips/hooks/use-update-trip-settlement';
 import { formatMoney } from '@/lib/format';
@@ -162,6 +166,7 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
           startKm: settlement.startKm ?? '',
           endKm: settlement.endKm ?? '',
           fuelLiters: settlement.fuelLiters ?? '',
+          vehicleKm: toVehicleKmFormValues(settlement.vehicles),
           drivers: settlement.drivers.map((driver) => ({
             driverId: driver.id,
             perDiemAmount: driver.perDiemAmount,
@@ -180,6 +185,7 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
           startKm: '',
           endKm: '',
           fuelLiters: '',
+          vehicleKm: [],
           drivers: [],
         },
   });
@@ -249,34 +255,45 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
         <CardContent>
           <form onSubmit={onSubmit} noValidate className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field
-                id="startKm"
-                label="Početni km"
-                error={errors.startKm?.message as string | undefined}
-              >
-                <Input
-                  id="startKm"
-                  type="number"
-                  inputMode="decimal"
-                  step="0.1"
+              {settlement.vehicles.length > 0 ? (
+                <TripVehicleKmFields
+                  form={form}
+                  vehicles={settlement.vehicles}
+                  idPrefix="vehicleKm"
                   disabled={saveMutation.isPending}
-                  {...form.register('startKm', { valueAsNumber: true })}
                 />
-              </Field>
-              <Field
-                id="endKm"
-                label="Završni km"
-                error={errors.endKm?.message as string | undefined}
-              >
-                <Input
-                  id="endKm"
-                  type="number"
-                  inputMode="decimal"
-                  step="0.1"
-                  disabled={saveMutation.isPending}
-                  {...form.register('endKm', { valueAsNumber: true })}
-                />
-              </Field>
+              ) : (
+                <>
+                  <Field
+                    id="startKm"
+                    label="Početni km"
+                    error={errors.startKm?.message as string | undefined}
+                  >
+                    <Input
+                      id="startKm"
+                      type="number"
+                      inputMode="decimal"
+                      step="0.1"
+                      disabled={saveMutation.isPending}
+                      {...form.register('startKm', { valueAsNumber: true })}
+                    />
+                  </Field>
+                  <Field
+                    id="endKm"
+                    label="Završni km"
+                    error={errors.endKm?.message as string | undefined}
+                  >
+                    <Input
+                      id="endKm"
+                      type="number"
+                      inputMode="decimal"
+                      step="0.1"
+                      disabled={saveMutation.isPending}
+                      {...form.register('endKm', { valueAsNumber: true })}
+                    />
+                  </Field>
+                </>
+              )}
               <Field
                 id="fuelLiters"
                 label="Gorivo (l)"
