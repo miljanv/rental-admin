@@ -10,6 +10,7 @@ import {
   type CompanyExpenseScope,
   type CompanyExpenseVatRate,
 } from '@rental-admin/shared';
+import { useEffect } from 'react';
 import { Controller, useForm, useWatch, type Resolver } from 'react-hook-form';
 
 import { DateField } from '@/components/common/date-field';
@@ -45,6 +46,8 @@ import { cn } from '@/lib/utils';
 interface CompanyExpenseFormProps {
   expense?: CompanyExpenseDto;
   defaultVehicleId?: string;
+  /** Bumped to scroll to and focus the supply date, e.g. from "Nedostaje" in the table. */
+  supplyDateFocusRequest?: number;
   onDone: () => void;
 }
 
@@ -75,11 +78,26 @@ function Field({ id, label, error, children }: FieldProps) {
   );
 }
 
-export function CompanyExpenseForm({ expense, defaultVehicleId, onDone }: CompanyExpenseFormProps) {
+export function CompanyExpenseForm({
+  expense,
+  defaultVehicleId,
+  supplyDateFocusRequest = 0,
+  onDone,
+}: CompanyExpenseFormProps) {
   const isEdit = Boolean(expense);
   const createMutation = useCreateCompanyExpense();
   const updateMutation = useUpdateCompanyExpense();
   const isPending = createMutation.isPending || updateMutation.isPending;
+
+  useEffect(() => {
+    if (supplyDateFocusRequest === 0) {
+      return;
+    }
+
+    const input = document.getElementById('supplyDate');
+    input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    input?.focus({ preventScroll: true });
+  }, [supplyDateFocusRequest]);
 
   const vehiclesQuery = useVehicles({
     page: 1,

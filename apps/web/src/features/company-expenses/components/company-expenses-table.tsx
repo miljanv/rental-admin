@@ -36,6 +36,8 @@ interface CompanyExpensesTableProps {
   readOnly?: boolean;
   onEdit?: (expense: CompanyExpenseDto) => void;
   onRequestDelete?: (expense: CompanyExpenseDto) => void;
+  /** Turns "Nedostaje" into a shortcut to the supply date of that expense. */
+  onAddSupplyDate?: (expense: CompanyExpenseDto) => void;
   emptyAction?: React.ReactNode;
   /** Split the list into months of the supply date, each with its subtotal. */
   groupBySupplyMonth?: boolean;
@@ -104,6 +106,7 @@ export function CompanyExpensesTable({
   readOnly = false,
   onEdit,
   onRequestDelete,
+  onAddSupplyDate,
   emptyAction,
   groupBySupplyMonth = false,
 }: CompanyExpensesTableProps) {
@@ -118,6 +121,15 @@ export function CompanyExpensesTable({
       <TableCell>
         {expense.supplyDate ? (
           formatDate(expense.supplyDate)
+        ) : onAddSupplyDate && !readOnly ? (
+          <button
+            type="button"
+            className="text-xs font-medium text-amber-700 underline decoration-dotted underline-offset-2 hover:decoration-solid dark:text-amber-400"
+            aria-label={`Unesi datum prometa za račun ${expense.supplier}`}
+            onClick={() => onAddSupplyDate(expense)}
+          >
+            Nedostaje
+          </button>
         ) : (
           <span className="text-xs font-medium text-amber-700 dark:text-amber-400">Nedostaje</span>
         )}

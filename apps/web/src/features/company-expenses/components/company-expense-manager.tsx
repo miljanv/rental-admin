@@ -49,6 +49,7 @@ export function CompanyExpenseManager() {
   const [supplierFilter, setSupplierFilter] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editing, setEditing] = useState<CompanyExpenseDto | undefined>(undefined);
+  const [supplyDateFocusRequest, setSupplyDateFocusRequest] = useState(0);
   const [expenseToDelete, setExpenseToDelete] = useState<CompanyExpenseDto | null>(null);
 
   const vehiclesQuery = useVehicles({
@@ -211,6 +212,7 @@ export function CompanyExpenseManager() {
           <CompanyExpenseForm
             key={editing?.id ?? 'new'}
             expense={editing}
+            supplyDateFocusRequest={supplyDateFocusRequest}
             defaultVehicleId={
               vehicleFilter === ALL || isScopeFilter(vehicleFilter) ? undefined : vehicleFilter
             }
@@ -245,6 +247,11 @@ export function CompanyExpenseManager() {
                 setIsFormOpen(true);
               }}
               onRequestDelete={setExpenseToDelete}
+              onAddSupplyDate={(expense) => {
+                setEditing(expense);
+                setIsFormOpen(true);
+                setSupplyDateFocusRequest((current) => current + 1);
+              }}
               emptyAction={
                 <Button size="sm" onClick={openCreate}>
                   Dodaj trošak
