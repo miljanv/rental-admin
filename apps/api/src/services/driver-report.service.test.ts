@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { prismaMock, createTripExpenseMock, createFuelLogMock, auditMock } = vi.hoisted(() => {
   const mock = {
     driverTripReport: { findFirst: vi.fn(), update: vi.fn(), count: vi.fn() },
+    trip: { findFirst: vi.fn(), update: vi.fn() },
     tripDriver: { findMany: vi.fn() },
     driverTripReportExpense: { updateMany: vi.fn(), update: vi.fn(), findMany: vi.fn() },
     $transaction: vi.fn(),
@@ -151,6 +152,15 @@ describe('acceptDriverReport', () => {
     });
   });
 
+  it('leaves the trip fuel figure alone for a non-fuel expense', async () => {
+    await acceptDriverReport('rep_1', {
+      expenses: [{ id: 'exp_1', accept: true }],
+      comment: null,
+    });
+
+    expect(prismaMock.trip.update).not.toHaveBeenCalled();
+  });
+
   it('rejects without creating anything', async () => {
     prismaMock.driverTripReportExpense.findMany.mockResolvedValue([{ status: 'REJECTED' }]);
 
@@ -233,6 +243,7 @@ describe('acceptDriverReport fuel log', () => {
 
   it('records the fill-up without a cost, so the money is booked only once', async () => {
     prismaMock.driverTripReport.findFirst.mockResolvedValue(report([fuelExpense]));
+    prismaMock.trip.findFirst.mockResolvedValue({ fuelLiters: 20 });
     createFuelLogMock.mockResolvedValue({ id: 'fl_1' });
 
     await acceptDriverReport('rep_1', {
@@ -254,6 +265,10 @@ describe('acceptDriverReport fuel log', () => {
     expect(prismaMock.driverTripReportExpense.update).toHaveBeenCalledWith({
       where: { id: 'exp_1' },
       data: { fuelLogId: 'fl_1' },
+    });
+    expect(prismaMock.trip.update).toHaveBeenCalledWith({
+      where: { id: 'trip_1' },
+      data: { fuelLiters: 230.5 },
     });
     expect(auditMock).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'DRIVER_REPORT_ACCEPTED', entityId: 'trip_1' }),

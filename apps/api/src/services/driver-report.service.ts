@@ -331,6 +331,7 @@ export const acceptDriverReport = async (
   });
 
   let fuelLogs = 0;
+  let acceptedLiters = 0;
 
   for (const decision of input.expenses.filter((entry) => entry.accept)) {
     const expense = byId.get(decision.id);
@@ -353,6 +354,10 @@ export const acceptDriverReport = async (
         data: { tripExpenseId: created.id },
       });
 
+      if ((decision.category ?? expense.category) === 'FUEL' && expense.fuelLiters !== null) {
+        acceptedLiters += expense.fuelLiters;
+      }
+
       if (decision.addFuelLog) {
         fuelLogs += await recordFuelLog(report, expense);
       }
@@ -362,6 +367,21 @@ export const acceptDriverReport = async (
         .catch(() => undefined);
       throw error;
     }
+  }
+
+  // Liters from accepted fuel receipts add up in the trip's own fuel figure.
+  if (acceptedLiters > 0) {
+    const trip = await prisma.trip.findFirst({
+      where: { id: report.tripId },
+      select: { fuelLiters: true },
+    });
+
+    await prisma.trip.update({
+      where: { id: report.tripId },
+      data: {
+        fuelLiters: Math.round(((trip?.fuelLiters ?? 0) + acceptedLiters) * 100) / 100,
+      },
+    });
   }
 
   const statuses = await prisma.driverTripReportExpense.findMany({

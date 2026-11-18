@@ -51,10 +51,11 @@ import {
 import { formatDate, formatDateTime, formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
-type Decision = 'accept' | 'reject' | 'later';
+type Decision = 'accept' | 'reject';
 
 interface ExpenseDraft {
-  decision: Decision;
+  /** Null until the office picks one; an undecided expense stays pending. */
+  decision: Decision | null;
   category: TripExpenseCategory;
   amount: string;
   paymentMethod: TripExpensePaymentMethod;
@@ -64,11 +65,10 @@ interface ExpenseDraft {
 const DECISION_LABELS: Record<Decision, string> = {
   accept: 'Prihvati',
   reject: 'Odbij',
-  later: 'Kasnije',
 };
 
 const draftFor = (expense: DriverReportAdminExpenseDto): ExpenseDraft => ({
-  decision: 'accept',
+  decision: null,
   category: expense.category,
   amount: String(expense.amount),
   paymentMethod: expense.paymentMethod,
@@ -129,6 +129,18 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
   const isPending = acceptMutation.isPending || returnMutation.isPending;
   const totalKm = driverReportKm(report);
   const canReview = report.status === 'SUBMITTED' || pending.length > 0;
+  const decided = pending.map((expense) => drafts[expense.id]?.decision);
+  const acceptCount = decided.filter((decision) => decision === 'accept').length;
+  const rejectCount = decided.filter((decision) => decision === 'reject').length;
+  const saveLabel =
+    pending.length === 0
+      ? 'Potvrdi unos'
+      : [
+          acceptCount > 0 ? `prihvati ${acceptCount}` : null,
+          rejectCount > 0 ? `odbij ${rejectCount}` : null,
+        ]
+          .filter(Boolean)
+          .join(', ');
 
   const updateDraft = (id: string, patch: Partial<ExpenseDraft>) =>
     setDrafts((current) => {
@@ -142,7 +154,7 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
     for (const expense of pending) {
       const draft = drafts[expense.id];
 
-      if (!draft || draft.decision === 'later') {
+      if (!draft || draft.decision === null) {
         continue;
       }
 
@@ -255,6 +267,12 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
 
         <section className="space-y-3">
           <h3 className="text-sm font-semibold">Troškovi</h3>
+          {pending.length > 0 ? (
+            <p className="text-muted-foreground text-xs">
+              Kod troška kliknite Prihvati ili Odbij, pa „Sačuvaj“ na dnu. Trošak bez odluke ostaje
+              na čekanju, a ništa se ne upisuje dok ne sačuvate.
+            </p>
+          ) : null}
           {report.expenses.length === 0 ? (
             <p className="text-muted-foreground text-sm">Vozač nije prijavio troškove.</p>
           ) : null}
@@ -266,7 +284,7 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
               return null;
             }
 
-            const isAccepting = draft.decision === 'accept';
+            const isRejecting = draft.decision === 'reject';
 
             return (
               <div
@@ -276,7 +294,7 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
                   draft.decision === 'reject' && 'opacity-60',
                 )}
               >
-                <div className="grid grid-cols-3 gap-1">
+                <div className="grid grid-cols-2 gap-1">
                   {(Object.keys(DECISION_LABELS) as Decision[]).map((decision) => (
                     <Button
                       key={decision}
@@ -284,7 +302,11 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
                       size="sm"
                       variant={draft.decision === decision ? 'default' : 'outline'}
                       disabled={isPending}
-                      onClick={() => updateDraft(expense.id, { decision })}
+                      onClick={() =>
+                        updateDraft(expense.id, {
+                          decision: draft.decision === decision ? null : decision,
+                        })
+                      }
                     >
                       {DECISION_LABELS[decision]}
                     </Button>
@@ -298,7 +320,7 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
                       onValueChange={(value) =>
                         updateDraft(expense.id, { category: value as TripExpenseCategory })
                       }
-                      disabled={isPending || !isAccepting}
+                      disabled={isPending || isRejecting}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue />
@@ -323,7 +345,7 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
                       step="0.01"
                       value={draft.amount}
                       onChange={(event) => updateDraft(expense.id, { amount: event.target.value })}
-                      disabled={isPending || !isAccepting}
+                      disabled={isPending || isRejecting}
                     />
                   </div>
                   <div className="space-y-1">
@@ -335,7 +357,7 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
                           paymentMethod: value as TripExpensePaymentMethod,
                         })
                       }
-                      disabled={isPending || !isAccepting}
+                      disabled={isPending || isRejecting}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue />
@@ -364,7 +386,7 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
                         }
                         disabled={
                           isPending ||
-                          !isAccepting ||
+                          isRejecting ||
                           !canRecordFuelLog({ ...expense, category: draft.category })
                         }
                       />
@@ -466,12 +488,18 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
               >
                 {returnMutation.isPending ? 'Vraćanje…' : 'Vrati vozaču'}
               </Button>
-              <Button type="button" onClick={() => void saveDecisions()} disabled={isPending}>
+              <Button
+                type="button"
+                onClick={() => void saveDecisions()}
+                disabled={isPending || (pending.length > 0 && acceptCount + rejectCount === 0)}
+              >
                 {acceptMutation.isPending
                   ? 'Čuvanje…'
-                  : pending.length > 0
-                    ? 'Sačuvaj odluke'
-                    : 'Potvrdi'}
+                  : pending.length === 0
+                    ? saveLabel
+                    : saveLabel
+                      ? `Sačuvaj (${saveLabel})`
+                      : 'Sačuvaj'}
               </Button>
             </SheetFooter>
           </>

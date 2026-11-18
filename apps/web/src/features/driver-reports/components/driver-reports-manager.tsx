@@ -142,7 +142,11 @@ export function DriverReportsManager() {
           </div>
 
           {query.isPending ? (
-            <TableSkeleton columns={6} />
+            <Table>
+              <TableBody>
+                <TableSkeleton columns={7} />
+              </TableBody>
+            </Table>
           ) : query.isError ? (
             <ErrorState
               error={query.error}
