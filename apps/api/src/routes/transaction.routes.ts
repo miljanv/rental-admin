@@ -149,6 +149,11 @@ transactionRouter.post(
   validateRequest({ params: financeIdParamsSchema, body: confirmAllocationPlanSchema }),
   asyncHandler(settlementController.confirmAllocation),
 );
+transactionRouter.post(
+  '/:id/round-to-invoice',
+  validateRequest({ params: financeIdParamsSchema }),
+  asyncHandler(settlementController.roundToInvoice),
+);
 transactionRouter.get(
   '/:id/allocations',
   validateRequest({ params: financeIdParamsSchema }),

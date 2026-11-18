@@ -12,6 +12,7 @@ vi.mock('../config/prisma', () => {
         'findUnique',
         'findUniqueOrThrow',
         'findFirst',
+        'findFirstOrThrow',
         'findMany',
         'create',
         'update',
@@ -59,6 +60,9 @@ import {
   previewPaymentAllocation,
   confirmPaymentAllocation,
   reversePaymentAllocation,
+  listPaymentAllocations,
+  roundPaymentToInvoice,
+  splitRounding,
 } from './payment-settlement.service';
 import {
   saveOpeningBalance,
@@ -951,6 +955,72 @@ describe('confirmed allocation plans', () => {
         data: expect.objectContaining({ action: 'ALLOCATION_REVERSED', reason: 'Pogrešan račun' }),
       }),
     );
+  });
+});
+
+describe('rounding a payment onto its invoice', () => {
+  const importOverpayment = async (amount: number) => {
+    const vatTrip = {
+      ...trip,
+      invoiceNetAmount: 90.91,
+      invoiceVatAmount: 9.09,
+      priceIncludesVat: false,
+    };
+    vi.mocked(prisma.trip.findMany).mockResolvedValue([vatTrip] as never);
+    vi.mocked(prisma.trip.findUnique).mockResolvedValue(vatTrip as never);
+    vi.mocked(prisma.trip.findFirstOrThrow).mockResolvedValue(vatTrip as never);
+    vi.mocked(prisma.financeAuditEvent.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.paymentAllocation.update).mockImplementation((args) => {
+      const allocation = allocations.find((item) => item.id === args.where.id)!;
+      const amount = args.data.amount as { increment: number };
+      allocation.amount = Math.round((allocation.amount + amount.increment) * 100) / 100;
+      return allocation as never;
+    });
+    const result = await importBankStatementXml({
+      xml: xml({ amount, benefit: 'credit', name: 'Customer DOO', reference: '123/26' }),
+      rememberMatchedAccounts: false,
+    });
+    return result.transactions[0]!.id;
+  };
+
+  it('offers and adds a few para of leftover to the fully paid invoice, as VAT', async () => {
+    const id = await importOverpayment(100.12);
+    expect((await listPaymentAllocations(id)).rounding).toMatchObject({ amount: 0.12 });
+
+    const updated = await roundPaymentToInvoice(id);
+
+    expect(prisma.trip.update).toHaveBeenCalledWith({
+      where: { id: trip.id },
+      data: {
+        invoiceGrossAmount: 100.12,
+        price: 100.12,
+        invoiceNetAmount: 90.91,
+        invoiceVatAmount: 9.21,
+      },
+    });
+    expect(allocations[0]).toMatchObject({ amount: 100.12 });
+    expect(updated).toMatchObject({ unallocatedAmount: 0 });
+    expect(prisma.financeAuditEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'ALLOCATION_ROUNDED' }) }),
+    );
+  });
+
+  it('refuses a leftover above 1 RSD', async () => {
+    const id = await importOverpayment(101.5);
+    expect((await listPaymentAllocations(id)).rounding).toBeNull();
+    await expect(roundPaymentToInvoice(id)).rejects.toThrow('do 1 RSD');
+    expect(prisma.trip.update).not.toHaveBeenCalled();
+  });
+
+  it('splits a gross-price difference by the VAT rate and keeps untaxed trips untaxed', () => {
+    expect(splitRounding(0.2, { invoiceVatAmount: 85_272.6, priceIncludesVat: true })).toEqual({
+      net: 0.18,
+      vat: 0.02,
+    });
+    expect(splitRounding(0.12, { invoiceVatAmount: 0, priceIncludesVat: false })).toEqual({
+      net: 0.12,
+      vat: 0,
+    });
   });
 });
 

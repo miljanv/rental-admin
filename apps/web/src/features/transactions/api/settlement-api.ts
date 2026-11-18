@@ -124,3 +124,8 @@ export const reverseAllocation = async ({
       )
     ).data,
   );
+export const roundPaymentToInvoice = async (id: string): Promise<TransactionDto> =>
+  unwrap(
+    (await apiClient.post<ApiResponse<TransactionDto>>(`/transactions/${id}/round-to-invoice`))
+      .data,
+  );

@@ -5,8 +5,10 @@ import type {
   ConfirmAllocationPlanRequest,
   LinkCounterpartyRequest,
   PaymentAllocationsDto,
+  PaymentRoundingDto,
   TransactionDto,
 } from '@rental-admin/shared';
+import { ROUNDING_TOLERANCE, TRANSPORT_VAT_RATE } from '@rental-admin/shared';
 import { prisma, type TransactionClient } from '../config/prisma';
 import { badRequest, conflict, notFound } from '../utils/app-error';
 import { assertAfterOpeningCutover } from '../utils/opening-cutover';
@@ -26,6 +28,9 @@ import {
   transactionInclude,
 } from './transaction.service';
 
+type PaymentAllocationRecord = Awaited<
+  ReturnType<TransactionClient['paymentAllocation']['findFirstOrThrow']>
+>;
 const round = (value: number): number => Math.round(value * 100) / 100;
 const getPayment = async (tx: TransactionClient, id: string) => {
   const record = await tx.financeTransaction.findUnique({
@@ -186,8 +191,90 @@ export const confirmPaymentAllocation = async (
     );
   });
 
+/**
+ * The office's invoice total can differ by a few para from what the customer paid: the app
+ * rounds VAT per trip, the printed invoice on the month's total. "Zaokruži" lets a payment
+ * that fully settles one trip invoice add its leftover (at most 1 RSD) to that invoice.
+ */
+const findRounding = async (
+  tx: TransactionClient,
+  payment: Awaited<ReturnType<typeof getPayment>>,
+): Promise<(PaymentRoundingDto & { allocation: PaymentAllocationRecord }) | null> => {
+  if (payment.type !== 'INCOME' || payment.currency !== 'RSD') return null;
+  const leftover = round(toTransactionDto(payment).unallocatedAmount);
+  if (leftover <= 0.005 || leftover > ROUNDING_TOLERANCE) return null;
+  const allocations = await tx.paymentAllocation.findMany({ where: { transactionId: payment.id } });
+  const [allocation] = allocations;
+  if (
+    allocations.length !== 1 ||
+    !allocation ||
+    (allocation.targetType !== 'TRIP_INVOICE' && allocation.targetType !== 'TRIP_SERIES_INVOICE')
+  )
+    return null;
+  const target = await getSettlementTarget(allocation.targetType, allocation.targetId, tx);
+  if (target.currency !== 'RSD' || target.remainingAmount > 0.005) return null;
+  return { allocationId: allocation.id, label: target.label, amount: leftover, allocation };
+};
+
+/** Typed net prices are exact, so the difference is VAT rounding; gross prices split by rate. */
+export const splitRounding = (
+  amount: number,
+  trip: { invoiceVatAmount: number | null; priceIncludesVat: boolean | null },
+): { net: number; vat: number } => {
+  if (!trip.invoiceVatAmount) return { net: amount, vat: 0 };
+  if (trip.priceIncludesVat === false) return { net: 0, vat: amount };
+  const vat = round((amount * TRANSPORT_VAT_RATE) / (100 + TRANSPORT_VAT_RATE));
+  return { net: round(amount - vat), vat };
+};
+
+export const roundPaymentToInvoice = async (id: string): Promise<TransactionDto> =>
+  financeWrite(async (tx) => {
+    const payment = await getPayment(tx, id);
+    const rounding = await findRounding(tx, payment);
+    if (!rounding)
+      throw conflict(
+        `Zaokruživanje je moguće samo kad uplata potpuno zatvara jednu fakturu, a ostatak je do ${ROUNDING_TOLERANCE} RSD.`,
+      );
+    const { allocation, ...summary } = rounding;
+    // A series invoice keeps the extra para on its last day.
+    const trip = await tx.trip.findFirstOrThrow({
+      where:
+        allocation.targetType === 'TRIP_INVOICE'
+          ? { id: allocation.targetId }
+          : { invoiceGroupId: allocation.targetId },
+      orderBy: [{ departureDate: 'desc' }, { id: 'desc' }],
+    });
+    const split = splitRounding(rounding.amount, trip);
+    const gross = round((trip.invoiceGrossAmount ?? trip.price ?? 0) + rounding.amount);
+    await tx.trip.update({
+      where: { id: trip.id },
+      data: {
+        invoiceGrossAmount: gross,
+        price: gross,
+        invoiceNetAmount: round((trip.invoiceNetAmount ?? 0) + split.net),
+        invoiceVatAmount:
+          trip.invoiceVatAmount === null ? null : round(trip.invoiceVatAmount + split.vat),
+      },
+    });
+    await tx.paymentAllocation.update({
+      where: { id: allocation.id },
+      data: { amount: { increment: rounding.amount } },
+    });
+    await recordFinanceAudit(tx, id, 'ALLOCATION_ROUNDED', {
+      ...summary,
+      tripId: trip.id,
+      previousGross: trip.invoiceGrossAmount,
+      gross,
+      ...split,
+    });
+    await refreshTargetPaidAt(allocation.targetType, allocation.targetId, payment.occurredAt, tx);
+    return toTransactionDto(
+      await tx.financeTransaction.findUniqueOrThrow({ where: { id }, include: transactionInclude }),
+    );
+  });
+
 export const listPaymentAllocations = async (id: string): Promise<PaymentAllocationsDto> => {
-  await getPayment(prisma, id);
+  const payment = await getPayment(prisma, id);
   const [records, events] = await Promise.all([
     prisma.paymentAllocation.findMany({
       where: { transactionId: id },
@@ -208,6 +295,9 @@ export const listPaymentAllocations = async (id: string): Promise<PaymentAllocat
     });
   return {
     allocations,
+    rounding: await findRounding(prisma, payment).then((found) =>
+      found ? { allocationId: found.allocationId, label: found.label, amount: found.amount } : null,
+    ),
     history: events.map((event) => ({
       id: event.id,
       action: event.action,

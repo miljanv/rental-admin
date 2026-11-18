@@ -70,6 +70,9 @@ export const confirmAllocation = async (req: Request, res: Response): Promise<vo
     ),
   );
 };
+export const roundToInvoice = async (req: Request, res: Response): Promise<void> => {
+  sendSuccess(res, await settlement.roundPaymentToInvoice(requestId(req)));
+};
 export const listAllocations = async (req: Request, res: Response): Promise<void> => {
   sendSuccess(res, await settlement.listPaymentAllocations(requestId(req)));
 };

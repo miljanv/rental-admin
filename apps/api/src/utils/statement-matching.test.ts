@@ -33,4 +33,19 @@ describe('statement counterparty matching', () => {
     expect(uniqueStatementNameMatch(['Dunav'], 'unknown', names)).toBeNull();
     expect(uniqueStatementNameMatch(['Dunav'], null, names)).toBeNull();
   });
+  it('ignores the legal form the bank adds or drops', () => {
+    for (const raw of [
+      'RENTAL TRAVEL',
+      'RENTAL TRAVEL DOO',
+      'Rental Travel d.o.o.',
+      'RENTAL TRAVEL D. O. O.',
+    ]) {
+      expect(uniqueStatementNameMatch(['Rental Travel D.O.O.'], raw, names)).toBe(
+        'Rental Travel D.O.O.',
+      );
+    }
+    expect(uniqueStatementNameMatch(['Sigmatic DOO'], 'SIGMATIC D.O.O.,Beograd', names)).toBe(
+      'Sigmatic DOO',
+    );
+  });
 });

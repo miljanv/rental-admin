@@ -18,6 +18,7 @@ import {
   useLinkCounterparty,
   usePaymentAllocations,
   useReverseAllocation,
+  useRoundPaymentToInvoice,
 } from '../hooks/use-payment-settlement';
 import { formatDate, formatEuro, formatMoney } from '@/lib/format';
 
@@ -53,12 +54,18 @@ export function PaymentSettlementControls({
   const preview = useAllocationPlan();
   const confirm = useConfirmAllocationPlan();
   const reverse = useReverseAllocation();
+  const roundToInvoice = useRoundPaymentToInvoice();
   const history = usePaymentAllocations(transaction.id);
   const isIncome = transaction.type === 'INCOME';
   // VAT payments have no customer or supplier; they are linked to a VAT return below.
   const isVat = transaction.category === 'VAT';
   const linkedId = isIncome ? transaction.partnerId : transaction.supplierId;
-  const busy = link.isPending || preview.isPending || confirm.isPending || reverse.isPending;
+  const busy =
+    link.isPending ||
+    preview.isPending ||
+    confirm.isPending ||
+    reverse.isPending ||
+    roundToInvoice.isPending;
   const options = isIncome
     ? (partners.data?.partners ?? []).map((row) => ({ id: row.id, name: partnerSelectLabel(row) }))
     : (suppliers.data?.suppliers ?? []).map((row) => ({ id: row.id, name: row.name }));
@@ -310,6 +317,21 @@ export function PaymentSettlementControls({
                 ))}
               </>
             )}
+            {history.data.rounding ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted p-3 text-sm">
+                <span>
+                  Ostalo je {formatMoney(history.data.rounding.amount)} zbog zaokruživanja. Dodaj
+                  razliku na fakturu {history.data.rounding.label} da bude zatvorena u celosti.
+                </span>
+                <Button
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => void change(() => roundToInvoice.mutateAsync(transaction.id))}
+                >
+                  {roundToInvoice.isPending ? 'Čuvanje…' : 'Zaokruži'}
+                </Button>
+              </div>
+            ) : null}
             {history.data.history.length ? (
               <details className="text-sm">
                 <summary className="cursor-pointer">Istorija promena</summary>

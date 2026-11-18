@@ -31,14 +31,26 @@ const cyrillic: Record<string, string> = {
   Ш: 'S',
 };
 
-export const normalizeStatementName = (value: string): string =>
+const transliterate = (value: string): string =>
   value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/đ/gi, 'dj')
     .toUpperCase()
-    .replace(/[А-ЯЂЈЉЊЋЏ]/g, (letter) => cyrillic[letter] ?? letter)
-    .replace(/[^A-Z0-9]+/g, '');
+    .replace(/[А-ЯЂЈЉЊЋЏ]/g, (letter) => cyrillic[letter] ?? letter);
+
+/** Legal-form words a bank may add or drop: "RENTAL TRAVEL", "… DOO", "… D.O.O.". */
+const LEGAL_FORMS = new Set(['DOO', 'AD', 'PR', 'SZR', 'STR', 'SUR', 'OD', 'KD', 'DOOEL']);
+
+export const normalizeStatementName = (value: string): string => {
+  const words = transliterate(value)
+    .replace(/\bD\s*\.\s*O\s*\.\s*O\b\.?/g, ' DOO ')
+    .replace(/\bA\s*\.\s*D\b\.?/g, ' AD ')
+    .split(/[^A-Z0-9]+/)
+    .filter(Boolean);
+  const withoutLegalForm = words.filter((word) => !LEGAL_FORMS.has(word));
+  return (withoutLegalForm.length > 0 ? withoutLegalForm : words).join('');
+};
 
 export const canonicalBankAccount = (value: string | null | undefined): string => {
   const text = value?.replace(/\s/g, '') ?? '';

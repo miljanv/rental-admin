@@ -49,6 +49,8 @@ export const useConfirmAllocationPlan = () =>
   useFinanceMutation(api.confirmAllocationPlan, 'Raspored je sačuvan.');
 export const useReverseAllocation = () =>
   useFinanceMutation(api.reverseAllocation, 'Povezivanje je poništeno.');
+export const useRoundPaymentToInvoice = () =>
+  useFinanceMutation(api.roundPaymentToInvoice, 'Razlika je zaokružena na fakturu.');
 export const useAllocationPlan = () =>
   useMutation({
     mutationFn: api.previewAllocationPlan,

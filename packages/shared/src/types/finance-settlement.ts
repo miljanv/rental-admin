@@ -36,7 +36,17 @@ export interface FinanceAuditEventDto {
   actor: string | null;
   createdAt: string;
 }
+/** Largest leftover (RSD) a payment may add to its invoice with "Zaokruži". */
+export const ROUNDING_TOLERANCE = 1;
+
+/** A payment that overpays its single, fully settled invoice by a few para. */
+export interface PaymentRoundingDto {
+  allocationId: string;
+  label: string;
+  amount: number;
+}
 export interface PaymentAllocationsDto {
   allocations: Array<PaymentAllocationDto & { label: string }>;
   history: FinanceAuditEventDto[];
+  rounding: PaymentRoundingDto | null;
 }
