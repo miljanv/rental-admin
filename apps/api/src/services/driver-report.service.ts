@@ -20,7 +20,7 @@ import { buildPaginationMeta } from '../utils/api-response';
 import { logger } from '../utils/logger';
 import { getTenantContext } from '../utils/tenant-context';
 import { recordAuditEvent } from './audit.service';
-import { addDays, portalTodayIso } from './driver-portal.service';
+import { addDays, parseBorderCrossings, portalTodayIso } from './driver-portal.service';
 import { createFuelLog } from './fuel-log.service';
 import { createTripExpense } from './trip-expense.service';
 
@@ -47,10 +47,21 @@ const reportInclude = {
       },
     },
   },
-  vehicles: { select: { vehicleId: true, startKm: true, endKm: true } },
+  vehicles: {
+    select: {
+      vehicleId: true,
+      garageStartKm: true,
+      startKm: true,
+      endKm: true,
+      garageEndKm: true,
+    },
+  },
   expenses: {
     orderBy: { createdAt: 'asc' as const },
-    include: { file: { select: { id: true, originalName: true, mimeType: true } } },
+    include: {
+      file: { select: { id: true, originalName: true, mimeType: true } },
+      paymentCard: { select: { id: true, name: true } },
+    },
   },
 } as const;
 
@@ -80,6 +91,9 @@ export const toDriverReportAdminDto = (record: ReportRecord): DriverReportAdminD
     updatedAt: record.updatedAt.toISOString(),
     reviewedAt: record.reviewedAt?.toISOString() ?? null,
     reviewedBy: record.reviewedBy,
+    startedAt: record.startedAt,
+    finishedAt: record.finishedAt,
+    borderCrossings: parseBorderCrossings(record.borderCrossings),
     driver: record.driver,
     trip: {
       id: record.trip.id,
@@ -92,9 +106,12 @@ export const toDriverReportAdminDto = (record: ReportRecord): DriverReportAdminD
     vehicles: record.vehicles.map((row) => ({
       vehicleId: row.vehicleId,
       licensePlate: plates.get(row.vehicleId) ?? '—',
+      garageStartKm: row.garageStartKm,
       startKm: row.startKm,
       endKm: row.endKm,
+      garageEndKm: row.garageEndKm,
       distanceKm: tripVehicleDistanceKm(row.startKm, row.endKm),
+      garageDistanceKm: tripVehicleDistanceKm(row.garageStartKm, row.garageEndKm),
       currentKmSource: sources.get(row.vehicleId) ?? null,
     })),
     expenses: record.expenses.map((expense) => ({
@@ -102,8 +119,10 @@ export const toDriverReportAdminDto = (record: ReportRecord): DriverReportAdminD
       category: expense.category,
       amount: expense.amount,
       paymentMethod: expense.paymentMethod,
+      paymentCard: expense.paymentCard,
       note: expense.note,
       status: expense.status,
+      rejectionReason: expense.rejectionReason,
       file: expense.file,
       tripExpenseId: expense.tripExpenseId,
       vehicleId: expense.vehicleId,
@@ -321,7 +340,7 @@ export const acceptDriverReport = async (
               ...(decision.amount !== undefined ? { amount: decision.amount } : {}),
               ...(decision.paymentMethod ? { paymentMethod: decision.paymentMethod } : {}),
             }
-          : { status: 'REJECTED' },
+          : { status: 'REJECTED', rejectionReason: decision.rejectionReason ?? null },
       });
 
       if (claimed.count === 0) {
@@ -345,6 +364,7 @@ export const acceptDriverReport = async (
         category: decision.category ?? expense.category,
         amount: decision.amount ?? expense.amount,
         paymentMethod: decision.paymentMethod ?? expense.paymentMethod,
+        paymentCardId: expense.paymentCardId,
         note: expense.note,
         fileId: expense.fileId,
       });

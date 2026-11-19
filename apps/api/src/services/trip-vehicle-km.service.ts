@@ -10,6 +10,8 @@ import { badRequest } from '../utils/app-error';
 const sameReading = (left: number | null, right: number | null): boolean =>
   (left ?? null) === (right ?? null);
 
+const KM_FIELDS = ['garageStartKm', 'startKm', 'endKm', 'garageEndKm'] as const;
+
 /**
  * Writes odometer readings per vehicle of a trip and keeps the trip-level
  * figures in step: `distanceKm` becomes the sum over the vehicles, and a
@@ -27,7 +29,14 @@ export const applyTripVehicleKm = async (
 ): Promise<void> => {
   const assignments = await tx.tripVehicle.findMany({
     where: { tripId },
-    select: { id: true, vehicleId: true, startKm: true, endKm: true },
+    select: {
+      id: true,
+      vehicleId: true,
+      garageStartKm: true,
+      startKm: true,
+      endKm: true,
+      garageEndKm: true,
+    },
   });
   const byVehicle = new Map(assignments.map((assignment) => [assignment.vehicleId, assignment]));
   const now = new Date();
@@ -39,28 +48,23 @@ export const applyTripVehicleKm = async (
       throw badRequest('Vozilo nije dodeljeno ovoj vožnji.');
     }
 
-    if (
-      sameReading(assignment.startKm, reading.startKm) &&
-      sameReading(assignment.endKm, reading.endKm)
-    ) {
+    if (KM_FIELDS.every((field) => sameReading(assignment[field], reading[field]))) {
       continue;
     }
 
-    await tx.tripVehicle.update({
-      where: { id: assignment.id },
-      data: {
-        startKm: reading.startKm,
-        endKm: reading.endKm,
-        kmSource: source,
-        kmUpdatedAt: now,
-      },
-    });
-
-    byVehicle.set(reading.vehicleId, {
-      ...assignment,
+    const km = {
+      garageStartKm: reading.garageStartKm,
       startKm: reading.startKm,
       endKm: reading.endKm,
+      garageEndKm: reading.garageEndKm,
+    };
+
+    await tx.tripVehicle.update({
+      where: { id: assignment.id },
+      data: { ...km, kmSource: source, kmUpdatedAt: now },
     });
+
+    byVehicle.set(reading.vehicleId, { ...assignment, ...km });
   }
 
   const vehicles = [...byVehicle.values()];

@@ -141,6 +141,10 @@ export interface TripVehicleDto {
   endKm: number | null;
   /** `endKm - startKm`, or null until both readings are known. */
   distanceKm: number | null;
+  /** Odometer leaving the garage and back in it; their difference includes the empty legs. */
+  garageStartKm: number | null;
+  garageEndKm: number | null;
+  garageDistanceKm: number | null;
   kmSource: TripKmSource | null;
   kmUpdatedAt: string | null;
 }
@@ -219,6 +223,10 @@ export interface TripDriverDto {
   advanceAmount: number | null;
   advanceStatus: AdvanceStatus;
   advancePaidAt: string | null;
+  /** When the driver confirmed the assignment in the portal; null until then. */
+  confirmedAt: string | null;
+  /** When the driver accepted the advance in the portal. */
+  advanceAcceptedAt: string | null;
 }
 
 export interface TripPartnerDto {
@@ -280,6 +288,11 @@ export interface TripDto {
   fuelLiters: number | null;
   clientName: string | null;
   notes: string | null;
+  /** Pickup time on the departure day ("HH:mm") and place, shown to the driver. */
+  departureTime: string | null;
+  pickupLocation: string | null;
+  /** Program putovanja the driver confirms. */
+  itinerary: string | null;
   price: number | null;
   /** True when the domestic fare was typed already including 10% VAT. */
   priceIncludesVat: boolean | null;

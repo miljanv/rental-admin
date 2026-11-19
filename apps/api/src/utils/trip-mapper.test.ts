@@ -91,8 +91,10 @@ describe('toTripVehicleDto', () => {
     expect(
       toTripVehicleDto({
         vehicle,
+        garageStartKm: 184_330,
         startKm: 184_350,
         endKm: 184_512,
+        garageEndKm: 184_540,
         kmSource: 'DRIVER',
         kmUpdatedAt: new Date('2026-11-10T08:00:00.000Z'),
       }),
@@ -101,6 +103,9 @@ describe('toTripVehicleDto', () => {
       startKm: 184_350,
       endKm: 184_512,
       distanceKm: 162,
+      garageStartKm: 184_330,
+      garageEndKm: 184_540,
+      garageDistanceKm: 210,
       kmSource: 'DRIVER',
       kmUpdatedAt: '2026-11-10T08:00:00.000Z',
     });

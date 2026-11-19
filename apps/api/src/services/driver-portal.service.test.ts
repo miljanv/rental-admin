@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { prismaMock, applyKmMock, auditMock } = vi.hoisted(() => {
   const mock = {
-    trip: { findFirst: vi.fn(), findMany: vi.fn() },
+    trip: { findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn() },
+    tripDriver: { update: vi.fn() },
+    paymentCard: { count: vi.fn() },
     tripVehicle: { aggregate: vi.fn() },
     fuelLog: { aggregate: vi.fn() },
     vehicleMaintenance: { aggregate: vi.fn() },
@@ -26,6 +28,8 @@ vi.mock('./file.service', () => ({ createPresignedUpload: vi.fn(), confirmUpload
 vi.mock('../utils/tenant-context', () => ({ requireOrganizationId: () => 'org_1' }));
 
 import {
+  acceptDriverAdvance,
+  confirmDriverTrip,
   mergeDriverReadings,
   odometerWarnings,
   portalTodayIso,
@@ -42,11 +46,18 @@ const tripRecord = (overrides: Record<string, unknown> = {}) => ({
   origin: 'Čoka',
   destination: 'Novi Sad',
   clientName: null,
+  departureTime: null,
+  pickupLocation: null,
+  itinerary: null,
+  travelTimelineSource: null,
   partner: { type: 'COMPANY', companyName: 'OŠ Čoka', firstName: null, lastName: null },
+  drivers: [{ confirmedAt: null, advanceAmount: null, advanceAcceptedAt: null }],
   vehicles: [
     {
+      garageStartKm: null,
       startKm: null,
       endKm: null,
+      garageEndKm: null,
       vehicle: { id: 'veh_1', licensePlate: 'BG-123-AA', make: 'Setra', model: 'S 516' },
     },
   ],
@@ -54,7 +65,10 @@ const tripRecord = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+const noTimes = { startedAt: null, finishedAt: null, borderCrossings: [] };
+
 const noFuel = {
+  paymentCardId: null,
   vehicleId: null,
   fuelLiters: null,
   fuelType: null,
@@ -122,26 +136,57 @@ describe('portalTripGroup', () => {
 
 describe('mergeDriverReadings', () => {
   const plates = new Map([['veh_1', 'BG-123-AA']]);
-  const current = new Map([['veh_1', { startKm: 100, endKm: null as number | null }]]);
+  const current = new Map([
+    [
+      'veh_1',
+      { garageStartKm: null, startKm: 100, endKm: null as number | null, garageEndKm: null },
+    ],
+  ]);
 
   it('keeps a reading the driver left empty', () => {
     expect(
-      mergeDriverReadings([{ vehicleId: 'veh_1', startKm: null, endKm: 260 }], current, plates),
-    ).toEqual([{ vehicleId: 'veh_1', startKm: 100, endKm: 260 }]);
+      mergeDriverReadings(
+        [{ vehicleId: 'veh_1', garageStartKm: null, startKm: null, endKm: 260, garageEndKm: null }],
+        current,
+        plates,
+      ),
+    ).toEqual([
+      { vehicleId: 'veh_1', garageStartKm: null, startKm: 100, endKm: 260, garageEndKm: null },
+    ]);
   });
 
   it('skips a vehicle with nothing entered', () => {
     expect(
-      mergeDriverReadings([{ vehicleId: 'veh_1', startKm: null, endKm: null }], current, plates),
+      mergeDriverReadings(
+        [
+          {
+            vehicleId: 'veh_1',
+            garageStartKm: null,
+            startKm: null,
+            endKm: null,
+            garageEndKm: null,
+          },
+        ],
+        current,
+        plates,
+      ),
     ).toEqual([]);
   });
 
   it('rejects an end below the start after merging, and a vehicle not on the trip', () => {
     expect(() =>
-      mergeDriverReadings([{ vehicleId: 'veh_1', startKm: null, endKm: 50 }], current, plates),
-    ).toThrow('BG-123-AA: završna kilometraža ne može biti manja od početne.');
+      mergeDriverReadings(
+        [{ vehicleId: 'veh_1', garageStartKm: null, startKm: null, endKm: 50, garageEndKm: null }],
+        current,
+        plates,
+      ),
+    ).toThrow('BG-123-AA: Kilometraža (završna) ne može biti manja od prethodne (početna).');
     expect(() =>
-      mergeDriverReadings([{ vehicleId: 'veh_9', startKm: 1, endKm: 2 }], current, plates),
+      mergeDriverReadings(
+        [{ vehicleId: 'veh_9', garageStartKm: null, startKm: 1, endKm: 2, garageEndKm: null }],
+        current,
+        plates,
+      ),
     ).toThrow('Vozilo nije dodeljeno ovoj vožnji.');
   });
 });
@@ -152,16 +197,52 @@ describe('odometerWarnings', () => {
 
   it('warns about a start below the last known reading or far above it', () => {
     expect(
-      odometerWarnings([{ vehicleId: 'veh_1', startKm: 184_000, endKm: null }], plates, lastKnown),
+      odometerWarnings(
+        [
+          {
+            vehicleId: 'veh_1',
+            garageStartKm: null,
+            startKm: 184_000,
+            endKm: null,
+            garageEndKm: null,
+          },
+        ],
+        plates,
+        lastKnown,
+      ),
     ).toEqual([expect.stringContaining('manja od poslednje poznate')]);
     expect(
-      odometerWarnings([{ vehicleId: 'veh_1', startKm: 190_000, endKm: null }], plates, lastKnown),
+      odometerWarnings(
+        [
+          {
+            vehicleId: 'veh_1',
+            garageStartKm: null,
+            startKm: 190_000,
+            endKm: null,
+            garageEndKm: null,
+          },
+        ],
+        plates,
+        lastKnown,
+      ),
     ).toEqual([expect.stringContaining('veća od poslednje poznate')]);
   });
 
   it('says nothing about a plausible reading', () => {
     expect(
-      odometerWarnings([{ vehicleId: 'veh_1', startKm: 184_350, endKm: null }], plates, lastKnown),
+      odometerWarnings(
+        [
+          {
+            vehicleId: 'veh_1',
+            garageStartKm: null,
+            startKm: 184_350,
+            endKm: null,
+            garageEndKm: null,
+          },
+        ],
+        plates,
+        lastKnown,
+      ),
     ).toEqual([]);
   });
 });
@@ -174,7 +255,15 @@ describe('submitDriverReport', () => {
       'drv_1',
       'trip_1',
       {
-        vehicles: [{ vehicleId: 'veh_1', startKm: 184_350, endKm: 184_512 }],
+        vehicles: [
+          {
+            vehicleId: 'veh_1',
+            garageStartKm: null,
+            startKm: 184_350,
+            endKm: 184_512,
+            garageEndKm: null,
+          },
+        ],
         expenses: [
           {
             ...noFuel,
@@ -187,6 +276,7 @@ describe('submitDriverReport', () => {
           },
         ],
         note: null,
+        ...noTimes,
       },
       NOW,
     );
@@ -200,7 +290,15 @@ describe('submitDriverReport', () => {
     });
     expect(applyKmMock).toHaveBeenCalledWith(
       'trip_1',
-      [{ vehicleId: 'veh_1', startKm: 184_350, endKm: 184_512 }],
+      [
+        {
+          vehicleId: 'veh_1',
+          garageStartKm: null,
+          startKm: 184_350,
+          endKm: 184_512,
+          garageEndKm: null,
+        },
+      ],
       'DRIVER',
       prismaMock,
     );
@@ -216,7 +314,12 @@ describe('submitDriverReport', () => {
     );
 
     await expect(
-      submitDriverReport('drv_1', 'trip_1', { vehicles: [], expenses: [], note: null }, NOW),
+      submitDriverReport(
+        'drv_1',
+        'trip_1',
+        { vehicles: [], expenses: [], note: null, ...noTimes },
+        NOW,
+      ),
     ).rejects.toThrow('Podaci se unose na dan vožnje ili posle nje.');
   });
 
@@ -224,7 +327,12 @@ describe('submitDriverReport', () => {
     prismaMock.trip.findFirst.mockResolvedValue(null);
 
     await expect(
-      submitDriverReport('drv_1', 'trip_1', { vehicles: [], expenses: [], note: null }, NOW),
+      submitDriverReport(
+        'drv_1',
+        'trip_1',
+        { vehicles: [], expenses: [], note: null, ...noTimes },
+        NOW,
+      ),
     ).rejects.toThrow('Vožnja nije pronađena.');
   });
 
@@ -264,6 +372,7 @@ describe('submitDriverReport', () => {
             },
           ],
           note: null,
+          ...noTimes,
         },
         NOW,
       ),
@@ -292,7 +401,7 @@ describe('submitDriverReport', () => {
     await submitDriverReport(
       'drv_1',
       'trip_1',
-      { vehicles: [], expenses: [], note: 'Ispravljeno' },
+      { vehicles: [], expenses: [], note: 'Ispravljeno', ...noTimes },
       NOW,
     );
 
@@ -332,9 +441,163 @@ describe('submitDriverReport', () => {
             },
           ],
           note: null,
+          ...noTimes,
         },
         NOW,
       ),
     ).rejects.toThrow('Račun nije pronađen');
+  });
+});
+
+describe('trip times from the driver', () => {
+  const times = {
+    startedAt: '2026-11-10T06:30',
+    finishedAt: '2026-11-10T21:10',
+    borderCrossings: [{ at: '2026-11-10T09:00', direction: 'OUT' as const }],
+  };
+
+  it('stores them on the report and fills the trip timeline for the per diem', async () => {
+    prismaMock.trip.findFirst.mockResolvedValue(tripRecord());
+
+    await submitDriverReport(
+      'drv_1',
+      'trip_1',
+      { vehicles: [], expenses: [], note: null, ...times },
+      NOW,
+    );
+
+    expect(prismaMock.driverTripReport.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        startedAt: '2026-11-10T06:30',
+        finishedAt: '2026-11-10T21:10',
+        borderCrossings: times.borderCrossings,
+      }),
+      select: { id: true },
+    });
+    expect(prismaMock.trip.update).toHaveBeenCalledWith({
+      where: { id: 'trip_1' },
+      data: {
+        travelTimeline: {
+          departureAt: '2026-11-10T06:30',
+          returnAt: '2026-11-10T21:10',
+          borderCrossings: times.borderCrossings,
+        },
+        travelTimelineSource: 'DRIVER',
+      },
+    });
+  });
+
+  it('never overwrites the timeline the office entered', async () => {
+    prismaMock.trip.findFirst.mockResolvedValue(tripRecord({ travelTimelineSource: 'ADMIN' }));
+
+    await submitDriverReport(
+      'drv_1',
+      'trip_1',
+      { vehicles: [], expenses: [], note: null, ...times },
+      NOW,
+    );
+
+    expect(prismaMock.trip.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('company cards on expenses', () => {
+  const cardExpense = {
+    ...noFuel,
+    id: null,
+    category: 'FUEL' as const,
+    amount: 9_000,
+    paymentMethod: 'COMPANY_CARD' as const,
+    paymentCardId: 'card_omv',
+    note: null,
+    fileId: null,
+  };
+
+  it('keeps the card of a company-card payment', async () => {
+    prismaMock.trip.findFirst.mockResolvedValue(tripRecord());
+    prismaMock.paymentCard.count.mockResolvedValue(1);
+
+    await submitDriverReport(
+      'drv_1',
+      'trip_1',
+      { vehicles: [], expenses: [cardExpense], note: null, ...noTimes },
+      NOW,
+    );
+
+    expect(prismaMock.driverTripReportExpense.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ paymentCardId: 'card_omv' }),
+    });
+  });
+
+  it('refuses a card of another firm and drops a card on a cash payment', async () => {
+    prismaMock.trip.findFirst.mockResolvedValue(tripRecord());
+    prismaMock.paymentCard.count.mockResolvedValue(0);
+
+    await expect(
+      submitDriverReport(
+        'drv_1',
+        'trip_1',
+        { vehicles: [], expenses: [cardExpense], note: null, ...noTimes },
+        NOW,
+      ),
+    ).rejects.toThrow('kartica nije pronađena');
+
+    await submitDriverReport(
+      'drv_1',
+      'trip_1',
+      {
+        vehicles: [],
+        expenses: [{ ...cardExpense, paymentMethod: 'CASH' }],
+        note: null,
+        ...noTimes,
+      },
+      NOW,
+    );
+    expect(prismaMock.driverTripReportExpense.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ paymentMethod: 'CASH', paymentCardId: null }),
+    });
+  });
+});
+
+describe('assignment confirmation and advance', () => {
+  it('records the confirmation once, also for an upcoming trip', async () => {
+    prismaMock.trip.findFirst.mockResolvedValue(
+      tripRecord({ departureDate: new Date('2026-11-12T00:00:00.000Z') }),
+    );
+
+    await confirmDriverTrip('drv_1', 'trip_1', NOW);
+
+    expect(prismaMock.tripDriver.update).toHaveBeenCalledWith({
+      where: { tripId_driverId: { tripId: 'trip_1', driverId: 'drv_1' } },
+      data: { confirmedAt: NOW },
+    });
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'DRIVER_TRIP_CONFIRMED', actorUserId: null }),
+    );
+
+    vi.clearAllMocks();
+    prismaMock.trip.findFirst.mockResolvedValue(
+      tripRecord({ drivers: [{ confirmedAt: NOW, advanceAmount: null, advanceAcceptedAt: null }] }),
+    );
+    await confirmDriverTrip('drv_1', 'trip_1', NOW);
+    expect(prismaMock.tripDriver.update).not.toHaveBeenCalled();
+  });
+
+  it('accepts an advance only when there is one', async () => {
+    prismaMock.trip.findFirst.mockResolvedValue(
+      tripRecord({
+        drivers: [{ confirmedAt: null, advanceAmount: 20_000, advanceAcceptedAt: null }],
+      }),
+    );
+
+    await acceptDriverAdvance('drv_1', 'trip_1', NOW);
+
+    expect(prismaMock.tripDriver.update).toHaveBeenCalledWith({
+      where: { tripId_driverId: { tripId: 'trip_1', driverId: 'drv_1' } },
+      data: { advanceAcceptedAt: NOW },
+    });
+
+    prismaMock.trip.findFirst.mockResolvedValue(tripRecord());
+    await expect(acceptDriverAdvance('drv_1', 'trip_1', NOW)).rejects.toThrow('nema akontacije');
   });
 });

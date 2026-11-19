@@ -9,7 +9,7 @@ import {
   type TripExpenseDto,
   type TripExpenseWriteRequest,
 } from '@rental-admin/shared';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { usePaymentCards } from '@/features/payment-cards/hooks/use-payment-cards';
 import { useCreateTripExpense } from '@/features/trips/hooks/use-create-trip-expense';
 import { useUpdateTripExpense } from '@/features/trips/hooks/use-update-trip-expense';
 import {
@@ -72,6 +73,7 @@ export function TripExpenseForm({ tripId, expense, onDone }: TripExpenseFormProp
           category: expense.category,
           amount: expense.amount,
           paymentMethod: expense.paymentMethod,
+          paymentCardId: expense.paymentCard?.id ?? '',
           note: expense.note ?? '',
           fileId: expense.file?.id ?? '',
         }
@@ -79,6 +81,12 @@ export function TripExpenseForm({ tripId, expense, onDone }: TripExpenseFormProp
   });
 
   const errors = form.formState.errors;
+  const paymentMethod = useWatch({ control: form.control, name: 'paymentMethod' });
+  const cardsQuery = usePaymentCards();
+  // Active cards, plus the one this expense already has even if it was switched off since.
+  const cards = (cardsQuery.data ?? []).filter(
+    (card) => card.isActive || card.id === expense?.paymentCard?.id,
+  );
 
   const onSubmit = form.handleSubmit(async (values) => {
     try {
@@ -164,6 +172,33 @@ export function TripExpenseForm({ tripId, expense, onDone }: TripExpenseFormProp
                 </Field>
               )}
             />
+            {paymentMethod === 'COMPANY_CARD' && cards.length > 0 ? (
+              <Controller
+                control={form.control}
+                name="paymentCardId"
+                render={({ field }) => (
+                  <Field id="paymentCardId" label="Kartica" error={errors.paymentCardId?.message}>
+                    <Select
+                      value={field.value || 'none'}
+                      onValueChange={(value) => field.onChange(value === 'none' ? '' : value)}
+                      disabled={isPending}
+                    >
+                      <SelectTrigger id="paymentCardId" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nije navedeno</SelectItem>
+                        {cards.map((card) => (
+                          <SelectItem key={card.id} value={card.id}>
+                            {card.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
+              />
+            ) : null}
             <div className="sm:col-span-2">
               <Field id="note" label="Napomena" error={errors.note?.message}>
                 <Textarea id="note" rows={2} disabled={isPending} {...form.register('note')} />

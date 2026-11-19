@@ -56,6 +56,21 @@ export const fetchPortalTrip = async (
   return unwrap(response.data);
 };
 
+/** The driver confirms the assignment, or accepts the advance, of a trip. */
+export const sendPortalAssignment = async (
+  token: string,
+  tripId: string,
+  action: 'confirm' | 'accept-advance',
+): Promise<DriverPortalTripDto> => {
+  const response = await apiClient.post<ApiResponse<DriverPortalTripDto>>(
+    `/driver-portal/trips/${encodeURIComponent(tripId)}/${action}`,
+    undefined,
+    withToken(token),
+  );
+
+  return unwrap(response.data);
+};
+
 export const submitPortalReport = async (
   token: string,
   tripId: string,

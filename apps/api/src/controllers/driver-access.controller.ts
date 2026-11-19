@@ -22,3 +22,9 @@ export const revokeDriverAccessLink = async (req: Request, res: Response): Promi
 
   sendSuccess(res, await driverAccessService.revokeDriverAccessLink(id));
 };
+
+export const revealDriverAccessLink = async (req: Request, res: Response): Promise<void> => {
+  const { id } = validated<DriverIdParams>(req, 'params');
+
+  sendSuccess(res, await driverAccessService.revealDriverAccessLink(id));
+};

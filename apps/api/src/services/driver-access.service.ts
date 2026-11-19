@@ -1,8 +1,10 @@
 import type { DriverAccessLinkCreatedDto, DriverAccessLinkDto } from '@rental-admin/shared';
 
 import { prisma, prismaUnscoped, type TransactionClient } from '../config/prisma';
-import { badRequest, notFound } from '../utils/app-error';
+import { badRequest, conflict, notFound } from '../utils/app-error';
 import {
+  decryptDriverAccessToken,
+  encryptDriverAccessToken,
   generateDriverAccessToken,
   hashDriverAccessToken,
   isWellFormedDriverAccessToken,
@@ -31,7 +33,7 @@ const activeLink = (driverId: string) =>
   prisma.driverAccessToken.findFirst({
     where: { driverId, revokedAt: null },
     orderBy: { createdAt: 'desc' },
-    select: { createdAt: true, lastUsedAt: true },
+    select: { createdAt: true, lastUsedAt: true, tokenCiphertext: true },
   });
 
 export const getDriverAccessLink = async (driverId: string): Promise<DriverAccessLinkDto> => {
@@ -42,7 +44,29 @@ export const getDriverAccessLink = async (driverId: string): Promise<DriverAcces
     active: Boolean(link),
     createdAt: link?.createdAt.toISOString() ?? null,
     lastUsedAt: link?.lastUsedAt?.toISOString() ?? null,
+    canReveal: Boolean(link?.tokenCiphertext),
   };
+};
+
+/** Shows the active link again, e.g. when the driver lost the message. Every view is logged. */
+export const revealDriverAccessLink = async (
+  driverId: string,
+): Promise<DriverAccessLinkCreatedDto> => {
+  await loadDriver(driverId);
+  const link = await activeLink(driverId);
+  const token = link?.tokenCiphertext ? decryptDriverAccessToken(link.tokenCiphertext) : null;
+
+  if (!link || !token) {
+    throw conflict('Ovaj link ne može ponovo da se prikaže. Napravite novi link.');
+  }
+
+  await recordAuditEvent({
+    action: 'DRIVER_LINK_VIEWED',
+    entityType: 'Driver',
+    entityId: driverId,
+  });
+
+  return { token, createdAt: link.createdAt.toISOString() };
 };
 
 /** Revokes every active link of a driver. Returns how many were revoked. */
@@ -59,8 +83,8 @@ export const revokeDriverAccessLinks = async (
 };
 
 /**
- * Creates the driver's personal link and revokes the previous one. The token
- * is returned only here; the database keeps its hash.
+ * Creates the driver's personal link and revokes the previous one. The database
+ * keeps the token's hash for lookups and an encrypted copy for showing it again.
  */
 export const createDriverAccessLink = async (
   driverId: string,
@@ -80,6 +104,7 @@ export const createDriverAccessLink = async (
         organizationId: requireOrganizationId(),
         driverId,
         tokenHash: hashDriverAccessToken(token),
+        tokenCiphertext: encryptDriverAccessToken(token),
       },
       select: { id: true, createdAt: true },
     });
@@ -108,7 +133,7 @@ export const revokeDriverAccessLink = async (driverId: string): Promise<DriverAc
     });
   }
 
-  return { active: false, createdAt: null, lastUsedAt: null };
+  return { active: false, createdAt: null, lastUsedAt: null, canReveal: false };
 };
 
 export interface DriverAccess {

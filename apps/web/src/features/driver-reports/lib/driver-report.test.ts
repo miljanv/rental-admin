@@ -5,9 +5,12 @@ import { driverReportKm, formatReportKm, reviewedLabel } from './driver-report';
 const vehicle = (startKm: number | null, endKm: number | null) => ({
   vehicleId: 'veh',
   licensePlate: 'BG-1',
+  garageStartKm: null,
   startKm,
   endKm,
+  garageEndKm: null,
   distanceKm: null,
+  garageDistanceKm: null,
   currentKmSource: null,
 });
 

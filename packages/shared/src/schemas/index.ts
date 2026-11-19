@@ -17,6 +17,7 @@ export * from './file';
 export * from './partner';
 export * from './supplier';
 export * from './passenger-list';
+export * from './payment-card';
 export * from './travel-permit';
 export * from './fuel-log';
 export * from './tachograph-calibration';

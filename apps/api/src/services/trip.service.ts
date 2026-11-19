@@ -289,6 +289,9 @@ const toWriteData = (input: TripWriteRequest) => ({
   partnerId: input.partnerId,
   clientName: input.clientName,
   notes: input.notes,
+  departureTime: input.departureTime,
+  pickupLocation: input.pickupLocation,
+  itinerary: input.itinerary,
   price: input.price,
   paymentMethod: input.paymentMethod,
   status: input.status,
@@ -296,6 +299,22 @@ const toWriteData = (input: TripWriteRequest) => ({
   distanceKm: input.distanceKm,
   vehicleCount: Math.max(input.vehicleCount, input.vehicleIds.length, 1),
 });
+
+/** A driver confirms date, time, pickup, route, vehicles and program; a change asks again. */
+export const assignmentDetailsChanged = (current: TripDto, input: TripWriteRequest): boolean => {
+  const vehicles = (ids: string[]) => [...ids].sort().join(',');
+
+  return (
+    current.departureDate !== input.departureDate ||
+    current.returnDate !== input.returnDate ||
+    current.departureTime !== input.departureTime ||
+    current.pickupLocation !== input.pickupLocation ||
+    current.origin !== input.origin ||
+    current.destination !== input.destination ||
+    current.itinerary !== input.itinerary ||
+    vehicles(current.vehicles.map((vehicle) => vehicle.id)) !== vehicles(input.vehicleIds)
+  );
+};
 
 export const listTrips = async (
   query: ListTripsQuery,
@@ -409,15 +428,27 @@ export const updateTrip = async (id: string, input: TripWriteRequest): Promise<T
           : {}),
       },
     });
-    await tx.tripVehicle.deleteMany({ where: { tripId: id } });
+    // Vehicles that stay keep their odometer readings; only removed ones are dropped.
+    await tx.tripVehicle.deleteMany({
+      where: { tripId: id, vehicleId: { notIn: input.vehicleIds } },
+    });
+    const keptVehicleIds = new Set(current.vehicles.map((vehicle) => vehicle.id));
+    const addedVehicleIds = input.vehicleIds.filter((vehicleId) => !keptVehicleIds.has(vehicleId));
 
-    if (input.vehicleIds.length > 0) {
+    if (addedVehicleIds.length > 0) {
       await tx.tripVehicle.createMany({
-        data: input.vehicleIds.map((vehicleId) => ({ tripId: id, vehicleId })),
+        data: addedVehicleIds.map((vehicleId) => ({ tripId: id, vehicleId })),
       });
     }
 
     await syncTripDrivers(tx, id, input.driverIds);
+
+    if (assignmentDetailsChanged(current, input)) {
+      await tx.tripDriver.updateMany({
+        where: { tripId: id, confirmedAt: { not: null } },
+        data: { confirmedAt: null },
+      });
+    }
 
     return tx.trip.findUniqueOrThrow({ where: { id }, include: tripInclude });
   });

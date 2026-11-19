@@ -1,7 +1,7 @@
 'use client';
 
 import type { DriverDto } from '@rental-admin/shared';
-import { Copy, Link2, QrCode } from 'lucide-react';
+import { Copy, Eye, Link2, QrCode } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCreateDriverAccessLink } from '@/features/drivers/hooks/use-create-driver-access-link';
 import { useDriverAccessLink } from '@/features/drivers/hooks/use-driver-access-link';
+import { useRevealDriverAccessLink } from '@/features/drivers/hooks/use-reveal-driver-access-link';
 import { useRevokeDriverAccessLink } from '@/features/drivers/hooks/use-revoke-driver-access-link';
 import { driverPortalUrl } from '@/features/drivers/lib/driver';
 import { formatDateTime } from '@/lib/format';
@@ -26,9 +27,11 @@ export function DriverAccessLinkCard({ driver }: DriverAccessLinkCardProps) {
   const query = useDriverAccessLink(driver.id);
   const createMutation = useCreateDriverAccessLink(driver.id);
   const revokeMutation = useRevokeDriverAccessLink(driver.id);
+  const revealMutation = useRevealDriverAccessLink(driver.id);
   const [createdUrl, setCreatedUrl] = useState<string | null>(null);
   const [showQr, setShowQr] = useState(false);
-  const isPending = createMutation.isPending || revokeMutation.isPending;
+  const isPending =
+    createMutation.isPending || revokeMutation.isPending || revealMutation.isPending;
   const isInactive = driver.status === 'INACTIVE';
   const link = query.data;
 
@@ -43,6 +46,16 @@ export function DriverAccessLinkCard({ driver }: DriverAccessLinkCardProps) {
     try {
       const created = await createMutation.mutateAsync();
       setCreatedUrl(driverPortalUrl(window.location.origin, created.token));
+      setShowQr(false);
+    } catch {
+      // The mutation reports the failure as a toast.
+    }
+  };
+
+  const revealLink = async () => {
+    try {
+      const revealed = await revealMutation.mutateAsync();
+      setCreatedUrl(driverPortalUrl(window.location.origin, revealed.token));
       setShowQr(false);
     } catch {
       // The mutation reports the failure as a toast.
@@ -129,8 +142,7 @@ export function DriverAccessLinkCard({ driver }: DriverAccessLinkCardProps) {
                   </div>
                 ) : null}
                 <p className="text-muted-foreground text-xs">
-                  Link se prikazuje samo sada. Ako se izgubi, napravite novi; stari tada prestaje da
-                  važi.
+                  Link možete ponovo prikazati kad god zatreba. „Napravi novi link“ ukida ovaj.
                 </p>
               </div>
             ) : null}
@@ -141,6 +153,9 @@ export function DriverAccessLinkCard({ driver }: DriverAccessLinkCardProps) {
                 {link.lastUsedAt
                   ? `Vozač ga je poslednji put otvorio ${formatDateTime(link.lastUsedAt)}.`
                   : 'Vozač ga još nije otvorio.'}
+                {link.canReveal
+                  ? null
+                  : ' Ovaj link je napravljen pre nego što je ponovni prikaz bio moguć; da biste ga videli, napravite novi.'}
               </p>
             ) : (
               <p className="text-muted-foreground text-sm">
@@ -162,6 +177,12 @@ export function DriverAccessLinkCard({ driver }: DriverAccessLinkCardProps) {
                     ? 'Napravi novi link'
                     : 'Napravi link'}
               </Button>
+              {link.active && link.canReveal && !createdUrl ? (
+                <Button type="button" onClick={() => void revealLink()} disabled={isPending}>
+                  <Eye className="size-4" aria-hidden />
+                  {revealMutation.isPending ? 'Učitavanje…' : 'Prikaži link'}
+                </Button>
+              ) : null}
               {link.active ? (
                 <Button
                   type="button"

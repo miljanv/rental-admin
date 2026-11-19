@@ -1,5 +1,6 @@
 import type { TripExpenseCategory, TripExpensePaymentMethod } from './trip-expense';
 import type { FuelLogFuelType } from './fuel-log';
+import type { BorderCrossingInput } from './driver-per-diem';
 import type { TripKmSource } from './trip';
 
 /** Header the driver portal sends the personal link token in. */
@@ -62,9 +63,11 @@ export interface DriverAccessLinkDto {
   active: boolean;
   createdAt: string | null;
   lastUsedAt: string | null;
+  /** The active link can be shown again (links made before encryption cannot). */
+  canReveal: boolean;
 }
 
-/** Returned once, when a link is created. The web app builds the URL from the token. */
+/** Returned when a link is created or shown again. The web app builds the URL from the token. */
 export interface DriverAccessLinkCreatedDto {
   token: string;
   createdAt: string;
@@ -73,6 +76,8 @@ export interface DriverAccessLinkCreatedDto {
 export interface DriverPortalMeDto {
   driver: { id: string; firstName: string; lastName: string };
   organizationName: string;
+  /** Active company cards the driver can say paid an expense. */
+  paymentCards: Array<{ id: string; name: string }>;
 }
 
 export interface DriverPortalVehicleDto {
@@ -80,8 +85,10 @@ export interface DriverPortalVehicleDto {
   licensePlate: string;
   make: string;
   model: string;
+  garageStartKm: number | null;
   startKm: number | null;
   endKm: number | null;
+  garageEndKm: number | null;
   distanceKm: number | null;
   /** Highest odometer reading known before this trip; only filled on the trip detail. */
   lastKnownKm: number | null;
@@ -101,9 +108,12 @@ export interface DriverPortalExpenseDto extends DriverExpenseFuelDto {
   category: TripExpenseCategory;
   amount: number;
   paymentMethod: TripExpensePaymentMethod;
+  paymentCardId: string | null;
   note: string | null;
   file: { id: string; originalName: string } | null;
   status: DriverReportExpenseStatus;
+  /** Why the office rejected it, when it did and said so. */
+  rejectionReason: string | null;
 }
 
 export interface DriverPortalReportDto {
@@ -115,7 +125,19 @@ export interface DriverPortalReportDto {
   submittedAt: string;
   updatedAt: string;
   reviewedAt: string | null;
+  /** Trip start / end as the driver sent them, local "yyyy-mm-ddTHH:mm". */
+  startedAt: string | null;
+  finishedAt: string | null;
+  borderCrossings: BorderCrossingInput[];
   expenses: DriverPortalExpenseDto[];
+}
+
+/** The driver's own assignment on a trip: confirmation and the advance. */
+export interface DriverPortalAssignmentDto {
+  confirmedAt: string | null;
+  /** Advance in RSD the office gives for trip costs; null or 0 when there is none. */
+  advanceAmount: number | null;
+  advanceAcceptedAt: string | null;
 }
 
 export interface DriverPortalTripDto {
@@ -126,6 +148,10 @@ export interface DriverPortalTripDto {
   destination: string;
   /** Customer name only; no prices, invoices or contact details reach the driver. */
   clientName: string | null;
+  departureTime: string | null;
+  pickupLocation: string | null;
+  itinerary: string | null;
+  assignment: DriverPortalAssignmentDto;
   vehicles: DriverPortalVehicleDto[];
   report: DriverPortalReportDto | null;
   /** False for a trip that has not started yet: nothing can be sent before the day of the trip. */
@@ -177,8 +203,10 @@ export interface DriverReportAdminExpenseDto extends DriverExpenseFuelDto {
   category: TripExpenseCategory;
   amount: number;
   paymentMethod: TripExpensePaymentMethod;
+  paymentCard: { id: string; name: string } | null;
   note: string | null;
   status: DriverReportExpenseStatus;
+  rejectionReason: string | null;
   file: { id: string; originalName: string; mimeType: string } | null;
   /** The trip expense created when the office accepted it. */
   tripExpenseId: string | null;
@@ -221,6 +249,9 @@ export interface DriverReportAdminDto {
   updatedAt: string;
   reviewedAt: string | null;
   reviewedBy: { id: string; username: string } | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  borderCrossings: BorderCrossingInput[];
   driver: { id: string; firstName: string; lastName: string };
   trip: {
     id: string;
@@ -234,9 +265,12 @@ export interface DriverReportAdminDto {
   vehicles: Array<{
     vehicleId: string;
     licensePlate: string;
+    garageStartKm: number | null;
     startKm: number | null;
     endKm: number | null;
+    garageEndKm: number | null;
     distanceKm: number | null;
+    garageDistanceKm: number | null;
     /** Who wrote the reading that is on the trip now. */
     currentKmSource: TripKmSource | null;
   }>;

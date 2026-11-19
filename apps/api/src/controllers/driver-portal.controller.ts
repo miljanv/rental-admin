@@ -40,6 +40,20 @@ export const submitReport = async (req: Request, res: Response): Promise<void> =
   sendSuccess(res, await driverPortalService.submitDriverReport(access.driverId, id, body));
 };
 
+export const confirmTrip = async (req: Request, res: Response): Promise<void> => {
+  const access = currentDriverAccess(req);
+  const { id } = validated<DriverPortalTripParams>(req, 'params');
+
+  sendSuccess(res, await driverPortalService.confirmDriverTrip(access.driverId, id));
+};
+
+export const acceptAdvance = async (req: Request, res: Response): Promise<void> => {
+  const access = currentDriverAccess(req);
+  const { id } = validated<DriverPortalTripParams>(req, 'params');
+
+  sendSuccess(res, await driverPortalService.acceptDriverAdvance(access.driverId, id));
+};
+
 export const presignReceipt = async (req: Request, res: Response): Promise<void> => {
   currentDriverAccess(req);
   const body = validated<PresignUploadRequest>(req, 'body');

@@ -50,6 +50,8 @@ export interface TripExpenseDto {
   category: TripExpenseCategory;
   amount: number;
   paymentMethod: TripExpensePaymentMethod;
+  /** The company card that paid, for COMPANY_CARD. */
+  paymentCard: { id: string; name: string } | null;
   note: string | null;
   file: AttachedFileDto | null;
   createdAt: string;

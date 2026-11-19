@@ -18,6 +18,8 @@ import { tripVehicleDistanceKm } from '@rental-admin/shared';
 export interface TripVehicleAssignmentRecord {
   startKm?: number | null;
   endKm?: number | null;
+  garageStartKm?: number | null;
+  garageEndKm?: number | null;
   kmSource?: TripKmSource | null;
   kmUpdatedAt?: Date | null;
   vehicle: { id: string; make: string; model: string; licensePlate: string };
@@ -31,6 +33,9 @@ export const toTripVehicleDto = (assignment: TripVehicleAssignmentRecord): TripV
   startKm: assignment.startKm ?? null,
   endKm: assignment.endKm ?? null,
   distanceKm: tripVehicleDistanceKm(assignment.startKm, assignment.endKm),
+  garageStartKm: assignment.garageStartKm ?? null,
+  garageEndKm: assignment.garageEndKm ?? null,
+  garageDistanceKm: tripVehicleDistanceKm(assignment.garageStartKm, assignment.garageEndKm),
   kmSource: assignment.kmSource ?? null,
   kmUpdatedAt: assignment.kmUpdatedAt ? assignment.kmUpdatedAt.toISOString() : null,
 });
@@ -44,6 +49,8 @@ export interface TripDriverAssignmentRecord {
   advanceAmount: number | null;
   advanceStatus?: 'DRAFT' | 'PAID' | 'SETTLED';
   advancePaidAt?: Date | null;
+  confirmedAt?: Date | null;
+  advanceAcceptedAt?: Date | null;
   driver: { id: string; firstName: string; lastName: string };
 }
 
@@ -73,6 +80,9 @@ export interface TripRecord {
   partnerId: string | null;
   clientName: string | null;
   notes: string | null;
+  departureTime?: string | null;
+  pickupLocation?: string | null;
+  itinerary?: string | null;
   price: number | null;
   priceIncludesVat: boolean | null;
   invoiceDescription: string | null;
@@ -169,6 +179,9 @@ export const toTripDto = (record: TripRecord): TripDto => ({
   fuelLiters: record.fuelLiters,
   clientName: record.clientName,
   notes: record.notes,
+  departureTime: record.departureTime ?? null,
+  pickupLocation: record.pickupLocation ?? null,
+  itinerary: record.itinerary ?? null,
   price: record.price,
   priceIncludesVat: record.priceIncludesVat,
   invoiceDescription: record.invoiceDescription,
@@ -223,6 +236,8 @@ export const toTripDto = (record: TripRecord): TripDto => ({
     advanceAmount: assignment.advanceAmount,
     advanceStatus: assignment.advanceStatus ?? 'DRAFT',
     advancePaidAt: assignment.advancePaidAt ? toIsoDate(assignment.advancePaidAt) : null,
+    confirmedAt: assignment.confirmedAt?.toISOString() ?? null,
+    advanceAcceptedAt: assignment.advanceAcceptedAt?.toISOString() ?? null,
   })),
   createdAt: record.createdAt.toISOString(),
   updatedAt: record.updatedAt.toISOString(),

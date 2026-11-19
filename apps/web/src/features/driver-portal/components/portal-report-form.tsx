@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ReceiptField } from '@/features/driver-portal/components/receipt-field';
+import { usePortalMe } from '@/features/driver-portal/hooks/use-portal-me';
 import { useSubmitPortalReport } from '@/features/driver-portal/hooks/use-submit-portal-report';
 import { formatKm, portalHref } from '@/features/driver-portal/lib/portal';
 import { formatMoney } from '@/lib/format';
@@ -49,9 +50,14 @@ const toReading = (value: unknown): number | null =>
 const formValues = (trip: DriverPortalTripDto): DriverReportWriteInput => ({
   vehicles: trip.vehicles.map((vehicle) => ({
     vehicleId: vehicle.id,
+    garageStartKm: vehicle.garageStartKm ?? '',
     startKm: vehicle.startKm ?? '',
     endKm: vehicle.endKm ?? '',
+    garageEndKm: vehicle.garageEndKm ?? '',
   })),
+  startedAt: trip.report?.startedAt ?? '',
+  finishedAt: trip.report?.finishedAt ?? '',
+  borderCrossings: trip.report?.borderCrossings ?? [],
   expenses: (trip.report?.expenses ?? [])
     .filter((expense) => expense.status === 'PENDING')
     .map((expense) => ({
@@ -59,6 +65,7 @@ const formValues = (trip: DriverPortalTripDto): DriverReportWriteInput => ({
       category: expense.category,
       amount: expense.amount,
       paymentMethod: expense.paymentMethod === 'COMPANY_CARD' ? 'COMPANY_CARD' : 'CASH',
+      paymentCardId: expense.paymentCardId ?? '',
       note: expense.note ?? '',
       fileId: expense.file?.id ?? '',
       vehicleId: expense.vehicleId ?? trip.vehicles[0]?.id ?? '',
@@ -72,11 +79,24 @@ const formValues = (trip: DriverPortalTripDto): DriverReportWriteInput => ({
 
 type ExpenseInput = NonNullable<DriverReportWriteInput['expenses']>[number];
 
+type KmField = 'garageStartKm' | 'startKm' | 'endKm' | 'garageEndKm';
+
+/** The vehicle's day in order, as on the paper travel order. */
+const KM_FIELDS: ReadonlyArray<{ field: KmField; label: string }> = [
+  { field: 'garageStartKm', label: 'Početna km iz garaže' },
+  { field: 'startKm', label: 'Početna km sa polaska (putnici)' },
+  { field: 'endKm', label: 'Završna km gde ostavljate putnike' },
+  { field: 'garageEndKm', label: 'Završna km u garaži' },
+];
+
+const DIRECTION_LABELS = { OUT: 'Izlazak iz Srbije', IN: 'Ulazak u Srbiju' } as const;
+
 const newExpense = (trip: DriverPortalTripDto): ExpenseInput => ({
   id: '',
   category: 'TOLL',
   amount: Number.NaN,
   paymentMethod: 'CASH',
+  paymentCardId: '',
   note: '',
   fileId: '',
   vehicleId: trip.vehicles[0]?.id ?? '',
@@ -95,6 +115,24 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
     defaultValues: formValues(trip),
   });
   const expenseFields = useFieldArray({ control: form.control, name: 'expenses' });
+  const borderFields = useFieldArray({ control: form.control, name: 'borderCrossings' });
+  const paymentCards = usePortalMe(token).data?.paymentCards ?? [];
+  // Cash plus each company card ("OMV kartica"); without cards, one plain company card button.
+  const paymentOptions =
+    paymentCards.length > 0
+      ? [
+          { method: 'CASH' as const, cardId: '', label: TRIP_EXPENSE_PAYMENT_METHOD_LABELS.CASH },
+          ...paymentCards.map((card) => ({
+            method: 'COMPANY_CARD' as const,
+            cardId: card.id,
+            label: card.name,
+          })),
+        ]
+      : DRIVER_EXPENSE_PAYMENT_METHODS.map((method) => ({
+          method,
+          cardId: '',
+          label: TRIP_EXPENSE_PAYMENT_METHOD_LABELS[method],
+        }));
   const vehicles = useWatch({ control: form.control, name: 'vehicles' }) ?? [];
   const watchedExpenses = useWatch({ control: form.control, name: 'expenses' }) ?? [];
   const [fileNames, setFileNames] = useState<Record<string, string>>(() =>
@@ -140,6 +178,10 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
               toReading(reading?.startKm),
               toReading(reading?.endKm),
             );
+            const garageDistance = tripVehicleDistanceKm(
+              toReading(reading?.garageStartKm),
+              toReading(reading?.garageEndKm),
+            );
             const rowErrors = errors.vehicles?.[index];
 
             return (
@@ -150,43 +192,35 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
                     {vehicle.make} {vehicle.model}
                   </span>
                 </p>
-                <div className="space-y-1.5">
-                  <Label htmlFor={`start-${vehicle.id}`}>Početna kilometraža</Label>
-                  <Input
-                    id={`start-${vehicle.id}`}
-                    type="number"
-                    inputMode="numeric"
-                    className="h-11 text-base"
-                    disabled={isPending}
-                    aria-invalid={Boolean(rowErrors?.startKm)}
-                    {...form.register(`vehicles.${index}.startKm`, { valueAsNumber: true })}
-                  />
-                  {vehicle.lastKnownKm !== null ? (
-                    <p className="text-muted-foreground text-xs">
-                      Poslednje poznato: {formatKm(vehicle.lastKnownKm)}
-                    </p>
-                  ) : null}
-                  {rowErrors?.startKm?.message ? (
-                    <p className="text-destructive text-xs">{rowErrors.startKm.message}</p>
-                  ) : null}
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor={`end-${vehicle.id}`}>Završna kilometraža</Label>
-                  <Input
-                    id={`end-${vehicle.id}`}
-                    type="number"
-                    inputMode="numeric"
-                    className="h-11 text-base"
-                    disabled={isPending}
-                    aria-invalid={Boolean(rowErrors?.endKm)}
-                    {...form.register(`vehicles.${index}.endKm`, { valueAsNumber: true })}
-                  />
-                  {rowErrors?.endKm?.message ? (
-                    <p className="text-destructive text-xs">{rowErrors.endKm.message}</p>
-                  ) : distance !== null ? (
-                    <p className="text-sm font-medium">Pređeno: {formatKm(distance)}</p>
-                  ) : null}
-                </div>
+                {KM_FIELDS.map(({ field, label }) => (
+                  <div key={field} className="space-y-1.5">
+                    <Label htmlFor={`${field}-${vehicle.id}`}>{label}</Label>
+                    <Input
+                      id={`${field}-${vehicle.id}`}
+                      type="number"
+                      inputMode="numeric"
+                      className="h-11 text-base"
+                      disabled={isPending}
+                      aria-invalid={Boolean(rowErrors?.[field])}
+                      {...form.register(`vehicles.${index}.${field}`, { valueAsNumber: true })}
+                    />
+                    {field === 'garageStartKm' && vehicle.lastKnownKm !== null ? (
+                      <p className="text-muted-foreground text-xs">
+                        Poslednje poznato: {formatKm(vehicle.lastKnownKm)}
+                      </p>
+                    ) : null}
+                    {rowErrors?.[field]?.message ? (
+                      <p className="text-destructive text-xs">{rowErrors[field]?.message}</p>
+                    ) : null}
+                  </div>
+                ))}
+                {distance !== null || garageDistance !== null ? (
+                  <p className="text-sm font-medium">
+                    {distance !== null ? `Sa putnicima: ${formatKm(distance)}` : ''}
+                    {distance !== null && garageDistance !== null ? ' · ' : ''}
+                    {garageDistance !== null ? `Ukupno: ${formatKm(garageDistance)}` : ''}
+                  </p>
+                ) : null}
               </div>
             );
           })
@@ -205,6 +239,9 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
             <Badge variant={expense.status === 'ACCEPTED' ? 'secondary' : 'destructive'}>
               {DRIVER_REPORT_EXPENSE_STATUS_LABELS[expense.status]}
             </Badge>
+            {expense.status === 'REJECTED' && expense.rejectionReason ? (
+              <p className="text-destructive">Razlog: {expense.rejectionReason}</p>
+            ) : null}
           </div>
         ))}
 
@@ -277,20 +314,33 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
                 name={`expenses.${index}.paymentMethod`}
                 render={({ field: paymentField }) => (
                   <div className="space-y-1.5">
-                    <Label>Plaćeno</Label>
+                    <Label>Čime ste platili</Label>
                     <div className="grid grid-cols-2 gap-2">
-                      {DRIVER_EXPENSE_PAYMENT_METHODS.map((method) => (
-                        <Button
-                          key={method}
-                          type="button"
-                          className="h-11"
-                          variant={paymentField.value === method ? 'default' : 'outline'}
-                          disabled={isPending}
-                          onClick={() => paymentField.onChange(method)}
-                        >
-                          {TRIP_EXPENSE_PAYMENT_METHOD_LABELS[method]}
-                        </Button>
-                      ))}
+                      {paymentOptions.map((option) => {
+                        const selected =
+                          paymentField.value === option.method &&
+                          (option.method === 'CASH' ||
+                            paymentCards.length === 0 ||
+                            (watchedExpenses[index]?.paymentCardId ?? '') === option.cardId);
+
+                        return (
+                          <Button
+                            key={`${option.method}:${option.cardId}`}
+                            type="button"
+                            className="h-11"
+                            variant={selected ? 'default' : 'outline'}
+                            disabled={isPending}
+                            onClick={() => {
+                              paymentField.onChange(option.method);
+                              form.setValue(`expenses.${index}.paymentCardId`, option.cardId, {
+                                shouldDirty: true,
+                              });
+                            }}
+                          >
+                            {option.label}
+                          </Button>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -437,6 +487,105 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
         {errors.expenses?.message ? (
           <p className="text-destructive text-xs">{errors.expenses.message}</p>
         ) : null}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold">Vreme vožnje</h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="started-at">Početak vožnje</Label>
+            <Input
+              id="started-at"
+              type="datetime-local"
+              className="h-11 text-base"
+              disabled={isPending}
+              {...form.register('startedAt')}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="finished-at">Završetak vožnje</Label>
+            <Input
+              id="finished-at"
+              type="datetime-local"
+              className="h-11 text-base"
+              disabled={isPending}
+              aria-invalid={Boolean(errors.finishedAt)}
+              {...form.register('finishedAt')}
+            />
+            {errors.finishedAt?.message ? (
+              <p className="text-destructive text-xs">{errors.finishedAt.message}</p>
+            ) : null}
+          </div>
+        </div>
+
+        <p className="text-muted-foreground text-sm">
+          Ako vožnja ide u inostranstvo, upišite kada ste prešli granicu Srbije.
+        </p>
+        {borderFields.fields.map((field, index) => (
+          <div key={field.id} className="space-y-2 rounded-xl border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium">Prelazak granice {index + 1}</p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Ukloni prelazak granice"
+                disabled={isPending}
+                onClick={() => borderFields.remove(index)}
+              >
+                <Trash2 className="size-4" aria-hidden />
+              </Button>
+            </div>
+            <Controller
+              control={form.control}
+              name={`borderCrossings.${index}.direction`}
+              render={({ field: directionField }) => (
+                <div className="grid grid-cols-2 gap-2">
+                  {(['OUT', 'IN'] as const).map((direction) => (
+                    <Button
+                      key={direction}
+                      type="button"
+                      className="h-11"
+                      variant={directionField.value === direction ? 'default' : 'outline'}
+                      disabled={isPending}
+                      onClick={() => directionField.onChange(direction)}
+                    >
+                      {DIRECTION_LABELS[direction]}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            />
+            <Input
+              type="datetime-local"
+              aria-label="Vreme prelaska granice"
+              className="h-11 text-base"
+              disabled={isPending}
+              aria-invalid={Boolean(errors.borderCrossings?.[index]?.at)}
+              {...form.register(`borderCrossings.${index}.at`)}
+            />
+            {errors.borderCrossings?.[index]?.at?.message ? (
+              <p className="text-destructive text-xs">
+                {errors.borderCrossings[index]?.at?.message}
+              </p>
+            ) : null}
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 w-full"
+          disabled={isPending}
+          onClick={() =>
+            borderFields.append({
+              direction: borderFields.fields.length % 2 === 0 ? 'OUT' : 'IN',
+              at: '',
+            })
+          }
+        >
+          <Plus className="size-4" aria-hidden />
+          Dodaj prelazak granice
+        </Button>
       </section>
 
       <section className="space-y-1.5">

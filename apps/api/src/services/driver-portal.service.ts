@@ -5,6 +5,8 @@ import {
   isDriverReceiptMimeType,
   tripClientDisplayName,
   tripVehicleDistanceKm,
+  tripVehicleKmOrderIssues,
+  type BorderCrossingInput,
   type DriverPortalExpenseDto,
   type DriverPortalFileDto,
   type DriverPortalMeDto,
@@ -24,6 +26,7 @@ import {
   type TripVehicleKmRequest,
 } from '@rental-admin/shared';
 
+import type { Prisma } from '../generated/prisma/client';
 import { prisma, prismaUnscoped } from '../config/prisma';
 import { badRequest, conflict, notFound, unsupportedMediaType } from '../utils/app-error';
 import { logger } from '../utils/logger';
@@ -66,6 +69,9 @@ const reportSelect = {
   submittedAt: true,
   updatedAt: true,
   reviewedAt: true,
+  startedAt: true,
+  finishedAt: true,
+  borderCrossings: true,
   expenses: {
     orderBy: { createdAt: 'asc' as const },
     select: {
@@ -73,8 +79,10 @@ const reportSelect = {
       category: true,
       amount: true,
       paymentMethod: true,
+      paymentCardId: true,
       note: true,
       status: true,
+      rejectionReason: true,
       fileId: true,
       file: { select: { id: true, originalName: true } },
       vehicleId: true,
@@ -94,14 +102,24 @@ const tripSelect = (driverId: string) =>
     origin: true,
     destination: true,
     clientName: true,
+    departureTime: true,
+    pickupLocation: true,
+    itinerary: true,
+    travelTimelineSource: true,
     partner: { select: { type: true, companyName: true, firstName: true, lastName: true } },
     vehicles: {
       orderBy: { createdAt: 'asc' as const },
       select: {
+        garageStartKm: true,
         startKm: true,
         endKm: true,
+        garageEndKm: true,
         vehicle: { select: { id: true, licensePlate: true, make: true, model: true } },
       },
+    },
+    drivers: {
+      where: { driverId },
+      select: { confirmedAt: true, advanceAmount: true, advanceAcceptedAt: true },
     },
     driverReports: { where: { driverId }, select: reportSelect },
   }) as const;
@@ -111,8 +129,10 @@ interface PortalExpenseRecord {
   category: TripExpenseCategory;
   amount: number;
   paymentMethod: TripExpensePaymentMethod;
+  paymentCardId: string | null;
   note: string | null;
   status: DriverPortalExpenseDto['status'];
+  rejectionReason: string | null;
   fileId: string | null;
   file: { id: string; originalName: string } | null;
   vehicleId: string | null;
@@ -130,6 +150,9 @@ interface PortalReportRecord {
   submittedAt: Date;
   updatedAt: Date;
   reviewedAt: Date | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  borderCrossings: unknown;
   expenses: PortalExpenseRecord[];
 }
 
@@ -140,6 +163,10 @@ interface PortalTripRecord {
   origin: string;
   destination: string;
   clientName: string | null;
+  departureTime: string | null;
+  pickupLocation: string | null;
+  itinerary: string | null;
+  travelTimelineSource: 'ADMIN' | 'DRIVER' | null;
   partner: {
     type: PartnerType;
     companyName: string | null;
@@ -147,12 +174,31 @@ interface PortalTripRecord {
     lastName: string | null;
   } | null;
   vehicles: Array<{
+    garageStartKm: number | null;
     startKm: number | null;
     endKm: number | null;
+    garageEndKm: number | null;
     vehicle: { id: string; licensePlate: string; make: string; model: string };
+  }>;
+  drivers: Array<{
+    confirmedAt: Date | null;
+    advanceAmount: number | null;
+    advanceAcceptedAt: Date | null;
   }>;
   driverReports: PortalReportRecord[];
 }
+
+/** Border crossings stored as JSON, kept only when well formed. */
+export const parseBorderCrossings = (value: unknown): BorderCrossingInput[] =>
+  Array.isArray(value)
+    ? value.flatMap((item: unknown) => {
+        if (!item || typeof item !== 'object') return [];
+        const { at, direction } = item as Record<string, unknown>;
+        return typeof at === 'string' && (direction === 'OUT' || direction === 'IN')
+          ? [{ at, direction }]
+          : [];
+      })
+    : [];
 
 const toReportDto = (report: PortalReportRecord): DriverPortalReportDto => ({
   id: report.id,
@@ -162,14 +208,19 @@ const toReportDto = (report: PortalReportRecord): DriverPortalReportDto => ({
   submittedAt: report.submittedAt.toISOString(),
   updatedAt: report.updatedAt.toISOString(),
   reviewedAt: report.reviewedAt?.toISOString() ?? null,
+  startedAt: report.startedAt,
+  finishedAt: report.finishedAt,
+  borderCrossings: parseBorderCrossings(report.borderCrossings),
   expenses: report.expenses.map((expense) => ({
     id: expense.id,
     category: expense.category,
     amount: expense.amount,
     paymentMethod: expense.paymentMethod,
+    paymentCardId: expense.paymentCardId,
     note: expense.note,
     file: expense.file,
     status: expense.status,
+    rejectionReason: expense.rejectionReason,
     vehicleId: expense.vehicleId,
     fuelLiters: expense.fuelLiters,
     fuelType: expense.fuelType,
@@ -184,6 +235,7 @@ export const toPortalTripDto = (
   lastKnownKm: ReadonlyMap<string, number | null> = new Map(),
 ): DriverPortalTripDto => {
   const report = record.driverReports[0];
+  const assignment = record.drivers[0];
   const clientName = tripClientDisplayName({
     partner: record.partner ? { id: '', ...record.partner } : null,
     clientName: record.clientName,
@@ -196,13 +248,23 @@ export const toPortalTripDto = (
     origin: record.origin,
     destination: record.destination,
     clientName: clientName || null,
+    departureTime: record.departureTime,
+    pickupLocation: record.pickupLocation,
+    itinerary: record.itinerary,
+    assignment: {
+      confirmedAt: assignment?.confirmedAt?.toISOString() ?? null,
+      advanceAmount: assignment?.advanceAmount ?? null,
+      advanceAcceptedAt: assignment?.advanceAcceptedAt?.toISOString() ?? null,
+    },
     vehicles: record.vehicles.map((assignment) => ({
       id: assignment.vehicle.id,
       licensePlate: assignment.vehicle.licensePlate,
       make: assignment.vehicle.make,
       model: assignment.vehicle.model,
+      garageStartKm: assignment.garageStartKm,
       startKm: assignment.startKm,
       endKm: assignment.endKm,
+      garageEndKm: assignment.garageEndKm,
       distanceKm: tripVehicleDistanceKm(assignment.startKm, assignment.endKm),
       lastKnownKm: lastKnownKm.get(assignment.vehicle.id) ?? null,
     })),
@@ -243,7 +305,7 @@ export const getDriverPortalMe = async (
   driverId: string,
   organizationId: string,
 ): Promise<DriverPortalMeDto> => {
-  const [driver, organization] = await Promise.all([
+  const [driver, organization, paymentCards] = await Promise.all([
     prisma.driver.findUnique({
       where: { id: driverId },
       select: { id: true, firstName: true, lastName: true },
@@ -252,13 +314,18 @@ export const getDriverPortalMe = async (
       where: { id: organizationId },
       select: { name: true },
     }),
+    prisma.paymentCard.findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    }),
   ]);
 
   if (!driver || !organization) {
     throw notFound('Vozač nije pronađen.');
   }
 
-  return { driver, organizationName: organization.name };
+  return { driver, organizationName: organization.name, paymentCards };
 };
 
 export const listDriverPortalTrips = async (
@@ -377,18 +444,20 @@ export const odometerWarnings = (
   readings.flatMap((reading) => {
     const lastKnown = lastKnownKm.get(reading.vehicleId) ?? null;
     const plate = plates.get(reading.vehicleId) ?? 'Vozilo';
+    // The first reading of the day: leaving the garage, or departure when that is missing.
+    const first = reading.garageStartKm ?? reading.startKm;
 
-    if (reading.startKm === null || lastKnown === null) {
+    if (first === null || lastKnown === null) {
       return [];
     }
 
-    if (reading.startKm < lastKnown) {
+    if (first < lastKnown) {
       return [
         `${plate}: početna kilometraža je manja od poslednje poznate (${kmFormatter.format(lastKnown)} km).`,
       ];
     }
 
-    if (reading.startKm - lastKnown > DRIVER_KM_JUMP_WARNING) {
+    if (first - lastKnown > DRIVER_KM_JUMP_WARNING) {
       return [
         `${plate}: početna kilometraža je za više od ${kmFormatter.format(DRIVER_KM_JUMP_WARNING)} km veća od poslednje poznate (${kmFormatter.format(lastKnown)} km).`,
       ];
@@ -403,11 +472,17 @@ export const odometerWarnings = (
  */
 export const mergeDriverReadings = (
   readings: ReadonlyArray<TripVehicleKmRequest>,
-  current: ReadonlyMap<string, { startKm: number | null; endKm: number | null }>,
+  current: ReadonlyMap<string, Omit<TripVehicleKmRequest, 'vehicleId'>>,
   plates: ReadonlyMap<string, string>,
 ): TripVehicleKmRequest[] =>
   readings
-    .filter((reading) => reading.startKm !== null || reading.endKm !== null)
+    .filter(
+      (reading) =>
+        reading.garageStartKm !== null ||
+        reading.startKm !== null ||
+        reading.endKm !== null ||
+        reading.garageEndKm !== null,
+    )
     .map((reading) => {
       const existing = current.get(reading.vehicleId);
 
@@ -417,14 +492,15 @@ export const mergeDriverReadings = (
 
       const merged = {
         vehicleId: reading.vehicleId,
+        garageStartKm: reading.garageStartKm ?? existing.garageStartKm,
         startKm: reading.startKm ?? existing.startKm,
         endKm: reading.endKm ?? existing.endKm,
+        garageEndKm: reading.garageEndKm ?? existing.garageEndKm,
       };
+      const [issue] = tripVehicleKmOrderIssues(merged);
 
-      if (merged.startKm !== null && merged.endKm !== null && merged.endKm < merged.startKm) {
-        throw badRequest(
-          `${plates.get(reading.vehicleId) ?? 'Vozilo'}: završna kilometraža ne može biti manja od početne.`,
-        );
+      if (issue) {
+        throw badRequest(`${plates.get(reading.vehicleId) ?? 'Vozilo'}: ${issue.message}`);
       }
 
       return merged;
@@ -448,6 +524,10 @@ export const fuelFields = (expense: DriverReportExpenseRequest) =>
         fuelStation: null,
       };
 
+/** A card is kept only for a company-card payment. */
+const cardOf = (expense: DriverReportExpenseRequest): string | null =>
+  expense.paymentMethod === 'COMPANY_CARD' ? expense.paymentCardId : null;
+
 const sameExpense = (current: PortalExpenseRecord, next: DriverReportExpenseRequest): boolean => {
   const fuel = fuelFields(next);
 
@@ -455,6 +535,7 @@ const sameExpense = (current: PortalExpenseRecord, next: DriverReportExpenseRequ
     current.category === next.category &&
     current.amount === next.amount &&
     current.paymentMethod === next.paymentMethod &&
+    current.paymentCardId === cardOf(next) &&
     (current.note ?? null) === next.note &&
     (current.fileId ?? null) === next.fileId &&
     current.vehicleId === fuel.vehicleId &&
@@ -483,6 +564,7 @@ const expenseData = (expense: DriverReportExpenseRequest) => ({
   category: expense.category,
   amount: expense.amount,
   paymentMethod: expense.paymentMethod,
+  paymentCardId: cardOf(expense),
   note: expense.note,
   fileId: expense.fileId,
   ...fuelFields(expense),
@@ -508,7 +590,15 @@ export const submitDriverReport = async (
 
   const plates = new Map(trip.vehicles.map((row) => [row.vehicle.id, row.vehicle.licensePlate]));
   const currentKm = new Map(
-    trip.vehicles.map((row) => [row.vehicle.id, { startKm: row.startKm, endKm: row.endKm }]),
+    trip.vehicles.map((row) => [
+      row.vehicle.id,
+      {
+        garageStartKm: row.garageStartKm,
+        startKm: row.startKm,
+        endKm: row.endKm,
+        garageEndKm: row.garageEndKm,
+      },
+    ]),
   );
   const readings = mergeDriverReadings(input.vehicles, currentKm, plates);
 
@@ -517,6 +607,18 @@ export const submitDriverReport = async (
 
     if (vehicleId && !plates.has(vehicleId)) {
       throw badRequest('Vozilo nije dodeljeno ovoj vožnji.');
+    }
+  }
+
+  const cardIds = [
+    ...new Set(input.expenses.map(cardOf).filter((id): id is string => id !== null)),
+  ];
+
+  if (cardIds.length > 0) {
+    const cards = await prisma.paymentCard.count({ where: { id: { in: cardIds } } });
+
+    if (cards !== cardIds.length) {
+      throw badRequest('Izabrana kartica nije pronađena. Osvežite stranicu i pokušajte ponovo.');
     }
   }
 
@@ -529,6 +631,24 @@ export const submitDriverReport = async (
   const lastKnownKm = await loadLastKnownKm(trip);
   const warnings = odometerWarnings(readings, plates, lastKnownKm);
   const existing = trip.driverReports[0] ?? null;
+  // An empty time keeps what the driver sent before, like the odometer readings.
+  const startedAt = input.startedAt ?? existing?.startedAt ?? null;
+  const finishedAt = input.finishedAt ?? existing?.finishedAt ?? null;
+
+  if (startedAt && finishedAt && finishedAt <= startedAt) {
+    throw badRequest('Završetak vožnje mora biti posle početka.');
+  }
+
+  const times = {
+    startedAt,
+    finishedAt,
+    borderCrossings: input.borderCrossings as unknown as Prisma.InputJsonValue,
+  };
+  // The per-diem obračun reads the trip's timeline; the office's own entry is never overwritten.
+  const timeline =
+    startedAt && finishedAt && trip.travelTimelineSource !== 'ADMIN'
+      ? { departureAt: startedAt, returnAt: finishedAt, borderCrossings: input.borderCrossings }
+      : null;
   const existingById = new Map(existing?.expenses.map((expense) => [expense.id, expense]) ?? []);
   const keptIds = new Set<string>();
   const updates: Array<{ id: string; expense: DriverReportExpenseRequest }> = [];
@@ -587,6 +707,7 @@ export const submitDriverReport = async (
             data: {
               note: input.note,
               status,
+              ...times,
               ...(status === 'SUBMITTED' ? { submittedAt: now } : {}),
             },
             select: { id: true },
@@ -598,6 +719,7 @@ export const submitDriverReport = async (
               driverId,
               note: input.note,
               status: 'SUBMITTED',
+              ...times,
             },
             select: { id: true },
           });
@@ -624,15 +746,32 @@ export const submitDriverReport = async (
           create: {
             reportId: report.id,
             vehicleId: reading.vehicleId,
+            garageStartKm: reading.garageStartKm,
             startKm: reading.startKm,
             endKm: reading.endKm,
+            garageEndKm: reading.garageEndKm,
           },
-          update: { startKm: reading.startKm, endKm: reading.endKm },
+          update: {
+            garageStartKm: reading.garageStartKm,
+            startKm: reading.startKm,
+            endKm: reading.endKm,
+            garageEndKm: reading.garageEndKm,
+          },
         });
       }
 
       if (readings.length > 0) {
         await applyTripVehicleKm(tripId, readings, 'DRIVER', tx);
+      }
+
+      if (timeline) {
+        await tx.trip.update({
+          where: { id: tripId },
+          data: {
+            travelTimeline: timeline as unknown as Prisma.InputJsonValue,
+            travelTimelineSource: 'DRIVER',
+          },
+        });
       }
     });
   } catch (error) {
@@ -660,6 +799,61 @@ export const submitDriverReport = async (
   });
 
   return { trip: await getDriverPortalTrip(driverId, tripId, now), warnings };
+};
+
+/** The driver confirms the assignment: date, time, pickup, vehicle and program as shown. */
+export const confirmDriverTrip = async (
+  driverId: string,
+  tripId: string,
+  now: Date = new Date(),
+): Promise<DriverPortalTripDto> => {
+  const trip = await loadPortalTrip(driverId, tripId, portalTodayIso(now));
+
+  if (!trip.drivers[0]?.confirmedAt) {
+    await prisma.tripDriver.update({
+      where: { tripId_driverId: { tripId, driverId } },
+      data: { confirmedAt: now },
+    });
+    await recordAuditEvent({
+      action: 'DRIVER_TRIP_CONFIRMED',
+      entityType: 'Trip',
+      entityId: tripId,
+      actorUserId: null,
+      metadata: { driverId },
+    });
+  }
+
+  return getDriverPortalTrip(driverId, tripId, now);
+};
+
+/** The driver accepts the advance the office gave for this trip as his responsibility. */
+export const acceptDriverAdvance = async (
+  driverId: string,
+  tripId: string,
+  now: Date = new Date(),
+): Promise<DriverPortalTripDto> => {
+  const trip = await loadPortalTrip(driverId, tripId, portalTodayIso(now));
+  const assignment = trip.drivers[0];
+
+  if (!assignment?.advanceAmount || assignment.advanceAmount <= 0) {
+    throw badRequest('Za ovu vožnju nema akontacije.');
+  }
+
+  if (!assignment.advanceAcceptedAt) {
+    await prisma.tripDriver.update({
+      where: { tripId_driverId: { tripId, driverId } },
+      data: { advanceAcceptedAt: now },
+    });
+    await recordAuditEvent({
+      action: 'DRIVER_ADVANCE_ACCEPTED',
+      entityType: 'Trip',
+      entityId: tripId,
+      actorUserId: null,
+      metadata: { driverId, advanceAmount: assignment.advanceAmount },
+    });
+  }
+
+  return getDriverPortalTrip(driverId, tripId, now);
 };
 
 /** Starts a direct-to-S3 upload of a receipt photo or scan. */

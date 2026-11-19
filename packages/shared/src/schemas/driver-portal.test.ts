@@ -2,9 +2,38 @@ import { describe, expect, it } from 'vitest';
 
 import { driverReportWriteSchema } from './driver-portal';
 
+describe('driverReportWriteSchema trip times', () => {
+  it('keeps start, end and border crossings and rejects an end before the start', () => {
+    const ok = driverReportWriteSchema.safeParse({
+      startedAt: '2026-11-19T06:30',
+      finishedAt: '2026-11-21T22:15',
+      borderCrossings: [
+        { at: '2026-11-19T11:00', direction: 'OUT' },
+        { at: '2026-11-21T18:40', direction: 'IN' },
+      ],
+    });
+    expect(ok.success).toBe(true);
+    expect(ok.data?.borderCrossings).toHaveLength(2);
+
+    const backwards = driverReportWriteSchema.safeParse({
+      startedAt: '2026-11-19T06:30',
+      finishedAt: '2026-11-19T06:00',
+    });
+    expect(backwards.success).toBe(false);
+    expect(backwards.error?.issues[0]?.path).toEqual(['finishedAt']);
+  });
+});
+
 describe('driverReportWriteSchema', () => {
   it('accepts readings and expenses, defaulting empty lists', () => {
-    expect(driverReportWriteSchema.parse({})).toEqual({ vehicles: [], expenses: [], note: null });
+    expect(driverReportWriteSchema.parse({})).toEqual({
+      vehicles: [],
+      expenses: [],
+      note: null,
+      startedAt: null,
+      finishedAt: null,
+      borderCrossings: [],
+    });
 
     const result = driverReportWriteSchema.safeParse({
       vehicles: [{ vehicleId: 'veh_1', startKm: 184_350, endKm: '' }],

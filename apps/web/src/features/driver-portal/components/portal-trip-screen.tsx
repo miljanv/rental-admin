@@ -5,6 +5,7 @@ import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PortalAssignmentCard } from '@/features/driver-portal/components/portal-assignment-card';
 import { PortalReportForm } from '@/features/driver-portal/components/portal-report-form';
 import { PortalMessage } from '@/features/driver-portal/components/portal-shell';
 import { usePortalTrip } from '@/features/driver-portal/hooks/use-portal-trip';
@@ -70,7 +71,14 @@ export function PortalTripScreen({ token, tripId }: PortalTripScreenProps) {
           <p className="font-semibold">Kancelarija je vratila unos na doradu</p>
           <p>{trip.report.adminComment}</p>
         </div>
+      ) : trip.report?.adminComment ? (
+        <div className="bg-muted/40 rounded-xl border p-4 text-sm">
+          <p className="font-semibold">Komentar kancelarije</p>
+          <p>{trip.report.adminComment}</p>
+        </div>
       ) : null}
+
+      <PortalAssignmentCard token={token} trip={trip} />
 
       {trip.canSubmit ? (
         <PortalReportForm key={trip.report?.updatedAt ?? 'new'} token={token} trip={trip} />

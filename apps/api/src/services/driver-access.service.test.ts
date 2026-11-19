@@ -21,8 +21,16 @@ vi.mock('../config/prisma', () => ({ prisma: prismaMock, prismaUnscoped: prismaM
 vi.mock('./audit.service', () => ({ recordAuditEvent: auditMock }));
 vi.mock('../utils/tenant-context', () => ({ requireOrganizationId: () => 'org_1' }));
 
-import { hashDriverAccessToken } from '../utils/driver-access-token';
-import { createDriverAccessLink, findDriverAccess } from './driver-access.service';
+import {
+  decryptDriverAccessToken,
+  encryptDriverAccessToken,
+  hashDriverAccessToken,
+} from '../utils/driver-access-token';
+import {
+  createDriverAccessLink,
+  findDriverAccess,
+  revealDriverAccessLink,
+} from './driver-access.service';
 
 const token = 'a'.repeat(43);
 const validRow = {
@@ -43,7 +51,7 @@ beforeEach(() => {
 });
 
 describe('createDriverAccessLink', () => {
-  it('revokes the old link and stores only the hash of the new token', async () => {
+  it('revokes the old link and stores the hash plus an encrypted copy, never the token', async () => {
     prismaMock.driver.findUnique.mockResolvedValue({ id: 'drv_1', status: 'ACTIVE' });
     prismaMock.driverAccessToken.updateMany.mockResolvedValue({ count: 1 });
     prismaMock.driverAccessToken.create.mockResolvedValue({
@@ -62,9 +70,12 @@ describe('createDriverAccessLink', () => {
         organizationId: 'org_1',
         driverId: 'drv_1',
         tokenHash: hashDriverAccessToken(result.token),
+        tokenCiphertext: expect.any(String),
       },
       select: { id: true, createdAt: true },
     });
+    const { tokenCiphertext } = prismaMock.driverAccessToken.create.mock.calls[0]![0].data;
+    expect(decryptDriverAccessToken(tokenCiphertext)).toBe(result.token);
     expect(JSON.stringify(prismaMock.driverAccessToken.create.mock.calls)).not.toContain(
       result.token,
     );
@@ -120,5 +131,37 @@ describe('findDriverAccess', () => {
     await expect(findDriverAccess(token)).resolves.toBeNull();
     await expect(findDriverAccess('not-a-token')).resolves.toBeNull();
     expect(prismaMock.driverAccessToken.findUnique).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('revealDriverAccessLink', () => {
+  it('shows the active link again and logs the view', async () => {
+    prismaMock.driver.findUnique.mockResolvedValue({ id: 'drv_1', status: 'ACTIVE' });
+    const token = 'a'.repeat(43);
+    prismaMock.driverAccessToken.findFirst.mockResolvedValue({
+      createdAt: new Date('2026-11-10T09:00:00.000Z'),
+      lastUsedAt: null,
+      tokenCiphertext: encryptDriverAccessToken(token),
+    });
+
+    await expect(revealDriverAccessLink('drv_1')).resolves.toEqual({
+      token,
+      createdAt: '2026-11-10T09:00:00.000Z',
+    });
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'DRIVER_LINK_VIEWED', entityId: 'drv_1' }),
+    );
+  });
+
+  it('asks for a new link when the old one was stored as a hash only', async () => {
+    prismaMock.driver.findUnique.mockResolvedValue({ id: 'drv_1', status: 'ACTIVE' });
+    prismaMock.driverAccessToken.findFirst.mockResolvedValue({
+      createdAt: new Date(),
+      lastUsedAt: null,
+      tokenCiphertext: null,
+    });
+
+    await expect(revealDriverAccessLink('drv_1')).rejects.toThrow('Napravite novi link');
+    expect(auditMock).not.toHaveBeenCalled();
   });
 });

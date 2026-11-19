@@ -62,6 +62,12 @@ driverRouter.post(
   asyncHandler(driverAccessController.createDriverAccessLink),
 );
 
+driverRouter.post(
+  '/:id/access-link/reveal',
+  validateRequest({ params: driverIdParamsSchema }),
+  asyncHandler(driverAccessController.revealDriverAccessLink),
+);
+
 driverRouter.delete(
   '/:id/access-link',
   validateRequest({ params: driverIdParamsSchema }),

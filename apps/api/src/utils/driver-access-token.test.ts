@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  decryptDriverAccessToken,
+  encryptDriverAccessToken,
   generateDriverAccessToken,
   hashDriverAccessToken,
   isWellFormedDriverAccessToken,
@@ -27,5 +29,22 @@ describe('driver access token', () => {
     expect(isWellFormedDriverAccessToken('')).toBe(false);
     expect(isWellFormedDriverAccessToken('abc')).toBe(false);
     expect(isWellFormedDriverAccessToken(`${'a'.repeat(42)}/`)).toBe(false);
+  });
+
+  it('encrypts the token so only the server can show it again', () => {
+    const token = generateDriverAccessToken();
+    const encrypted = encryptDriverAccessToken(token);
+
+    expect(encrypted).not.toContain(token);
+    expect(encryptDriverAccessToken(token)).not.toBe(encrypted);
+    expect(decryptDriverAccessToken(encrypted)).toBe(token);
+  });
+
+  it('refuses a tampered or malformed value', () => {
+    const [iv, data, tag] = encryptDriverAccessToken(generateDriverAccessToken()).split('.');
+    const flipped = `${data!.startsWith('A') ? 'B' : 'A'}${data!.slice(1)}`;
+
+    expect(decryptDriverAccessToken(`${iv}.${flipped}.${tag}`)).toBeNull();
+    expect(decryptDriverAccessToken('not-encrypted')).toBeNull();
   });
 });

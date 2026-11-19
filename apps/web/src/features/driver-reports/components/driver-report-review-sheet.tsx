@@ -60,6 +60,7 @@ interface ExpenseDraft {
   amount: string;
   paymentMethod: TripExpensePaymentMethod;
   addFuelLog: boolean;
+  rejectionReason: string;
 }
 
 const DECISION_LABELS: Record<Decision, string> = {
@@ -73,6 +74,7 @@ const draftFor = (expense: DriverReportAdminExpenseDto): ExpenseDraft => ({
   amount: String(expense.amount),
   paymentMethod: expense.paymentMethod,
   addFuelLog: canRecordFuelLog(expense),
+  rejectionReason: '',
 });
 
 const litersFormatter = new Intl.NumberFormat('sr-RS', { maximumFractionDigits: 2 });
@@ -176,7 +178,11 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
               addFuelLog:
                 draft.addFuelLog && canRecordFuelLog({ ...expense, category: draft.category }),
             }
-          : { id: expense.id, accept: false },
+          : {
+              id: expense.id,
+              accept: false,
+              rejectionReason: draft.rejectionReason.trim() || null,
+            },
       );
     }
 
@@ -239,12 +245,25 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
           ) : (
             <div className="space-y-1 rounded-lg border p-3 text-sm">
               {report.vehicles.map((vehicle) => (
-                <div key={vehicle.vehicleId} className="flex flex-wrap justify-between gap-2">
-                  <span className="font-medium">{vehicle.licensePlate}</span>
-                  <span>
-                    {formatReportKm(vehicle.startKm)} → {formatReportKm(vehicle.endKm)}
-                    {vehicle.distanceKm !== null ? ` = ${formatReportKm(vehicle.distanceKm)}` : ''}
-                  </span>
+                <div key={vehicle.vehicleId} className="space-y-0.5">
+                  <div className="flex flex-wrap justify-between gap-2">
+                    <span className="font-medium">{vehicle.licensePlate}</span>
+                    <span>
+                      {formatReportKm(vehicle.startKm)} → {formatReportKm(vehicle.endKm)}
+                      {vehicle.distanceKm !== null
+                        ? ` = ${formatReportKm(vehicle.distanceKm)}`
+                        : ''}
+                    </span>
+                  </div>
+                  {vehicle.garageStartKm !== null || vehicle.garageEndKm !== null ? (
+                    <p className="text-muted-foreground text-xs">
+                      Garaža {formatReportKm(vehicle.garageStartKm)} →{' '}
+                      {formatReportKm(vehicle.garageEndKm)}
+                      {vehicle.garageDistanceKm !== null
+                        ? ` = ${formatReportKm(vehicle.garageDistanceKm)} ukupno`
+                        : ''}
+                    </p>
+                  ) : null}
                 </div>
               ))}
               {report.vehicles.length > 1 && totalKm !== null ? (
@@ -264,6 +283,27 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
             </div>
           )}
         </section>
+
+        {report.startedAt || report.finishedAt || report.borderCrossings.length > 0 ? (
+          <section className="space-y-2">
+            <h3 className="text-sm font-semibold">Vreme vožnje</h3>
+            <div className="space-y-1 rounded-lg border p-3 text-sm">
+              <p>
+                Početak: {formatDateTime(report.startedAt)} · Završetak:{' '}
+                {formatDateTime(report.finishedAt)}
+              </p>
+              {report.borderCrossings.map((crossing, index) => (
+                <p key={`${crossing.at}-${index}`}>
+                  {crossing.direction === 'OUT' ? 'Izlazak iz Srbije' : 'Ulazak u Srbiju'}:{' '}
+                  {formatDateTime(crossing.at)}
+                </p>
+              ))}
+              <p className="text-muted-foreground text-xs">
+                Upisuje se u obračun dnevnica, osim ako ga je kancelarija već sama unela.
+              </p>
+            </div>
+          </section>
+        ) : null}
 
         <section className="space-y-3">
           <h3 className="text-sm font-semibold">Troškovi</h3>
@@ -370,6 +410,9 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
                         ))}
                       </SelectContent>
                     </Select>
+                    {draft.paymentMethod === 'COMPANY_CARD' && expense.paymentCard ? (
+                      <p className="text-muted-foreground text-xs">{expense.paymentCard.name}</p>
+                    ) : null}
                   </div>
                 </div>
                 {fuelSummary(expense) ? (
@@ -395,6 +438,23 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
                         {canRecordFuelLog(expense) ? '' : ' (nedostaje vozilo ili km na pumpi)'}
                       </span>
                     </label>
+                  </div>
+                ) : null}
+                {isRejecting ? (
+                  <div className="space-y-1">
+                    <Label htmlFor={`reject-reason-${expense.id}`} className="text-xs">
+                      Razlog odbijanja (vozač ga vidi, opciono)
+                    </Label>
+                    <Input
+                      id={`reject-reason-${expense.id}`}
+                      placeholder="npr. nema računa, privatni trošak"
+                      maxLength={300}
+                      value={draft.rejectionReason}
+                      disabled={isPending}
+                      onChange={(event) =>
+                        updateDraft(expense.id, { rejectionReason: event.target.value })
+                      }
+                    />
                   </div>
                 ) : null}
                 <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -436,7 +496,8 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
             >
               <span>
                 {TRIP_EXPENSE_CATEGORY_LABELS[expense.category]} ·{' '}
-                {TRIP_EXPENSE_PAYMENT_METHOD_LABELS[expense.paymentMethod]}
+                {expense.paymentCard?.name ??
+                  TRIP_EXPENSE_PAYMENT_METHOD_LABELS[expense.paymentMethod]}
               </span>
               <span className="font-medium">{formatMoney(expense.amount)}</span>
               <Badge variant={expense.status === 'ACCEPTED' ? 'secondary' : 'destructive'}>
@@ -445,6 +506,11 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
               {expense.fuelLogId ? (
                 <span className="text-muted-foreground w-full text-xs">
                   Upisano i u evidenciju goriva.
+                </span>
+              ) : null}
+              {expense.status === 'REJECTED' && expense.rejectionReason ? (
+                <span className="text-muted-foreground w-full text-xs">
+                  Razlog: {expense.rejectionReason}
                 </span>
               ) : null}
             </div>

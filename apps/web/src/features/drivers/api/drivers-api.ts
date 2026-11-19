@@ -86,6 +86,14 @@ export const createDriverAccessLink = async (id: string): Promise<DriverAccessLi
   return unwrap(response.data);
 };
 
+export const revealDriverAccessLink = async (id: string): Promise<DriverAccessLinkCreatedDto> => {
+  const response = await apiClient.post<ApiResponse<DriverAccessLinkCreatedDto>>(
+    `/drivers/${id}/access-link/reveal`,
+  );
+
+  return unwrap(response.data);
+};
+
 export const revokeDriverAccessLink = async (id: string): Promise<DriverAccessLinkDto> => {
   const response = await apiClient.delete<ApiResponse<DriverAccessLinkDto>>(
     `/drivers/${id}/access-link`,

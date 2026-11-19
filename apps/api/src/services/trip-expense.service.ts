@@ -27,7 +27,7 @@ import {
 import { assertDriversExist, parseDate, syncTripDrivers, syncTripRevenue, tripInclude } from './trip.service';
 import { applyTripVehicleKm } from './trip-vehicle-km.service';
 
-const expenseInclude = { file: true } as const;
+const expenseInclude = { file: true, paymentCard: { select: { id: true, name: true } } } as const;
 
 const toFinancePaymentMethod = (method: TripExpensePaymentMethod): PaymentMethod =>
   method === 'CASH' ? 'CASH' : 'ACCOUNT';
@@ -180,6 +180,27 @@ export const listTripExpenses = async (tripId: string): Promise<TripExpenseDto[]
   return records.map((record: TripExpenseRecord) => toTripExpenseDto(record));
 };
 
+/** A card is kept only for a company-card payment, and only one this firm has. */
+export const resolvePaymentCardId = async (input: {
+  paymentMethod: TripExpensePaymentMethod;
+  paymentCardId: string | null;
+}): Promise<string | null> => {
+  if (input.paymentMethod !== 'COMPANY_CARD' || !input.paymentCardId) {
+    return null;
+  }
+
+  const card = await prisma.paymentCard.findFirst({
+    where: { id: input.paymentCardId },
+    select: { id: true },
+  });
+
+  if (!card) {
+    throw badRequest('Izabrana kartica nije pronađena.');
+  }
+
+  return card.id;
+};
+
 export const createTripExpense = async (
   tripId: string,
   input: TripExpenseWriteRequest,
@@ -193,6 +214,7 @@ export const createTripExpense = async (
       category: input.category,
       amount: input.amount,
       paymentMethod: input.paymentMethod,
+      paymentCardId: await resolvePaymentCardId(input),
       note: input.note,
       fileId: input.fileId,
     },
@@ -219,6 +241,7 @@ export const updateTripExpense = async (
       category: input.category,
       amount: input.amount,
       paymentMethod: input.paymentMethod,
+      paymentCardId: await resolvePaymentCardId(input),
       note: input.note,
       fileId: input.fileId,
     },
@@ -245,7 +268,11 @@ export const deleteTripExpense = async (
   // An expense a driver reported and the office accepted counts as rejected once deleted.
   await prisma.driverTripReportExpense.updateMany({
     where: { tripExpenseId: expenseId },
-    data: { status: 'REJECTED', tripExpenseId: null },
+    data: {
+      status: 'REJECTED',
+      tripExpenseId: null,
+      rejectionReason: 'Trošak je obrisan u kancelariji.',
+    },
   });
   await prisma.tripExpense.delete({ where: { id: expenseId } });
   await deleteAttachedFile(existing.fileId);
@@ -305,7 +332,15 @@ export const updateTripSettlement = async (
         drivers.map((driver) => driver.driverId),
       );
 
+      const previousAdvance = new Map(
+        current.drivers.map((driver) => [driver.id, driver.advanceAmount]),
+      );
+
       for (const driver of drivers) {
+        // A changed advance has to be accepted by the driver again.
+        const advanceChanged =
+          (previousAdvance.get(driver.driverId) ?? null) !== (driver.advanceAmount ?? null);
+
         await tx.tripDriver.update({
           where: { tripId_driverId: { tripId, driverId: driver.driverId } },
           data: {
@@ -321,6 +356,7 @@ export const updateTripSettlement = async (
             advancePaidAt: driver.advanceStatus !== 'DRAFT' && driver.advancePaidAt
               ? parseDate(driver.advancePaidAt)
               : null,
+            ...(advanceChanged ? { advanceAcceptedAt: null } : {}),
           },
         });
       }

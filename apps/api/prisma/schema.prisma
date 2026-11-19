@@ -220,6 +220,7 @@ model Organization {
   auditEvents          AuditEvent[]
   announcementTargets  AnnouncementOrganization[]
   driverAccessTokens   DriverAccessToken[]
+  paymentCards         PaymentCard[]
   driverTripReports    DriverTripReport[]
   users                User[]
   fileObjects          FileObject[]
@@ -1165,6 +1166,13 @@ model Trip {
   /// Departure / return datetimes and border crossings for the per-diem obračun.
   /// Shape: { departureAt, returnAt, borderCrossings: [{ at, direction: OUT|IN }] }
   travelTimeline             Json?
+  /// Who last wrote `travelTimeline`. A driver never overwrites the office's.
+  travelTimelineSource       TripKmSource?
+  /// Pickup time on the departure day, "HH:mm", and where the passengers are picked up.
+  departureTime              String?
+  pickupLocation             String?
+  /// Program putovanja: the itinerary the driver confirms.
+  itinerary                  String?
   /// Last generated travel-document number and time, shared by the assigned drivers.
   perDiemDocumentNumber      String?
   perDiemDocumentGeneratedAt DateTime?
@@ -1228,16 +1236,19 @@ enum TripKmSource {
 }
 
 model TripVehicle {
-  id          String        @id @default(cuid())
-  tripId      String
-  vehicleId   String
+  id            String        @id @default(cuid())
+  tripId        String
+  vehicleId     String
   /// Odometer of this vehicle at the start and end of the job. A trip with
   /// several buses has one pair per bus; the trip's distance is their sum.
-  startKm     Float?
-  endKm       Float?
-  kmSource    TripKmSource?
-  kmUpdatedAt DateTime?
-  createdAt   DateTime      @default(now())
+  startKm       Float?
+  endKm         Float?
+  /// Odometer leaving the garage and back in it, around the passenger leg above.
+  garageStartKm Float?
+  garageEndKm   Float?
+  kmSource      TripKmSource?
+  kmUpdatedAt   DateTime?
+  createdAt     DateTime      @default(now())
 
   trip    Trip    @relation(fields: [tripId], references: [id], onDelete: Cascade)
   vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
@@ -1262,6 +1273,10 @@ model TripDriver {
   advanceAmount     Float?
   advanceStatus     AdvanceStatus   @default(DRAFT)
   advancePaidAt     DateTime?       @db.Date
+  /// When the driver confirmed the assignment in the portal. Cleared when its details change.
+  confirmedAt       DateTime?
+  /// When the driver accepted the advance in the portal. Cleared when the amount changes.
+  advanceAcceptedAt DateTime?
   createdAt         DateTime        @default(now())
 
   trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
@@ -1315,13 +1330,16 @@ model TripExpense {
   category      TripExpenseCategory
   amount        Float
   paymentMethod TripExpensePaymentMethod
+  /// Which company card paid, when paymentMethod is COMPANY_CARD.
+  paymentCardId String?
   note          String?
   fileId        String?                  @unique
   createdAt     DateTime                 @default(now())
   updatedAt     DateTime                 @updatedAt
 
-  trip Trip        @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  file FileObject? @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  trip        Trip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  file        FileObject?  @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  paymentCard PaymentCard? @relation(fields: [paymentCardId], references: [id], onDelete: SetNull)
 
   driverReportExpense DriverTripReportExpense?
 
@@ -1333,14 +1351,16 @@ model TripExpense {
 /// SHA-256 hash of the token is stored; the token itself is shown once. One
 /// active link per driver: creating a new one revokes the previous.
 model DriverAccessToken {
-  id             String    @id @default(cuid())
-  organizationId String
-  driverId       String
-  tokenHash      String    @unique
-  createdById    String?
-  createdAt      DateTime  @default(now())
-  lastUsedAt     DateTime?
-  revokedAt      DateTime?
+  id              String    @id @default(cuid())
+  organizationId  String
+  driverId        String
+  tokenHash       String    @unique
+  /// AES-256-GCM copy (key derived from JWT_SECRET) so the office can show the link again.
+  tokenCiphertext String?
+  createdById     String?
+  createdAt       DateTime  @default(now())
+  lastUsedAt      DateTime?
+  revokedAt       DateTime?
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   driver       Driver       @relation(fields: [driverId], references: [id], onDelete: Cascade)
@@ -1368,17 +1388,22 @@ enum DriverReportExpenseStatus {
 /// are written to the trip's vehicles right away; expenses wait here until the
 /// office accepts them (only then do they become trip expenses and finance rows).
 model DriverTripReport {
-  id             String                 @id @default(cuid())
-  organizationId String
-  tripId         String
-  driverId       String
-  note           String?
-  status         DriverTripReportStatus @default(SUBMITTED)
-  adminComment   String?
-  submittedAt    DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
-  reviewedAt     DateTime?
-  reviewedById   String?
+  id              String                 @id @default(cuid())
+  organizationId  String
+  tripId          String
+  driverId        String
+  note            String?
+  status          DriverTripReportStatus @default(SUBMITTED)
+  adminComment    String?
+  submittedAt     DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  reviewedAt      DateTime?
+  reviewedById    String?
+  /// Trip start / end as the driver sent them, local "yyyy-mm-ddTHH:mm".
+  startedAt       String?
+  finishedAt      String?
+  /// Border crossings as the driver sent them: [{ at, direction: OUT|IN }].
+  borderCrossings Json?
 
   organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   trip         Trip                      @relation(fields: [tripId], references: [id], onDelete: Cascade)
@@ -1395,11 +1420,13 @@ model DriverTripReport {
 
 /// The odometer readings exactly as the driver sent them, per vehicle.
 model DriverTripReportVehicle {
-  id        String @id @default(cuid())
-  reportId  String
-  vehicleId String
-  startKm   Float?
-  endKm     Float?
+  id            String @id @default(cuid())
+  reportId      String
+  vehicleId     String
+  startKm       Float?
+  endKm         Float?
+  garageStartKm Float?
+  garageEndKm   Float?
 
   report  DriverTripReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
   vehicle Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
@@ -1416,9 +1443,12 @@ model DriverTripReportExpense {
   category       TripExpenseCategory
   amount         Float
   paymentMethod  TripExpensePaymentMethod
+  paymentCardId  String?
   note           String?
   fileId         String?                   @unique
   status         DriverReportExpenseStatus @default(PENDING)
+  /// Why the office rejected it; shown to the driver under the expense.
+  rejectionReason String?
   tripExpenseId  String?                   @unique
   /// Fuel details a driver can add to a FUEL expense, so the office can also
   /// record the fill-up in the fuel log (consumption) when accepting it.
@@ -1436,9 +1466,28 @@ model DriverTripReportExpense {
   tripExpense TripExpense?     @relation(fields: [tripExpenseId], references: [id], onDelete: SetNull)
   vehicle     Vehicle?         @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
   fuelLog     FuelLog?         @relation(fields: [fuelLogId], references: [id], onDelete: SetNull)
+  paymentCard PaymentCard?     @relation(fields: [paymentCardId], references: [id], onDelete: SetNull)
 
   @@index([reportId])
   @@map("driver_trip_report_expenses")
+}
+
+/// A company payment card drivers can pick ("OMV kartica", "EW kartica"). Set up per firm.
+model PaymentCard {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization         Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  tripExpenses         TripExpense[]
+  driverReportExpenses DriverTripReportExpense[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("payment_cards")
 }
 
 /// Internal record-keeping PDFs — not fiscal documents. If real fiscalization
@@ -1589,6 +1638,10 @@ enum AuditAction {
   DRIVER_REPORT_SUBMITTED
   DRIVER_REPORT_ACCEPTED
   DRIVER_REPORT_RETURNED
+  DRIVER_LINK_VIEWED
+  DRIVER_TRIP_CONFIRMED
+  DRIVER_ADVANCE_ACCEPTED
+  PAYMENT_CARD_SAVED
 }
 
 /// Who did what and when, across every organization. Written and read only

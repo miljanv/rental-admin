@@ -8,7 +8,16 @@ import {
   tripVehicleDistanceKm,
 } from './trip';
 
-const noKm = { startKm: null, endKm: null, distanceKm: null, kmSource: null, kmUpdatedAt: null };
+const noKm = {
+  startKm: null,
+  endKm: null,
+  distanceKm: null,
+  garageStartKm: null,
+  garageEndKm: null,
+  garageDistanceKm: null,
+  kmSource: null,
+  kmUpdatedAt: null,
+};
 
 describe('groupTripsByDepartureDate', () => {
   it('keeps consecutive same-day trips together in list order', () => {

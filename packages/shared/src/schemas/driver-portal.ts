@@ -16,6 +16,7 @@ import {
 } from './trip-expense';
 import { tripIdSchema } from './trip';
 import { isoDateSchema } from './driver';
+import { borderCrossingSchema } from './driver-per-diem';
 import { optionalFileId } from './vehicle-document';
 
 const optionalText = (max: number, label: string) =>
@@ -44,6 +45,21 @@ const emptyAsNull = <T extends z.ZodType>(schema: T) =>
     .optional()
     .transform((value) => value ?? null);
 
+/** Local wall-clock date and time from a datetime-local input, or null. */
+const optionalLocalDateTime = z
+  .union([
+    z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Datum i vreme nisu ispravni.'),
+    z.literal(''),
+    z.null(),
+  ])
+  .optional()
+  .transform((value) => (value ? value : null));
+
+export const MAX_DRIVER_BORDER_CROSSINGS = 10;
+
 export const driverPortalTripParamsSchema = z.object({ id: tripIdSchema });
 
 export type DriverPortalTripParams = z.infer<typeof driverPortalTripParamsSchema>;
@@ -60,6 +76,8 @@ export const driverReportExpenseSchema = z.object({
     .positive('Iznos mora biti veći od nule.')
     .max(100_000_000, 'Iznos nije ispravan.'),
   paymentMethod: z.enum(DRIVER_EXPENSE_PAYMENT_METHODS),
+  /** Which company card paid; only kept for COMPANY_CARD. */
+  paymentCardId: optionalFileId,
   note: optionalText(500, 'Napomena'),
   fileId: optionalFileId,
   /** Fill-up details; only kept for a FUEL expense. */
@@ -96,9 +114,24 @@ export const driverReportWriteSchema = z
       .max(MAX_DRIVER_REPORT_EXPENSES, `Najviše ${MAX_DRIVER_REPORT_EXPENSES} troškova po vožnji.`)
       .default([]),
     note: optionalText(500, 'Napomena'),
+    /** Trip start / end, local "yyyy-mm-ddTHH:mm"; feed the per-diem obračun. */
+    startedAt: optionalLocalDateTime,
+    finishedAt: optionalLocalDateTime,
+    borderCrossings: z
+      .array(borderCrossingSchema)
+      .max(MAX_DRIVER_BORDER_CROSSINGS, `Najviše ${MAX_DRIVER_BORDER_CROSSINGS} prelazaka granice.`)
+      .default([]),
   })
   .superRefine((value, ctx) => {
     refineTripVehicleKm(value.vehicles, ctx, ['vehicles']);
+
+    if (value.startedAt && value.finishedAt && value.finishedAt <= value.startedAt) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['finishedAt'],
+        message: 'Završetak vožnje mora biti posle početka.',
+      });
+    }
 
     const ids = value.expenses.map((expense) => expense.id).filter(Boolean);
 
@@ -170,6 +203,8 @@ export const acceptDriverReportSchema = z.object({
         paymentMethod: tripExpensePaymentMethodSchema.optional(),
         /** Also record the fill-up in the fuel log (FUEL expenses with liters and km only). */
         addFuelLog: z.boolean().optional(),
+        /** Why a rejected expense was rejected; the driver sees it. */
+        rejectionReason: optionalText(300, 'Razlog odbijanja').optional(),
       }),
     )
     .max(MAX_DRIVER_REPORT_EXPENSES)

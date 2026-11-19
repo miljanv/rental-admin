@@ -24,7 +24,7 @@ const statusVariant = (trip: DriverPortalTripDto) => {
   }
 };
 
-/** One trip in the driver's list; tapping it opens the form unless the trip is still ahead. */
+/** One trip in the driver's list; tapping it opens the trip to confirm it or send data. */
 export function PortalTripCard({ token, trip, highlight }: PortalTripCardProps) {
   const dates =
     trip.returnDate && trip.returnDate !== trip.departureDate
@@ -32,39 +32,43 @@ export function PortalTripCard({ token, trip, highlight }: PortalTripCardProps) 
       : formatDate(trip.departureDate);
   const plates = trip.vehicles.map((vehicle) => vehicle.licensePlate).join(', ');
 
-  const content = (
-    <div
-      className={cn(
-        'flex items-center gap-3 rounded-xl border p-4',
-        trip.canSubmit && 'active:bg-muted transition-colors',
-        highlight === 'warning' && 'border-amber-400 bg-amber-50 dark:bg-amber-950/30',
-      )}
-    >
-      <div className="min-w-0 flex-1 space-y-1">
-        <p className="text-muted-foreground text-xs">{dates}</p>
-        <p className="font-semibold">{portalRouteLabel(trip)}</p>
-        {trip.clientName ? <p className="text-sm">{trip.clientName}</p> : null}
-        {plates ? <p className="text-muted-foreground text-sm">{plates}</p> : null}
-        {trip.report ? (
-          <Badge variant={statusVariant(trip)}>
-            {DRIVER_REPORT_STATUS_LABELS[trip.report.status]}
-          </Badge>
-        ) : null}
-      </div>
-      {trip.canSubmit ? (
+  const action = trip.canSubmit
+    ? trip.report
+      ? 'Izmeni'
+      : 'Unesi podatke'
+    : trip.assignment.confirmedAt
+      ? 'Pogledaj'
+      : 'Potvrdi';
+
+  return (
+    <Link href={portalHref(token, trip.id)} className="block">
+      <div
+        className={cn(
+          'active:bg-muted flex items-center gap-3 rounded-xl border p-4 transition-colors',
+          highlight === 'warning' && 'border-amber-400 bg-amber-50 dark:bg-amber-950/30',
+        )}
+      >
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="text-muted-foreground text-xs">{dates}</p>
+          <p className="font-semibold">{portalRouteLabel(trip)}</p>
+          {trip.clientName ? <p className="text-sm">{trip.clientName}</p> : null}
+          {plates ? <p className="text-muted-foreground text-sm">{plates}</p> : null}
+          <div className="flex flex-wrap gap-1.5">
+            {trip.assignment.confirmedAt ? null : (
+              <Badge variant="destructive">Zaduženje nije potvrđeno</Badge>
+            )}
+            {trip.report ? (
+              <Badge variant={statusVariant(trip)}>
+                {DRIVER_REPORT_STATUS_LABELS[trip.report.status]}
+              </Badge>
+            ) : null}
+          </div>
+        </div>
         <span className="text-primary flex shrink-0 items-center gap-1 text-sm font-medium">
-          {trip.report ? 'Izmeni' : 'Unesi podatke'}
+          {action}
           <ChevronRight className="size-4" aria-hidden />
         </span>
-      ) : null}
-    </div>
-  );
-
-  return trip.canSubmit ? (
-    <Link href={portalHref(token, trip.id)} className="block">
-      {content}
+      </div>
     </Link>
-  ) : (
-    content
   );
 }

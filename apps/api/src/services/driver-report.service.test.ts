@@ -81,7 +81,7 @@ const report = (expenses = [expense()]) => ({
     partner: null,
     vehicles: [{ vehicleId: 'veh_1', kmSource: 'DRIVER', vehicle: { licensePlate: 'BG-1' } }],
   },
-  vehicles: [{ vehicleId: 'veh_1', startKm: 100, endKm: 260 }],
+  vehicles: [{ vehicleId: 'veh_1', garageStartKm: 92, startKm: 100, endKm: 260, garageEndKm: 271 }],
   expenses,
 });
 
@@ -114,9 +114,12 @@ describe('toDriverReportAdminDto', () => {
       {
         vehicleId: 'veh_1',
         licensePlate: 'BG-1',
+        garageStartKm: 92,
         startKm: 100,
         endKm: 260,
+        garageEndKm: 271,
         distanceKm: 160,
+        garageDistanceKm: 179,
         currentKmSource: 'DRIVER',
       },
     ]);
@@ -161,15 +164,19 @@ describe('acceptDriverReport', () => {
     expect(prismaMock.trip.update).not.toHaveBeenCalled();
   });
 
-  it('rejects without creating anything', async () => {
+  it('rejects without creating anything and keeps the reason for the driver', async () => {
     prismaMock.driverTripReportExpense.findMany.mockResolvedValue([{ status: 'REJECTED' }]);
 
     await acceptDriverReport('rep_1', {
-      expenses: [{ id: 'exp_1', accept: false }],
+      expenses: [{ id: 'exp_1', accept: false, rejectionReason: 'Nema računa.' }],
       comment: null,
     });
 
     expect(createTripExpenseMock).not.toHaveBeenCalled();
+    expect(prismaMock.driverTripReportExpense.updateMany).toHaveBeenCalledWith({
+      where: { id: 'exp_1', reportId: 'rep_1', status: 'PENDING' },
+      data: { status: 'REJECTED', rejectionReason: 'Nema računa.' },
+    });
     expect(prismaMock.driverTripReport.update).toHaveBeenCalledWith({
       where: { id: 'rep_1' },
       data: expect.objectContaining({ status: 'PARTIALLY_ACCEPTED' }),

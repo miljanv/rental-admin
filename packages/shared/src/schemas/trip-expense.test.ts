@@ -104,9 +104,29 @@ describe('tripSettlementWriteSchema vehicleKm', () => {
     expect(result.success).toBe(true);
     expect(result.data?.vehicleKm?.[1]).toEqual({
       vehicleId: 'veh_2',
+      garageStartKm: null,
       startKm: 5_000,
       endKm: null,
+      garageEndKm: null,
     });
+  });
+
+  it('keeps the four readings in order: garage, departure, drop-off, garage', () => {
+    const ok = tripSettlementWriteSchema.safeParse({
+      vehicleKm: [
+        { vehicleId: 'veh_1', garageStartKm: 90, startKm: 100, endKm: 260, garageEndKm: 275 },
+      ],
+    });
+    expect(ok.success).toBe(true);
+
+    const back = tripSettlementWriteSchema.safeParse({
+      vehicleKm: [{ vehicleId: 'veh_1', garageStartKm: 120, startKm: 100, garageEndKm: 90 }],
+    });
+    expect(back.success).toBe(false);
+    expect(back.error?.issues.map((issue) => issue.path.at(-1))).toEqual([
+      'startKm',
+      'garageEndKm',
+    ]);
   });
 
   it('rejects an end reading below the start on that vehicle', () => {

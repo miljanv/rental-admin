@@ -31,11 +31,23 @@ export const toVehicleKmFormValues = (
 ): NonNullable<TripSettlementWriteInput['vehicleKm']> =>
   vehicles.map((vehicle) => ({
     vehicleId: vehicle.id,
+    garageStartKm: vehicle.garageStartKm ?? '',
     startKm: vehicle.startKm ?? '',
     endKm: vehicle.endKm ?? '',
+    garageEndKm: vehicle.garageEndKm ?? '',
   }));
 
-/** One start / end odometer row per vehicle on the trip, with the distance driven. */
+type KmField = 'garageStartKm' | 'startKm' | 'endKm' | 'garageEndKm';
+
+/** The day of a vehicle in order: out of the garage, departure, drop-off, back in the garage. */
+export const KM_FIELDS: ReadonlyArray<{ field: KmField; label: string }> = [
+  { field: 'garageStartKm', label: 'Iz garaže' },
+  { field: 'startKm', label: 'Polazak (putnici)' },
+  { field: 'endKm', label: 'Ostavljeni putnici' },
+  { field: 'garageEndKm', label: 'U garaži' },
+];
+
+/** Four odometer readings per vehicle on the trip, with the distance driven. */
 export function TripVehicleKmFields({
   form,
   vehicles,
@@ -45,16 +57,21 @@ export function TripVehicleKmFields({
   const watched = useWatch({ control: form.control, name: 'vehicleKm' }) ?? [];
   const errors = form.formState.errors.vehicleKm;
   const readings = watched.map((row) => ({
+    garageStartKm: toReading(row?.garageStartKm),
     startKm: toReading(row?.startKm),
     endKm: toReading(row?.endKm),
+    garageEndKm: toReading(row?.garageEndKm),
   }));
   const totalKm = sumTripVehicleDistanceKm(readings);
 
   return (
-    <div className="space-y-3 sm:col-span-2">
+    <div className="space-y-4 sm:col-span-2">
       {vehicles.map((vehicle, index) => {
         const reading = readings[index];
         const distance = reading ? tripVehicleDistanceKm(reading.startKm, reading.endKm) : null;
+        const garageDistance = reading
+          ? tripVehicleDistanceKm(reading.garageStartKm, reading.garageEndKm)
+          : null;
         const rowErrors = errors?.[index];
 
         return (
@@ -70,53 +87,42 @@ export function TripVehicleKmFields({
                 </span>
               ) : null}
             </div>
-            <div className="grid grid-cols-[1fr_1fr_auto] items-start gap-2">
-              <div className="space-y-1">
-                <Label htmlFor={`${idPrefix}-${index}-start`} className="sr-only">
-                  Početni km
-                </Label>
-                <Input
-                  id={`${idPrefix}-${index}-start`}
-                  type="number"
-                  inputMode="decimal"
-                  step="0.1"
-                  placeholder="Početni km"
-                  disabled={disabled}
-                  aria-invalid={Boolean(rowErrors?.startKm)}
-                  {...form.register(`vehicleKm.${index}.startKm`, { valueAsNumber: true })}
-                />
-                {rowErrors?.startKm?.message ? (
-                  <p className="text-destructive text-xs">{rowErrors.startKm.message}</p>
-                ) : null}
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor={`${idPrefix}-${index}-end`} className="sr-only">
-                  Završni km
-                </Label>
-                <Input
-                  id={`${idPrefix}-${index}-end`}
-                  type="number"
-                  inputMode="decimal"
-                  step="0.1"
-                  placeholder="Završni km"
-                  disabled={disabled}
-                  aria-invalid={Boolean(rowErrors?.endKm)}
-                  {...form.register(`vehicleKm.${index}.endKm`, { valueAsNumber: true })}
-                />
-                {rowErrors?.endKm?.message ? (
-                  <p className="text-destructive text-xs">{rowErrors.endKm.message}</p>
-                ) : null}
-              </div>
-              <p className="text-muted-foreground flex h-8 items-center text-sm whitespace-nowrap">
-                {distance !== null ? `= ${kmFormatter.format(distance)} km` : '—'}
-              </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {KM_FIELDS.map(({ field, label }) => (
+                <div key={field} className="space-y-1">
+                  <Label
+                    htmlFor={`${idPrefix}-${index}-${field}`}
+                    className="text-muted-foreground text-xs"
+                  >
+                    {label}
+                  </Label>
+                  <Input
+                    id={`${idPrefix}-${index}-${field}`}
+                    type="number"
+                    inputMode="decimal"
+                    step="0.1"
+                    disabled={disabled}
+                    aria-invalid={Boolean(rowErrors?.[field])}
+                    {...form.register(`vehicleKm.${index}.${field}`, { valueAsNumber: true })}
+                  />
+                  {rowErrors?.[field]?.message ? (
+                    <p className="text-destructive text-xs">{rowErrors[field]?.message}</p>
+                  ) : null}
+                </div>
+              ))}
             </div>
+            <p className="text-muted-foreground text-sm">
+              Sa putnicima: {distance !== null ? `${kmFormatter.format(distance)} km` : '—'}
+              {' · '}
+              Iz garaže do garaže:{' '}
+              {garageDistance !== null ? `${kmFormatter.format(garageDistance)} km` : '—'}
+            </p>
           </div>
         );
       })}
       {vehicles.length > 1 ? (
         <p className="text-sm font-medium">
-          Ukupno: {totalKm !== null ? `${kmFormatter.format(totalKm)} km` : '—'}
+          Ukupno sa putnicima: {totalKm !== null ? `${kmFormatter.format(totalKm)} km` : '—'}
         </p>
       ) : null}
     </div>

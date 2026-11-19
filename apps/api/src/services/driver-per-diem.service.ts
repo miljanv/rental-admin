@@ -668,6 +668,7 @@ export const generateTravelDecision = async (
     where: { id: trip.id },
     data: {
       travelTimeline: input.timeline as Prisma.InputJsonValue,
+      travelTimelineSource: 'ADMIN',
       perDiemDocumentNumber: documentNumber,
       perDiemDocumentGeneratedAt: new Date(),
     },
@@ -704,6 +705,7 @@ export const generateTravelOrder = async (
     where: { id: trip.id },
     data: {
       travelTimeline: input.timeline as Prisma.InputJsonValue,
+      travelTimelineSource: 'ADMIN',
       perDiemDocumentNumber: documentNumber,
       perDiemDocumentGeneratedAt: new Date(),
     },
@@ -754,6 +756,7 @@ export const generateTravelSettlement = async (
     where: { id: trip.id },
     data: {
       travelTimeline: input.timeline as Prisma.InputJsonValue,
+      travelTimelineSource: 'ADMIN',
       perDiemDocumentNumber: documentNumber,
       perDiemDocumentGeneratedAt: new Date(),
     },

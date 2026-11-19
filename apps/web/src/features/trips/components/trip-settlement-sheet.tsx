@@ -172,6 +172,7 @@ export function TripSettlementSheet({ trip, onOpenChange }: TripSettlementSheetP
       category: expenseCategory,
       amount,
       paymentMethod: expensePayment,
+      paymentCardId: null,
       note: null,
       fileId: null,
     });

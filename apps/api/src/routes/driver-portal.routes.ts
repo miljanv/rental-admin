@@ -27,6 +27,18 @@ driverPortalRouter.put(
 );
 
 driverPortalRouter.post(
+  '/trips/:id/confirm',
+  validateRequest({ params: driverPortalTripParamsSchema }),
+  asyncHandler(driverPortalController.confirmTrip),
+);
+
+driverPortalRouter.post(
+  '/trips/:id/accept-advance',
+  validateRequest({ params: driverPortalTripParamsSchema }),
+  asyncHandler(driverPortalController.acceptAdvance),
+);
+
+driverPortalRouter.post(
   '/uploads/presign',
   uploadRateLimiter,
   validateRequest({ body: presignUploadBodySchema }),

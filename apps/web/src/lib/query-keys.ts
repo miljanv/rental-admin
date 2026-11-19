@@ -287,6 +287,10 @@ export const queryKeys = {
     all: ['analytics'] as const,
     business: (params: BusinessAnalyticsParams) => ['analytics', 'business', params] as const,
   },
+  paymentCards: {
+    all: ['payment-cards'] as const,
+    list: () => ['payment-cards', 'list'] as const,
+  },
   driverPortal: {
     all: ['driver-portal'] as const,
     me: (token: string) => ['driver-portal', token, 'me'] as const,

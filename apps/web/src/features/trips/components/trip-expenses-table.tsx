@@ -83,7 +83,10 @@ export function TripExpensesTable({
               <TableRow key={expense.id}>
                 <TableCell>{TRIP_EXPENSE_CATEGORY_LABELS[expense.category]}</TableCell>
                 <TableCell>{formatMoney(expense.amount)}</TableCell>
-                <TableCell>{TRIP_EXPENSE_PAYMENT_METHOD_LABELS[expense.paymentMethod]}</TableCell>
+                <TableCell>
+                  {TRIP_EXPENSE_PAYMENT_METHOD_LABELS[expense.paymentMethod]}
+                  {expense.paymentCard ? ` · ${expense.paymentCard.name}` : ''}
+                </TableCell>
                 <TableCell className="max-w-[220px] truncate">{expense.note ?? '—'}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
