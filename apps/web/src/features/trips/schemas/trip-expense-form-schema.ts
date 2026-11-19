@@ -13,6 +13,7 @@ export const EMPTY_TRIP_EXPENSE_FORM: TripExpenseFormValues = {
   category: 'FUEL',
   amount: 0,
   paymentMethod: 'CASH',
+  paymentCardId: '',
   note: '',
   fileId: '',
 };

@@ -1,0 +1,280 @@
+import type { TripExpenseCategory, TripExpensePaymentMethod } from './trip-expense';
+import type { FuelLogFuelType } from './fuel-log';
+import type { BorderCrossingInput } from './driver-per-diem';
+import type { TripKmSource } from './trip';
+
+/** Header the driver portal sends the personal link token in. */
+export const DRIVER_ACCESS_HEADER = 'X-Driver-Token';
+
+/** Driver portal sees trips this many days back and ahead of today. */
+export const DRIVER_PORTAL_DAYS_BACK = 7;
+export const DRIVER_PORTAL_DAYS_AHEAD = 7;
+
+/** Most expenses a driver can report on one trip. */
+export const MAX_DRIVER_REPORT_EXPENSES = 20;
+
+/** A start reading this far above the last known one is probably a typo. */
+export const DRIVER_KM_JUMP_WARNING = 2_000;
+
+export const DRIVER_REPORT_STATUSES = [
+  'SUBMITTED',
+  'ACCEPTED',
+  'PARTIALLY_ACCEPTED',
+  'RETURNED',
+] as const;
+export type DriverReportStatus = (typeof DRIVER_REPORT_STATUSES)[number];
+
+export const DRIVER_REPORT_STATUS_LABELS: Record<DriverReportStatus, string> = {
+  SUBMITTED: 'Poslato',
+  ACCEPTED: 'Prihvaćeno',
+  PARTIALLY_ACCEPTED: 'Delimično prihvaćeno',
+  RETURNED: 'Vraćeno',
+};
+
+export const DRIVER_REPORT_EXPENSE_STATUSES = ['PENDING', 'ACCEPTED', 'REJECTED'] as const;
+export type DriverReportExpenseStatus = (typeof DRIVER_REPORT_EXPENSE_STATUSES)[number];
+
+export const DRIVER_REPORT_EXPENSE_STATUS_LABELS: Record<DriverReportExpenseStatus, string> = {
+  PENDING: 'Čeka prihvatanje',
+  ACCEPTED: 'Prihvaćeno',
+  REJECTED: 'Odbijeno',
+};
+
+/** A driver pays on the road in cash or with the company card; invoices go through the office. */
+export const DRIVER_EXPENSE_PAYMENT_METHODS = [
+  'CASH',
+  'COMPANY_CARD',
+] as const satisfies readonly TripExpensePaymentMethod[];
+export type DriverExpensePaymentMethod = (typeof DRIVER_EXPENSE_PAYMENT_METHODS)[number];
+
+/** Receipt photos and scans a driver may upload. */
+export const DRIVER_RECEIPT_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'application/pdf',
+] as const;
+
+export const isDriverReceiptMimeType = (value: string): boolean =>
+  (DRIVER_RECEIPT_MIME_TYPES as readonly string[]).includes(value);
+
+/** State of a driver's personal link, as the office sees it. The token itself is never shown again. */
+export interface DriverAccessLinkDto {
+  active: boolean;
+  createdAt: string | null;
+  lastUsedAt: string | null;
+  /** The active link can be shown again (links made before encryption cannot). */
+  canReveal: boolean;
+}
+
+/** Returned when a link is created or shown again. The web app builds the URL from the token. */
+export interface DriverAccessLinkCreatedDto {
+  token: string;
+  createdAt: string;
+}
+
+export interface DriverPortalMeDto {
+  driver: { id: string; firstName: string; lastName: string };
+  organizationName: string;
+  /** Active company cards the driver can say paid an expense. */
+  paymentCards: Array<{ id: string; name: string }>;
+}
+
+export interface DriverPortalVehicleDto {
+  id: string;
+  licensePlate: string;
+  make: string;
+  model: string;
+  garageStartKm: number | null;
+  startKm: number | null;
+  endKm: number | null;
+  garageEndKm: number | null;
+  distanceKm: number | null;
+  /** Highest odometer reading known before this trip; only filled on the trip detail. */
+  lastKnownKm: number | null;
+}
+
+/** Fill-up details a driver may add to a fuel expense. */
+export interface DriverExpenseFuelDto {
+  vehicleId: string | null;
+  fuelLiters: number | null;
+  fuelType: FuelLogFuelType | null;
+  fuelOdometerKm: number | null;
+  fuelStation: string | null;
+}
+
+export interface DriverPortalExpenseDto extends DriverExpenseFuelDto {
+  id: string;
+  category: TripExpenseCategory;
+  amount: number;
+  paymentMethod: TripExpensePaymentMethod;
+  paymentCardId: string | null;
+  note: string | null;
+  file: { id: string; originalName: string } | null;
+  status: DriverReportExpenseStatus;
+  /** Why the office rejected it, when it did and said so. */
+  rejectionReason: string | null;
+}
+
+export interface DriverPortalReportDto {
+  id: string;
+  status: DriverReportStatus;
+  note: string | null;
+  /** Why the office returned the report, if it did. */
+  adminComment: string | null;
+  submittedAt: string;
+  updatedAt: string;
+  reviewedAt: string | null;
+  /** Trip start / end as the driver sent them, local "yyyy-mm-ddTHH:mm". */
+  startedAt: string | null;
+  finishedAt: string | null;
+  borderCrossings: BorderCrossingInput[];
+  expenses: DriverPortalExpenseDto[];
+}
+
+/** The driver's own assignment on a trip: confirmation and the advance. */
+export interface DriverPortalAssignmentDto {
+  confirmedAt: string | null;
+  /** Advance in RSD the office gives for trip costs; null or 0 when there is none. */
+  advanceAmount: number | null;
+  advanceAcceptedAt: string | null;
+}
+
+export interface DriverPortalTripDto {
+  id: string;
+  departureDate: string;
+  returnDate: string | null;
+  origin: string;
+  destination: string;
+  /** Customer name only; no prices, invoices or contact details reach the driver. */
+  clientName: string | null;
+  departureTime: string | null;
+  pickupLocation: string | null;
+  itinerary: string | null;
+  assignment: DriverPortalAssignmentDto;
+  vehicles: DriverPortalVehicleDto[];
+  report: DriverPortalReportDto | null;
+  /** False for a trip that has not started yet: nothing can be sent before the day of the trip. */
+  canSubmit: boolean;
+}
+
+export interface DriverPortalTripListDto {
+  /** Trips running today. */
+  today: DriverPortalTripDto[];
+  /** Finished trips with nothing sent yet, or returned by the office. */
+  pending: DriverPortalTripDto[];
+  /** Finished trips the driver already reported. */
+  submitted: DriverPortalTripDto[];
+  upcoming: DriverPortalTripDto[];
+}
+
+export interface DriverPortalReportResultDto {
+  trip: DriverPortalTripDto;
+  /** Readings that look wrong but were still saved, e.g. a start below the last known one. */
+  warnings: string[];
+}
+
+export interface DriverPortalUploadDto {
+  fileId: string;
+  uploadUrl: string;
+  expiresIn: number;
+}
+
+export interface DriverPortalFileDto {
+  id: string;
+  originalName: string;
+}
+
+/** Expense categories a driver can pick; per diems are settled by the office. */
+export const DRIVER_EXPENSE_CATEGORIES = [
+  'FUEL',
+  'TOLL',
+  'PARKING',
+  'FOOD',
+  'LODGING',
+  'ROADSIDE_REPAIR',
+  'VISA_PERMIT',
+  'OTHER',
+] as const satisfies readonly TripExpenseCategory[];
+
+/** A driver report as the office reviews it. */
+export interface DriverReportAdminExpenseDto extends DriverExpenseFuelDto {
+  id: string;
+  category: TripExpenseCategory;
+  amount: number;
+  paymentMethod: TripExpensePaymentMethod;
+  paymentCard: { id: string; name: string } | null;
+  note: string | null;
+  status: DriverReportExpenseStatus;
+  rejectionReason: string | null;
+  file: { id: string; originalName: string; mimeType: string } | null;
+  /** The trip expense created when the office accepted it. */
+  tripExpenseId: string | null;
+  /** The fuel log entry created with it, if the office chose to record the fill-up. */
+  fuelLogId: string | null;
+}
+
+/** A fuel expense has enough detail to be recorded in the fuel log as well. */
+export const canRecordFuelLog = (
+  expense: Pick<
+    DriverReportAdminExpenseDto,
+    'category' | 'vehicleId' | 'fuelLiters' | 'fuelOdometerKm'
+  >,
+): boolean =>
+  expense.category === 'FUEL' &&
+  expense.vehicleId !== null &&
+  expense.fuelLiters !== null &&
+  expense.fuelLiters > 0 &&
+  expense.fuelOdometerKm !== null;
+
+export interface DriverReportPendingCountDto {
+  count: number;
+}
+
+/** A finished trip whose driver has a portal link but sent nothing. */
+export interface DriverReportMissingDto {
+  tripId: string;
+  departureDate: string;
+  origin: string;
+  destination: string;
+  driver: { id: string; firstName: string; lastName: string };
+}
+
+export interface DriverReportAdminDto {
+  id: string;
+  status: DriverReportStatus;
+  note: string | null;
+  adminComment: string | null;
+  submittedAt: string;
+  updatedAt: string;
+  reviewedAt: string | null;
+  reviewedBy: { id: string; username: string } | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  borderCrossings: BorderCrossingInput[];
+  driver: { id: string; firstName: string; lastName: string };
+  trip: {
+    id: string;
+    departureDate: string;
+    returnDate: string | null;
+    origin: string;
+    destination: string;
+    clientName: string | null;
+  };
+  /** Readings as the driver sent them, with what is on the trip now. */
+  vehicles: Array<{
+    vehicleId: string;
+    licensePlate: string;
+    garageStartKm: number | null;
+    startKm: number | null;
+    endKm: number | null;
+    garageEndKm: number | null;
+    distanceKm: number | null;
+    garageDistanceKm: number | null;
+    /** Who wrote the reading that is on the trip now. */
+    currentKmSource: TripKmSource | null;
+  }>;
+  expenses: DriverReportAdminExpenseDto[];
+  pendingCount: number;
+  pendingTotal: number;
+}

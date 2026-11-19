@@ -15,6 +15,7 @@ import { DriverDocumentsTab } from '@/features/driver-documents/components/drive
 import { DriverStatisticsTab } from '@/features/driver-work/components/driver-statistics-tab';
 import { DriverWorkTab } from '@/features/driver-work/components/driver-work-tab';
 import { DeleteDriverDialog } from '@/features/drivers/components/delete-driver-dialog';
+import { DriverAccessLinkCard } from '@/features/drivers/components/driver-access-link-card';
 import { DriverStatusBadge } from '@/features/drivers/components/driver-status-badge';
 import { DriverStatusOverview } from '@/features/drivers/components/driver-status-overview';
 import { useDriver } from '@/features/drivers/hooks/use-driver';
@@ -60,6 +61,8 @@ function DriverOverview({
   return (
     <div className="space-y-6">
       <DriverStatusOverview driver={driver} onNavigateToDocuments={onNavigateToDocuments} />
+
+      <DriverAccessLinkCard driver={driver} />
 
       <Card className="shadow-none">
         <CardHeader>

@@ -23,6 +23,15 @@ export const AUDIT_ACTIONS = [
   'INVOICE_CREATED',
   'EXPENSE_CREATED',
   'EXPENSE_DELETED',
+  'DRIVER_LINK_CREATED',
+  'DRIVER_LINK_REVOKED',
+  'DRIVER_LINK_VIEWED',
+  'DRIVER_TRIP_CONFIRMED',
+  'DRIVER_ADVANCE_ACCEPTED',
+  'PAYMENT_CARD_SAVED',
+  'DRIVER_REPORT_SUBMITTED',
+  'DRIVER_REPORT_ACCEPTED',
+  'DRIVER_REPORT_RETURNED',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -51,6 +60,15 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   INVOICE_CREATED: 'Izdata faktura',
   EXPENSE_CREATED: 'Unet trošak',
   EXPENSE_DELETED: 'Obrisan trošak',
+  DRIVER_LINK_CREATED: 'Napravljen link za vozača',
+  DRIVER_LINK_REVOKED: 'Ukinut link za vozača',
+  DRIVER_LINK_VIEWED: 'Prikazan link za vozača',
+  DRIVER_TRIP_CONFIRMED: 'Vozač potvrdio zaduženje',
+  DRIVER_ADVANCE_ACCEPTED: 'Vozač prihvatio akontaciju',
+  PAYMENT_CARD_SAVED: 'Sačuvana kartica za plaćanje',
+  DRIVER_REPORT_SUBMITTED: 'Vozač poslao podatke',
+  DRIVER_REPORT_ACCEPTED: 'Obrađen unos vozača',
+  DRIVER_REPORT_RETURNED: 'Unos vraćen vozaču',
 };
 
 export const AUDIT_ENTITY_TYPES = [
@@ -58,7 +76,10 @@ export const AUDIT_ENTITY_TYPES = [
   'Organization',
   'Vehicle',
   'TripBillingDocument',
+  'PaymentCard',
   'CompanyExpense',
+  'Driver',
+  'Trip',
 ] as const;
 
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];

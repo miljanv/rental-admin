@@ -21,3 +21,7 @@ export const toDriverFormValues = (driver: DriverDto): DriverWriteRequest => ({
   status: driver.status,
   employmentType: driver.employmentType,
 });
+
+/** The driver portal address for a link token, on the site the office is using. */
+export const driverPortalUrl = (origin: string, token: string): string =>
+  `${origin.replace(/\/$/, '')}/v/${encodeURIComponent(token)}`;

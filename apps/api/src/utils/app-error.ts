@@ -76,6 +76,18 @@ export const conflict = (message: string, options?: AppErrorOptions): AppError =
 export const limitReached = (message: string, options?: AppErrorOptions): AppError =>
   new AppError(409, API_ERROR_CODES.LIMIT_REACHED, message, options);
 
+/**
+ * The driver portal link is unknown, revoked, or belongs to an inactive driver or
+ * a suspended organization. One message for all of them, so a guessed token
+ * reveals nothing.
+ */
+export const driverLinkInvalid = (): AppError =>
+  new AppError(
+    401,
+    API_ERROR_CODES.DRIVER_LINK_INVALID,
+    'Link više ne važi. Javite se kancelariji.',
+  );
+
 export const vehicleDisabled = (): AppError =>
   new AppError(422, API_ERROR_CODES.VEHICLE_DISABLED, 'Vozilo je deaktivirano.');
 

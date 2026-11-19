@@ -108,6 +108,19 @@ export const refineClientRequired = (
   ctx.addIssue({ code: 'custom', path: ['clientName'], message: CLIENT_REQUIRED_MESSAGE });
 };
 
+/** "HH:mm" on a 24-hour clock, or null when not given. */
+export const optionalTimeOfDay = z
+  .union([
+    z
+      .string()
+      .trim()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Vreme unesite kao SS:MM, npr. 07:30.'),
+    z.literal(''),
+    z.null(),
+  ])
+  .optional()
+  .transform((value) => (value ? value : null));
+
 export const tripWriteSchema = z
   .object({
     // Assigned once invoicing happens — not a condition for creating a trip.
@@ -121,6 +134,9 @@ export const tripWriteSchema = z
     partnerId: optionalId,
     clientName: optionalText(200),
     notes: optionalText(2000),
+    departureTime: optionalTimeOfDay,
+    pickupLocation: optionalText(200),
+    itinerary: optionalText(5000),
     price: optionalNonNegative('Cena', 100_000_000_000_000),
     paymentMethod: optionalPaymentMethodSchema,
     status: tripStatusSchema,

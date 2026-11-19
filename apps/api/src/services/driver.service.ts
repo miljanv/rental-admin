@@ -18,6 +18,7 @@ import { buildPaginationMeta } from '../utils/api-response';
 import { toDriverDocumentDto, type DriverDocumentRecord } from '../utils/driver-document-mapper';
 import { toDriverDto, type DriverRecord } from '../utils/driver-mapper';
 import { logger } from '../utils/logger';
+import { revokeDriverAccessLink } from './driver-access.service';
 import { requireOrganizationId } from '../utils/tenant-context';
 import { deleteAbsenceFilesForDriver } from './absence-attestation.service';
 import { deleteFilesForDriver } from './driver-document.service';
@@ -157,6 +158,12 @@ export const updateDriver = async (id: string, input: DriverWriteRequest): Promi
   try {
     const record = await prisma.driver.update({ where: { id }, data: toWriteData(input) });
     logger.info('Driver updated', { driverId: record.id });
+
+    // A driver who leaves must not keep reaching the driver portal.
+    if (record.status === 'INACTIVE') {
+      await revokeDriverAccessLink(record.id);
+    }
+
     return toDriverDto(record);
   } catch (error) {
     if (isJmbgConflict(error)) {

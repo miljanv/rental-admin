@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { openingBalanceRouter } from './opening-balance.routes';
 
+import { driverPortalIpRateLimiter, driverPortalTokenRateLimiter } from '../middleware/rate-limit';
 import { requireAuth, requireRole } from '../middleware/require-auth';
+import { requireDriverToken } from '../middleware/require-driver-token';
 import { adminRouter } from './admin.routes';
 import { alarmRouter } from './alarm.routes';
 import { announcementRouter } from './announcement.routes';
@@ -10,12 +12,15 @@ import { authRouter } from './auth.routes';
 import { companyExpenseRouter } from './company-expense.routes';
 import { contractRouter } from './contract.routes';
 import { dashboardRouter } from './dashboard.routes';
+import { driverPortalRouter } from './driver-portal.routes';
+import { driverReportRouter } from './driver-report.routes';
 import { driverRouter } from './driver.routes';
 import { fileRouter } from './file.routes';
 import { fuelLogRouter } from './fuel-log.routes';
 import { healthRouter } from './health.routes';
 import { organizationRouter } from './organization.routes';
 import { partnerRouter } from './partner.routes';
+import { paymentCardRouter } from './payment-card.routes';
 import { supplierRouter } from './supplier.routes';
 import { transactionRouter } from './transaction.routes';
 import { tripRouter } from './trip.routes';
@@ -36,11 +41,21 @@ apiRouter.use('/expenses', requireAuth, companyExpenseRouter);
 apiRouter.use('/contracts', requireAuth, contractRouter);
 apiRouter.use('/dashboard', requireAuth, dashboardRouter);
 apiRouter.use('/drivers', requireAuth, driverRouter);
+apiRouter.use('/driver-reports', requireAuth, driverReportRouter);
+// Public: drivers open it from a personal link instead of signing in.
+apiRouter.use(
+  '/driver-portal',
+  driverPortalIpRateLimiter,
+  driverPortalTokenRateLimiter,
+  requireDriverToken,
+  driverPortalRouter,
+);
 apiRouter.use('/files', requireAuth, fileRouter);
 apiRouter.use('/fuel-logs', requireAuth, fuelLogRouter);
 apiRouter.use('/organizations', requireAuth, requireRole('SUPERADMIN'), organizationRouter);
 apiRouter.use('/opening-balances', requireAuth, openingBalanceRouter);
 apiRouter.use('/partners', requireAuth, partnerRouter);
+apiRouter.use('/payment-cards', requireAuth, paymentCardRouter);
 apiRouter.use('/suppliers', requireAuth, supplierRouter);
 apiRouter.use('/transactions', requireAuth, transactionRouter);
 apiRouter.use('/trips', requireAuth, tripRouter);

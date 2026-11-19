@@ -6,6 +6,7 @@ import type {
   CompanyExpenseScope,
   CashTripPaymentStatus,
   ContractStatus,
+  DriverReportStatus,
   DriverSortField,
   DriverStatus,
   FileSortField,
@@ -37,6 +38,16 @@ export interface FileListQueryParams {
   search?: string;
   sortBy: FileSortField;
   sortOrder: SortOrder;
+}
+
+export interface DriverReportListQueryParams {
+  page: number;
+  limit: number;
+  status?: DriverReportStatus;
+  driverId?: string;
+  tripId?: string;
+  from?: string;
+  to?: string;
 }
 
 export interface DriverListQueryParams {
@@ -276,6 +287,22 @@ export const queryKeys = {
     all: ['analytics'] as const,
     business: (params: BusinessAnalyticsParams) => ['analytics', 'business', params] as const,
   },
+  paymentCards: {
+    all: ['payment-cards'] as const,
+    list: () => ['payment-cards', 'list'] as const,
+  },
+  driverPortal: {
+    all: ['driver-portal'] as const,
+    me: (token: string) => ['driver-portal', token, 'me'] as const,
+    trips: (token: string) => ['driver-portal', token, 'trips'] as const,
+    trip: (token: string, tripId: string) => ['driver-portal', token, 'trips', tripId] as const,
+  },
+  driverReports: {
+    all: ['driver-reports'] as const,
+    list: (params: DriverReportListQueryParams) => ['driver-reports', 'list', params] as const,
+    pendingCount: () => ['driver-reports', 'pending-count'] as const,
+    missing: () => ['driver-reports', 'missing'] as const,
+  },
   drivers: {
     all: ['drivers'] as const,
     list: (params: DriverListQueryParams) => ['drivers', 'list', params] as const,
@@ -284,6 +311,7 @@ export const queryKeys = {
     absenceAttestations: (driverId: string) =>
       ['drivers', driverId, 'absence-attestations'] as const,
     statusOverview: (driverId: string) => ['drivers', driverId, 'status-overview'] as const,
+    accessLink: (driverId: string) => ['drivers', driverId, 'access-link'] as const,
     workRecords: (driverId: string, params?: DriverWorkRecordsQueryParams) =>
       ['drivers', driverId, 'work-records', params] as const,
     perDiems: (driverId: string, params?: DriverPerDiemsQueryParams) =>

@@ -83,6 +83,32 @@ describe('API request pipeline', () => {
     expect(response.body.error.code).toBe('UNAUTHORIZED');
   });
 
+  it('lets the browser send a driver report (PUT with the link header)', async () => {
+    const response = await request(app)
+      .options('/api/v1/driver-portal/trips/trip_1/report')
+      .set({
+        Origin: 'http://localhost:3000',
+        'Access-Control-Request-Method': 'PUT',
+        'Access-Control-Request-Headers': 'content-type,x-driver-token',
+      });
+
+    expect(response.status).toBe(204);
+    expect(response.headers['access-control-allow-methods']).toContain('PUT');
+    expect(response.headers['access-control-allow-headers']?.toLowerCase()).toContain(
+      'x-driver-token',
+    );
+  });
+
+  it('rejects the driver portal without a valid link token', async () => {
+    const response = await request(app)
+      .get('/api/v1/driver-portal/trips')
+      .set({ 'X-Driver-Token': 'not-a-token' });
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('DRIVER_LINK_INVALID');
+    expect(JSON.stringify(response.body)).not.toContain('not-a-token');
+  });
+
   it('rejects a malformed access token', async () => {
     const response = await request(app)
       .get('/api/v1/files')

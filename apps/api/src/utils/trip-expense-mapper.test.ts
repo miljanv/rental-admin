@@ -23,6 +23,7 @@ describe('toTripExpenseDto', () => {
       category: 'FUEL',
       amount: 12_500,
       paymentMethod: 'CASH',
+      paymentCard: null,
       note: 'OMV Subotica',
       file: null,
       createdAt: '2026-08-16T10:00:00.000Z',

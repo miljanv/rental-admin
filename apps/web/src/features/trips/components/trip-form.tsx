@@ -498,6 +498,47 @@ export function TripForm({ trip }: TripFormProps) {
                 {...form.register('destination')}
               />
             </Field>
+            <Field
+              id="departureTime"
+              label="Vreme postavke"
+              error={errors.departureTime?.message as string | undefined}
+            >
+              <Input
+                id="departureTime"
+                type="time"
+                disabled={isPending}
+                aria-invalid={Boolean(errors.departureTime)}
+                {...form.register('departureTime')}
+              />
+            </Field>
+            <Field
+              id="pickupLocation"
+              label="Mesto postavke"
+              error={errors.pickupLocation?.message as string | undefined}
+            >
+              <Input
+                id="pickupLocation"
+                placeholder="npr. ispred škole, Bulevar oslobođenja 10"
+                disabled={isPending}
+                aria-invalid={Boolean(errors.pickupLocation)}
+                {...form.register('pickupLocation')}
+              />
+            </Field>
+            <div className="sm:col-span-2">
+              <Field
+                id="itinerary"
+                label="Program putovanja (vozač ga vidi i potvrđuje)"
+                error={errors.itinerary?.message as string | undefined}
+              >
+                <Textarea
+                  id="itinerary"
+                  rows={4}
+                  placeholder="Dan 1: … Dan 2: …"
+                  disabled={isPending}
+                  {...form.register('itinerary')}
+                />
+              </Field>
+            </div>
           </CardContent>
         </Card>
 

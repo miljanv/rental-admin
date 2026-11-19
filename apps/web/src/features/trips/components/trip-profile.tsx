@@ -21,10 +21,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useGenerateContractDocument } from '@/features/contract-documents/hooks/use-generate-contract-document';
 import { DeleteTripDialog } from '@/features/trips/components/delete-trip-dialog';
 import { TripInvoiceSheet } from '@/features/trips/components/trip-invoice-sheet';
+import { TripDriverReportsCard } from '@/features/driver-reports/components/trip-driver-reports-card';
 import { TripSettlementSection } from '@/features/trips/components/trip-settlement-section';
 import { TripStatusBadge } from '@/features/trips/components/trip-status-badge';
 import { useTrip } from '@/features/trips/hooks/use-trip';
-import { formatDate, formatKilometers, formatMoney } from '@/lib/format';
+import { formatDate, formatDateTime, formatKilometers, formatMoney } from '@/lib/format';
 
 interface TripProfileProps {
   tripId: string;
@@ -63,6 +64,8 @@ function TripOverview({ trip, onInvoice }: { trip: TripDto; onInvoice: () => voi
             <DetailItem label="Država" value={trip.country ?? '—'} />
             <DetailItem label="Datum polaska" value={formatDate(trip.departureDate)} />
             <DetailItem label="Zaključni dan / povratak" value={formatDate(trip.returnDate)} />
+            <DetailItem label="Vreme postavke" value={trip.departureTime ?? '—'} />
+            <DetailItem label="Mesto postavke" value={trip.pickupLocation ?? '—'} />
             <DetailItem
               label="Broj putnika"
               value={trip.passengerCount != null ? String(trip.passengerCount) : '—'}
@@ -141,17 +144,40 @@ function TripOverview({ trip, onInvoice }: { trip: TripDto; onInvoice: () => voi
             {trip.drivers.length === 0 ? (
               <p className="text-muted-foreground text-sm">Nema dodeljenih vozača.</p>
             ) : (
-              <div className="flex flex-wrap gap-1.5">
+              <ul className="space-y-1.5">
                 {trip.drivers.map((driver) => (
-                  <Badge key={driver.id} variant="outline">
-                    {driver.firstName} {driver.lastName}
-                  </Badge>
+                  <li key={driver.id} className="flex flex-wrap items-center gap-2 text-sm">
+                    <Badge variant="outline">
+                      {driver.firstName} {driver.lastName}
+                    </Badge>
+                    <span
+                      className={
+                        driver.confirmedAt
+                          ? 'text-muted-foreground'
+                          : 'text-amber-600 dark:text-amber-400'
+                      }
+                    >
+                      {driver.confirmedAt
+                        ? `Potvrdio zaduženje ${formatDateTime(driver.confirmedAt)}`
+                        : 'Nije potvrdio zaduženje'}
+                    </span>
+                    {driver.advanceAmount && driver.advanceAmount > 0 ? (
+                      <span className="text-muted-foreground">
+                        · Akontacija {formatMoney(driver.advanceAmount)}:{' '}
+                        {driver.advanceAcceptedAt
+                          ? `prihvaćena ${formatDateTime(driver.advanceAcceptedAt)}`
+                          : 'nije prihvaćena'}
+                      </span>
+                    ) : null}
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </div>
         </CardContent>
       </Card>
+
+      <TripDriverReportsCard trip={trip} />
 
       <Card className="shadow-none">
         <CardHeader className="gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -203,6 +229,18 @@ function TripOverview({ trip, onInvoice }: { trip: TripDto; onInvoice: () => voi
           </CardContent>
         ) : null}
       </Card>
+
+      {trip.itinerary ? (
+        <Card className="shadow-none">
+          <CardHeader>
+            <CardTitle>Program putovanja</CardTitle>
+            <CardDescription>Vozač ga vidi na svom linku i potvrđuje uz zaduženje.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm wrap-break-word whitespace-pre-wrap">{trip.itinerary}</p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {trip.notes ? (
         <Card className="shadow-none">

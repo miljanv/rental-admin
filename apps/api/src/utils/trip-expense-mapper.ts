@@ -12,6 +12,7 @@ export interface TripExpenseRecord {
   category: TripExpenseCategory;
   amount: number;
   paymentMethod: TripExpensePaymentMethod;
+  paymentCard?: { id: string; name: string } | null;
   note: string | null;
   fileId: string | null;
   createdAt: Date;
@@ -25,6 +26,7 @@ export const toTripExpenseDto = (record: TripExpenseRecord): TripExpenseDto => (
   category: record.category,
   amount: record.amount,
   paymentMethod: record.paymentMethod,
+  paymentCard: record.paymentCard ?? null,
   note: record.note,
   file: toAttachedFileDto(record.file),
   createdAt: record.createdAt.toISOString(),
