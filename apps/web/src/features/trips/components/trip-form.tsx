@@ -6,6 +6,8 @@ import {
   contractRouteLabel,
   MAX_TRIP_DRIVERS,
   MAX_TRIP_VEHICLES,
+  PAYMENT_METHOD_LABELS,
+  PAYMENT_METHODS,
   TRIP_STATUS_LABELS,
   TRIP_STATUSES,
   type TripDto,
@@ -18,6 +20,7 @@ import { Controller, useForm, useWatch } from 'react-hook-form';
 import { DateField } from '@/components/common/date-field';
 import { MultiSelectField } from '@/components/common/multi-select-field';
 import { PageHeader } from '@/components/common/page-header';
+import { TimeField } from '@/components/common/time-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -78,6 +81,7 @@ const NONE = 'none';
 
 export function TripForm({ trip }: TripFormProps) {
   const isEdit = Boolean(trip);
+  const isBilled = Boolean(trip?.invoicedAt || trip?.cashRecordedAt);
   const createMutation = useCreateTrip();
   const updateMutation = useUpdateTrip(trip?.id ?? '');
   const isPending = createMutation.isPending || updateMutation.isPending;
@@ -498,19 +502,26 @@ export function TripForm({ trip }: TripFormProps) {
                 {...form.register('destination')}
               />
             </Field>
-            <Field
-              id="departureTime"
-              label="Vreme postavke"
-              error={errors.departureTime?.message as string | undefined}
-            >
-              <Input
-                id="departureTime"
-                type="time"
-                disabled={isPending}
-                aria-invalid={Boolean(errors.departureTime)}
-                {...form.register('departureTime')}
-              />
-            </Field>
+            <Controller
+              control={form.control}
+              name="departureTime"
+              render={({ field }) => (
+                <Field
+                  id="departureTime"
+                  label="Vreme postavke (00–24h)"
+                  error={errors.departureTime?.message as string | undefined}
+                >
+                  <TimeField
+                    id="departureTime"
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.departureTime)}
+                  />
+                </Field>
+              )}
+            />
             <Field
               id="pickupLocation"
               label="Mesto postavke"
@@ -524,6 +535,41 @@ export function TripForm({ trip }: TripFormProps) {
                 {...form.register('pickupLocation')}
               />
             </Field>
+            <Controller
+              control={form.control}
+              name="paymentMethod"
+              render={({ field }) => (
+                <Field
+                  id="paymentMethod"
+                  label="Način plaćanja (račun ili keš)"
+                  error={errors.paymentMethod?.message as string | undefined}
+                >
+                  <Select
+                    value={field.value || NONE}
+                    onValueChange={(value) => field.onChange(value === NONE ? '' : value)}
+                    disabled={isPending || isBilled}
+                  >
+                    <SelectTrigger id="paymentMethod" className="w-full">
+                      <SelectValue placeholder="Nije određeno" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>Nije određeno</SelectItem>
+                      {PAYMENT_METHODS.map((method) => (
+                        <SelectItem key={method} value={method}>
+                          {PAYMENT_METHOD_LABELS[method]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {isBilled ? (
+                    <p className="text-muted-foreground text-xs">
+                      Vožnja je već fakturisana ili evidentirana u kešu — način plaćanja se menja
+                      kroz fakturisanje na detaljima vožnje.
+                    </p>
+                  ) : null}
+                </Field>
+              )}
+            />
             <div className="sm:col-span-2">
               <Field
                 id="itinerary"
@@ -613,8 +659,8 @@ export function TripForm({ trip }: TripFormProps) {
             <CardHeader>
               <CardTitle>Realizacija vožnje</CardTitle>
               <CardDescription>
-                Status, završna kilometraža i interna napomena. Cena i način plaćanja unose se kroz
-                fakturisanje na detaljima vožnje.
+                Status, završna kilometraža i interna napomena. Cena i ostali podaci za naplatu
+                unose se kroz fakturisanje na detaljima vožnje.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
