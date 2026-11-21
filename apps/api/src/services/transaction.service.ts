@@ -91,6 +91,8 @@ const retiredFinanceSourceTypes: TransactionSourceType[] = [
   'COMPANY_EXPENSE',
   'TRIP_REVENUE',
   'OPENING_BALANCE',
+  // Trip costs stay on the trip; the office books fuel, tolls and other bills itself.
+  'TRIP_EXPENSE',
 ];
 const MONEY_EPSILON = 0.005;
 

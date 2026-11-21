@@ -2,11 +2,7 @@ import {
   computeTripSettlement,
   tripClientDisplayName,
   tripRouteLabel,
-  TRIP_EXPENSE_CATEGORY_LABELS,
   type DeleteTripExpenseResult,
-  type PaymentMethod,
-  type TransactionCategory,
-  type TripExpenseCategory,
   type TripExpenseDto,
   type TripExpensePaymentMethod,
   type TripExpenseWriteRequest,
@@ -20,30 +16,17 @@ import { logger } from '../utils/logger';
 import { toTripDto } from '../utils/trip-mapper';
 import { toTripExpenseDto, type TripExpenseRecord } from '../utils/trip-expense-mapper';
 import { assertUploadedFile, deleteAttachedFile } from './file-attachment.service';
+import { deleteOperationalTransaction, upsertOperationalExpense } from './transaction.service';
 import {
-  deleteOperationalTransaction,
-  upsertOperationalExpense,
-} from './transaction.service';
-import { assertDriversExist, parseDate, syncTripDrivers, syncTripRevenue, tripInclude } from './trip.service';
+  assertDriversExist,
+  parseDate,
+  syncTripDrivers,
+  syncTripRevenue,
+  tripInclude,
+} from './trip.service';
 import { applyTripVehicleKm } from './trip-vehicle-km.service';
 
 const expenseInclude = { file: true, paymentCard: { select: { id: true, name: true } } } as const;
-
-const toFinancePaymentMethod = (method: TripExpensePaymentMethod): PaymentMethod =>
-  method === 'CASH' ? 'CASH' : 'ACCOUNT';
-
-const toFinanceCategory = (category: TripExpenseCategory): TransactionCategory => {
-  switch (category) {
-    case 'FUEL':
-      return 'FUEL';
-    case 'PER_DIEM':
-      return 'SALARY';
-    case 'ROADSIDE_REPAIR':
-      return 'PARTS';
-    default:
-      return 'OTHER';
-  }
-};
 
 const loadTrip = async (tripId: string) => {
   const record = await prisma.trip.findUnique({ where: { id: tripId }, include: tripInclude });
@@ -66,44 +49,6 @@ const loadExpense = async (tripId: string, expenseId: string): Promise<TripExpen
   }
 
   return record;
-};
-
-const financeNote = (
-  trip: { referenceNumber: string | null; origin: string; destination: string },
-  expense: { category: TripExpenseCategory; note: string | null },
-): string => {
-  const prefix = trip.referenceNumber
-    ? `Vožnja ${trip.referenceNumber}`
-    : `Vožnja ${trip.origin} - ${trip.destination}`;
-  const category = TRIP_EXPENSE_CATEGORY_LABELS[expense.category];
-
-  return expense.note ? `${prefix} · ${category} — ${expense.note}` : `${prefix} · ${category}`;
-};
-
-const syncFinanceExpense = async (
-  tripId: string,
-  expense: {
-    id: string;
-    category: TripExpenseCategory;
-    amount: number;
-    paymentMethod: TripExpensePaymentMethod;
-    note: string | null;
-  },
-): Promise<void> => {
-  const trip = toTripDto(await loadTrip(tripId));
-
-  await upsertOperationalExpense({
-    sourceType: 'TRIP_EXPENSE',
-    sourceId: expense.id,
-    category: toFinanceCategory(expense.category),
-    amount: expense.amount,
-    paymentMethod: toFinancePaymentMethod(expense.paymentMethod),
-    occurredAt: trip.departureDate,
-    vehicleId: trip.vehicles[0]?.id ?? null,
-    partner: tripClientDisplayName(trip) || null,
-    route: tripRouteLabel(trip),
-    note: financeNote(trip, expense),
-  });
 };
 
 /**
@@ -161,7 +106,10 @@ const assertCarrierExists = async (carrierId: string | null): Promise<void> => {
     return;
   }
 
-  const partner = await prisma.partner.findUnique({ where: { id: carrierId }, select: { id: true } });
+  const partner = await prisma.partner.findUnique({
+    where: { id: carrierId },
+    select: { id: true },
+  });
 
   if (!partner) {
     throw badRequest('Izabrani prevoznik ne postoji.');
@@ -221,7 +169,6 @@ export const createTripExpense = async (
     include: expenseInclude,
   });
 
-  await syncFinanceExpense(tripId, record);
   logger.info('Trip expense created', { tripId, expenseId: record.id });
 
   return toTripExpenseDto(record);
@@ -252,7 +199,6 @@ export const updateTripExpense = async (
     await deleteAttachedFile(existing.fileId);
   }
 
-  await syncFinanceExpense(tripId, record);
   logger.info('Trip expense updated', { tripId, expenseId });
 
   return toTripExpenseDto(record);
@@ -348,14 +294,16 @@ export const updateTripSettlement = async (
             perDiemCurrency: driver.perDiemCurrency,
             perDiemStatus: driver.perDiemStatus,
             perDiemPaidAmount: driver.perDiemStatus === 'PAID' ? driver.perDiemPaidAmount : null,
-            perDiemPaidAt: driver.perDiemStatus === 'PAID' && driver.perDiemPaidAt
-              ? parseDate(driver.perDiemPaidAt)
-              : null,
+            perDiemPaidAt:
+              driver.perDiemStatus === 'PAID' && driver.perDiemPaidAt
+                ? parseDate(driver.perDiemPaidAt)
+                : null,
             advanceAmount: driver.advanceAmount,
             advanceStatus: driver.advanceStatus,
-            advancePaidAt: driver.advanceStatus !== 'DRAFT' && driver.advancePaidAt
-              ? parseDate(driver.advancePaidAt)
-              : null,
+            advancePaidAt:
+              driver.advanceStatus !== 'DRAFT' && driver.advancePaidAt
+                ? parseDate(driver.advancePaidAt)
+                : null,
             ...(advanceChanged ? { advanceAcceptedAt: null } : {}),
           },
         });

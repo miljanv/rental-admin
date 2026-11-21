@@ -280,13 +280,7 @@ export const getBusinessAnalytics = async (
         paymentMethod: 'ACCOUNT',
         occurredAt: { gte: fromDate, lte: toDate },
         sourceType: {
-          in: [
-            'MANUAL',
-            'BANK_STATEMENT',
-            'TRIP_EXPENSE',
-            'TRIP_DRIVER_PER_DIEM',
-            'TRIP_DRIVER_ADVANCE',
-          ],
+          in: ['MANUAL', 'BANK_STATEMENT', 'TRIP_DRIVER_PER_DIEM', 'TRIP_DRIVER_ADVANCE'],
         },
         // VAT and own-account transfers are not business with a supplier.
         category: { notIn: ['VAT', 'TRANSFER'] },
