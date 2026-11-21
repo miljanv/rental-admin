@@ -15,7 +15,7 @@ import {
   type TripExpenseCategory,
   type TripExpensePaymentMethod,
 } from '@rental-admin/shared';
-import { Eye } from 'lucide-react';
+import { Check, Eye, X } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -66,6 +66,23 @@ interface ExpenseDraft {
 const DECISION_LABELS: Record<Decision, string> = {
   accept: 'Prihvati',
   reject: 'Odbij',
+};
+
+const DECISION_ICONS: Record<Decision, typeof Check> = {
+  accept: Check,
+  reject: X,
+};
+
+/** Tinted while undecided so the choice stands out; solid once picked. */
+const DECISION_CLASSES: Record<Decision, { idle: string; active: string }> = {
+  accept: {
+    idle: 'border-emerald-500/50 bg-emerald-500/10 text-emerald-800 hover:bg-emerald-500/20 dark:text-emerald-300',
+    active: 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-600/90',
+  },
+  reject: {
+    idle: 'border-rose-500/50 bg-rose-500/10 text-rose-800 hover:bg-rose-500/20 dark:text-rose-300',
+    active: 'border-rose-600 bg-rose-600 text-white hover:bg-rose-600/90',
+  },
 };
 
 const draftFor = (expense: DriverReportAdminExpenseDto): ExpenseDraft => ({
@@ -335,22 +352,33 @@ function ReviewBody({ report, onDone }: { report: DriverReportAdminDto; onDone: 
                 )}
               >
                 <div className="grid grid-cols-2 gap-1">
-                  {(Object.keys(DECISION_LABELS) as Decision[]).map((decision) => (
-                    <Button
-                      key={decision}
-                      type="button"
-                      size="sm"
-                      variant={draft.decision === decision ? 'default' : 'outline'}
-                      disabled={isPending}
-                      onClick={() =>
-                        updateDraft(expense.id, {
-                          decision: draft.decision === decision ? null : decision,
-                        })
-                      }
-                    >
-                      {DECISION_LABELS[decision]}
-                    </Button>
-                  ))}
+                  {(Object.keys(DECISION_LABELS) as Decision[]).map((decision) => {
+                    const Icon = DECISION_ICONS[decision];
+                    const isActive = draft.decision === decision;
+
+                    return (
+                      <Button
+                        key={decision}
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        aria-pressed={isActive}
+                        className={cn(
+                          'font-semibold',
+                          isActive
+                            ? DECISION_CLASSES[decision].active
+                            : DECISION_CLASSES[decision].idle,
+                        )}
+                        disabled={isPending}
+                        onClick={() =>
+                          updateDraft(expense.id, { decision: isActive ? null : decision })
+                        }
+                      >
+                        <Icon />
+                        {DECISION_LABELS[decision]}
+                      </Button>
+                    );
+                  })}
                 </div>
                 <div className="grid gap-2 sm:grid-cols-3">
                   <div className="space-y-1">
