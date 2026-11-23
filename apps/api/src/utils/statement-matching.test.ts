@@ -9,6 +9,10 @@ describe('statement counterparty matching', () => {
       canonicalBankAccount('160-12345-67'),
     );
   });
+  it('matches an IBAN with or without spaces', () => {
+    expect(canonicalBankAccount('SI56 0400 1004 8371 076')).toBe('SI56040010048371076');
+    expect(canonicalBankAccount('si56040010048371076')).toBe('SI56040010048371076');
+  });
   it('matches names without diacritics and ignores letter case', () => {
     expect(uniqueStatementNameMatch(['Đorđević DOO'], 'DJORDJEVIC DOO', names)).toBe(
       'Đorđević DOO',

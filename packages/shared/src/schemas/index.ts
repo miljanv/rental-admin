@@ -1,4 +1,5 @@
 export * from './announcement';
+export * from './bank-account';
 export * from './audit';
 export * from './auth';
 export * from './alarm';

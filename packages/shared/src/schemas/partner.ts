@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { bankAccountWriteSchema } from './bank-account';
+
 import { PAGINATION_DEFAULTS } from '../constants';
 import {
   JMBG_LENGTH,
@@ -16,8 +18,6 @@ export const partnerIdSchema = z.string().trim().min(1, 'Partner je obavezan.').
 export const partnerIdParamsSchema = z.object({ id: partnerIdSchema });
 
 export type PartnerIdParams = z.infer<typeof partnerIdParamsSchema>;
-
-const normalizeBankAccount = (value: string): string => value.replace(/\s+/g, '').trim();
 
 const requiredText = (label: string, max: number) =>
   z
@@ -164,16 +164,7 @@ const PARTY_FIELD_NAMES = {
   personalId: 'personalId',
 } as const;
 
-export const partnerBankAccountWriteSchema = z.object({
-  accountNumber: z
-    .string()
-    .trim()
-    .max(40, 'Broj računa sme imati najviše 40 karaktera.')
-    .transform(normalizeBankAccount)
-    .refine((value) => /^\d{3}-\d{1,13}-\d{2}$/.test(value), {
-      message: 'Broj računa mora biti u formatu 000-0000000000000-00.',
-    }),
-});
+export const partnerBankAccountWriteSchema = bankAccountWriteSchema;
 
 export const partnerFavoriteSchema = z.object({ isFavorite: z.boolean() });
 

@@ -213,7 +213,7 @@ export function SupplierForm({ supplier }: SupplierFormProps) {
           <CardHeader>
             <CardTitle>Bankovni računi</CardTitle>
             <CardDescription>
-              Koriste se za automatsko povezivanje isplata sa izvoda sa dobavljačem.
+              Domaći račun ili IBAN. Koriste se za automatsko povezivanje isplata sa izvoda.
             </CardDescription>
           </CardHeader>
           <CardContent className="max-w-2xl space-y-3">
@@ -229,7 +229,7 @@ export function SupplierForm({ supplier }: SupplierFormProps) {
                 >
                   <Input
                     id={`bankAccounts.${index}.accountNumber`}
-                    placeholder="160-0000001902222-87"
+                    placeholder="160-… ili SI56…"
                     disabled={isPending}
                     aria-invalid={Boolean(errors.bankAccounts?.[index]?.accountNumber)}
                     {...form.register(`bankAccounts.${index}.accountNumber`)}

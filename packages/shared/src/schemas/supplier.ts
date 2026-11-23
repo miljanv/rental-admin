@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { bankAccountWriteSchema } from './bank-account';
 import { PAGINATION_DEFAULTS } from '../constants';
 import { PIB_LENGTH, REGISTRATION_NUMBER_LENGTH } from '../types/partner';
 import { SUPPLIER_SORT_FIELDS } from '../types/supplier';
@@ -38,18 +39,7 @@ const optionalDigits = (label: string, length: number) =>
       message: `${label} mora imati tačno ${length} cifara.`,
     });
 
-const normalizeBankAccount = (value: string): string => value.replace(/\s+/g, '').trim();
-
-export const supplierBankAccountWriteSchema = z.object({
-  accountNumber: z
-    .string()
-    .trim()
-    .max(40, 'Broj računa sme imati najviše 40 karaktera.')
-    .transform(normalizeBankAccount)
-    .refine((value) => /^\d{3}-\d{1,13}-\d{2}$/.test(value), {
-      message: 'Broj računa mora biti u formatu 000-0000000000000-00.',
-    }),
-});
+export const supplierBankAccountWriteSchema = bankAccountWriteSchema;
 
 export const supplierWriteSchema = z
   .object({

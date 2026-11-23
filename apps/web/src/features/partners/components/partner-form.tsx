@@ -284,7 +284,7 @@ export function PartnerForm({ partner }: PartnerFormProps) {
           <CardHeader>
             <CardTitle>Bankovni računi</CardTitle>
             <CardDescription>
-              Koriste se za automatsko povezivanje stavki izvoda sa partnerom.
+              Domaći račun ili IBAN. Koriste se za automatsko povezivanje stavki izvoda.
             </CardDescription>
           </CardHeader>
           <CardContent className="max-w-2xl space-y-3">
@@ -300,7 +300,7 @@ export function PartnerForm({ partner }: PartnerFormProps) {
                 >
                   <Input
                     id={`bankAccounts.${index}.accountNumber`}
-                    placeholder="190-0000000146210-88"
+                    placeholder="190-… ili SI56…"
                     disabled={isPending}
                     aria-invalid={Boolean(errors.bankAccounts?.[index]?.accountNumber)}
                     {...form.register(`bankAccounts.${index}.accountNumber`)}
