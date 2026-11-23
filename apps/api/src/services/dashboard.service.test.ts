@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { summarizeOpenItems, summarizeVehicleFuelConsumption } from './dashboard.service';
+import type { AlarmItemDto } from '@rental-admin/shared';
+
+import {
+  summarizeExpired,
+  summarizeOpenItems,
+  summarizeVehicleFuelConsumption,
+} from './dashboard.service';
 
 const dinarTarget = {
   currency: 'RSD',
@@ -217,5 +223,45 @@ describe('summarizeVehicleFuelConsumption', () => {
         avgConsumptionPer100Km: 25,
       },
     ]);
+  });
+});
+
+describe('summarizeExpired', () => {
+  const alarm = (
+    id: string,
+    daysUntil: number,
+    urgency: AlarmItemDto['urgency'],
+    category: AlarmItemDto['category'] = 'DRIVER',
+  ): AlarmItemDto => ({
+    id,
+    kind: category === 'DRIVER' ? 'DRIVER_ID_CARD' : 'VEHICLE_TACHOGRAPH',
+    category,
+    title: 'Lična karta',
+    expiresAt: `2026-12-${String(10 + daysUntil).padStart(2, '0')}`,
+    daysUntil,
+    urgency,
+    href: `/drivers/${id}`,
+    driver: { id, label: `Vozač ${id}` },
+    vehicle: null,
+  });
+
+  it('lists expired items and the nearest upcoming expiries separately', () => {
+    const result = summarizeExpired(
+      [
+        alarm('late', -3, 'expired'),
+        alarm('far', 15, 'ok'),
+        alarm('soon', 2, 'critical'),
+        alarm('today', 0, 'critical'),
+        alarm('mid', 8, 'warning'),
+        alarm('truck', 1, 'critical', 'VEHICLE'),
+      ],
+      'DRIVER',
+    );
+
+    expect(result.total).toBe(1);
+    expect(result.items[0]).toMatchObject({ id: 'late', daysOverdue: 3 });
+    expect(result.upcoming.map((item) => item.id)).toEqual(['today', 'soon', 'mid', 'far']);
+    expect(result.upcoming[0]).toMatchObject({ subject: 'Vozač today', daysUntil: 0 });
+    expect(result.upcomingTotal).toBe(3);
   });
 });

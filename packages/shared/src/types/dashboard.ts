@@ -57,9 +57,18 @@ export interface DashboardExpiredItemDto {
   href: string;
 }
 
+export interface DashboardUpcomingItemDto extends Omit<DashboardExpiredItemDto, 'daysOverdue'> {
+  /** Days left until expiry; 0 means it expires today. */
+  daysUntil: number;
+}
+
 export interface DashboardExpiredItemsDto {
   total: number;
   items: DashboardExpiredItemDto[];
+  /** Not yet expired but inside the alarm warning window. */
+  upcomingTotal: number;
+  /** Nearest upcoming expiries, soonest first. */
+  upcoming: DashboardUpcomingItemDto[];
 }
 
 export interface DashboardFuelConsumptionDto {

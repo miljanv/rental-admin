@@ -99,14 +99,14 @@ export function DashboardOverview() {
           <DashboardSectionTitle>Rokovi i dokumentacija</DashboardSectionTitle>
           <div className="grid gap-3 lg:grid-cols-2">
             <DashboardExpiryCard
-              title="Istekle aktivnosti vozača"
-              description="Pet poslednjih isteka ličnih dokumenata i potvrda."
+              title="Rokovi vozača"
+              description="Istekli i najbliži isteci ličnih dokumenata i potvrda."
               data={query.data.expiredDriverActivities}
               icon={IdCard}
             />
             <DashboardExpiryCard
-              title="Istekle aktivnosti vozila"
-              description="Pet poslednjih isteka pregleda, registracije i tahografa."
+              title="Rokovi vozila"
+              description="Istekli i najbliži isteci pregleda, registracije i tahografa."
               data={query.data.expiredVehicleActivities}
               icon={Truck}
             />

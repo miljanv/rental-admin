@@ -1,5 +1,6 @@
 import type {
   AlarmItemDto,
+  DashboardExpiredItemDto,
   DashboardExpiredItemsDto,
   DashboardFuelConsumptionDto,
   DashboardOpenCounterpartyDto,
@@ -140,24 +141,37 @@ export const summarizeOpenItems = (items: SettlementTargetDto[]): DashboardOpenI
   };
 };
 
-const summarizeExpired = (
+const toDashboardItem = (item: AlarmItemDto): Omit<DashboardExpiredItemDto, 'daysOverdue'> => ({
+  id: item.id,
+  kind: item.kind,
+  subject: item.driver?.label ?? item.vehicle?.label ?? '—',
+  title: item.title,
+  expiresAt: item.expiresAt,
+  href: item.href,
+});
+
+export const summarizeExpired = (
   items: AlarmItemDto[],
   category: AlarmItemDto['category'],
 ): DashboardExpiredItemsDto => {
-  const expired = items
-    .filter((item) => item.category === category && item.daysUntil < 0)
+  const inCategory = items.filter((item) => item.category === category);
+  const expired = inCategory
+    .filter((item) => item.daysUntil < 0)
     .sort((left, right) => right.expiresAt.localeCompare(left.expiresAt));
+  const upcoming = inCategory
+    .filter((item) => item.daysUntil >= 0)
+    .sort((left, right) => left.daysUntil - right.daysUntil);
 
   return {
     total: expired.length,
     items: expired.slice(0, DASHBOARD_LIST_LIMIT).map((item) => ({
-      id: item.id,
-      kind: item.kind,
-      subject: item.driver?.label ?? item.vehicle?.label ?? '—',
-      title: item.title,
-      expiresAt: item.expiresAt,
+      ...toDashboardItem(item),
       daysOverdue: Math.abs(item.daysUntil),
-      href: item.href,
+    })),
+    upcomingTotal: upcoming.filter((item) => item.urgency !== 'ok').length,
+    upcoming: upcoming.slice(0, DASHBOARD_LIST_LIMIT).map((item) => ({
+      ...toDashboardItem(item),
+      daysUntil: item.daysUntil,
     })),
   };
 };
