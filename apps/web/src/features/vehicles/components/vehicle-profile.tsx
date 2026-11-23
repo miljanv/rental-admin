@@ -6,11 +6,10 @@ import {
   VEHICLE_TYPE_LABELS,
   type VehicleDto,
 } from '@rental-admin/shared';
-import { Clock, Pencil, Power, PowerOff, Trash2 } from 'lucide-react';
+import { Pencil, Power, PowerOff, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { EmptyState } from '@/components/common/empty-state';
 import { ErrorState } from '@/components/common/error-state';
 import { PageHeader } from '@/components/common/page-header';
 import { Button } from '@/components/ui/button';
@@ -22,6 +21,7 @@ import { TachographCalibrationsTab } from '@/features/tachograph-calibrations/co
 import { VehicleDocumentsTab } from '@/features/vehicle-documents/components/vehicle-documents-tab';
 import { VehicleInspectionsTab } from '@/features/vehicle-inspections/components/vehicle-inspections-tab';
 import { VehicleMaintenanceTab } from '@/features/vehicle-maintenance/components/vehicle-maintenance-tab';
+import { VehicleTripsTab } from '@/features/vehicle-trips/components/vehicle-trips-tab';
 import { VehicleSafetyEquipmentTab } from '@/features/vehicle-safety-equipment/components/vehicle-safety-equipment-tab';
 import { DeleteVehicleDialog } from '@/features/vehicles/components/delete-vehicle-dialog';
 import {
@@ -35,13 +35,10 @@ import { useAuth } from '@/providers/auth-provider';
 
 const PROFILE_TABS = [
   { id: 'overview', label: 'Osnovni podaci' },
-  { id: 'inspections', label: 'Tehnički pregledi' },
-  { id: 'tachograph', label: 'Tahograf' },
-  { id: 'safety-equipment', label: 'Sigurnosna oprema' },
+  { id: 'documents', label: 'Dokumenta' },
+  { id: 'trips', label: 'Vožnje' },
   { id: 'fuel', label: 'Gorivo i potrošnja' },
   { id: 'expenses-maintenance', label: 'Troškovi - Održavanje' },
-  { id: 'documents', label: 'Dokumenti' },
-  { id: 'deadlines', label: 'Pregled rokova' },
 ] as const;
 
 type ProfileTabId = (typeof PROFILE_TABS)[number]['id'];
@@ -61,16 +58,6 @@ function DetailItem({ label, value }: DetailItemProps) {
       <dt className="text-muted-foreground text-xs">{label}</dt>
       <dd className="text-sm font-medium wrap-break-word">{value}</dd>
     </div>
-  );
-}
-
-function ComingSoon({ title }: { title: string }) {
-  return (
-    <EmptyState
-      icon={Clock}
-      title={`${title} — uskoro`}
-      description="Ovaj modul će biti dodat u narednom koraku. Osnovni podaci vozila su već dostupni."
-    />
   );
 }
 
@@ -243,13 +230,7 @@ export function VehicleProfile({ vehicleId }: VehicleProfileProps) {
       </div>
 
       {activeTab === 'overview' ? <VehicleOverview vehicle={vehicle} /> : null}
-      {activeTab === 'inspections' ? <VehicleInspectionsTab vehicleId={vehicle.id} /> : null}
-      {activeTab === 'tachograph' ? (
-        <TachographCalibrationsTab vehicleId={vehicle.id} tachographType={vehicle.tachographType} />
-      ) : null}
-      {activeTab === 'safety-equipment' ? (
-        <VehicleSafetyEquipmentTab vehicleId={vehicle.id} />
-      ) : null}
+      {activeTab === 'trips' ? <VehicleTripsTab vehicleId={vehicle.id} /> : null}
       {activeTab === 'fuel' ? <FuelLogsTab vehicleId={vehicle.id} /> : null}
       {activeTab === 'expenses-maintenance' ? (
         <div className="space-y-6">
@@ -257,8 +238,20 @@ export function VehicleProfile({ vehicleId }: VehicleProfileProps) {
           <VehicleMaintenanceTab vehicleId={vehicle.id} />
         </div>
       ) : null}
-      {activeTab === 'documents' ? <VehicleDocumentsTab vehicleId={vehicle.id} /> : null}
-      {activeTab === 'deadlines' ? <ComingSoon title="Pregled rokova" /> : null}
+      {activeTab === 'documents' ? (
+        <div className="space-y-8">
+          <VehicleInspectionsTab vehicleId={vehicle.id} />
+          <TachographCalibrationsTab
+            vehicleId={vehicle.id}
+            tachographType={vehicle.tachographType}
+          />
+          <section className="space-y-3">
+            <h3 className="font-heading text-base font-semibold">Sigurnosna oprema</h3>
+            <VehicleSafetyEquipmentTab vehicleId={vehicle.id} />
+          </section>
+          <VehicleDocumentsTab vehicleId={vehicle.id} />
+        </div>
+      ) : null}
 
       <DeleteVehicleDialog
         vehicle={vehicleToDelete}

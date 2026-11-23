@@ -7,6 +7,7 @@ import * as vehicleInspectionController from '../controllers/vehicle-inspection.
 import * as vehicleDocumentController from '../controllers/vehicle-document.controller';
 import * as vehicleMaintenanceController from '../controllers/vehicle-maintenance.controller';
 import * as vehicleSafetyEquipmentController from '../controllers/vehicle-safety-equipment.controller';
+import * as vehicleTripsController from '../controllers/vehicle-trips.controller';
 import * as vehicleController from '../controllers/vehicle.controller';
 import { requireRole } from '../middleware/require-auth';
 import { validateRequest } from '../middleware/validate-request';
@@ -44,6 +45,7 @@ import {
   vehicleSafetyEquipmentParamsSchema,
   vehicleSafetyEquipmentWriteSchema,
 } from '../schemas/vehicle-safety-equipment.schema';
+import { vehicleTripsQuerySchema } from '../schemas/vehicle-trips.schema';
 import {
   listVehiclesQuerySchema,
   vehicleEnabledWriteSchema,
@@ -258,6 +260,12 @@ vehicleRouter.get(
   '/:id/expenses/:expenseId',
   validateRequest({ params: companyExpenseParamsSchema }),
   asyncHandler(companyExpenseController.getVehicleCompanyExpense),
+);
+
+vehicleRouter.get(
+  '/:id/trips-summary',
+  validateRequest({ params: vehicleIdParamsSchema, query: vehicleTripsQuerySchema }),
+  asyncHandler(vehicleTripsController.getVehicleTripsSummary),
 );
 
 vehicleRouter.get(

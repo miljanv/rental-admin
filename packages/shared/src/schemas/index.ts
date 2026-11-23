@@ -28,6 +28,7 @@ export * from './trip-expense';
 export * from './trip-series';
 export * from './vehicle';
 export * from './vehicle-document';
+export * from './vehicle-trips';
 export * from './vehicle-inspection';
 export * from './vehicle-maintenance';
 export * from './vehicle-safety-equipment';

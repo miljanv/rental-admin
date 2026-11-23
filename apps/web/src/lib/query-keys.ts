@@ -86,6 +86,11 @@ export interface FuelConsumptionQueryParams {
   to?: string;
 }
 
+export interface VehicleTripsQueryParams {
+  from?: string;
+  to?: string;
+}
+
 export interface CashTripLedgerQueryParams {
   page: number;
   limit: number;
@@ -339,6 +344,8 @@ export const queryKeys = {
     maintenanceCostSummary: (params?: MaintenanceCostSummaryParams) =>
       ['vehicles', 'maintenance-cost-summary', params] as const,
     documents: (vehicleId: string) => ['vehicles', vehicleId, 'documents'] as const,
+    tripsSummary: (vehicleId: string, params: VehicleTripsQueryParams) =>
+      ['vehicles', vehicleId, 'trips-summary', params] as const,
   },
   partners: {
     all: ['partners'] as const,
