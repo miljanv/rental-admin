@@ -501,7 +501,7 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
               render={({ field }) => (
                 <DateTimeField
                   id="started-at"
-                  value={field.value}
+                  value={field.value ?? ''}
                   onChange={field.onChange}
                   disabled={isPending}
                   className="h-11"
@@ -517,7 +517,7 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
               render={({ field }) => (
                 <DateTimeField
                   id="finished-at"
-                  value={field.value}
+                  value={field.value ?? ''}
                   onChange={field.onChange}
                   disabled={isPending}
                   aria-invalid={Boolean(errors.finishedAt)}
@@ -574,7 +574,7 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
               name={`borderCrossings.${index}.at`}
               render={({ field }) => (
                 <DateTimeField
-                  value={field.value}
+                  value={field.value ?? ''}
                   onChange={field.onChange}
                   disabled={isPending}
                   aria-invalid={Boolean(errors.borderCrossings?.[index]?.at)}
