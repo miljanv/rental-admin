@@ -20,6 +20,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 
+import { DateTimeField } from '@/components/common/date-time-field';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -494,23 +495,35 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="started-at">Početak vožnje</Label>
-            <Input
-              id="started-at"
-              type="datetime-local"
-              className="h-11 text-base"
-              disabled={isPending}
-              {...form.register('startedAt')}
+            <Controller
+              control={form.control}
+              name="startedAt"
+              render={({ field }) => (
+                <DateTimeField
+                  id="started-at"
+                  value={field.value}
+                  onChange={field.onChange}
+                  disabled={isPending}
+                  className="h-11"
+                />
+              )}
             />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="finished-at">Završetak vožnje</Label>
-            <Input
-              id="finished-at"
-              type="datetime-local"
-              className="h-11 text-base"
-              disabled={isPending}
-              aria-invalid={Boolean(errors.finishedAt)}
-              {...form.register('finishedAt')}
+            <Controller
+              control={form.control}
+              name="finishedAt"
+              render={({ field }) => (
+                <DateTimeField
+                  id="finished-at"
+                  value={field.value}
+                  onChange={field.onChange}
+                  disabled={isPending}
+                  aria-invalid={Boolean(errors.finishedAt)}
+                  className="h-11"
+                />
+              )}
             />
             {errors.finishedAt?.message ? (
               <p className="text-destructive text-xs">{errors.finishedAt.message}</p>
@@ -556,13 +569,18 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
                 </div>
               )}
             />
-            <Input
-              type="datetime-local"
-              aria-label="Vreme prelaska granice"
-              className="h-11 text-base"
-              disabled={isPending}
-              aria-invalid={Boolean(errors.borderCrossings?.[index]?.at)}
-              {...form.register(`borderCrossings.${index}.at`)}
+            <Controller
+              control={form.control}
+              name={`borderCrossings.${index}.at`}
+              render={({ field }) => (
+                <DateTimeField
+                  value={field.value}
+                  onChange={field.onChange}
+                  disabled={isPending}
+                  aria-invalid={Boolean(errors.borderCrossings?.[index]?.at)}
+                  className="h-11"
+                />
+              )}
             />
             {errors.borderCrossings?.[index]?.at?.message ? (
               <p className="text-destructive text-xs">

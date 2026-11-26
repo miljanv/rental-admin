@@ -208,7 +208,7 @@ describe('summarizeVehicleFuelConsumption', () => {
     expect(result).toEqual([
       {
         vehicleId: 'bus-a',
-        vehicleLabel: 'Setra S 415 · NS-001-AA',
+        vehicleLabel: 'NS-001-AA — Setra S 415',
         fillUpCount: 2,
         litersFilled: 80,
         kmDriven: 400,
@@ -216,7 +216,7 @@ describe('summarizeVehicleFuelConsumption', () => {
       },
       {
         vehicleId: 'bus-b',
-        vehicleLabel: 'MAN Lion · NS-002-BB',
+        vehicleLabel: 'NS-002-BB — MAN Lion',
         fillUpCount: 1,
         litersFilled: 50,
         kmDriven: 200,

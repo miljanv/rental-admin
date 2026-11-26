@@ -14,6 +14,7 @@ import { FileDown } from 'lucide-react';
 import { Controller, useForm } from 'react-hook-form';
 
 import { DateField } from '@/components/common/date-field';
+import { DateTimeField } from '@/components/common/date-time-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -113,7 +114,18 @@ export function GenerateMaForm({
               label="Vreme zavođenja"
               error={errors.registeredAt?.message}
             >
-              <Input id="registeredAt" type="datetime-local" {...form.register('registeredAt')} />
+              <Controller
+                control={form.control}
+                name="registeredAt"
+                render={({ field }) => (
+                  <DateTimeField
+                    id="registeredAt"
+                    value={field.value}
+                    onChange={field.onChange}
+                    aria-invalid={Boolean(errors.registeredAt)}
+                  />
+                )}
+              />
             </Field>
             <Field id="gender" label="Pol" error={errors.gender?.message}>
               <Controller

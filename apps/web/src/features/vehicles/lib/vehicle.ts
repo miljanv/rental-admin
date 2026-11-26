@@ -1,9 +1,10 @@
 import type { VehicleDto, VehicleWriteRequest } from '@rental-admin/shared';
 import { createElement, type ReactNode } from 'react';
 
+/** Plate first — fleets of identical buses are told apart by registration. */
 export const vehicleLabel = (
   vehicle: Pick<VehicleDto, 'make' | 'model' | 'licensePlate'>,
-): string => `${vehicle.make} ${vehicle.model} (${vehicle.licensePlate})`;
+): string => `${vehicle.licensePlate} — ${vehicle.make} ${vehicle.model}`;
 
 /**
  * Reg. oznaka first and bolded, make/model as secondary detail — dispatchers

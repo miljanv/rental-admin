@@ -297,10 +297,13 @@ export const reviewedReportStatus = (
 };
 
 /**
- * Accepts or rejects the report's pending expenses. Each accepted one becomes
+ * Accepts or rejects the report's expenses one by one. Each accepted row becomes
  * a trip expense (and, through it, a finance row) with the driver's receipt.
- * Expenses are claimed first, so a second click cannot create them twice; if
- * creating a trip expense fails, its claim is released.
+ *
+ * Already-handled rows that match the same decision are skipped so a retry after
+ * a partial save (e.g. the first expense succeeded, the second failed) does not
+ * block the remaining PENDING ones. Claim and create run per expense so a failure
+ * only releases that claim — earlier successes stay accepted.
  */
 export const acceptDriverReport = async (
   id: string,
@@ -316,46 +319,64 @@ export const acceptDriverReport = async (
       throw badRequest('Trošak ne pripada ovom unosu.');
     }
 
-    if (expense.status !== 'PENDING') {
+    const alreadyDone =
+      (decision.accept && expense.status === 'ACCEPTED' && expense.tripExpenseId !== null) ||
+      (!decision.accept && expense.status === 'REJECTED');
+
+    if (expense.status !== 'PENDING' && !alreadyDone) {
       throw conflict('Trošak je već obrađen. Osvežite stranicu.');
     }
 
     if (
       decision.accept &&
       decision.addFuelLog &&
+      expense.status === 'PENDING' &&
       !canRecordFuelLog({ ...expense, category: decision.category ?? expense.category })
     ) {
       throw badRequest('Za upis u evidenciju goriva nedostaju vozilo, litri ili kilometraža.');
     }
   }
 
-  await prisma.$transaction(async (tx) => {
-    for (const decision of input.expenses) {
-      const claimed = await tx.driverTripReportExpense.updateMany({
-        where: { id: decision.id, reportId: id, status: 'PENDING' },
-        data: decision.accept
-          ? {
-              status: 'ACCEPTED',
-              ...(decision.category ? { category: decision.category } : {}),
-              ...(decision.amount !== undefined ? { amount: decision.amount } : {}),
-              ...(decision.paymentMethod ? { paymentMethod: decision.paymentMethod } : {}),
-            }
-          : { status: 'REJECTED', rejectionReason: decision.rejectionReason ?? null },
-      });
-
-      if (claimed.count === 0) {
-        throw conflict('Trošak je već obrađen. Osvežite stranicu.');
-      }
-    }
-  });
-
   let fuelLogs = 0;
   let acceptedLiters = 0;
+  let accepted = 0;
+  let rejected = 0;
 
-  for (const decision of input.expenses.filter((entry) => entry.accept)) {
+  for (const decision of input.expenses) {
     const expense = byId.get(decision.id);
 
     if (!expense) {
+      continue;
+    }
+
+    if (decision.accept && expense.status === 'ACCEPTED' && expense.tripExpenseId !== null) {
+      accepted += 1;
+      continue;
+    }
+
+    if (!decision.accept && expense.status === 'REJECTED') {
+      rejected += 1;
+      continue;
+    }
+
+    const claimed = await prisma.driverTripReportExpense.updateMany({
+      where: { id: decision.id, reportId: id, status: 'PENDING' },
+      data: decision.accept
+        ? {
+            status: 'ACCEPTED',
+            ...(decision.category ? { category: decision.category } : {}),
+            ...(decision.amount !== undefined ? { amount: decision.amount } : {}),
+            ...(decision.paymentMethod ? { paymentMethod: decision.paymentMethod } : {}),
+          }
+        : { status: 'REJECTED', rejectionReason: decision.rejectionReason ?? null },
+    });
+
+    if (claimed.count === 0) {
+      throw conflict('Trošak je već obrađen. Osvežite stranicu.');
+    }
+
+    if (!decision.accept) {
+      rejected += 1;
       continue;
     }
 
@@ -364,7 +385,7 @@ export const acceptDriverReport = async (
         category: decision.category ?? expense.category,
         amount: decision.amount ?? expense.amount,
         paymentMethod: decision.paymentMethod ?? expense.paymentMethod,
-        paymentCardId: expense.paymentCardId,
+        paymentCardId: expense.paymentCardId ?? null,
         note: expense.note,
         fileId: expense.fileId,
       });
@@ -373,6 +394,8 @@ export const acceptDriverReport = async (
         where: { id: expense.id },
         data: { tripExpenseId: created.id },
       });
+
+      accepted += 1;
 
       if ((decision.category ?? expense.category) === 'FUEL' && expense.fuelLiters !== null) {
         acceptedLiters += expense.fuelLiters;
@@ -383,7 +406,10 @@ export const acceptDriverReport = async (
       }
     } catch (error) {
       await prisma.driverTripReportExpense
-        .update({ where: { id: expense.id }, data: { status: 'PENDING' } })
+        .update({
+          where: { id: expense.id },
+          data: { status: 'PENDING', tripExpenseId: null },
+        })
         .catch(() => undefined);
       throw error;
     }
@@ -418,9 +444,6 @@ export const acceptDriverReport = async (
       reviewedById: getTenantContext()?.userId ?? null,
     },
   });
-
-  const accepted = input.expenses.filter((entry) => entry.accept).length;
-  const rejected = input.expenses.length - accepted;
 
   logger.info('Driver report reviewed', { reportId: id, accepted, rejected, fuelLogs });
   await recordAuditEvent({

@@ -10,6 +10,7 @@ import {
 import { Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
+import { DateTimeField } from '@/components/common/date-time-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -155,21 +156,15 @@ export function DriverPerDiemDocumentsSheet({
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="departure-at">Polazak</Label>
-                <Input
+                <DateTimeField
                   id="departure-at"
-                  type="datetime-local"
                   value={departureAt}
-                  onChange={(event) => setDepartureAt(event.target.value)}
+                  onChange={setDepartureAt}
                 />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="return-at">Povratak</Label>
-                <Input
-                  id="return-at"
-                  type="datetime-local"
-                  value={returnAt}
-                  onChange={(event) => setReturnAt(event.target.value)}
-                />
+                <DateTimeField id="return-at" value={returnAt} onChange={setReturnAt} />
               </div>
             </div>
 
@@ -199,12 +194,10 @@ export function DriverPerDiemDocumentsSheet({
                 crossings.map((crossing, index) => (
                   <div key={`${crossing.at}-${index}`} className="flex items-end gap-2">
                     <div className="flex-1 space-y-1.5">
-                      <Label>Vreme</Label>
-                      <Input
-                        type="datetime-local"
+                      <Label>Datum i vreme</Label>
+                      <DateTimeField
                         value={crossing.at}
-                        onChange={(event) => {
-                          const value = event.target.value;
+                        onChange={(value) => {
                           setCrossings((current) =>
                             current.map((item, itemIndex) =>
                               itemIndex === index ? { ...item, at: value } : item,

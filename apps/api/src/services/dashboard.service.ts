@@ -195,7 +195,7 @@ export const summarizeVehicleFuelConsumption = (rows: FuelRow[]): DashboardFuelC
     }
 
     const current = byVehicle.get(row.vehicleId) ?? {
-      vehicleLabel: `${row.vehicle.make} ${row.vehicle.model} · ${row.vehicle.licensePlate}`,
+      vehicleLabel: `${row.vehicle.licensePlate} — ${row.vehicle.make} ${row.vehicle.model}`,
       fillUpCount: 0,
       litersFilled: 0,
       kmDriven: 0,

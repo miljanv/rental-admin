@@ -142,6 +142,7 @@ describe('acceptDriverReport', () => {
       category: 'TOLL',
       amount: 1_840,
       paymentMethod: 'CASH',
+      paymentCardId: null,
       note: null,
       fileId: 'file_1',
     });
@@ -183,9 +184,23 @@ describe('acceptDriverReport', () => {
     });
   });
 
-  it('refuses an expense that was already handled, e.g. a second click', async () => {
+  it('skips an already-accepted expense on retry so remaining ones can still save', async () => {
     prismaMock.driverTripReport.findFirst.mockResolvedValue(
-      report([expense({ status: 'ACCEPTED' })]),
+      report([expense({ status: 'ACCEPTED', tripExpenseId: 'te_old' })]),
+    );
+
+    await acceptDriverReport('rep_1', {
+      expenses: [{ id: 'exp_1', accept: true }],
+      comment: null,
+    });
+
+    expect(createTripExpenseMock).not.toHaveBeenCalled();
+    expect(prismaMock.driverTripReportExpense.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('refuses when the expense was handled the other way', async () => {
+    prismaMock.driverTripReport.findFirst.mockResolvedValue(
+      report([expense({ status: 'REJECTED' })]),
     );
 
     await expect(
@@ -211,7 +226,7 @@ describe('acceptDriverReport', () => {
     ).rejects.toThrow('Vožnja nije pronađena.');
     expect(prismaMock.driverTripReportExpense.update).toHaveBeenCalledWith({
       where: { id: 'exp_1' },
-      data: { status: 'PENDING' },
+      data: { status: 'PENDING', tripExpenseId: null },
     });
   });
 

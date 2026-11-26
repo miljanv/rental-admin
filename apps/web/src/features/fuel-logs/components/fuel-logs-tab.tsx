@@ -9,7 +9,6 @@ import { ErrorState } from '@/components/common/error-state';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { FuelConsumptionChart } from '@/features/fuel-logs/components/fuel-consumption-chart';
 import { FuelLogsTable } from '@/features/fuel-logs/components/fuel-logs-table';
 import { useFuelConsumption } from '@/features/fuel-logs/hooks/use-fuel-consumption';
 
@@ -111,16 +110,6 @@ export function FuelLogsTab({ vehicleId }: FuelLogsTabProps) {
               </CardHeader>
             </Card>
           </div>
-
-          <Card className="shadow-none">
-            <CardHeader>
-              <CardTitle>Potrošnja kroz vreme</CardTitle>
-              <CardDescription>L/100km po sipanju, odvojeno dizel i AdBlue.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FuelConsumptionChart fuelLogs={history?.items ?? []} />
-            </CardContent>
-          </Card>
 
           <Card className="shadow-none">
             <CardHeader>

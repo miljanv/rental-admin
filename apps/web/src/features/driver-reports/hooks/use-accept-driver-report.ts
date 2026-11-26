@@ -29,6 +29,11 @@ export const useAcceptDriverReport = () => {
     },
     onError: (error) => {
       toast.error('Odluke nisu sačuvane.', { description: getApiErrorMessage(error) });
+      // Partial saves leave some expenses accepted — refresh so the sheet drops them.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.driverReports.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.trips.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.fuelLogs.all });
     },
   });
 };

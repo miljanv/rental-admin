@@ -45,7 +45,7 @@ export function FuelLogsTable({
   onRequestDelete,
   emptyAction,
 }: FuelLogsTableProps) {
-  const columnCount = (showVehicle ? 8 : 7) + (readOnly ? 0 : 1);
+  const columnCount = (showVehicle ? 9 : 8) + (readOnly ? 0 : 1);
 
   if (!isLoading && fuelLogs.length === 0) {
     return (
@@ -67,8 +67,9 @@ export function FuelLogsTable({
           <TableHead>Dobavljač</TableHead>
           <TableHead>Vozač</TableHead>
           <TableHead>Tip</TableHead>
+          <TableHead className="text-right">Stanje km</TableHead>
           <TableHead className="text-right">Litara</TableHead>
-          <TableHead className="text-right">Km</TableHead>
+          <TableHead className="text-right">Pređeno km</TableHead>
           <TableHead className="text-right">Potrošnja</TableHead>
           {readOnly ? null : <TableHead className="w-[60px] text-right">Akcije</TableHead>}
         </TableRow>
@@ -92,6 +93,9 @@ export function FuelLogsTable({
                 {fuelLogDriverLabel(log.driver)}
               </TableCell>
               <TableCell>{FUEL_LOG_FUEL_TYPE_LABELS[log.fuelType]}</TableCell>
+              <TableCell className="text-right tabular-nums">
+                {log.odometerKm.toLocaleString('sr-RS')} km
+              </TableCell>
               <TableCell className="text-right tabular-nums">
                 {log.litersFilled.toLocaleString('sr-RS')} L
               </TableCell>
