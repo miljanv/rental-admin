@@ -16,6 +16,10 @@ interface ReceiptFieldProps {
   onUploaded: (file: { id: string; originalName: string }) => void;
   onRemove: () => void;
   onBusyChange: (busy: boolean) => void;
+  /** Button text; a receipt by default, "Dodaj sliku" for a fault photo. */
+  label?: string;
+  /** Small grey text under the button, e.g. "obavezno za gorivo". */
+  hint?: string;
 }
 
 /** Take a photo of the receipt (or pick a file) and upload it right away. */
@@ -27,6 +31,8 @@ export function ReceiptField({
   onUploaded,
   onRemove,
   onBusyChange,
+  label = 'Slikaj račun',
+  hint,
 }: ReceiptFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const controllerRef = useRef<AbortController | null>(null);
@@ -97,16 +103,18 @@ export function ReceiptField({
           )}
         </div>
       ) : (
-        <Button
+        <button
           type="button"
-          variant="outline"
-          className="h-11 w-full"
+          className="bg-muted/40 hover:bg-accent flex min-h-14 w-full flex-col items-center justify-center gap-1 rounded-xl border-[1.5px] border-dashed border-muted-foreground/50 px-3 py-2.5 text-sm font-semibold disabled:opacity-60"
           disabled={disabled}
           onClick={() => inputRef.current?.click()}
         >
-          <Camera className="size-4" aria-hidden />
-          Slikaj račun
-        </Button>
+          <span className="flex items-center gap-2">
+            <Camera className="size-5" aria-hidden />
+            {label}
+          </span>
+          {hint ? <span className="text-muted-foreground text-xs font-medium">{hint}</span> : null}
+        </button>
       )}
 
       {error ? (

@@ -18,6 +18,7 @@ import { DeleteDriverDialog } from '@/features/drivers/components/delete-driver-
 import { DriverAccessLinkCard } from '@/features/drivers/components/driver-access-link-card';
 import { DriverStatusBadge } from '@/features/drivers/components/driver-status-badge';
 import { DriverStatusOverview } from '@/features/drivers/components/driver-status-overview';
+import { DriverToolsTab } from '@/features/driver-workplace/components/driver-tools-tab';
 import { useDriver } from '@/features/drivers/hooks/use-driver';
 import { driverFullName } from '@/features/drivers/lib/driver';
 import { formatDate } from '@/lib/format';
@@ -28,6 +29,7 @@ const PROFILE_TABS = [
   { id: 'documents', label: 'Dokumenta' },
   { id: 'absences', label: 'Odsustva' },
   { id: 'work', label: 'Dnevnice i akontacije' },
+  { id: 'tools', label: 'Alat' },
   { id: 'statistics', label: 'Statistika' },
 ] as const;
 
@@ -105,7 +107,10 @@ function DriverOverview({
             <DetailItem label="Telefon" value={driver.phone} />
             <DetailItem label="Email" value={driver.email ?? '—'} />
             <DetailItem label="Radno mesto" value={driver.jobTitle} />
-            <DetailItem label="Tip zaposlenja" value={EMPLOYMENT_TYPE_LABELS[driver.employmentType]} />
+            <DetailItem
+              label="Tip zaposlenja"
+              value={EMPLOYMENT_TYPE_LABELS[driver.employmentType]}
+            />
           </dl>
         </CardContent>
       </Card>
@@ -194,6 +199,7 @@ export function DriverProfile({ driverId }: DriverProfileProps) {
       {activeTab === 'documents' ? <DriverDocumentsTab driver={driver} /> : null}
       {activeTab === 'absences' ? <AbsenceAttestationsTab driver={driver} /> : null}
       {activeTab === 'work' ? <DriverWorkTab driverId={driver.id} /> : null}
+      {activeTab === 'tools' ? <DriverToolsTab driverId={driver.id} /> : null}
       {activeTab === 'statistics' ? <DriverStatisticsTab driverId={driver.id} /> : null}
 
       <DeleteDriverDialog

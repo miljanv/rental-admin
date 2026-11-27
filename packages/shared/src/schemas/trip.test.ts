@@ -137,3 +137,60 @@ describe('tripWriteSchema client requirement', () => {
     ).toBe(true);
   });
 });
+
+describe('tripWriteSchema pickup address', () => {
+  const issuePaths = (input: Record<string, unknown>): string[] => {
+    const result = tripWriteSchema.safeParse({ ...validTrip, ...input });
+
+    return result.success ? [] : result.error.issues.map((issue) => issue.path.join('.'));
+  };
+
+  it('accepts no pickup at all, or street, number and city together', () => {
+    expect(issuePaths({})).toEqual([]);
+    expect(
+      issuePaths({
+        pickupStreet: 'Bulevar oslobođenja',
+        pickupStreetNumber: '10',
+        pickupCity: 'Novi Sad',
+        pickupLocation: 'ispred škole',
+      }),
+    ).toEqual([]);
+  });
+
+  it('asks for the missing parts of a started address', () => {
+    expect(issuePaths({ pickupStreet: 'Bulevar oslobođenja' })).toEqual([
+      'pickupStreetNumber',
+      'pickupCity',
+    ]);
+  });
+
+  it('does not accept a place name without an address', () => {
+    expect(issuePaths({ pickupLocation: 'ispred škole' })).toEqual([
+      'pickupStreet',
+      'pickupStreetNumber',
+      'pickupCity',
+    ]);
+  });
+});
+
+describe('tripWriteSchema organizer', () => {
+  it('keeps an optional organizer and accepts phones as people write them', () => {
+    const result = tripWriteSchema.safeParse({
+      ...validTrip,
+      organizerName: ' Saška ',
+      organizerPhone: '+381 63 115-5023',
+    });
+
+    expect(result.success && result.data).toMatchObject({
+      organizerName: 'Saška',
+      organizerPhone: '+381 63 115-5023',
+    });
+    expect(tripWriteSchema.safeParse({ ...validTrip, organizerPhone: '' }).success).toBe(true);
+  });
+
+  it('refuses something that is not a phone number', () => {
+    expect(
+      tripWriteSchema.safeParse({ ...validTrip, organizerPhone: 'pozovi Sašku' }).success,
+    ).toBe(false);
+  });
+});

@@ -301,6 +301,20 @@ export const queryKeys = {
     me: (token: string) => ['driver-portal', token, 'me'] as const,
     trips: (token: string) => ['driver-portal', token, 'trips'] as const,
     trip: (token: string, tripId: string) => ['driver-portal', token, 'trips', tripId] as const,
+    vehicles: (token: string) => ['driver-portal', token, 'vehicles'] as const,
+    faults: (token: string) => ['driver-portal', token, 'faults'] as const,
+    tools: (token: string) => ['driver-portal', token, 'tools'] as const,
+    fuelEntries: (token: string) => ['driver-portal', token, 'fuel-entries'] as const,
+  },
+  /** Faults, free diesel entries and tools drivers sent, as the office sees them. */
+  driverWorkplace: {
+    all: ['driver-workplace'] as const,
+    faults: (status?: string) => ['driver-workplace', 'faults', status ?? 'all'] as const,
+    fuelEntries: (status?: string) =>
+      ['driver-workplace', 'fuel-entries', status ?? 'all'] as const,
+    pendingCount: () => ['driver-workplace', 'pending-count'] as const,
+    toolsNeedingOffice: () => ['driver-workplace', 'tools-needing-office'] as const,
+    driverTools: (driverId: string) => ['driver-workplace', 'tools', driverId] as const,
   },
   driverReports: {
     all: ['driver-reports'] as const,

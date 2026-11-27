@@ -32,6 +32,12 @@ export const AUDIT_ACTIONS = [
   'DRIVER_REPORT_SUBMITTED',
   'DRIVER_REPORT_ACCEPTED',
   'DRIVER_REPORT_RETURNED',
+  'VEHICLE_FAULT_REPORTED',
+  'VEHICLE_FAULT_UPDATED',
+  'DRIVER_TOOL_SAVED',
+  'DRIVER_TOOL_RESPONDED',
+  'DRIVER_FUEL_ENTRY_SUBMITTED',
+  'DRIVER_FUEL_ENTRY_REVIEWED',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -69,6 +75,12 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   DRIVER_REPORT_SUBMITTED: 'Vozač poslao podatke',
   DRIVER_REPORT_ACCEPTED: 'Obrađen unos vozača',
   DRIVER_REPORT_RETURNED: 'Unos vraćen vozaču',
+  VEHICLE_FAULT_REPORTED: 'Vozač prijavio kvar',
+  VEHICLE_FAULT_UPDATED: 'Izmenjen status kvara',
+  DRIVER_TOOL_SAVED: 'Sačuvano zaduženje alata',
+  DRIVER_TOOL_RESPONDED: 'Vozač odgovorio na zaduženje alata',
+  DRIVER_FUEL_ENTRY_SUBMITTED: 'Vozač poslao slobodan unos dizela',
+  DRIVER_FUEL_ENTRY_REVIEWED: 'Obrađen slobodan unos dizela',
 };
 
 export const AUDIT_ENTITY_TYPES = [
@@ -80,6 +92,9 @@ export const AUDIT_ENTITY_TYPES = [
   'CompanyExpense',
   'Driver',
   'Trip',
+  'VehicleFault',
+  'DriverTool',
+  'DriverFuelEntry',
 ] as const;
 
 export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];

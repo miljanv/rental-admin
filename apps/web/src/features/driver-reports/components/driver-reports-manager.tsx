@@ -12,7 +12,6 @@ import { useState } from 'react';
 import { DateField } from '@/components/common/date-field';
 import { EmptyState } from '@/components/common/empty-state';
 import { ErrorState } from '@/components/common/error-state';
-import { PageHeader } from '@/components/common/page-header';
 import { TableSkeleton } from '@/components/common/table-skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -86,11 +85,6 @@ export function DriverReportsManager() {
 
   return (
     <>
-      <PageHeader
-        title="Unosi vozača"
-        description="Kilometraža i troškovi koje su vozači poslali sa telefona. Troškovi ulaze u finansije tek kada ih prihvatite."
-      />
-
       <Card className="shadow-none">
         <CardContent className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

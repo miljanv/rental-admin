@@ -2,50 +2,72 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
-  DRIVER_EXPENSE_CATEGORIES,
-  FUEL_LOG_FUEL_TYPE_LABELS,
-  FUEL_LOG_FUEL_TYPES,
   DRIVER_EXPENSE_PAYMENT_METHODS,
   DRIVER_REPORT_EXPENSE_STATUS_LABELS,
   TRIP_EXPENSE_CATEGORY_LABELS,
   TRIP_EXPENSE_PAYMENT_METHOD_LABELS,
   driverReportWriteSchema,
-  tripVehicleDistanceKm,
   type DriverPortalTripDto,
   type DriverReportWriteInput,
   type DriverReportWriteRequest,
+  type TripExpenseCategory,
 } from '@rental-admin/shared';
-import { Plus, Trash2 } from 'lucide-react';
+import {
+  BedDouble,
+  ChevronRight,
+  FileText,
+  Flag,
+  Fuel,
+  type LucideIcon,
+  Milestone,
+  Plus,
+  Receipt,
+  SquareParking,
+  Trash2,
+  TriangleAlert,
+  Utensils,
+  Wrench,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
+import { toast } from 'sonner';
 
 import { DateTimeField } from '@/components/common/date-time-field';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { ReceiptField } from '@/features/driver-portal/components/receipt-field';
+import {
+  PortalAdvanceCard,
+  PortalAssignmentCard,
+} from '@/features/driver-portal/components/portal-assignment-card';
+import {
+  PortalExpenseEditor,
+  type PortalPaymentOption,
+} from '@/features/driver-portal/components/portal-expense-editor';
+import { PortalKmCard } from '@/features/driver-portal/components/portal-km-card';
+import {
+  PortalCard,
+  PortalChip,
+  PortalChoice,
+  PortalFieldLabel,
+} from '@/features/driver-portal/components/portal-ui';
 import { usePortalMe } from '@/features/driver-portal/hooks/use-portal-me';
 import { useSubmitPortalReport } from '@/features/driver-portal/hooks/use-submit-portal-report';
-import { formatKm, portalHref } from '@/features/driver-portal/lib/portal';
-import { formatMoney } from '@/lib/format';
+import {
+  KM_STEP_FIELDS,
+  formatPortalAmount,
+  kmReadingIssues,
+  portalHref,
+} from '@/features/driver-portal/lib/portal';
+import { cn } from '@/lib/utils';
+
+export type PortalTripStep = 'voznja' | 'troskovi';
 
 interface PortalReportFormProps {
   token: string;
   trip: DriverPortalTripDto;
+  step: PortalTripStep;
+  onStepChange: (step: PortalTripStep) => void;
 }
-
-const toReading = (value: unknown): number | null =>
-  typeof value === 'number' && Number.isFinite(value) ? value : null;
 
 /** Only expenses still waiting for the office are editable; handled ones are shown apart. */
 const formValues = (trip: DriverPortalTripDto): DriverReportWriteInput => ({
@@ -80,17 +102,19 @@ const formValues = (trip: DriverPortalTripDto): DriverReportWriteInput => ({
 
 type ExpenseInput = NonNullable<DriverReportWriteInput['expenses']>[number];
 
-type KmField = 'garageStartKm' | 'startKm' | 'endKm' | 'garageEndKm';
-
-/** The vehicle's day in order, as on the paper travel order. */
-const KM_FIELDS: ReadonlyArray<{ field: KmField; label: string }> = [
-  { field: 'garageStartKm', label: 'Početna km iz garaže' },
-  { field: 'startKm', label: 'Početna km sa polaska (putnici)' },
-  { field: 'endKm', label: 'Završna km gde ostavljate putnike' },
-  { field: 'garageEndKm', label: 'Završna km u garaži' },
-];
-
 const DIRECTION_LABELS = { OUT: 'Izlazak iz Srbije', IN: 'Ulazak u Srbiju' } as const;
+
+const CATEGORY_ICONS: Record<TripExpenseCategory, LucideIcon> = {
+  FUEL: Fuel,
+  TOLL: Milestone,
+  PARKING: SquareParking,
+  FOOD: Utensils,
+  LODGING: BedDouble,
+  PER_DIEM: Receipt,
+  ROADSIDE_REPAIR: Wrench,
+  VISA_PERMIT: FileText,
+  OTHER: Receipt,
+};
 
 const newExpense = (trip: DriverPortalTripDto): ExpenseInput => ({
   id: '',
@@ -107,8 +131,24 @@ const newExpense = (trip: DriverPortalTripDto): ExpenseInput => ({
   fuelStation: '',
 });
 
-/** Odometer per vehicle and expenses with receipt photos for one trip. */
-export function PortalReportForm({ token, trip }: PortalReportFormProps) {
+const amountOf = (value: unknown): number =>
+  typeof value === 'number' && Number.isFinite(value) ? value : 0;
+
+const isBlankExpense = (expense: ExpenseInput | undefined): boolean =>
+  !expense?.id && amountOf(expense?.amount) === 0 && !expense?.fileId;
+
+function ExpenseIcon({ category }: { category: TripExpenseCategory }) {
+  const Icon = CATEGORY_ICONS[category];
+
+  return (
+    <span className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-xl">
+      <Icon className="size-5" aria-hidden />
+    </span>
+  );
+}
+
+/** The trip in two steps: assignment and odometer, then costs and sending to the office. */
+export function PortalReportForm({ token, trip, step, onStepChange }: PortalReportFormProps) {
   const router = useRouter();
   const mutation = useSubmitPortalReport(token, trip.id);
   const form = useForm<DriverReportWriteInput, unknown, DriverReportWriteRequest>({
@@ -118,24 +158,31 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
   const expenseFields = useFieldArray({ control: form.control, name: 'expenses' });
   const borderFields = useFieldArray({ control: form.control, name: 'borderCrossings' });
   const paymentCards = usePortalMe(token).data?.paymentCards ?? [];
-  // Cash plus each company card ("OMV kartica"); without cards, one plain company card button.
-  const paymentOptions =
-    paymentCards.length > 0
-      ? [
-          { method: 'CASH' as const, cardId: '', label: TRIP_EXPENSE_PAYMENT_METHOD_LABELS.CASH },
-          ...paymentCards.map((card) => ({
-            method: 'COMPANY_CARD' as const,
-            cardId: card.id,
-            label: card.name,
-          })),
-        ]
-      : DRIVER_EXPENSE_PAYMENT_METHODS.map((method) => ({
+  // Cash plus each company card ("OMV kartica"); without cards, one plain company card option.
+  const paymentOptions: PortalPaymentOption[] = [
+    {
+      method: 'CASH',
+      cardId: '',
+      label: TRIP_EXPENSE_PAYMENT_METHOD_LABELS.CASH,
+      hint: 'Umanjuje akontaciju',
+    },
+    ...(paymentCards.length > 0
+      ? paymentCards.map((card) => ({
+          method: 'COMPANY_CARD' as const,
+          cardId: card.id,
+          label: card.name,
+          hint: 'Službena kartica, ne umanjuje akontaciju',
+        }))
+      : DRIVER_EXPENSE_PAYMENT_METHODS.filter((method) => method !== 'CASH').map((method) => ({
           method,
           cardId: '',
           label: TRIP_EXPENSE_PAYMENT_METHOD_LABELS[method],
-        }));
+          hint: 'Ne umanjuje akontaciju',
+        }))),
+  ];
   const vehicles = useWatch({ control: form.control, name: 'vehicles' }) ?? [];
   const watchedExpenses = useWatch({ control: form.control, name: 'expenses' }) ?? [];
+  const [editing, setEditing] = useState<number | null>(null);
   const [fileNames, setFileNames] = useState<Record<string, string>>(() =>
     Object.fromEntries(
       (trip.report?.expenses ?? []).flatMap((expense) =>
@@ -155,346 +202,319 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
     setBusyUploads((current) => (current[key] === busy ? current : { ...current, [key]: busy }));
   }, []);
 
-  const onSubmit = form.handleSubmit(async (values) => {
-    try {
-      await mutation.mutateAsync(values);
-      router.push(portalHref(token));
-    } catch {
-      // The mutation reports the failure as a toast.
-    }
+  // Everything that counts against the advance: handled costs (not rejected) and the form's.
+  const countedExpenses = [
+    ...handledExpenses
+      .filter((expense) => expense.status !== 'REJECTED')
+      .map((expense) => ({ amount: expense.amount, paymentMethod: expense.paymentMethod })),
+    ...watchedExpenses.map((expense) => ({
+      amount: amountOf(expense?.amount),
+      paymentMethod: expense?.paymentMethod ?? 'CASH',
+    })),
+  ];
+  const totalCost = countedExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const cashCost = countedExpenses
+    .filter((expense) => expense.paymentMethod === 'CASH')
+    .reduce((sum, expense) => sum + expense.amount, 0);
+  const advance = trip.assignment.advanceAmount ?? 0;
+  const advanceBefore = (index: number): number | null =>
+    advance > 0
+      ? advance -
+        cashCost +
+        (watchedExpenses[index]?.paymentMethod === 'CASH'
+          ? amountOf(watchedExpenses[index]?.amount)
+          : 0)
+      : null;
+
+  const missingKm = trip.vehicles.flatMap((vehicle, index) => {
+    const steps = KM_STEP_FIELDS.flatMap((field, step) =>
+      typeof vehicles[index]?.[field] === 'number' && Number.isFinite(vehicles[index]?.[field])
+        ? []
+        : [step + 1],
+    );
+
+    return steps.length > 0
+      ? [
+          `kilometražu ${steps.join(' i ')}${trip.vehicles.length > 1 ? ` (${vehicle.licensePlate})` : ''}`,
+        ]
+      : [];
   });
+  const missingReceipts = watchedExpenses.flatMap((expense) =>
+    expense && !expense.fileId && expense.category
+      ? [
+          `račun za ${TRIP_EXPENSE_CATEGORY_LABELS[expense.category].toLowerCase()} ${formatPortalAmount(amountOf(expense.amount))} RSD`,
+        ]
+      : [],
+  );
+  const reminders = [...missingKm, ...missingReceipts];
+
+  const closeEditor = () => {
+    if (editing !== null && isBlankExpense(form.getValues(`expenses.${editing}`))) {
+      expenseFields.remove(editing);
+    }
+
+    setEditing(null);
+  };
+
+  const saveExpense = async () => {
+    if (editing === null) {
+      return;
+    }
+
+    if (await form.trigger(`expenses.${editing}`)) {
+      setEditing(null);
+    }
+  };
+
+  /**
+   * Readings must continue from the step before and not go under the vehicle's current odometer.
+   * Goes back to the odometer step when they don't; true when all is in order.
+   */
+  const checkKm = (readings: DriverReportWriteInput['vehicles']): boolean => {
+    // The odometer card shows each problem under its field as the driver types.
+    const ok = trip.vehicles.every(
+      (vehicle, index) =>
+        Object.keys(kmReadingIssues(readings?.[index], vehicle.minKm)).length === 0,
+    );
+
+    if (!ok) {
+      onStepChange('voznja');
+      toast.error('Proverite kilometražu: svaki korak mora da se nastavlja na prethodni.');
+    }
+
+    return ok;
+  };
+
+  const onSubmit = form.handleSubmit(
+    async (values) => {
+      if (!checkKm(values.vehicles)) {
+        return;
+      }
+
+      try {
+        await mutation.mutateAsync(values);
+        router.push(portalHref(token));
+      } catch {
+        // The mutation reports the failure as a toast.
+      }
+    },
+    (invalid) => {
+      if (invalid.vehicles) {
+        onStepChange('voznja');
+        toast.error('Proverite kilometražu.');
+        return;
+      }
+
+      const badExpense = invalid.expenses
+        ? Object.keys(invalid.expenses).map(Number).find(Number.isInteger)
+        : undefined;
+
+      if (badExpense !== undefined) {
+        onStepChange('troskovi');
+        setEditing(badExpense);
+      }
+
+      toast.error('Proverite unete podatke.');
+    },
+  );
+
+  if (step === 'voznja') {
+    return (
+      <div className="flex flex-col gap-4">
+        <PortalAssignmentCard token={token} trip={trip} />
+        <PortalAdvanceCard token={token} trip={trip} expenses={countedExpenses} />
+        {trip.vehicles.length === 0 ? (
+          <PortalCard className="text-muted-foreground p-[18px] text-sm">
+            Vožnji još nije dodeljeno vozilo. Javite se kancelariji.
+          </PortalCard>
+        ) : (
+          trip.vehicles.map((vehicle, index) => (
+            <PortalKmCard
+              key={vehicle.id}
+              form={form}
+              index={index}
+              vehicle={vehicle}
+              showPlate={trip.vehicles.length > 1}
+              disabled={isPending}
+            />
+          ))
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            if (checkKm(form.getValues('vehicles'))) {
+              onStepChange('troskovi');
+            }
+          }}
+          className="bg-foreground text-background flex h-[52px] items-center justify-center gap-2 rounded-[14px] text-[15px] font-semibold"
+        >
+          Nastavi na troškove
+          <ChevronRight className="size-[18px]" aria-hidden />
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="space-y-6 pb-8">
-      <section className="space-y-3">
-        <h2 className="text-base font-semibold">Kilometraža</h2>
-        {trip.vehicles.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            Vožnji još nije dodeljeno vozilo. Javite se kancelariji.
-          </p>
+    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
+      <section className="grid grid-cols-3 gap-2">
+        <PortalCard className="p-3">
+          <p className="text-muted-foreground text-xs">Ukupno</p>
+          <p className="mt-1 text-base font-bold">{formatPortalAmount(totalCost)}</p>
+          <p className="text-muted-foreground text-xs">RSD</p>
+        </PortalCard>
+        <PortalCard className="p-3">
+          <p className="text-muted-foreground text-xs">Keš</p>
+          <p className="mt-1 text-base font-bold">{formatPortalAmount(cashCost)}</p>
+          <p className="text-muted-foreground text-xs">RSD</p>
+        </PortalCard>
+        {advance > 0 ? (
+          <PortalCard className="border-green-200 bg-green-50 p-3 text-green-800 dark:border-green-500/25 dark:bg-green-500/10 dark:text-green-300">
+            <p className="text-xs">Akontacija ostaje</p>
+            <p className="mt-1 text-base font-bold">{formatPortalAmount(advance - cashCost)}</p>
+            <p className="text-xs">RSD</p>
+          </PortalCard>
         ) : (
-          trip.vehicles.map((vehicle, index) => {
-            const reading = vehicles[index];
-            const distance = tripVehicleDistanceKm(
-              toReading(reading?.startKm),
-              toReading(reading?.endKm),
-            );
-            const garageDistance = tripVehicleDistanceKm(
-              toReading(reading?.garageStartKm),
-              toReading(reading?.garageEndKm),
-            );
-            const rowErrors = errors.vehicles?.[index];
-
-            return (
-              <div key={vehicle.id} className="space-y-3 rounded-xl border p-4">
-                <p className="font-medium">
-                  {vehicle.licensePlate}{' '}
-                  <span className="text-muted-foreground text-sm font-normal">
-                    {vehicle.make} {vehicle.model}
-                  </span>
-                </p>
-                {KM_FIELDS.map(({ field, label }) => (
-                  <div key={field} className="space-y-1.5">
-                    <Label htmlFor={`${field}-${vehicle.id}`}>{label}</Label>
-                    <Input
-                      id={`${field}-${vehicle.id}`}
-                      type="number"
-                      inputMode="numeric"
-                      className="h-11 text-base"
-                      disabled={isPending}
-                      aria-invalid={Boolean(rowErrors?.[field])}
-                      {...form.register(`vehicles.${index}.${field}`, { valueAsNumber: true })}
-                    />
-                    {field === 'garageStartKm' && vehicle.lastKnownKm !== null ? (
-                      <p className="text-muted-foreground text-xs">
-                        Poslednje poznato: {formatKm(vehicle.lastKnownKm)}
-                      </p>
-                    ) : null}
-                    {rowErrors?.[field]?.message ? (
-                      <p className="text-destructive text-xs">{rowErrors[field]?.message}</p>
-                    ) : null}
-                  </div>
-                ))}
-                {distance !== null || garageDistance !== null ? (
-                  <p className="text-sm font-medium">
-                    {distance !== null ? `Sa putnicima: ${formatKm(distance)}` : ''}
-                    {distance !== null && garageDistance !== null ? ' · ' : ''}
-                    {garageDistance !== null ? `Ukupno: ${formatKm(garageDistance)}` : ''}
-                  </p>
-                ) : null}
-              </div>
-            );
-          })
+          <PortalCard className="p-3">
+            <p className="text-muted-foreground text-xs">Akontacija</p>
+            <p className="mt-1 text-base font-bold">—</p>
+          </PortalCard>
         )}
       </section>
 
-      <section className="space-y-3">
-        <h2 className="text-base font-semibold">Troškovi</h2>
-
-        {handledExpenses.map((expense) => (
-          <div key={expense.id} className="bg-muted/40 space-y-1 rounded-xl border p-4 text-sm">
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-medium">{TRIP_EXPENSE_CATEGORY_LABELS[expense.category]}</span>
-              <span className="font-medium">{formatMoney(expense.amount)}</span>
-            </div>
-            <Badge variant={expense.status === 'ACCEPTED' ? 'secondary' : 'destructive'}>
-              {DRIVER_REPORT_EXPENSE_STATUS_LABELS[expense.status]}
-            </Badge>
-            {expense.status === 'REJECTED' && expense.rejectionReason ? (
-              <p className="text-destructive">Razlog: {expense.rejectionReason}</p>
-            ) : null}
-          </div>
-        ))}
-
-        {expenseFields.fields.map((field, index) => {
-          const rowErrors = errors.expenses?.[index];
-          const isFuel = watchedExpenses[index]?.category === 'FUEL';
-          const fileId = watchedExpenses[index]?.fileId;
-
-          return (
-            <div key={field.id} className="space-y-3 rounded-xl border p-4">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium">Trošak {index + 1}</p>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Ukloni trošak"
-                  disabled={isPending}
-                  onClick={() => expenseFields.remove(index)}
+      {handledExpenses.length + watchedExpenses.length > (editing !== null ? 1 : 0) ? (
+        <PortalCard className="overflow-hidden">
+          {handledExpenses.map((expense) => (
+            <div
+              key={expense.id}
+              className="flex items-center gap-3 border-b px-4 py-3.5 last:border-b-0"
+            >
+              <ExpenseIcon category={expense.category} />
+              <div className="min-w-0 flex-1">
+                <p className="text-[15px] font-semibold">
+                  {TRIP_EXPENSE_CATEGORY_LABELS[expense.category]}
+                </p>
+                <PortalChip
+                  tone={expense.status === 'ACCEPTED' ? 'green' : 'red'}
+                  className="mt-1.5 px-2 py-0.5"
                 >
-                  <Trash2 className="size-4" aria-hidden />
-                </Button>
-              </div>
-
-              <Controller
-                control={form.control}
-                name={`expenses.${index}.category`}
-                render={({ field: categoryField }) => (
-                  <div className="space-y-1.5">
-                    <Label htmlFor={`category-${field.id}`}>Vrsta troška</Label>
-                    <Select
-                      value={categoryField.value}
-                      onValueChange={categoryField.onChange}
-                      disabled={isPending}
-                    >
-                      <SelectTrigger id={`category-${field.id}`} className="h-11 w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DRIVER_EXPENSE_CATEGORIES.map((category) => (
-                          <SelectItem key={category} value={category}>
-                            {TRIP_EXPENSE_CATEGORY_LABELS[category]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              />
-
-              <div className="space-y-1.5">
-                <Label htmlFor={`amount-${field.id}`}>Iznos (RSD)</Label>
-                <Input
-                  id={`amount-${field.id}`}
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  className="h-11 text-base"
-                  disabled={isPending}
-                  aria-invalid={Boolean(rowErrors?.amount)}
-                  {...form.register(`expenses.${index}.amount`, { valueAsNumber: true })}
-                />
-                {rowErrors?.amount?.message ? (
-                  <p className="text-destructive text-xs">{rowErrors.amount.message}</p>
+                  {DRIVER_REPORT_EXPENSE_STATUS_LABELS[expense.status]}
+                </PortalChip>
+                {expense.status === 'REJECTED' && expense.rejectionReason ? (
+                  <p className="text-destructive mt-1 text-xs">Razlog: {expense.rejectionReason}</p>
                 ) : null}
               </div>
-
-              <Controller
-                control={form.control}
-                name={`expenses.${index}.paymentMethod`}
-                render={({ field: paymentField }) => (
-                  <div className="space-y-1.5">
-                    <Label>Čime ste platili</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {paymentOptions.map((option) => {
-                        const selected =
-                          paymentField.value === option.method &&
-                          (option.method === 'CASH' ||
-                            paymentCards.length === 0 ||
-                            (watchedExpenses[index]?.paymentCardId ?? '') === option.cardId);
-
-                        return (
-                          <Button
-                            key={`${option.method}:${option.cardId}`}
-                            type="button"
-                            className="h-11"
-                            variant={selected ? 'default' : 'outline'}
-                            disabled={isPending}
-                            onClick={() => {
-                              paymentField.onChange(option.method);
-                              form.setValue(`expenses.${index}.paymentCardId`, option.cardId, {
-                                shouldDirty: true,
-                              });
-                            }}
-                          >
-                            {option.label}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              />
-
-              {isFuel ? (
-                <div className="bg-muted/40 space-y-3 rounded-lg border p-3">
-                  <p className="text-muted-foreground text-xs">
-                    Podaci o točenju (opciono) — kancelarija ih upisuje u evidenciju goriva.
-                  </p>
-                  {trip.vehicles.length > 1 ? (
-                    <Controller
-                      control={form.control}
-                      name={`expenses.${index}.vehicleId`}
-                      render={({ field: vehicleField }) => (
-                        <div className="space-y-1.5">
-                          <Label htmlFor={`vehicle-${field.id}`}>Vozilo</Label>
-                          <Select
-                            value={typeof vehicleField.value === 'string' ? vehicleField.value : ''}
-                            onValueChange={vehicleField.onChange}
-                            disabled={isPending}
-                          >
-                            <SelectTrigger id={`vehicle-${field.id}`} className="h-11 w-full">
-                              <SelectValue placeholder="Izaberite vozilo" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {trip.vehicles.map((vehicle) => (
-                                <SelectItem key={vehicle.id} value={vehicle.id}>
-                                  {vehicle.licensePlate}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-                    />
-                  ) : null}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1.5">
-                      <Label htmlFor={`liters-${field.id}`}>Litara</Label>
-                      <Input
-                        id={`liters-${field.id}`}
-                        type="number"
-                        inputMode="decimal"
-                        step="0.01"
-                        className="h-11 text-base"
-                        disabled={isPending}
-                        aria-invalid={Boolean(rowErrors?.fuelLiters)}
-                        {...form.register(`expenses.${index}.fuelLiters`, { valueAsNumber: true })}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor={`pump-km-${field.id}`}>Km na pumpi</Label>
-                      <Input
-                        id={`pump-km-${field.id}`}
-                        type="number"
-                        inputMode="numeric"
-                        className="h-11 text-base"
-                        disabled={isPending}
-                        aria-invalid={Boolean(rowErrors?.fuelOdometerKm)}
-                        {...form.register(`expenses.${index}.fuelOdometerKm`, {
-                          valueAsNumber: true,
-                        })}
-                      />
-                    </div>
-                  </div>
-                  {rowErrors?.fuelLiters?.message || rowErrors?.fuelOdometerKm?.message ? (
-                    <p className="text-destructive text-xs">
-                      {rowErrors.fuelLiters?.message ?? rowErrors.fuelOdometerKm?.message}
-                    </p>
-                  ) : null}
-                  <Controller
-                    control={form.control}
-                    name={`expenses.${index}.fuelType`}
-                    render={({ field: typeField }) => (
-                      <div className="grid grid-cols-2 gap-2">
-                        {FUEL_LOG_FUEL_TYPES.map((type) => (
-                          <Button
-                            key={type}
-                            type="button"
-                            className="h-11"
-                            variant={typeField.value === type ? 'default' : 'outline'}
-                            disabled={isPending}
-                            onClick={() => typeField.onChange(type)}
-                          >
-                            {FUEL_LOG_FUEL_TYPE_LABELS[type]}
-                          </Button>
-                        ))}
-                      </div>
-                    )}
-                  />
-                  <div className="space-y-1.5">
-                    <Label htmlFor={`station-${field.id}`}>Pumpa</Label>
-                    <Input
-                      id={`station-${field.id}`}
-                      placeholder="npr. NIS Čoka"
-                      disabled={isPending}
-                      {...form.register(`expenses.${index}.fuelStation`)}
-                    />
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="space-y-1.5">
-                <Label htmlFor={`receipt-${field.id}`}>Račun</Label>
-                <ReceiptField
-                  token={token}
-                  id={`receipt-${field.id}`}
-                  fileName={fileId ? (fileNames[fileId] ?? 'Račun priložen') : null}
-                  disabled={isPending}
-                  onUploaded={(file) => {
-                    setFileNames((current) => ({ ...current, [file.id]: file.originalName }));
-                    form.setValue(`expenses.${index}.fileId`, file.id, { shouldDirty: true });
-                  }}
-                  onRemove={() =>
-                    form.setValue(`expenses.${index}.fileId`, '', { shouldDirty: true })
-                  }
-                  onBusyChange={(busy) => setBusy(field.id, busy)}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor={`note-${field.id}`}>Napomena (opciono)</Label>
-                <Input
-                  id={`note-${field.id}`}
-                  disabled={isPending}
-                  {...form.register(`expenses.${index}.note`)}
-                />
-              </div>
+              <p className="text-[15px] font-bold whitespace-nowrap">
+                {formatPortalAmount(expense.amount)} RSD
+              </p>
             </div>
-          );
-        })}
+          ))}
+          {expenseFields.fields.map((field, index) => {
+            if (index === editing) {
+              return null;
+            }
 
-        <Button
-          type="button"
-          variant="outline"
-          className="h-11 w-full"
+            const expense = watchedExpenses[index];
+            const category = expense?.category ?? 'OTHER';
+            const payment =
+              paymentOptions.find(
+                (option) =>
+                  option.method === expense?.paymentMethod &&
+                  (option.method === 'CASH' || option.cardId === (expense?.paymentCardId ?? '')),
+              )?.label ?? TRIP_EXPENSE_PAYMENT_METHOD_LABELS.CASH;
+            const hasError = Boolean(errors.expenses?.[index]);
+
+            return (
+              <div key={field.id} className="flex items-center gap-1 border-b last:border-b-0">
+                <button
+                  type="button"
+                  onClick={() => setEditing(index)}
+                  disabled={isPending || editing !== null}
+                  className="active:bg-accent flex min-w-0 flex-1 items-center gap-3 py-3.5 pl-4 text-left"
+                >
+                  <ExpenseIcon category={category} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[15px] font-semibold">
+                      {TRIP_EXPENSE_CATEGORY_LABELS[category]}
+                    </p>
+                    <p className="text-muted-foreground mt-0.5 text-xs">
+                      {payment}
+                      {expense?.fileId ? ' · račun priložen' : ''}
+                    </p>
+                    {hasError ? (
+                      <PortalChip tone="red" className="mt-1.5 px-2 py-0.5">
+                        Proverite unos
+                      </PortalChip>
+                    ) : expense?.fileId ? null : (
+                      <PortalChip tone="amber" className="mt-1.5 px-2 py-0.5">
+                        Nedostaje račun
+                      </PortalChip>
+                    )}
+                  </div>
+                  <p className="text-[15px] font-bold whitespace-nowrap">
+                    {formatPortalAmount(amountOf(expense?.amount))} RSD
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  aria-label="Ukloni trošak"
+                  disabled={isPending || editing !== null}
+                  onClick={() => expenseFields.remove(index)}
+                  className="text-muted-foreground flex size-11 shrink-0 items-center justify-center"
+                >
+                  <Trash2 className="size-4" aria-hidden />
+                </button>
+              </div>
+            );
+          })}
+        </PortalCard>
+      ) : null}
+
+      {editing !== null && expenseFields.fields[editing] ? (
+        <PortalExpenseEditor
+          key={expenseFields.fields[editing].id}
+          token={token}
+          form={form}
+          index={editing}
+          trip={trip}
+          paymentOptions={paymentOptions}
+          advanceBefore={advanceBefore(editing)}
+          fileName={(() => {
+            const fileId = watchedExpenses[editing]?.fileId;
+
+            return fileId ? (fileNames[fileId] ?? 'Račun priložen') : null;
+          })()}
           disabled={isPending}
-          onClick={() => expenseFields.append(newExpense(trip))}
+          onUploaded={(file) =>
+            setFileNames((current) => ({ ...current, [file.id]: file.originalName }))
+          }
+          onBusyChange={(busy) => setBusy(String(editing), busy)}
+          onSave={() => void saveExpense()}
+          onClose={closeEditor}
+        />
+      ) : (
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={() => {
+            expenseFields.append(newExpense(trip));
+            setEditing(expenseFields.fields.length);
+          }}
+          className="bg-card hover:bg-accent border-foreground flex h-12 items-center justify-center gap-2 rounded-xl border text-sm font-semibold"
         >
           <Plus className="size-4" aria-hidden />
           Dodaj trošak
-        </Button>
-        {errors.expenses?.message ? (
-          <p className="text-destructive text-xs">{errors.expenses.message}</p>
-        ) : null}
-      </section>
+        </button>
+      )}
+      {errors.expenses?.message ? (
+        <p className="text-destructive text-xs">{errors.expenses.message}</p>
+      ) : null}
 
-      <section className="space-y-3">
-        <h2 className="text-base font-semibold">Vreme vožnje</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="started-at">Početak vožnje</Label>
+      <PortalCard className="flex flex-col gap-3.5 p-[18px]">
+        <h2 className="text-base font-bold">Vreme vožnje</h2>
+        <div className="grid grid-cols-2 gap-2.5">
+          <div>
+            <PortalFieldLabel htmlFor="started-at">Početak</PortalFieldLabel>
             <Controller
               control={form.control}
               name="startedAt"
@@ -504,13 +524,13 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
                   value={field.value ?? ''}
                   onChange={field.onChange}
                   disabled={isPending}
-                  className="h-11"
+                  className="h-12"
                 />
               )}
             />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="finished-at">Završetak vožnje</Label>
+          <div>
+            <PortalFieldLabel htmlFor="finished-at">Završetak</PortalFieldLabel>
             <Controller
               control={form.control}
               name="finishedAt"
@@ -521,33 +541,30 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
                   onChange={field.onChange}
                   disabled={isPending}
                   aria-invalid={Boolean(errors.finishedAt)}
-                  className="h-11"
+                  className="h-12"
                 />
               )}
             />
-            {errors.finishedAt?.message ? (
-              <p className="text-destructive text-xs">{errors.finishedAt.message}</p>
-            ) : null}
           </div>
         </div>
+        {errors.finishedAt?.message ? (
+          <p className="text-destructive text-xs">{errors.finishedAt.message}</p>
+        ) : null}
 
-        <p className="text-muted-foreground text-sm">
-          Ako vožnja ide u inostranstvo, upišite kada ste prešli granicu Srbije.
-        </p>
         {borderFields.fields.map((field, index) => (
-          <div key={field.id} className="space-y-2 rounded-xl border p-3">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium">Prelazak granice {index + 1}</p>
-              <Button
+          <div key={field.id} className="bg-muted/70 flex flex-col gap-2.5 rounded-xl p-3">
+            <div className="flex items-center gap-2">
+              <Flag className="size-5 shrink-0" aria-hidden />
+              <p className="flex-1 text-sm font-semibold">Prelazak granice {index + 1}</p>
+              <button
                 type="button"
-                variant="ghost"
-                size="icon"
                 aria-label="Ukloni prelazak granice"
                 disabled={isPending}
                 onClick={() => borderFields.remove(index)}
+                className="text-muted-foreground flex size-9 items-center justify-center"
               >
                 <Trash2 className="size-4" aria-hidden />
-              </Button>
+              </button>
             </div>
             <Controller
               control={form.control}
@@ -555,16 +572,15 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
               render={({ field: directionField }) => (
                 <div className="grid grid-cols-2 gap-2">
                   {(['OUT', 'IN'] as const).map((direction) => (
-                    <Button
+                    <PortalChoice
                       key={direction}
-                      type="button"
-                      className="h-11"
-                      variant={directionField.value === direction ? 'default' : 'outline'}
+                      selected={directionField.value === direction}
                       disabled={isPending}
                       onClick={() => directionField.onChange(direction)}
+                      className="h-11 text-[13px]"
                     >
                       {DIRECTION_LABELS[direction]}
-                    </Button>
+                    </PortalChoice>
                   ))}
                 </div>
               )}
@@ -572,13 +588,13 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
             <Controller
               control={form.control}
               name={`borderCrossings.${index}.at`}
-              render={({ field }) => (
+              render={({ field: atField }) => (
                 <DateTimeField
-                  value={field.value ?? ''}
-                  onChange={field.onChange}
+                  value={atField.value ?? ''}
+                  onChange={atField.onChange}
                   disabled={isPending}
                   aria-invalid={Boolean(errors.borderCrossings?.[index]?.at)}
-                  className="h-11"
+                  className="h-12"
                 />
               )}
             />
@@ -589,10 +605,8 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
             ) : null}
           </div>
         ))}
-        <Button
+        <button
           type="button"
-          variant="outline"
-          className="h-11 w-full"
           disabled={isPending}
           onClick={() =>
             borderFields.append({
@@ -600,20 +614,53 @@ export function PortalReportForm({ token, trip }: PortalReportFormProps) {
               at: '',
             })
           }
+          className="bg-card hover:bg-accent h-11 rounded-xl border text-sm font-semibold"
         >
-          <Plus className="size-4" aria-hidden />
-          Dodaj prelazak granice
-        </Button>
-      </section>
+          + Dodaj prelazak granice
+        </button>
+      </PortalCard>
 
-      <section className="space-y-1.5">
-        <Label htmlFor="report-note">Napomena za kancelariju (opciono)</Label>
-        <Textarea id="report-note" rows={3} disabled={isPending} {...form.register('note')} />
-      </section>
+      <PortalCard className="p-[18px]">
+        <label htmlFor="report-note" className="mb-2.5 block text-base font-bold">
+          Napomena za kancelariju
+        </label>
+        <Textarea
+          id="report-note"
+          rows={3}
+          placeholder="Sve što kancelarija treba da zna o ovoj vožnji"
+          disabled={isPending}
+          className="bg-card rounded-xl border-[1.5px] text-[15px]"
+          {...form.register('note')}
+        />
+      </PortalCard>
 
-      <Button type="submit" className="h-12 w-full text-base" disabled={isPending || isUploading}>
-        {isPending ? 'Slanje…' : isUploading ? 'Čeka se slika računa…' : 'Pošalji'}
-      </Button>
+      <section className="flex flex-col gap-2.5 pt-1 pb-8">
+        {reminders.length > 0 ? (
+          <div className="flex items-start gap-2 rounded-xl bg-amber-100 p-3 text-[13px] text-amber-900 dark:bg-amber-500/15 dark:text-amber-200">
+            <TriangleAlert className="mt-px size-4 shrink-0" aria-hidden />
+            <p>Pre slanja proverite: {reminders.join(', ')}.</p>
+          </div>
+        ) : null}
+        <button
+          type="submit"
+          disabled={isPending || isUploading || editing !== null}
+          className={cn(
+            'bg-primary text-primary-foreground h-14 rounded-[14px] text-base font-semibold',
+            'disabled:opacity-50',
+          )}
+        >
+          {isPending
+            ? 'Slanje…'
+            : isUploading
+              ? 'Čeka se slika računa…'
+              : editing !== null
+                ? 'Prvo sačuvajte trošak'
+                : 'Pošalji kancelariji'}
+        </button>
+        <p className="text-muted-foreground text-center text-xs">
+          Kilometraža se upisuje odmah, troškove kancelarija prihvata posle provere.
+        </p>
+      </section>
     </form>
   );
 }

@@ -268,7 +268,9 @@ export function TripSettlementSheet({ trip, onOpenChange }: TripSettlementSheetP
                         <Field
                           id={`pay-${index}`}
                           label="Obračunata dnevnica (RSD)"
-                          error={errors.drivers?.[index]?.perDiemAmount?.message as string | undefined}
+                          error={
+                            errors.drivers?.[index]?.perDiemAmount?.message as string | undefined
+                          }
                         >
                           <Input
                             id={`pay-${index}`}
@@ -284,7 +286,9 @@ export function TripSettlementSheet({ trip, onOpenChange }: TripSettlementSheetP
                         <Field
                           id={`advance-${index}`}
                           label="Akontacija (RSD)"
-                          error={errors.drivers?.[index]?.advanceAmount?.message as string | undefined}
+                          error={
+                            errors.drivers?.[index]?.advanceAmount?.message as string | undefined
+                          }
                         >
                           <Input
                             id={`advance-${index}`}
@@ -311,6 +315,7 @@ export function TripSettlementSheet({ trip, onOpenChange }: TripSettlementSheetP
                   <TripVehicleKmFields
                     form={form}
                     vehicles={settlement.vehicles}
+                    minKm={settlement.vehicleMinKm}
                     idPrefix="sheet-vehicleKm"
                     disabled={saveMutation.isPending}
                   />
@@ -376,9 +381,13 @@ export function TripSettlementSheet({ trip, onOpenChange }: TripSettlementSheetP
               ) : (
                 <ul className="space-y-2">
                   {settlement.expenses.map((expense) => (
-                    <li key={expense.id} className="flex items-center justify-between gap-2 text-sm">
+                    <li
+                      key={expense.id}
+                      className="flex items-center justify-between gap-2 text-sm"
+                    >
                       <span>
-                        {TRIP_EXPENSE_CATEGORY_LABELS[expense.category]} · {formatMoney(expense.amount)}
+                        {TRIP_EXPENSE_CATEGORY_LABELS[expense.category]} ·{' '}
+                        {formatMoney(expense.amount)}
                         <span className="text-muted-foreground">
                           {' '}
                           · {TRIP_EXPENSE_PAYMENT_METHOD_LABELS[expense.paymentMethod]}

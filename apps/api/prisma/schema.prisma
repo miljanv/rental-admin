@@ -42,6 +42,8 @@ model FileObject {
   tripExpense            TripExpense?
   tripBillingDocument    TripBillingDocument?
   driverReportExpense    DriverTripReportExpense?
+  vehicleFault           VehicleFault?
+  driverFuelEntry        DriverFuelEntry?
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
@@ -96,6 +98,9 @@ model Driver {
   tripAssignments        TripDriver[]
   accessTokens           DriverAccessToken[]
   tripReports            DriverTripReport[]
+  vehicleFaults          VehicleFault[]
+  tools                  DriverTool[]
+  fuelEntries            DriverFuelEntry[]
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   createdBy    User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
@@ -222,6 +227,9 @@ model Organization {
   driverAccessTokens   DriverAccessToken[]
   paymentCards         PaymentCard[]
   driverTripReports    DriverTripReport[]
+  vehicleFaults        VehicleFault[]
+  driverTools          DriverTool[]
+  driverFuelEntries    DriverFuelEntry[]
   users                User[]
   fileObjects          FileObject[]
   drivers              Driver[]
@@ -355,6 +363,9 @@ model Vehicle {
   tripAssignments  TripVehicle[]
   driverReportKm   DriverTripReportVehicle[]
   driverReportFuel DriverTripReportExpense[]
+  faults           VehicleFault[]
+  driverTools      DriverTool[]
+  driverFuel       DriverFuelEntry[]
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   createdBy    User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
@@ -482,6 +493,7 @@ model FuelLog {
   supplierRef Supplier? @relation("FuelLogSupplier", fields: [supplierId], references: [id], onDelete: SetNull)
 
   driverReportExpense DriverTripReportExpense?
+  driverFuelEntry     DriverFuelEntry?
 
   @@index([vehicleId])
   @@index([vehicleId, odometerKm])
@@ -1171,6 +1183,13 @@ model Trip {
   /// Pickup time on the departure day, "HH:mm", and where the passengers are picked up.
   departureTime              String?
   pickupLocation             String?
+  /// Pickup address, all three or none, so the driver's map link points at a real place.
+  pickupStreet               String?
+  pickupStreetNumber         String?
+  pickupCity                 String?
+  /// Who organizes the trip on the client's side, shown to the driver to call on the day.
+  organizerName              String?
+  organizerPhone             String?
   /// Program putovanja: the itinerary the driver confirms.
   itinerary                  String?
   /// Last generated travel-document number and time, shared by the assigned drivers.
@@ -1484,6 +1503,7 @@ model PaymentCard {
   organization         Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   tripExpenses         TripExpense[]
   driverReportExpenses DriverTripReportExpense[]
+  driverFuelEntries    DriverFuelEntry[]
 
   @@unique([organizationId, name])
   @@index([organizationId])
@@ -1642,6 +1662,12 @@ enum AuditAction {
   DRIVER_TRIP_CONFIRMED
   DRIVER_ADVANCE_ACCEPTED
   PAYMENT_CARD_SAVED
+  VEHICLE_FAULT_REPORTED
+  VEHICLE_FAULT_UPDATED
+  DRIVER_TOOL_SAVED
+  DRIVER_TOOL_RESPONDED
+  DRIVER_FUEL_ENTRY_SUBMITTED
+  DRIVER_FUEL_ENTRY_REVIEWED
 }
 
 /// Who did what and when, across every organization. Written and read only
@@ -1715,4 +1741,132 @@ model AnnouncementDismissal {
   @@id([announcementId, userId])
   @@index([userId])
   @@map("announcement_dismissals")
+}
+
+enum VehicleFaultStatus {
+  REPORTED
+  IN_REPAIR
+  RESOLVED
+}
+
+/// A fault a driver reported on a vehicle from the portal; the office follows it to repair.
+model VehicleFault {
+  id             String             @id @default(cuid())
+  organizationId String
+  vehicleId      String
+  /// Who reported it; null when the driver was removed later.
+  driverId       String?
+  /// Day the fault was noticed and reported.
+  reportedAt     DateTime           @db.Date
+  odometerKm     Int
+  /// What the driver noticed, when it happens, whether the vehicle can go on.
+  description    String
+  /// Optional photo of the fault.
+  fileId         String?            @unique
+  status         VehicleFaultStatus @default(REPORTED)
+  /// What the office did or decided, shown to the driver.
+  officeNote     String?
+  resolvedAt     DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  vehicle      Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  driver       Driver?      @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  file         FileObject?  @relation(fields: [fileId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+  @@index([vehicleId])
+  @@index([driverId])
+  @@map("vehicle_faults")
+}
+
+enum DriverToolStatus {
+  /// Waiting for the other side: the driver (office entered it) or the office (driver entered it).
+  PENDING
+  CONFIRMED
+  /// The driver says it never reached them.
+  DECLINED
+  /// The driver reported it lost.
+  LOST
+  /// Handed back; kept for history.
+  RETURNED
+}
+
+enum DriverToolSource {
+  OFFICE
+  DRIVER
+}
+
+/// A tool (or set) the company handed to a driver, who is answerable for it until it comes back.
+model DriverTool {
+  id             String           @id @default(cuid())
+  organizationId String
+  driverId       String
+  /// Vehicle the tool travels in, when it belongs to one.
+  vehicleId      String?
+  name           String
+  quantity       Int              @default(1)
+  source         DriverToolSource @default(OFFICE)
+  status         DriverToolStatus @default(PENDING)
+  assignedAt     DateTime         @db.Date
+  /// When the driver confirmed or declined it.
+  respondedAt    DateTime?
+  lostAt         DateTime?        @db.Date
+  /// How the driver lost it, in their words.
+  lostNote       String?
+  returnedAt     DateTime?        @db.Date
+  note           String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  driver       Driver       @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  vehicle      Vehicle?     @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+  @@index([driverId])
+  @@map("driver_tools")
+}
+
+enum DriverFuelEntryStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+/// Diesel a driver filled outside an assigned trip. The office accepts it into the fuel log.
+model DriverFuelEntry {
+  id              String                   @id @default(cuid())
+  organizationId  String
+  driverId        String
+  vehicleId       String
+  /// Local "yyyy-mm-ddTHH:mm" as the driver entered it.
+  fueledAt        String
+  odometerKm      Int
+  liters          Float
+  /// Dinars paid; kept on the entry, the fuel log gets liters and km only.
+  amount          Float
+  fuelType        FuelLogFuelType          @default(DIESEL)
+  paymentMethod   TripExpensePaymentMethod
+  paymentCardId   String?
+  fileId          String?                  @unique
+  note            String?
+  status          DriverFuelEntryStatus    @default(PENDING)
+  rejectionReason String?
+  reviewedAt      DateTime?
+  fuelLogId       String?                  @unique
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  driver       Driver       @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  vehicle      Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  paymentCard  PaymentCard? @relation(fields: [paymentCardId], references: [id], onDelete: SetNull)
+  file         FileObject?  @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  fuelLog      FuelLog?     @relation(fields: [fuelLogId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+  @@index([driverId])
+  @@map("driver_fuel_entries")
 }

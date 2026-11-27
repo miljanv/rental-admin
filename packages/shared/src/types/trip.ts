@@ -290,7 +290,14 @@ export interface TripDto {
   notes: string | null;
   /** Pickup time on the departure day ("HH:mm") and place, shown to the driver. */
   departureTime: string | null;
+  /** Optional name of the place ("ispred Kuće cveća"); the address below is what the map uses. */
   pickupLocation: string | null;
+  pickupStreet: string | null;
+  pickupStreetNumber: string | null;
+  pickupCity: string | null;
+  /** Client-side organizer the driver can call on the day. */
+  organizerName: string | null;
+  organizerPhone: string | null;
   /** Program putovanja the driver confirms. */
   itinerary: string | null;
   price: number | null;
@@ -418,6 +425,16 @@ export interface TerminateTripSeriesResult {
   series: TripSeriesDto;
   deletedCount: number;
 }
+
+/** "Bulevar oslobođenja 10, Novi Sad", or null unless street, number and city are all set. */
+export const tripPickupAddress = (trip: {
+  pickupStreet: string | null;
+  pickupStreetNumber: string | null;
+  pickupCity: string | null;
+}): string | null =>
+  trip.pickupStreet && trip.pickupStreetNumber && trip.pickupCity
+    ? `${trip.pickupStreet} ${trip.pickupStreetNumber}, ${trip.pickupCity}`
+    : null;
 
 /** "Polazište - Odredište" — the two-field split displayed as one route string. */
 export const tripRouteLabel = (trip: Pick<TripDto, 'origin' | 'destination'>): string =>

@@ -522,17 +522,97 @@ export function TripForm({ trip }: TripFormProps) {
                 </Field>
               )}
             />
+            <fieldset className="col-span-full space-y-3 rounded-lg border p-3">
+              <legend className="px-1 text-sm font-medium">Mesto postavke</legend>
+              <p className="text-muted-foreground text-xs">
+                Ulica, broj i grad su obavezni zajedno, da bi vozaču mapa pokazala tačno mesto.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-[1fr_110px_1fr]">
+                <Field
+                  id="pickupStreet"
+                  label="Ulica"
+                  error={errors.pickupStreet?.message as string | undefined}
+                >
+                  <Input
+                    id="pickupStreet"
+                    placeholder="npr. Bulevar oslobođenja"
+                    autoComplete="off"
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.pickupStreet)}
+                    {...form.register('pickupStreet')}
+                  />
+                </Field>
+                <Field
+                  id="pickupStreetNumber"
+                  label="Broj"
+                  error={errors.pickupStreetNumber?.message as string | undefined}
+                >
+                  <Input
+                    id="pickupStreetNumber"
+                    placeholder="npr. 10a"
+                    autoComplete="off"
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.pickupStreetNumber)}
+                    {...form.register('pickupStreetNumber')}
+                  />
+                </Field>
+                <Field
+                  id="pickupCity"
+                  label="Grad"
+                  error={errors.pickupCity?.message as string | undefined}
+                >
+                  <Input
+                    id="pickupCity"
+                    placeholder="npr. Novi Sad"
+                    autoComplete="off"
+                    disabled={isPending}
+                    aria-invalid={Boolean(errors.pickupCity)}
+                    {...form.register('pickupCity')}
+                  />
+                </Field>
+              </div>
+              <Field
+                id="pickupLocation"
+                label="Opis mesta (opciono)"
+                error={errors.pickupLocation?.message as string | undefined}
+              >
+                <Input
+                  id="pickupLocation"
+                  placeholder="npr. ispred glavnog ulaza škole"
+                  disabled={isPending}
+                  aria-invalid={Boolean(errors.pickupLocation)}
+                  {...form.register('pickupLocation')}
+                />
+              </Field>
+            </fieldset>
             <Field
-              id="pickupLocation"
-              label="Mesto postavke"
-              error={errors.pickupLocation?.message as string | undefined}
+              id="organizerName"
+              label="Organizator putovanja (opciono)"
+              error={errors.organizerName?.message as string | undefined}
             >
               <Input
-                id="pickupLocation"
-                placeholder="npr. ispred škole, Bulevar oslobođenja 10"
+                id="organizerName"
+                placeholder="npr. Saška Petrović"
+                autoComplete="off"
                 disabled={isPending}
-                aria-invalid={Boolean(errors.pickupLocation)}
-                {...form.register('pickupLocation')}
+                aria-invalid={Boolean(errors.organizerName)}
+                {...form.register('organizerName')}
+              />
+            </Field>
+            <Field
+              id="organizerPhone"
+              label="Telefon organizatora (opciono)"
+              error={errors.organizerPhone?.message as string | undefined}
+            >
+              <Input
+                id="organizerPhone"
+                type="tel"
+                inputMode="tel"
+                placeholder="npr. 063 115 5023"
+                autoComplete="off"
+                disabled={isPending}
+                aria-invalid={Boolean(errors.organizerPhone)}
+                {...form.register('organizerPhone')}
               />
             </Field>
             <Controller

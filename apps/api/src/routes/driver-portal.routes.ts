@@ -1,7 +1,17 @@
-import { driverPortalTripParamsSchema, driverReportWriteSchema } from '@rental-admin/shared';
+import {
+  driverFuelEntryCreateSchema,
+  driverPortalToolCreateSchema,
+  driverPortalToolParamsSchema,
+  driverPortalTripParamsSchema,
+  driverReportWriteSchema,
+  driverToolLostSchema,
+  driverToolRespondSchema,
+  vehicleFaultCreateSchema,
+} from '@rental-admin/shared';
 import { Router } from 'express';
 
 import * as driverPortalController from '../controllers/driver-portal.controller';
+import * as workplaceController from '../controllers/driver-workplace.controller';
 import { uploadRateLimiter } from '../middleware/rate-limit';
 import { validateRequest } from '../middleware/validate-request';
 import { fileIdParamsSchema, presignUploadBodySchema } from '../schemas/file.schema';
@@ -50,4 +60,47 @@ driverPortalRouter.post(
   uploadRateLimiter,
   validateRequest({ params: fileIdParamsSchema }),
   asyncHandler(driverPortalController.confirmReceipt),
+);
+
+driverPortalRouter.get('/vehicles', asyncHandler(workplaceController.listPortalVehicles));
+
+driverPortalRouter.get('/faults', asyncHandler(workplaceController.listPortalFaults));
+
+driverPortalRouter.post(
+  '/faults',
+  validateRequest({ body: vehicleFaultCreateSchema }),
+  asyncHandler(workplaceController.reportPortalFault),
+);
+
+driverPortalRouter.get('/tools', asyncHandler(workplaceController.listPortalTools));
+
+driverPortalRouter.post(
+  '/tools',
+  validateRequest({ body: driverPortalToolCreateSchema }),
+  asyncHandler(workplaceController.addPortalTool),
+);
+
+driverPortalRouter.post(
+  '/tools/confirm-all',
+  asyncHandler(workplaceController.confirmAllPortalTools),
+);
+
+driverPortalRouter.post(
+  '/tools/:toolId/respond',
+  validateRequest({ params: driverPortalToolParamsSchema, body: driverToolRespondSchema }),
+  asyncHandler(workplaceController.respondToPortalTool),
+);
+
+driverPortalRouter.post(
+  '/tools/:toolId/lost',
+  validateRequest({ params: driverPortalToolParamsSchema, body: driverToolLostSchema }),
+  asyncHandler(workplaceController.reportPortalToolLost),
+);
+
+driverPortalRouter.get('/fuel-entries', asyncHandler(workplaceController.listPortalFuelEntries));
+
+driverPortalRouter.post(
+  '/fuel-entries',
+  validateRequest({ body: driverFuelEntryCreateSchema }),
+  asyncHandler(workplaceController.submitPortalFuelEntry),
 );

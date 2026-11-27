@@ -13,6 +13,7 @@ import { companyExpenseRouter } from './company-expense.routes';
 import { contractRouter } from './contract.routes';
 import { dashboardRouter } from './dashboard.routes';
 import { driverPortalRouter } from './driver-portal.routes';
+import { driverWorkplaceRouter } from './driver-workplace.routes';
 import { driverReportRouter } from './driver-report.routes';
 import { driverRouter } from './driver.routes';
 import { fileRouter } from './file.routes';
@@ -42,6 +43,7 @@ apiRouter.use('/contracts', requireAuth, contractRouter);
 apiRouter.use('/dashboard', requireAuth, dashboardRouter);
 apiRouter.use('/drivers', requireAuth, driverRouter);
 apiRouter.use('/driver-reports', requireAuth, driverReportRouter);
+apiRouter.use('/driver-workplace', requireAuth, driverWorkplaceRouter);
 // Public: drivers open it from a personal link instead of signing in.
 apiRouter.use(
   '/driver-portal',

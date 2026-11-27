@@ -4,6 +4,7 @@ import {
   contractRouteLabel,
   PAYMENT_METHOD_LABELS,
   tripClientDisplayName,
+  tripPickupAddress,
   tripRouteLabel,
   tripVehicleDisplay,
   type TripDto,
@@ -65,7 +66,16 @@ function TripOverview({ trip, onInvoice }: { trip: TripDto; onInvoice: () => voi
             <DetailItem label="Datum polaska" value={formatDate(trip.departureDate)} />
             <DetailItem label="Zaključni dan / povratak" value={formatDate(trip.returnDate)} />
             <DetailItem label="Vreme postavke" value={trip.departureTime ?? '—'} />
-            <DetailItem label="Mesto postavke" value={trip.pickupLocation ?? '—'} />
+            <DetailItem
+              label="Mesto postavke"
+              value={
+                [tripPickupAddress(trip), trip.pickupLocation].filter(Boolean).join(' · ') || '—'
+              }
+            />
+            <DetailItem
+              label="Organizator"
+              value={[trip.organizerName, trip.organizerPhone].filter(Boolean).join(' · ') || '—'}
+            />
             <DetailItem
               label="Broj putnika"
               value={trip.passengerCount != null ? String(trip.passengerCount) : '—'}

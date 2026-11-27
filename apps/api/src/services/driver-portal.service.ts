@@ -104,6 +104,11 @@ const tripSelect = (driverId: string) =>
     clientName: true,
     departureTime: true,
     pickupLocation: true,
+    pickupStreet: true,
+    pickupStreetNumber: true,
+    pickupCity: true,
+    organizerName: true,
+    organizerPhone: true,
     itinerary: true,
     travelTimelineSource: true,
     partner: { select: { type: true, companyName: true, firstName: true, lastName: true } },
@@ -165,6 +170,11 @@ interface PortalTripRecord {
   clientName: string | null;
   departureTime: string | null;
   pickupLocation: string | null;
+  pickupStreet: string | null;
+  pickupStreetNumber: string | null;
+  pickupCity: string | null;
+  organizerName: string | null;
+  organizerPhone: string | null;
   itinerary: string | null;
   travelTimelineSource: 'ADMIN' | 'DRIVER' | null;
   partner: {
@@ -233,6 +243,7 @@ export const toPortalTripDto = (
   record: PortalTripRecord,
   today: string,
   lastKnownKm: ReadonlyMap<string, number | null> = new Map(),
+  minKm: ReadonlyMap<string, number | null> = new Map(),
 ): DriverPortalTripDto => {
   const report = record.driverReports[0];
   const assignment = record.drivers[0];
@@ -250,6 +261,11 @@ export const toPortalTripDto = (
     clientName: clientName || null,
     departureTime: record.departureTime,
     pickupLocation: record.pickupLocation,
+    pickupStreet: record.pickupStreet,
+    pickupStreetNumber: record.pickupStreetNumber,
+    pickupCity: record.pickupCity,
+    organizerName: record.organizerName,
+    organizerPhone: record.organizerPhone,
     itinerary: record.itinerary,
     assignment: {
       confirmedAt: assignment?.confirmedAt?.toISOString() ?? null,
@@ -267,6 +283,7 @@ export const toPortalTripDto = (
       garageEndKm: assignment.garageEndKm,
       distanceKm: tripVehicleDistanceKm(assignment.startKm, assignment.endKm),
       lastKnownKm: lastKnownKm.get(assignment.vehicle.id) ?? null,
+      minKm: minKm.get(assignment.vehicle.id) ?? null,
     })),
     report: report ? toReportDto(report) : null,
     canSubmit: toIsoDate(record.departureDate) <= today,
@@ -382,20 +399,27 @@ const maxOf = (values: ReadonlyArray<number | null | undefined>): number | null 
  */
 export const lastKnownOdometerKm = async (
   vehicleId: string,
-  tripId: string,
+  tripId: string | null,
   upTo: Date,
+  /** Count readings from the day itself; false gives the floor a new reading may not go under. */
+  inclusive = true,
 ): Promise<number | null> => {
+  const dates = inclusive ? { lte: upTo } : { lt: upTo };
   const [trips, fuel, maintenance, vehicle] = await Promise.all([
     prisma.tripVehicle.aggregate({
-      where: { vehicleId, tripId: { not: tripId }, trip: { departureDate: { lte: upTo } } },
-      _max: { startKm: true, endKm: true },
+      where: {
+        vehicleId,
+        ...(tripId ? { tripId: { not: tripId } } : {}),
+        trip: { departureDate: dates },
+      },
+      _max: { startKm: true, endKm: true, garageStartKm: true, garageEndKm: true },
     }),
     prisma.fuelLog.aggregate({
-      where: { vehicleId, fueledAt: { lte: upTo } },
+      where: { vehicleId, fueledAt: dates },
       _max: { odometerKm: true },
     }),
     prisma.vehicleMaintenance.aggregate({
-      where: { vehicleId, date: { lte: upTo } },
+      where: { vehicleId, date: dates },
       _max: { odometerKm: true },
     }),
     prisma.vehicle.findUnique({ where: { id: vehicleId }, select: { initialMileageKm: true } }),
@@ -404,19 +428,29 @@ export const lastKnownOdometerKm = async (
   return maxOf([
     trips._max.startKm,
     trips._max.endKm,
+    trips._max.garageStartKm,
+    trips._max.garageEndKm,
     fuel._max.odometerKm,
     maintenance._max.odometerKm,
     vehicle?.initialMileageKm,
   ]);
 };
 
-const loadLastKnownKm = async (record: PortalTripRecord): Promise<Map<string, number | null>> => {
+const loadLastKnownKm = async (
+  record: PortalTripRecord,
+  inclusive = true,
+): Promise<Map<string, number | null>> => {
   const entries = await Promise.all(
     record.vehicles.map(
       async (assignment) =>
         [
           assignment.vehicle.id,
-          await lastKnownOdometerKm(assignment.vehicle.id, record.id, record.departureDate),
+          await lastKnownOdometerKm(
+            assignment.vehicle.id,
+            record.id,
+            record.departureDate,
+            inclusive,
+          ),
         ] as const,
     ),
   );
@@ -432,8 +466,41 @@ export const getDriverPortalTrip = async (
   const today = portalTodayIso(now);
   const record = await loadPortalTrip(driverId, tripId, today);
 
-  return toPortalTripDto(record, today, await loadLastKnownKm(record));
+  const [lastKnownKm, minKm] = await Promise.all([
+    loadLastKnownKm(record),
+    loadLastKnownKm(record, false),
+  ]);
+
+  return toPortalTripDto(record, today, lastKnownKm, minKm);
 };
+
+/**
+ * Readings below what the vehicle already showed before the trip's day. The odometer only goes
+ * up, so these are typos and are refused. (Same-day readings only warn: another trip that day
+ * may come later.)
+ */
+export const odometerFloorIssues = (
+  readings: ReadonlyArray<TripVehicleKmRequest>,
+  plates: ReadonlyMap<string, string>,
+  minKm: ReadonlyMap<string, number | null>,
+): string[] =>
+  readings.flatMap((reading) => {
+    const floor = minKm.get(reading.vehicleId) ?? null;
+    const values = [
+      reading.garageStartKm,
+      reading.startKm,
+      reading.endKm,
+      reading.garageEndKm,
+    ].filter((value): value is number => value !== null);
+
+    if (floor === null || values.length === 0 || Math.min(...values) >= floor) {
+      return [];
+    }
+
+    return [
+      `${plates.get(reading.vehicleId) ?? 'Vozilo'}: kilometraža ne može biti manja od trenutne (${kmFormatter.format(floor)} km).`,
+    ];
+  });
 
 /** Readings that are saved but look like a typo, for the driver to double-check. */
 export const odometerWarnings = (
@@ -546,7 +613,7 @@ const sameExpense = (current: PortalExpenseRecord, next: DriverReportExpenseRequ
   );
 };
 
-const assertReceipt = async (fileId: string): Promise<void> => {
+export const assertReceipt = async (fileId: string): Promise<void> => {
   const file = await prisma.fileObject.findUnique({
     where: { id: fileId },
     select: { status: true, mimeType: true },
@@ -628,7 +695,16 @@ export const submitDriverReport = async (
     }
   }
 
-  const lastKnownKm = await loadLastKnownKm(trip);
+  const [lastKnownKm, minKm] = await Promise.all([
+    loadLastKnownKm(trip),
+    loadLastKnownKm(trip, false),
+  ]);
+  const [floorIssue] = odometerFloorIssues(readings, plates, minKm);
+
+  if (floorIssue) {
+    throw badRequest(floorIssue);
+  }
+
   const warnings = odometerWarnings(readings, plates, lastKnownKm);
   const existing = trip.driverReports[0] ?? null;
   // An empty time keeps what the driver sent before, like the odometer readings.

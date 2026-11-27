@@ -77,6 +77,8 @@ export interface TripSettlementDto {
   fuelLiters: number | null;
   /** The trip's vehicles with their own odometer readings. */
   vehicles: TripVehicleDto[];
+  /** Lowest odometer each vehicle may show on this trip (known before its day), by vehicle id. */
+  vehicleMinKm: Record<string, number | null>;
   carrierId: string | null;
   carrier: TripPartnerDto | null;
   revenue: number;
@@ -152,8 +154,7 @@ export const computeTripSettlement = (input: TripSettlementComputeInput): TripSe
   const perDiemPaidTotal = roundMoney(
     input.drivers.reduce(
       (sum, driver) =>
-        sum +
-        (driver.perDiemStatus === 'PAID' ? (driver.perDiemPaidAmount ?? 0) : 0),
+        sum + (driver.perDiemStatus === 'PAID' ? (driver.perDiemPaidAmount ?? 0) : 0),
       0,
     ),
   );

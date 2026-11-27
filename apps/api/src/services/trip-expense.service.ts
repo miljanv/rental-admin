@@ -3,6 +3,7 @@ import {
   tripClientDisplayName,
   tripRouteLabel,
   type DeleteTripExpenseResult,
+  type TripDto,
   type TripExpenseDto,
   type TripExpensePaymentMethod,
   type TripExpenseWriteRequest,
@@ -24,6 +25,7 @@ import {
   syncTripRevenue,
   tripInclude,
 } from './trip.service';
+import { lastKnownOdometerKm, odometerFloorIssues } from './driver-portal.service';
 import { applyTripVehicleKm } from './trip-vehicle-km.service';
 
 const expenseInclude = { file: true, paymentCard: { select: { id: true, name: true } } } as const;
@@ -227,6 +229,27 @@ export const deleteTripExpense = async (
   return { id: expenseId, deleted: true };
 };
 
+/** For each vehicle on the trip, the odometer it already showed before the trip's day. */
+const loadVehicleMinKm = async (
+  trip: Pick<TripDto, 'id' | 'departureDate' | 'vehicles'>,
+): Promise<Record<string, number | null>> =>
+  Object.fromEntries(
+    await Promise.all(
+      trip.vehicles.map(
+        async (vehicle) =>
+          [
+            vehicle.id,
+            await lastKnownOdometerKm(
+              vehicle.id,
+              trip.id,
+              new Date(`${trip.departureDate}T00:00:00.000Z`),
+              false,
+            ),
+          ] as const,
+      ),
+    ),
+  );
+
 export const getTripSettlement = async (tripId: string): Promise<TripSettlementDto> => {
   const trip = toTripDto(await loadTrip(tripId));
   const expenses = await listTripExpenses(tripId);
@@ -244,6 +267,7 @@ export const getTripSettlement = async (tripId: string): Promise<TripSettlementD
     endKm: trip.endKm,
     fuelLiters: trip.fuelLiters,
     vehicles: trip.vehicles,
+    vehicleMinKm: await loadVehicleMinKm(trip),
     carrierId: trip.carrierId,
     carrier: trip.carrier,
     revenue: totals.revenue,
@@ -314,6 +338,17 @@ export const updateTripSettlement = async (
   // A trip with vehicles keeps odometer readings per vehicle; the trip-level
   // fields are only written directly for a trip that has no vehicle yet.
   const vehicleKm = input.vehicleKm && input.vehicleKm.length > 0 ? input.vehicleKm : null;
+
+  if (vehicleKm) {
+    // Same rule as the driver portal: the odometer never goes under what the vehicle showed before.
+    const plates = new Map(current.vehicles.map((vehicle) => [vehicle.id, vehicle.licensePlate]));
+    const minKm = new Map(Object.entries(await loadVehicleMinKm(current)));
+    const [floorIssue] = odometerFloorIssues(vehicleKm, plates, minKm);
+
+    if (floorIssue) {
+      throw badRequest(floorIssue);
+    }
+  }
   const distanceKm =
     !vehicleKm && input.startKm !== null && input.endKm !== null
       ? Math.round((input.endKm - input.startKm) * 10) / 10

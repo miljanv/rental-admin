@@ -92,6 +92,8 @@ export interface DriverPortalVehicleDto {
   distanceKm: number | null;
   /** Highest odometer reading known before this trip; only filled on the trip detail. */
   lastKnownKm: number | null;
+  /** Lowest reading the odometer may show on this trip (known before its day); trip detail only. */
+  minKm: number | null;
 }
 
 /** Fill-up details a driver may add to a fuel expense. */
@@ -150,6 +152,11 @@ export interface DriverPortalTripDto {
   clientName: string | null;
   departureTime: string | null;
   pickupLocation: string | null;
+  pickupStreet: string | null;
+  pickupStreetNumber: string | null;
+  pickupCity: string | null;
+  organizerName: string | null;
+  organizerPhone: string | null;
   itinerary: string | null;
   assignment: DriverPortalAssignmentDto;
   vehicles: DriverPortalVehicleDto[];

@@ -31,6 +31,7 @@ import {
   acceptDriverAdvance,
   confirmDriverTrip,
   mergeDriverReadings,
+  odometerFloorIssues,
   odometerWarnings,
   portalTodayIso,
   portalTripGroup,
@@ -244,6 +245,30 @@ describe('odometerWarnings', () => {
         lastKnown,
       ),
     ).toEqual([]);
+  });
+});
+
+describe('odometerFloorIssues', () => {
+  const plates = new Map([['veh_1', 'BG-123-AA']]);
+  const reading = (garageStartKm: number | null, startKm: number | null) => ({
+    vehicleId: 'veh_1',
+    garageStartKm,
+    startKm,
+    endKm: null,
+    garageEndKm: null,
+  });
+
+  it('refuses any reading below what the vehicle showed before the trip day', () => {
+    expect(odometerFloorIssues([reading(950, 1000)], plates, new Map([['veh_1', 990]]))).toEqual([
+      expect.stringContaining('BG-123-AA: kilometraža ne može biti manja od trenutne'),
+    ]);
+  });
+
+  it('accepts readings at or above it, and anything when nothing is known', () => {
+    expect(odometerFloorIssues([reading(990, 1000)], plates, new Map([['veh_1', 990]]))).toEqual(
+      [],
+    );
+    expect(odometerFloorIssues([reading(5, 10)], plates, new Map([['veh_1', null]]))).toEqual([]);
   });
 });
 

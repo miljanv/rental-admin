@@ -289,7 +289,10 @@ export interface DateFieldProps {
   disabled?: boolean;
   'aria-invalid'?: boolean;
   placeholder?: string;
+  /** Classes for the wrapper (width, margins). */
   className?: string;
+  /** Classes for the text input itself (height, border, font), so the calendar icon stays inside. */
+  inputClassName?: string;
   /** Earliest ISO date the calendar offers (e.g. the departure date for a return date). */
   min?: string;
   /** Latest ISO date the calendar offers (e.g. the end of a series for its pauses). */
@@ -308,6 +311,7 @@ export function DateField({
   disabled,
   placeholder = 'dd.mm.gggg.',
   className,
+  inputClassName,
   min,
   max,
   ...rest
@@ -374,7 +378,7 @@ export function DateField({
             onFocus={() => setIsOpen(true)}
             disabled={disabled}
             placeholder={placeholder}
-            className="pr-8"
+            className={cn(inputClassName, 'pr-9')}
             {...rest}
           />
           <button
@@ -383,7 +387,7 @@ export function DateField({
             disabled={disabled}
             onClick={() => setIsOpen((current) => !current)}
             aria-label="Otvori kalendar"
-            className="text-muted-foreground hover:text-foreground absolute right-2 disabled:pointer-events-none disabled:opacity-50"
+            className="text-muted-foreground hover:text-foreground absolute right-3 disabled:pointer-events-none disabled:opacity-50"
           >
             <CalendarIcon className="size-4" aria-hidden />
           </button>

@@ -42,6 +42,9 @@ export const OWNED_MODELS = [
   'DriverAccessToken',
   'DriverTripReport',
   'PaymentCard',
+  'VehicleFault',
+  'DriverTool',
+  'DriverFuelEntry',
 ] as const;
 
 /** Relation names from a child model up to the owned model that decides its tenant. */

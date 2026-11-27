@@ -12,11 +12,14 @@ import { useWatch, type UseFormReturn } from 'react-hook-form';
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { kmReadingIssues } from '@/features/driver-portal/lib/portal';
 
 interface TripVehicleKmFieldsProps {
   form: UseFormReturn<TripSettlementWriteInput, unknown, TripSettlementWriteRequest>;
   vehicles: TripVehicleDto[];
   idPrefix: string;
+  /** Lowest odometer each vehicle may show (known before the trip day), by vehicle id. */
+  minKm?: Record<string, number | null>;
   disabled?: boolean;
 }
 
@@ -52,6 +55,7 @@ export function TripVehicleKmFields({
   form,
   vehicles,
   idPrefix,
+  minKm = {},
   disabled,
 }: TripVehicleKmFieldsProps) {
   const watched = useWatch({ control: form.control, name: 'vehicleKm' }) ?? [];
@@ -73,6 +77,9 @@ export function TripVehicleKmFields({
           ? tripVehicleDistanceKm(reading.garageStartKm, reading.garageEndKm)
           : null;
         const rowErrors = errors?.[index];
+        // Shown while typing: each reading continues the one before and stays above the vehicle's
+        // odometer before this trip; the form's own errors (e.g. not a number) come after.
+        const liveIssues = kmReadingIssues(watched[index], minKm[vehicle.id] ?? null);
 
         return (
           <div key={vehicle.id} className="space-y-1.5">
@@ -86,30 +93,38 @@ export function TripVehicleKmFields({
                   · {TRIP_KM_SOURCE_LABELS[vehicle.kmSource]}
                 </span>
               ) : null}
+              {minKm[vehicle.id] != null ? (
+                <span className="text-muted-foreground text-xs">
+                  · trenutno stanje {kmFormatter.format(minKm[vehicle.id] ?? 0)} km
+                </span>
+              ) : null}
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {KM_FIELDS.map(({ field, label }) => (
-                <div key={field} className="space-y-1">
-                  <Label
-                    htmlFor={`${idPrefix}-${index}-${field}`}
-                    className="text-muted-foreground text-xs"
-                  >
-                    {label}
-                  </Label>
-                  <Input
-                    id={`${idPrefix}-${index}-${field}`}
-                    type="number"
-                    inputMode="decimal"
-                    step="0.1"
-                    disabled={disabled}
-                    aria-invalid={Boolean(rowErrors?.[field])}
-                    {...form.register(`vehicleKm.${index}.${field}`, { valueAsNumber: true })}
-                  />
-                  {rowErrors?.[field]?.message ? (
-                    <p className="text-destructive text-xs">{rowErrors[field]?.message}</p>
-                  ) : null}
-                </div>
-              ))}
+              {KM_FIELDS.map(({ field, label }) => {
+                const error = liveIssues[field] ?? rowErrors?.[field]?.message;
+
+                return (
+                  <div key={field} className="space-y-1">
+                    <Label
+                      htmlFor={`${idPrefix}-${index}-${field}`}
+                      className="text-muted-foreground text-xs"
+                    >
+                      {label}
+                    </Label>
+                    <Input
+                      id={`${idPrefix}-${index}-${field}`}
+                      type="number"
+                      inputMode="decimal"
+                      step="0.1"
+                      disabled={disabled}
+                      min={minKm[vehicle.id] ?? undefined}
+                      aria-invalid={Boolean(error)}
+                      {...form.register(`vehicleKm.${index}.${field}`, { valueAsNumber: true })}
+                    />
+                    {error ? <p className="text-destructive text-xs">{error}</p> : null}
+                  </div>
+                );
+              })}
             </div>
             <p className="text-muted-foreground text-sm">
               Sa putnicima: {distance !== null ? `${kmFormatter.format(distance)} km` : '—'}

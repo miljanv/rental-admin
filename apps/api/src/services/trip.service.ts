@@ -291,6 +291,11 @@ const toWriteData = (input: TripWriteRequest) => ({
   notes: input.notes,
   departureTime: input.departureTime,
   pickupLocation: input.pickupLocation,
+  pickupStreet: input.pickupStreet,
+  pickupStreetNumber: input.pickupStreetNumber,
+  pickupCity: input.pickupCity,
+  organizerName: input.organizerName,
+  organizerPhone: input.organizerPhone,
   itinerary: input.itinerary,
   price: input.price,
   paymentMethod: input.paymentMethod,
@@ -309,6 +314,9 @@ export const assignmentDetailsChanged = (current: TripDto, input: TripWriteReque
     current.returnDate !== input.returnDate ||
     current.departureTime !== input.departureTime ||
     current.pickupLocation !== input.pickupLocation ||
+    current.pickupStreet !== input.pickupStreet ||
+    current.pickupStreetNumber !== input.pickupStreetNumber ||
+    current.pickupCity !== input.pickupCity ||
     current.origin !== input.origin ||
     current.destination !== input.destination ||
     current.itinerary !== input.itinerary ||

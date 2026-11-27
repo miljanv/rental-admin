@@ -82,6 +82,11 @@ export interface TripRecord {
   notes: string | null;
   departureTime?: string | null;
   pickupLocation?: string | null;
+  pickupStreet?: string | null;
+  pickupStreetNumber?: string | null;
+  pickupCity?: string | null;
+  organizerName?: string | null;
+  organizerPhone?: string | null;
   itinerary?: string | null;
   price: number | null;
   priceIncludesVat: boolean | null;
@@ -181,6 +186,11 @@ export const toTripDto = (record: TripRecord): TripDto => ({
   notes: record.notes,
   departureTime: record.departureTime ?? null,
   pickupLocation: record.pickupLocation ?? null,
+  pickupStreet: record.pickupStreet ?? null,
+  pickupStreetNumber: record.pickupStreetNumber ?? null,
+  pickupCity: record.pickupCity ?? null,
+  organizerName: record.organizerName ?? null,
+  organizerPhone: record.organizerPhone ?? null,
   itinerary: record.itinerary ?? null,
   price: record.price,
   priceIncludesVat: record.priceIncludesVat,

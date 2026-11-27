@@ -108,6 +108,53 @@ export const refineClientRequired = (
   ctx.addIssue({ code: 'custom', path: ['clientName'], message: CLIENT_REQUIRED_MESSAGE });
 };
 
+const PICKUP_ADDRESS_FIELDS = [
+  ['pickupStreet', 'Unesite ulicu.'],
+  ['pickupStreetNumber', 'Unesite broj.'],
+  ['pickupCity', 'Unesite grad.'],
+] as const;
+
+/**
+ * The pickup address is street, number and city together, or nothing; the driver's map link is
+ * built from it. A place name alone ("ispred škole") is not enough to find the spot.
+ */
+export const refinePickupAddress = (
+  value: {
+    pickupLocation: string | null;
+    pickupStreet: string | null;
+    pickupStreetNumber: string | null;
+    pickupCity: string | null;
+  },
+  ctx: z.RefinementCtx,
+): void => {
+  const started =
+    Boolean(value.pickupLocation) || PICKUP_ADDRESS_FIELDS.some(([field]) => Boolean(value[field]));
+
+  if (!started) {
+    return;
+  }
+
+  for (const [field, message] of PICKUP_ADDRESS_FIELDS) {
+    if (!value[field]) {
+      ctx.addIssue({ code: 'custom', path: [field], message });
+    }
+  }
+};
+
+/** A phone number as people write it: digits with spaces, +, /, -, or parentheses. */
+const optionalPhone = z
+  .union([
+    z
+      .string()
+      .trim()
+      .max(40, 'Telefon sme imati najviše 40 karaktera.')
+      .regex(/^\+?[\d\s/()-]{6,}$/, 'Unesite ispravan broj telefona, npr. 063 115 5023.'),
+    z.literal(''),
+    z.null(),
+  ])
+  .optional()
+  .transform((value) => (value ? value : null));
+
 /** "HH:mm" on a 24-hour clock, or null when not given. */
 export const optionalTimeOfDay = z
   .union([
@@ -136,6 +183,11 @@ export const tripWriteSchema = z
     notes: optionalText(2000),
     departureTime: optionalTimeOfDay,
     pickupLocation: optionalText(200),
+    pickupStreet: optionalText(150),
+    pickupStreetNumber: optionalText(20),
+    pickupCity: optionalText(100),
+    organizerName: optionalText(120),
+    organizerPhone: optionalPhone,
     itinerary: optionalText(5000),
     price: optionalNonNegative('Cena', 100_000_000_000_000),
     paymentMethod: optionalPaymentMethodSchema,
@@ -171,6 +223,7 @@ export const tripWriteSchema = z
   })
   .superRefine((value, ctx) => {
     refineClientRequired(value, ctx);
+    refinePickupAddress(value, ctx);
 
     if (value.returnDate && value.returnDate < value.departureDate) {
       ctx.addIssue({

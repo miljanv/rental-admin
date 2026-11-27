@@ -1,3 +1,8 @@
+import {
+  driverToolOfficeActionSchema,
+  driverToolParamsSchema,
+  driverToolWriteSchema,
+} from '@rental-admin/shared';
 import { Router } from 'express';
 
 import * as absenceAttestationController from '../controllers/absence-attestation.controller';
@@ -5,6 +10,7 @@ import * as driverAccessController from '../controllers/driver-access.controller
 import * as driverDocumentController from '../controllers/driver-document.controller';
 import * as driverController from '../controllers/driver.controller';
 import * as driverWorkController from '../controllers/driver-work.controller';
+import * as workplaceController from '../controllers/driver-workplace.controller';
 import * as driverPerDiemController from '../controllers/driver-per-diem.controller';
 import * as generatedDocumentController from '../controllers/generated-document.controller';
 import { uploadRateLimiter } from '../middleware/rate-limit';
@@ -78,6 +84,36 @@ driverRouter.get(
   '/expiring-documents',
   validateRequest({ query: expiringDocumentsQuerySchema }),
   asyncHandler(driverDocumentController.listExpiringDocuments),
+);
+
+driverRouter.get(
+  '/:id/tools',
+  validateRequest({ params: driverIdParamsSchema }),
+  asyncHandler(workplaceController.listDriverTools),
+);
+
+driverRouter.post(
+  '/:id/tools',
+  validateRequest({ params: driverIdParamsSchema, body: driverToolWriteSchema }),
+  asyncHandler(workplaceController.createDriverTool),
+);
+
+driverRouter.put(
+  '/:id/tools/:toolId',
+  validateRequest({ params: driverToolParamsSchema, body: driverToolWriteSchema }),
+  asyncHandler(workplaceController.updateDriverTool),
+);
+
+driverRouter.post(
+  '/:id/tools/:toolId/action',
+  validateRequest({ params: driverToolParamsSchema, body: driverToolOfficeActionSchema }),
+  asyncHandler(workplaceController.applyDriverToolAction),
+);
+
+driverRouter.delete(
+  '/:id/tools/:toolId',
+  validateRequest({ params: driverToolParamsSchema }),
+  asyncHandler(workplaceController.deleteDriverTool),
 );
 
 driverRouter.get(

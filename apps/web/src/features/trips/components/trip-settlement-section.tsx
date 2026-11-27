@@ -109,7 +109,10 @@ function SettlementSummary({
           {byCategory.length > 0 ? (
             <div className="space-y-1 pl-3">
               {byCategory.map((row) => (
-                <div key={row.category} className="text-muted-foreground flex justify-between gap-4 text-xs">
+                <div
+                  key={row.category}
+                  className="text-muted-foreground flex justify-between gap-4 text-xs"
+                >
                   <dt>{TRIP_EXPENSE_CATEGORY_LABELS[row.category]}</dt>
                   <dd>{formatMoney(row.total)}</dd>
                 </div>
@@ -136,7 +139,11 @@ function SettlementSummary({
           </div>
           <div className="flex justify-between gap-4 border-t pt-2 text-base font-medium">
             <dt>Neto</dt>
-            <dd className={cn(netResult < 0 ? 'text-destructive' : 'text-emerald-700 dark:text-emerald-400')}>
+            <dd
+              className={cn(
+                netResult < 0 ? 'text-destructive' : 'text-emerald-700 dark:text-emerald-400',
+              )}
+            >
               {formatMoney(netResult)}
             </dd>
           </div>
@@ -170,13 +177,13 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
           drivers: settlement.drivers.map((driver) => ({
             driverId: driver.id,
             perDiemAmount: driver.perDiemAmount,
-              perDiemCurrency: driver.perDiemCurrency,
-              perDiemStatus: driver.perDiemStatus,
-              perDiemPaidAmount: driver.perDiemPaidAmount,
-              perDiemPaidAt: driver.perDiemPaidAt,
+            perDiemCurrency: driver.perDiemCurrency,
+            perDiemStatus: driver.perDiemStatus,
+            perDiemPaidAmount: driver.perDiemPaidAmount,
+            perDiemPaidAt: driver.perDiemPaidAt,
             advanceAmount: driver.advanceAmount,
-              advanceStatus: driver.advanceStatus,
-              advancePaidAt: driver.advancePaidAt,
+            advanceStatus: driver.advanceStatus,
+            advancePaidAt: driver.advancePaidAt,
           })),
         }
       : {
@@ -204,7 +211,8 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
           perDiemCurrency: driver.perDiemCurrency ?? 'RSD',
           perDiemStatus: driver.perDiemStatus ?? 'DRAFT',
           perDiemPaidAmount:
-            typeof driver.perDiemPaidAmount === 'number' && Number.isFinite(driver.perDiemPaidAmount)
+            typeof driver.perDiemPaidAmount === 'number' &&
+            Number.isFinite(driver.perDiemPaidAmount)
               ? driver.perDiemPaidAmount
               : null,
           advanceAmount:
@@ -259,6 +267,7 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
                 <TripVehicleKmFields
                   form={form}
                   vehicles={settlement.vehicles}
+                  minKm={settlement.vehicleMinKm}
                   idPrefix="vehicleKm"
                   disabled={saveMutation.isPending}
                 />
@@ -366,14 +375,19 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
               ) : (
                 <div className="grid gap-3">
                   {settlement.drivers.map((driver, index) => (
-                    <div key={driver.id} className="grid gap-3 rounded-lg border p-3 sm:grid-cols-3">
+                    <div
+                      key={driver.id}
+                      className="grid gap-3 rounded-lg border p-3 sm:grid-cols-3"
+                    >
                       <p className="self-center text-sm font-medium">
                         {driver.firstName} {driver.lastName}
                       </p>
                       <Field
                         id={`drivers.${index}.perDiemAmount`}
                         label="Dnevnica (RSD)"
-                        error={errors.drivers?.[index]?.perDiemAmount?.message as string | undefined}
+                        error={
+                          errors.drivers?.[index]?.perDiemAmount?.message as string | undefined
+                        }
                       >
                         <Input
                           id={`drivers.${index}.perDiemAmount`}
@@ -381,7 +395,9 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
                           inputMode="decimal"
                           step="0.01"
                           disabled={saveMutation.isPending}
-                          {...form.register(`drivers.${index}.perDiemAmount`, { valueAsNumber: true })}
+                          {...form.register(`drivers.${index}.perDiemAmount`, {
+                            valueAsNumber: true,
+                          })}
                         />
                       </Field>
                       <Controller
@@ -394,7 +410,10 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
                               onValueChange={field.onChange}
                               disabled={saveMutation.isPending}
                             >
-                              <SelectTrigger id={`drivers.${index}.perDiemCurrency`} className="w-full">
+                              <SelectTrigger
+                                id={`drivers.${index}.perDiemCurrency`}
+                                className="w-full"
+                              >
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -419,9 +438,17 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
                                 field.onChange(value);
                                 if (value === 'PAID') {
                                   const amount = form.getValues(`drivers.${index}.perDiemAmount`);
-                                  const currency = form.getValues(`drivers.${index}.perDiemCurrency`);
-                                  if (currency === 'RSD' && form.getValues(`drivers.${index}.perDiemPaidAmount`) == null) {
-                                    form.setValue(`drivers.${index}.perDiemPaidAmount`, amount ?? null);
+                                  const currency = form.getValues(
+                                    `drivers.${index}.perDiemCurrency`,
+                                  );
+                                  if (
+                                    currency === 'RSD' &&
+                                    form.getValues(`drivers.${index}.perDiemPaidAmount`) == null
+                                  ) {
+                                    form.setValue(
+                                      `drivers.${index}.perDiemPaidAmount`,
+                                      amount ?? null,
+                                    );
                                   }
                                 } else {
                                   form.setValue(`drivers.${index}.perDiemPaidAmount`, null);
@@ -430,7 +457,10 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
                               }}
                               disabled={saveMutation.isPending}
                             >
-                              <SelectTrigger id={`drivers.${index}.perDiemStatus`} className="w-full">
+                              <SelectTrigger
+                                id={`drivers.${index}.perDiemStatus`}
+                                className="w-full"
+                              >
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -449,7 +479,10 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
                           <Field
                             id={`drivers.${index}.perDiemPaidAmount`}
                             label="Stvarno isplaćeno (RSD)"
-                            error={errors.drivers?.[index]?.perDiemPaidAmount?.message as string | undefined}
+                            error={
+                              errors.drivers?.[index]?.perDiemPaidAmount?.message as
+                                string | undefined
+                            }
                           >
                             <Input
                               id={`drivers.${index}.perDiemPaidAmount`}
@@ -457,7 +490,9 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
                               inputMode="decimal"
                               step="0.01"
                               disabled={saveMutation.isPending}
-                              {...form.register(`drivers.${index}.perDiemPaidAmount`, { valueAsNumber: true })}
+                              {...form.register(`drivers.${index}.perDiemPaidAmount`, {
+                                valueAsNumber: true,
+                              })}
                             />
                           </Field>
                           <Controller
@@ -479,7 +514,9 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
                       <Field
                         id={`drivers.${index}.advanceAmount`}
                         label="Akontacija za troškove (RSD)"
-                        error={errors.drivers?.[index]?.advanceAmount?.message as string | undefined}
+                        error={
+                          errors.drivers?.[index]?.advanceAmount?.message as string | undefined
+                        }
                       >
                         <Input
                           id={`drivers.${index}.advanceAmount`}
@@ -487,7 +524,9 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
                           inputMode="decimal"
                           step="0.01"
                           disabled={saveMutation.isPending}
-                          {...form.register(`drivers.${index}.advanceAmount`, { valueAsNumber: true })}
+                          {...form.register(`drivers.${index}.advanceAmount`, {
+                            valueAsNumber: true,
+                          })}
                         />
                       </Field>
                       <Controller
@@ -505,7 +544,10 @@ export function TripSettlementSection({ tripId }: TripSettlementSectionProps) {
                               }}
                               disabled={saveMutation.isPending}
                             >
-                              <SelectTrigger id={`drivers.${index}.advanceStatus`} className="w-full">
+                              <SelectTrigger
+                                id={`drivers.${index}.advanceStatus`}
+                                className="w-full"
+                              >
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>

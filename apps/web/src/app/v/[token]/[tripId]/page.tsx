@@ -1,3 +1,5 @@
+import { Suspense } from 'react';
+
 import { PortalTripScreen } from '@/features/driver-portal/components/portal-trip-screen';
 
 export default async function DriverPortalTripPage({
@@ -7,5 +9,9 @@ export default async function DriverPortalTripPage({
 }) {
   const { token, tripId } = await params;
 
-  return <PortalTripScreen token={token} tripId={tripId} />;
+  return (
+    <Suspense>
+      <PortalTripScreen token={token} tripId={tripId} />
+    </Suspense>
+  );
 }
